@@ -64,21 +64,21 @@ macro_rules! api {
     ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $key_len:path, $tag_len:path, $aad_limit: expr, $ptxt_limit: expr) => {
         mod $mod_name {
             use super::*;
-            use libcrux_secrets::U8;
+            use libcrux_secrets::{U8, DeclassifyRef, DeclassifyRefMut};
 
             use libcrux_traits::aead::arrayref::{DecryptError, EncryptError, KeyGenError};
 
             use $key_len as KEY_LEN;
             use $tag_len as TAG_LEN;
 
-            pub type Key = [u8; KEY_LEN];
-            pub type Tag = [u8; TAG_LEN];
-            pub type Nonce = [u8; NONCE_LEN];
+            pub type Key = [U8; KEY_LEN];
+            pub type Tag = [U8; TAG_LEN];
+            pub type Nonce = [U8; NONCE_LEN];
 
             /// Check that AAD and plaintext are within AEAD-mode
             /// specific limits, and that plaintext and ciphertext
             /// buffer lengths agree.
-            fn length_check(ciphertext: &[u8], plaintext: &[u8], aad: &[u8]) -> Result<(), LengthError> {
+            fn length_check(ciphertext: &[u8], plaintext: &[U8], aad: &[u8]) -> Result<(), LengthError> {
                 // plaintext length check
                 // AES-CTR has an internal bound of
                 //
@@ -114,7 +114,7 @@ macro_rules! api {
 
                 /// The plaintext length must be equal to the ciphertext length.
                 impl arrayref::Aead<KEY_LEN, TAG_LEN, NONCE_LEN> for $multiplexing {
-                    fn keygen(key: &mut [u8; KEY_LEN], rand: &[u8; KEY_LEN]) -> Result<(), KeyGenError> {
+                    fn keygen(key: &mut [U8; KEY_LEN], rand: &[U8; KEY_LEN]) -> Result<(), KeyGenError> {
                         *key = *rand;
                         Ok(())
                     }
@@ -125,14 +125,14 @@ macro_rules! api {
                         key: &Key,
                         nonce: &Nonce,
                         aad: &[u8],
-                        plaintext: &[u8],
+                        plaintext: &[U8],
                     ) -> Result<(), EncryptError> {
                         length_check(ciphertext, plaintext, aad)?;
                         $portable::encrypt(ciphertext, tag, key, nonce, aad, plaintext)
                     }
 
                     fn decrypt(
-                        plaintext: &mut [u8],
+                        plaintext: &mut [U8],
                         key: &Key,
                         nonce: &Nonce,
                         aad: &[u8],
@@ -156,7 +156,7 @@ macro_rules! api {
 
                 /// The plaintext length must be equal to the ciphertext length.
                 impl arrayref::Aead<KEY_LEN, TAG_LEN, NONCE_LEN> for $portable {
-                    fn keygen(key: &mut [u8; KEY_LEN], rand: &[u8; KEY_LEN]) -> Result<(), KeyGenError> {
+                    fn keygen(key: &mut [U8; KEY_LEN], rand: &[U8; KEY_LEN]) -> Result<(), KeyGenError> {
                         *key = *rand;
                         Ok(())
                     }
@@ -167,16 +167,20 @@ macro_rules! api {
                         key: &Key,
                         nonce: &Nonce,
                         aad: &[u8],
-                        plaintext: &[u8],
+                        plaintext: &[U8],
                     ) -> Result<(), EncryptError> {
                         length_check(ciphertext, plaintext, aad)?;
 
-                        ciphertext.copy_from_slice(plaintext);
-                        crate::portable::$variant::encrypt(key, nonce, aad.into_iter(), ciphertext, tag)
+                        // declassify: for now, we only implement the libcrux-traits APIs in a secrets
+                        // aware way, but don't use libcrux-secrets internally within this crate.
+                        // Therefore, we need perform declassify operations at the boundaries between
+                        // the libcrux-traits APIs and the internal ones.
+                        ciphertext.copy_from_slice(plaintext.declassify_ref());
+                        crate::portable::$variant::encrypt(key.declassify_ref(), nonce.declassify_ref(), aad.into_iter(), ciphertext, tag.declassify_ref_mut())
                     }
 
                     fn decrypt(
-                        plaintext: &mut [u8],
+                        plaintext: &mut [U8],
                         key: &Key,
                         nonce: &Nonce,
                         aad: &[u8],
@@ -184,9 +188,13 @@ macro_rules! api {
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
                         length_check(ciphertext, plaintext, aad)?;
-
+                        // declassify: for now, we only implement the libcrux-traits APIs in a secrets
+                        // aware way, but don't use libcrux-secrets internally within this crate.
+                        // Therefore, we need perform declassify operations at the boundaries between
+                        // the libcrux-traits APIs and the internal ones.
+                        let plaintext = plaintext.declassify_ref_mut();
                         plaintext.copy_from_slice(ciphertext);
-                        crate::portable::$variant::decrypt(key, nonce, aad.into_iter(), plaintext, tag)
+                        crate::portable::$variant::decrypt(key.declassify_ref(), nonce.declassify_ref(), aad.into_iter(), plaintext, tag.declassify_ref())
                     }
                 }
             }

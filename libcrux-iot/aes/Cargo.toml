@@ -18,6 +18,11 @@ libcrux-traits.workspace = true
 libcrux-secrets.workspace = true
 
 [features]
+# Currently, the libcrux-secrets types are only used in the high-level libcrux-traits
+# implementations for the aes gcm types. Internally, this crate does not use secrets types.
+# We currently declassify at the boundary between libcrux-traits implementations and the
+# internal APIs.
+check-secret-independence = ["libcrux-secrets/check-secret-independence"]
 default = []
 std = []
 
