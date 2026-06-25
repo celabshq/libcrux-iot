@@ -1,0 +1,100 @@
+name: AES - Build & Test
+
+permissions: {}
+
+on:
+  merge_group:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main", "*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'merge_group' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # These are all arm64, of course, but at least we can test on
+        # some ARM architectures with different stack size defaults
+        # etc
+        os:
+          - ubuntu-24.04-arm
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: libcrux-iot/aes
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Build ...
+      - name: 🔨 Build
+        run: |
+          rustc --print=cfg
+          cargo build --verbose
+
+      - name: 🔨 Build Release
+        run: cargo build --verbose --release
+
+      # Test ...
+      - name: 🏃🏻‍♀️ Test
+        run: |
+          cargo clean
+          cargo test --verbose
+
+      - name: 🏃🏻‍♀️ Test with -F check-secret-independence
+        run: |
+          cargo clean
+          cargo test --verbose -F check-secret-independence
+
+      - name: 🏃🏻‍♀️ Test Release
+        run: |
+          cargo clean
+          cargo test --verbose --release
+
+  asan:
+    if: ${{ github.event_name != 'merge_group' }}
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: libcrux-iot/aes
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: "aarch64-apple-darwin"
+
+      - name: 🏃🏻 Asan MacOS
+        run: RUSTDOCFLAGS=-Zsanitizer=address RUSTFLAGS=-Zsanitizer=address cargo +nightly test --release --target aarch64-apple-darwin
+
+  aes-build-test-status:
+    if: ${{ always() }}
+    needs: [build, asan]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1
