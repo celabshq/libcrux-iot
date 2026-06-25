@@ -1,3 +1,4 @@
+use libcrux_secrets::{ClassifyRef, ClassifyRefMut, DeclassifyRef};
 use wycheproof::{
     aead::{Test, TestName},
     TestResult,
@@ -8,25 +9,37 @@ fn run<Cipher: libcrux_iot_aes::Aead>(test: &Test, cipher: Cipher) {
     let mut plaintext = vec![0u8; test.pt.len()];
     let mut tag_bytes = vec![0u8; cipher.tag_len()];
 
-    let key = cipher.new_key(&test.key).unwrap();
-    let nonce = cipher.new_nonce(&test.nonce).unwrap();
-    let tag = cipher.new_tag_mut(&mut tag_bytes).unwrap();
+    let key = cipher.new_key(test.key.classify_ref()).unwrap();
+    let nonce = cipher.new_nonce(test.nonce.classify_ref()).unwrap();
+    let tag = cipher.new_tag_mut(tag_bytes.classify_ref_mut()).unwrap();
 
-    key.encrypt(&mut ciphertext, tag, nonce, &test.aad, &test.pt)
-        .unwrap();
+    key.encrypt(
+        &mut ciphertext,
+        tag,
+        nonce,
+        &test.aad,
+        test.pt.classify_ref(),
+    )
+    .unwrap();
 
-    let tag = cipher.new_tag(&tag_bytes).unwrap();
-    key.decrypt(&mut plaintext, nonce, &test.aad, &ciphertext, tag)
-        .unwrap();
+    let tag = cipher.new_tag(tag_bytes.classify_ref()).unwrap();
+    key.decrypt(
+        plaintext.classify_ref_mut(),
+        nonce,
+        &test.aad,
+        &ciphertext,
+        tag,
+    )
+    .unwrap();
 
     assert_eq!(plaintext.as_slice(), test.pt.as_slice());
 
     if test.result == TestResult::Valid {
         assert_eq!(test.ct.as_slice(), &ciphertext);
-        assert_eq!(test.tag.as_slice(), tag.as_ref());
+        assert_eq!(test.tag.as_slice(), tag.as_ref().declassify_ref());
     } else {
         let ct_ok = test.ct.as_slice() == ciphertext;
-        let tag_ok = test.tag.as_slice() == tag.as_ref();
+        let tag_ok = test.tag.as_slice() == tag.as_ref().declassify_ref();
         assert!(!ct_ok || !tag_ok);
     }
 }

@@ -21,17 +21,18 @@ type_aliases!(AesGcm128, "AES-GCM 128");
 ///     aes_gcm_128::portable::{Key, Nonce, PortableAesGcm128, Tag},
 ///     AeadConsts as _, NONCE_LEN, TAG_LEN,
 /// };
+/// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 ///
-/// let k: Key<PortableAesGcm128> = [0; PortableAesGcm128::KEY_LEN].into();
-/// let nonce: Nonce<PortableAesGcm128> = [0; NONCE_LEN].into();
-/// let mut tag: Tag<PortableAesGcm128> = [0; TAG_LEN].into();
+/// let k: Key<PortableAesGcm128> = [0; PortableAesGcm128::KEY_LEN].classify().into();
+/// let nonce: Nonce<PortableAesGcm128> = [0; NONCE_LEN].classify().into();
+/// let mut tag: Tag<PortableAesGcm128> = [0; TAG_LEN].classify().into();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-/// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref()).unwrap();
+/// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag).unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 pub mod portable {

@@ -25,17 +25,20 @@
 //! use libcrux_iot_aes::{
 //!     AeadConsts as _, AesGcm128, AesGcm128Key, AesGcm128Nonce, AesGcm128Tag, NONCE_LEN, TAG_LEN,
 //! };
+//! use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 //!
-//! let k: AesGcm128Key = [0; AesGcm128::KEY_LEN].into();
-//! let nonce: AesGcm128Nonce = [0; NONCE_LEN].into();
-//! let mut tag: AesGcm128Tag = [0; TAG_LEN].into();
+//! let k: AesGcm128Key = [0; AesGcm128::KEY_LEN].classify().into();
+//! let nonce: AesGcm128Nonce = [0; NONCE_LEN].classify().into();
+//! let mut tag: AesGcm128Tag = [0; TAG_LEN].classify().into();
 //!
 //! let pt = b"the quick brown fox jumps over the lazy dog";
 //! let mut ct = [0; 43];
 //! let mut pt_out = [0; 43];
 //!
-//! k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-//! k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+//! k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+//!     .unwrap();
+//! k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+//!     .unwrap();
 //! assert_eq!(pt, &pt_out);
 //! ```
 //!
@@ -116,17 +119,20 @@ mod aes_gcm;
 ///     aes_gcm_128::{AesGcm128, Key, Nonce, Tag},
 ///     AeadConsts as _, NONCE_LEN, TAG_LEN,
 /// };
+/// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 ///
-/// let k: Key = [0; AesGcm128::KEY_LEN].into();
-/// let nonce: Nonce = [0; NONCE_LEN].into();
-/// let mut tag: Tag = [0; TAG_LEN].into();
+/// let k: Key = [0; AesGcm128::KEY_LEN].classify().into();
+/// let nonce: Nonce = [0; NONCE_LEN].classify().into();
+/// let mut tag: Tag = [0; TAG_LEN].classify().into();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-/// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+///     .unwrap();
+/// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 ///
@@ -135,22 +141,27 @@ mod aes_gcm;
 /// ```rust
 /// // Using the multiplexed API
 /// use libcrux_iot_aes::{aes_gcm_128::AesGcm128, Aead as _, AeadConsts as _, NONCE_LEN, TAG_LEN};
+/// use libcrux_secrets::{ClassifyRef, ClassifyRefMut};
 ///
 /// let algo = AesGcm128;
 ///
 /// let mut tag_bytes = [0; TAG_LEN];
-/// let tag = algo.new_tag_mut(&mut tag_bytes).unwrap();
+/// let tag = algo.new_tag_mut(tag_bytes.classify_ref_mut()).unwrap();
 ///
-/// let key = algo.new_key(&[0; AesGcm128::KEY_LEN]).unwrap();
-/// let nonce = algo.new_nonce(&[0; NONCE_LEN]).unwrap();
+/// let key = algo
+///     .new_key((&[0; AesGcm128::KEY_LEN]).classify_ref())
+///     .unwrap();
+/// let nonce = algo.new_nonce((&[0; NONCE_LEN]).classify_ref()).unwrap();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// key.encrypt(&mut ct, tag, nonce, b"", pt).unwrap();
-/// let tag = algo.new_tag(&tag_bytes).unwrap();
-/// key.decrypt(&mut pt_out, nonce, b"", &ct, tag).unwrap();
+/// key.encrypt(&mut ct, tag, nonce, b"", pt.classify_ref())
+///     .unwrap();
+/// let tag = algo.new_tag(tag_bytes.classify_ref()).unwrap();
+/// key.decrypt(pt_out.classify_ref_mut(), nonce, b"", &ct, tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 pub mod aes_gcm_128;
@@ -180,17 +191,20 @@ pub mod aes_gcm_128;
 ///     aes_gcm_256::{AesGcm256, Key, Nonce, Tag},
 ///     AeadConsts as _, NONCE_LEN, TAG_LEN,
 /// };
+/// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 ///
-/// let k: Key = [0; AesGcm256::KEY_LEN].into();
-/// let nonce: Nonce = [0; NONCE_LEN].into();
-/// let mut tag: Tag = [0; TAG_LEN].into();
+/// let k: Key = [0; AesGcm256::KEY_LEN].classify().into();
+/// let nonce: Nonce = [0; NONCE_LEN].classify().into();
+/// let mut tag: Tag = [0; TAG_LEN].classify().into();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-/// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+///     .unwrap();
+/// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 ///
@@ -199,22 +213,27 @@ pub mod aes_gcm_128;
 /// ```rust
 /// // Using the multiplexed API
 /// use libcrux_iot_aes::{aes_gcm_256::AesGcm256, Aead as _, AeadConsts as _, NONCE_LEN, TAG_LEN};
+/// use libcrux_secrets::{ClassifyRef, ClassifyRefMut};
 ///
 /// let algo = AesGcm256;
 ///
 /// let mut tag_bytes = [0; TAG_LEN];
-/// let tag = algo.new_tag_mut(&mut tag_bytes).unwrap();
+/// let tag = algo.new_tag_mut(tag_bytes.classify_ref_mut()).unwrap();
 ///
-/// let key = algo.new_key(&[0; AesGcm256::KEY_LEN]).unwrap();
-/// let nonce = algo.new_nonce(&[0; NONCE_LEN]).unwrap();
+/// let key = algo
+///     .new_key((&[0; AesGcm256::KEY_LEN]).classify_ref())
+///     .unwrap();
+/// let nonce = algo.new_nonce((&[0; NONCE_LEN]).classify_ref()).unwrap();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// key.encrypt(&mut ct, tag, nonce, b"", pt).unwrap();
-/// let tag = algo.new_tag(&tag_bytes).unwrap();
-/// key.decrypt(&mut pt_out, nonce, b"", &ct, tag).unwrap();
+/// key.encrypt(&mut ct, tag, nonce, b"", pt.classify_ref())
+///     .unwrap();
+/// let tag = algo.new_tag(tag_bytes.classify_ref()).unwrap();
+/// key.decrypt(pt_out.classify_ref_mut(), nonce, b"", &ct, tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 pub mod aes_gcm_256;
@@ -248,17 +267,20 @@ pub mod aes_gcm_256;
 ///     aes_ccm_128::{AesCcm128, Key, Nonce, Tag},
 ///     AeadConsts as _, NONCE_LEN, TAG_LEN,
 /// };
+/// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 ///
-/// let k: Key = [0; AesCcm128::KEY_LEN].into();
-/// let nonce: Nonce = [0; NONCE_LEN].into();
-/// let mut tag: Tag = [0; TAG_LEN].into();
+/// let k: Key = [0; AesCcm128::KEY_LEN].classify().into();
+/// let nonce: Nonce = [0; NONCE_LEN].classify().into();
+/// let mut tag: Tag = [0; TAG_LEN].classify().into();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-/// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+///     .unwrap();
+/// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 ///
@@ -267,22 +289,27 @@ pub mod aes_gcm_256;
 /// ```rust
 /// // Using the multiplexed API
 /// use libcrux_iot_aes::{aes_ccm_128::AesCcm128, Aead as _, AeadConsts as _, NONCE_LEN, TAG_LEN};
+/// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 ///
 /// let algo = AesCcm128;
 ///
-/// let mut tag_bytes = [0; TAG_LEN];
+/// let mut tag_bytes = [0; TAG_LEN].classify();
 /// let tag = algo.new_tag_mut(&mut tag_bytes).unwrap();
 ///
-/// let key = algo.new_key(&[0; AesCcm128::KEY_LEN]).unwrap();
-/// let nonce = algo.new_nonce(&[0; NONCE_LEN]).unwrap();
+/// let key = algo
+///     .new_key([0; AesCcm128::KEY_LEN].classify_ref())
+///     .unwrap();
+/// let nonce = algo.new_nonce([0; NONCE_LEN].classify_ref()).unwrap();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// key.encrypt(&mut ct, tag, nonce, b"", pt).unwrap();
+/// key.encrypt(&mut ct, tag, nonce, b"", pt.classify_ref())
+///     .unwrap();
 /// let tag = algo.new_tag(&tag_bytes).unwrap();
-/// key.decrypt(&mut pt_out, nonce, b"", &ct, tag).unwrap();
+/// key.decrypt(pt_out.classify_ref_mut(), nonce, b"", &ct, tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 pub mod aes_ccm_128 {
@@ -301,17 +328,19 @@ pub mod aes_ccm_128 {
     ///     aes_ccm_128::portable::{Key, Nonce, PortableAesCcm128, Tag},
     ///     AeadConsts as _, NONCE_LEN, TAG_LEN,
     /// };
-    ///
-    /// let k: Key<PortableAesCcm128> = [0; PortableAesCcm128::KEY_LEN].into();
-    /// let nonce: Nonce<PortableAesCcm128> = [0; NONCE_LEN].into();
-    /// let mut tag: Tag<PortableAesCcm128> = [0; TAG_LEN].into();
+    /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
+    /// let k: Key<PortableAesCcm128> = [0; PortableAesCcm128::KEY_LEN].classify().into();
+    /// let nonce: Nonce<PortableAesCcm128> = [0; NONCE_LEN].classify().into();
+    /// let mut tag: Tag<PortableAesCcm128> = [0; TAG_LEN].classify().into();
     ///
     /// let pt = b"the quick brown fox jumps over the lazy dog";
     /// let mut ct = [0; 43];
     /// let mut pt_out = [0; 43];
     ///
-    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-    /// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+    ///     .unwrap();
+    /// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+    ///     .unwrap();
     /// assert_eq!(pt, &pt_out);
     /// ```
     pub mod portable {
@@ -351,17 +380,19 @@ pub mod aes_ccm_128 {
     ///     aes_ccm_128::short_tag::{AesCcm128ShortTag, Key, Nonce, Tag},
     ///     AeadConsts as _, CCM_SHORT_TAG_LEN, NONCE_LEN,
     /// };
-    ///
-    /// let k: Key = [0; AesCcm128ShortTag::KEY_LEN].into();
-    /// let nonce: Nonce = [0; NONCE_LEN].into();
-    /// let mut tag: Tag = [0; CCM_SHORT_TAG_LEN].into();
+    /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
+    /// let k: Key = [0; AesCcm128ShortTag::KEY_LEN].classify().into();
+    /// let nonce: Nonce = [0; NONCE_LEN].classify().into();
+    /// let mut tag: Tag = [0; CCM_SHORT_TAG_LEN].classify().into();
     ///
     /// let pt = b"the quick brown fox jumps over the lazy dog";
     /// let mut ct = [0; 43];
     /// let mut pt_out = [0; 43];
     ///
-    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-    /// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+    ///     .unwrap();
+    /// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+    ///     .unwrap();
     /// assert_eq!(pt, &pt_out);
     /// ```
     ///
@@ -373,22 +404,26 @@ pub mod aes_ccm_128 {
     ///     aes_ccm_128::short_tag::AesCcm128ShortTag, Aead as _, AeadConsts as _, CCM_SHORT_TAG_LEN,
     ///     NONCE_LEN,
     /// };
-    ///
+    /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
     /// let algo = AesCcm128ShortTag;
     ///
-    /// let mut tag_bytes = [0; CCM_SHORT_TAG_LEN];
+    /// let mut tag_bytes = [0; CCM_SHORT_TAG_LEN].classify();
     /// let tag = algo.new_tag_mut(&mut tag_bytes).unwrap();
     ///
-    /// let key = algo.new_key(&[0; AesCcm128ShortTag::KEY_LEN]).unwrap();
-    /// let nonce = algo.new_nonce(&[0; NONCE_LEN]).unwrap();
+    /// let key = algo
+    ///     .new_key([0; AesCcm128ShortTag::KEY_LEN].classify_ref())
+    ///     .unwrap();
+    /// let nonce = algo.new_nonce([0; NONCE_LEN].classify_ref()).unwrap();
     ///
     /// let pt = b"the quick brown fox jumps over the lazy dog";
     /// let mut ct = [0; 43];
     /// let mut pt_out = [0; 43];
     ///
-    /// key.encrypt(&mut ct, tag, nonce, b"", pt).unwrap();
+    /// key.encrypt(&mut ct, tag, nonce, b"", pt.classify_ref())
+    ///     .unwrap();
     /// let tag = algo.new_tag(&tag_bytes).unwrap();
-    /// key.decrypt(&mut pt_out, nonce, b"", &ct, tag).unwrap();
+    /// key.decrypt(pt_out.classify_ref_mut(), nonce, b"", &ct, tag)
+    ///     .unwrap();
     /// assert_eq!(pt, &pt_out);
     /// ```
     pub mod short_tag {
@@ -407,17 +442,21 @@ pub mod aes_ccm_128 {
         ///     aes_ccm_128::short_tag::portable::{Key, Nonce, PortableAesCcm128ShortTag, Tag},
         ///     AeadConsts as _, CCM_SHORT_TAG_LEN, NONCE_LEN,
         /// };
+        /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
         ///
-        /// let k: Key<PortableAesCcm128ShortTag> = [0; PortableAesCcm128ShortTag::KEY_LEN].into();
-        /// let nonce: Nonce<PortableAesCcm128ShortTag> = [0; NONCE_LEN].into();
-        /// let mut tag: Tag<PortableAesCcm128ShortTag> = [0; CCM_SHORT_TAG_LEN].into();
+        /// let k: Key<PortableAesCcm128ShortTag> =
+        ///     [0; PortableAesCcm128ShortTag::KEY_LEN].classify().into();
+        /// let nonce: Nonce<PortableAesCcm128ShortTag> = [0; NONCE_LEN].classify().into();
+        /// let mut tag: Tag<PortableAesCcm128ShortTag> = [0; CCM_SHORT_TAG_LEN].classify().into();
         ///
         /// let pt = b"the quick brown fox jumps over the lazy dog";
         /// let mut ct = [0; 43];
         /// let mut pt_out = [0; 43];
         ///
-        /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-        /// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+        /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+        ///     .unwrap();
+        /// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+        ///     .unwrap();
         /// assert_eq!(pt, &pt_out);
         /// ```
         pub mod portable {
@@ -460,17 +499,20 @@ pub mod aes_ccm_128 {
 ///     aes_ccm_256::{AesCcm256, Key, Nonce, Tag},
 ///     AeadConsts as _, NONCE_LEN, TAG_LEN,
 /// };
+/// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 ///
-/// let k: Key = [0; AesCcm256::KEY_LEN].into();
-/// let nonce: Nonce = [0; NONCE_LEN].into();
-/// let mut tag: Tag = [0; TAG_LEN].into();
+/// let k: Key = [0; AesCcm256::KEY_LEN].classify().into();
+/// let nonce: Nonce = [0; NONCE_LEN].classify().into();
+/// let mut tag: Tag = [0; TAG_LEN].classify().into();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-/// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+///     .unwrap();
+/// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 ///
@@ -479,22 +521,26 @@ pub mod aes_ccm_128 {
 /// ```rust
 /// // Using the multiplexed API
 /// use libcrux_iot_aes::{aes_ccm_256::AesCcm256, Aead as _, AeadConsts as _, NONCE_LEN, TAG_LEN};
-///
+/// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
 /// let algo = AesCcm256;
 ///
-/// let mut tag_bytes = [0; TAG_LEN];
+/// let mut tag_bytes = [0; TAG_LEN].classify();
 /// let tag = algo.new_tag_mut(&mut tag_bytes).unwrap();
 ///
-/// let key = algo.new_key(&[0; AesCcm256::KEY_LEN]).unwrap();
-/// let nonce = algo.new_nonce(&[0; NONCE_LEN]).unwrap();
+/// let key = algo
+///     .new_key([0; AesCcm256::KEY_LEN].classify_ref())
+///     .unwrap();
+/// let nonce = algo.new_nonce([0; NONCE_LEN].classify_ref()).unwrap();
 ///
 /// let pt = b"the quick brown fox jumps over the lazy dog";
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// key.encrypt(&mut ct, tag, nonce, b"", pt).unwrap();
+/// key.encrypt(&mut ct, tag, nonce, b"", pt.classify_ref())
+///     .unwrap();
 /// let tag = algo.new_tag(&tag_bytes).unwrap();
-/// key.decrypt(&mut pt_out, nonce, b"", &ct, tag).unwrap();
+/// key.decrypt(pt_out.classify_ref_mut(), nonce, b"", &ct, tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 pub mod aes_ccm_256 {
@@ -513,17 +559,20 @@ pub mod aes_ccm_256 {
     ///     aes_ccm_256::portable::{Key, Nonce, PortableAesCcm256, Tag},
     ///     AeadConsts as _, NONCE_LEN, TAG_LEN,
     /// };
+    /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
     ///
-    /// let k: Key<PortableAesCcm256> = [0; PortableAesCcm256::KEY_LEN].into();
-    /// let nonce: Nonce<PortableAesCcm256> = [0; NONCE_LEN].into();
-    /// let mut tag: Tag<PortableAesCcm256> = [0; TAG_LEN].into();
+    /// let k: Key<PortableAesCcm256> = [0u8; PortableAesCcm256::KEY_LEN].classify().into();
+    /// let nonce: Nonce<PortableAesCcm256> = [0u8; NONCE_LEN].classify().into();
+    /// let mut tag: Tag<PortableAesCcm256> = [0u8; TAG_LEN].classify().into();
     ///
     /// let pt = b"the quick brown fox jumps over the lazy dog";
     /// let mut ct = [0; 43];
     /// let mut pt_out = [0; 43];
     ///
-    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-    /// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+    ///     .unwrap();
+    /// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+    ///     .unwrap();
     /// assert_eq!(pt, &pt_out);
     /// ```
     pub mod portable {
@@ -563,17 +612,19 @@ pub mod aes_ccm_256 {
     ///     aes_ccm_256::short_tag::{AesCcm256ShortTag, Key, Nonce, Tag},
     ///     AeadConsts as _, CCM_SHORT_TAG_LEN, NONCE_LEN,
     /// };
-    ///
-    /// let k: Key = [0; AesCcm256ShortTag::KEY_LEN].into();
-    /// let nonce: Nonce = [0; NONCE_LEN].into();
-    /// let mut tag: Tag = [0; CCM_SHORT_TAG_LEN].into();
+    /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
+    /// let k: Key = [0u8; AesCcm256ShortTag::KEY_LEN].classify().into();
+    /// let nonce: Nonce = [0u8; NONCE_LEN].classify().into();
+    /// let mut tag: Tag = [0u8; CCM_SHORT_TAG_LEN].classify().into();
     ///
     /// let pt = b"the quick brown fox jumps over the lazy dog";
     /// let mut ct = [0; 43];
     /// let mut pt_out = [0; 43];
     ///
-    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-    /// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+    /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+    ///     .unwrap();
+    /// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+    ///     .unwrap();
     /// assert_eq!(pt, &pt_out);
     /// ```
     ///
@@ -585,22 +636,27 @@ pub mod aes_ccm_256 {
     ///     aes_ccm_256::short_tag::AesCcm256ShortTag, Aead as _, AeadConsts as _, CCM_SHORT_TAG_LEN,
     ///     NONCE_LEN,
     /// };
+    /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
     ///
     /// let algo = AesCcm256ShortTag;
     ///
-    /// let mut tag_bytes = [0; CCM_SHORT_TAG_LEN];
+    /// let mut tag_bytes = [0; CCM_SHORT_TAG_LEN].classify();
     /// let tag = algo.new_tag_mut(&mut tag_bytes).unwrap();
     ///
-    /// let key = algo.new_key(&[0; AesCcm256ShortTag::KEY_LEN]).unwrap();
-    /// let nonce = algo.new_nonce(&[0; NONCE_LEN]).unwrap();
+    /// let key = algo
+    ///     .new_key([0; AesCcm256ShortTag::KEY_LEN].classify_ref())
+    ///     .unwrap();
+    /// let nonce = algo.new_nonce([0; NONCE_LEN].classify_ref()).unwrap();
     ///
     /// let pt = b"the quick brown fox jumps over the lazy dog";
     /// let mut ct = [0; 43];
     /// let mut pt_out = [0; 43];
     ///
-    /// key.encrypt(&mut ct, tag, nonce, b"", pt).unwrap();
+    /// key.encrypt(&mut ct, tag, nonce, b"", pt.classify_ref())
+    ///     .unwrap();
     /// let tag = algo.new_tag(&tag_bytes).unwrap();
-    /// key.decrypt(&mut pt_out, nonce, b"", &ct, tag).unwrap();
+    /// key.decrypt(pt_out.classify_ref_mut(), nonce, b"", &ct, tag)
+    ///     .unwrap();
     /// assert_eq!(pt, &pt_out);
     /// ```
     pub mod short_tag {
@@ -619,17 +675,21 @@ pub mod aes_ccm_256 {
         ///     aes_ccm_256::short_tag::portable::{Key, Nonce, PortableAesCcm256ShortTag, Tag},
         ///     AeadConsts as _, CCM_SHORT_TAG_LEN, NONCE_LEN,
         /// };
+        /// use libcrux_secrets::{Classify, ClassifyRef, ClassifyRefMut};
         ///
-        /// let k: Key<PortableAesCcm256ShortTag> = [0; PortableAesCcm256ShortTag::KEY_LEN].into();
-        /// let nonce: Nonce<PortableAesCcm256ShortTag> = [0; NONCE_LEN].into();
-        /// let mut tag: Tag<PortableAesCcm256ShortTag> = [0; CCM_SHORT_TAG_LEN].into();
+        /// let k: Key<PortableAesCcm256ShortTag> =
+        ///     [0u8; PortableAesCcm256ShortTag::KEY_LEN].classify().into();
+        /// let nonce: Nonce<PortableAesCcm256ShortTag> = [0u8; NONCE_LEN].classify().into();
+        /// let mut tag: Tag<PortableAesCcm256ShortTag> = [0u8; CCM_SHORT_TAG_LEN].classify().into();
         ///
         /// let pt = b"the quick brown fox jumps over the lazy dog";
         /// let mut ct = [0; 43];
         /// let mut pt_out = [0; 43];
         ///
-        /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt).unwrap();
-        /// k.decrypt(&mut pt_out, &nonce, b"", &ct, &tag).unwrap();
+        /// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+        ///     .unwrap();
+        /// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+        ///     .unwrap();
         /// assert_eq!(pt, &pt_out);
         /// ```
         pub mod portable {
