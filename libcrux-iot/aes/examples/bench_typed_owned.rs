@@ -1,5 +1,5 @@
 // structs for typed_owned
-use libcrux_aes::{
+use libcrux_iot_aes::{
     aes_gcm_128::{Key, Nonce, Tag},
     AeadConsts as _, AesGcm128,
 };

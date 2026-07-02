@@ -1,4 +1,4 @@
-use libcrux_aes::{
+use libcrux_iot_aes::{
     aes_ccm_128::{Key as Ccm128Key, Nonce as Ccm128Nonce, Tag as Ccm128Tag},
     aes_gcm_128::{Key as Gcm128Key, Nonce as Gcm128Nonce, Tag as Gcm128Tag},
     AeadConsts, AesGcm128,
@@ -7,7 +7,7 @@ use libcrux_aes::{
 // tests that an error is returned if ptxt.len() != ctxt.len()
 #[test]
 fn non_matching_lengths() {
-    use libcrux_aes::AeadConsts as _;
+    use libcrux_iot_aes::AeadConsts as _;
 
     let k: Gcm128Key = [0; AesGcm128::KEY_LEN].into();
     let nonce: Gcm128Nonce = [0; AesGcm128::NONCE_LEN].into();
@@ -24,7 +24,7 @@ fn non_matching_lengths() {
 #[test]
 #[cfg(target_pointer_width = "64")]
 fn ptxt_too_long() {
-    use libcrux_aes::AeadConsts as _;
+    use libcrux_iot_aes::AeadConsts as _;
     use libcrux_traits::aead::arrayref::{DecryptError, EncryptError};
 
     let k: Gcm128Key = [0; AesGcm128::KEY_LEN].into();
@@ -46,7 +46,7 @@ fn ptxt_too_long() {
 
 #[test]
 fn ccm_two_byte_aad_len_encoding() {
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
     let nonce: Ccm128Nonce = [0; AesCcm128::NONCE_LEN].into();
@@ -69,7 +69,7 @@ fn ccm_two_byte_aad_len_encoding() {
 #[test]
 fn ccm_two_byte_aad_len_encoding_upper_boundary() {
     // AAD length 65279 = 2^16 - 2^8 - 1: last value in the two-byte encoding range.
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
     let nonce: Ccm128Nonce = [0; AesCcm128::NONCE_LEN].into();
@@ -91,7 +91,7 @@ fn ccm_two_byte_aad_len_encoding_upper_boundary() {
 #[test]
 fn ccm_six_byte_aad_len_encoding() {
     // AAD length 65280 = 2^16 - 2^8: first value in the six-byte encoding range.
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
     let nonce: Ccm128Nonce = [0; AesCcm128::NONCE_LEN].into();
@@ -113,7 +113,7 @@ fn ccm_six_byte_aad_len_encoding() {
 #[test]
 fn ccm_six_byte_aad_len_encoding_second_value() {
     // AAD length 65281: second value in the six-byte encoding range.
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
     let nonce: Ccm128Nonce = [0; AesCcm128::NONCE_LEN].into();
@@ -135,7 +135,7 @@ fn ccm_six_byte_aad_len_encoding_second_value() {
 #[test]
 fn ccm_six_byte_aad_len_encoding_multi_block_plaintext() {
     // Six-byte AAD encoding with a multi-block plaintext.
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
 
     let k: Ccm128Key = [0xddu8; AesCcm128::KEY_LEN].into();
     let nonce: Ccm128Nonce = [0x11u8; AesCcm128::NONCE_LEN].into();
@@ -158,7 +158,7 @@ fn ccm_six_byte_aad_len_encoding_multi_block_plaintext() {
 #[test]
 fn ccm_six_byte_aad_len_encoding_rejects_tampered_ciphertext() {
     // Decryption must fail when the ciphertext is tampered, even with large AAD.
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
     use libcrux_traits::aead::arrayref::DecryptError;
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
@@ -183,7 +183,7 @@ fn ccm_six_byte_aad_len_encoding_rejects_tampered_ciphertext() {
 #[test]
 fn ccm_six_byte_aad_len_encoding_rejects_tampered_tag() {
     // Decryption must fail when the tag is tampered, even with large AAD.
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
     use libcrux_traits::aead::arrayref::DecryptError;
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
@@ -208,7 +208,7 @@ fn ccm_six_byte_aad_len_encoding_rejects_tampered_tag() {
 #[test]
 fn ccm_six_byte_aad_len_encoding_aad_affects_tag() {
     // The tag must change when the AAD changes, even with six-byte encoding.
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
     let nonce: Ccm128Nonce = [0; AesCcm128::NONCE_LEN].into();
@@ -235,7 +235,7 @@ fn ccm_six_byte_aad_len_encoding_aad_affects_tag() {
 #[ignore] // This is a really slow test, we ignore it on CI.
 #[cfg(target_pointer_width = "64")]
 fn ccm_ten_byte_aad_len_encoding() {
-    use libcrux_aes::{AeadConsts as _, AesCcm128};
+    use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
 
     let k: Ccm128Key = [0; AesCcm128::KEY_LEN].into();
     let nonce: Ccm128Nonce = [0; AesCcm128::NONCE_LEN].into();
@@ -256,7 +256,7 @@ fn ccm_ten_byte_aad_len_encoding() {
 
 #[test]
 fn ccm_nist_kat() {
-    use libcrux_aes::aes_ccm_128::short_tag::{AesCcm128ShortTag, Key, Nonce, Tag};
+    use libcrux_iot_aes::aes_ccm_128::short_tag::{AesCcm128ShortTag, Key, Nonce, Tag};
 
     let k: [u8; AesCcm128ShortTag::KEY_LEN] = hex::decode("404142434445464748494a4b4c4d4e4f")
         .unwrap()

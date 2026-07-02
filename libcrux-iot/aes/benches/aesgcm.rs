@@ -20,9 +20,7 @@ pub fn fmt(x: usize) -> String {
 }
 
 macro_rules! impl_comp {
-    (
-        $fun:ident, $keylen:expr, $portable:ident, $neon:ident, $intel:ident, $rustcrypto_fun:expr
-    ) => {
+    ($fun:ident, $keylen:expr, $portable:ident, $rustcrypto_fun:expr) => {
         // Comparing libcrux performance for different payload sizes and other implementations.
         fn $fun(c: &mut Criterion) {
             const PAYLOAD_SIZES: [usize; 3] = [128, 1024, 1024 * 1024 * 10];
@@ -47,71 +45,11 @@ macro_rules! impl_comp {
                             },
                             |(key, nonce, aad, payload)| {
                                 let mut ciphertext = vec![0; *payload_size];
-                                use libcrux_aes::$fun::portable::{$portable, Key, Nonce, Tag};
+                                use libcrux_iot_aes::$fun::portable::{$portable, Key, Nonce, Tag};
 
                                 let k: Key<$portable> = key.into();
                                 let nonce: Nonce<$portable> = nonce.into();
-                                let mut tag: Tag<$portable> = [0; libcrux_aes::TAG_LEN].into();
-
-                                k.encrypt(&mut ciphertext, &mut tag, &nonce, &aad, &payload)
-                                    .unwrap();
-                            },
-                            BatchSize::SmallInput,
-                        )
-                    },
-                );
-
-                #[cfg(all(target_arch = "aarch64", target_feature = "aes"))]
-                group.bench_with_input(
-                    BenchmarkId::new("neon-aes-clmul", fmt(*payload_size)),
-                    payload_size,
-                    |b, payload_size| {
-                        b.iter_batched(
-                            || {
-                                (
-                                    randombytes::<$keylen>(),
-                                    randombytes::<12>(),
-                                    randombytes::<32>(),
-                                    randombytes_vec(*payload_size),
-                                )
-                            },
-                            |(key, nonce, aad, payload)| {
-                                let mut ciphertext = vec![0; *payload_size];
-                                use libcrux_aes::$fun::neon::{$neon, Key, Nonce, Tag};
-
-                                let k: Key<$neon> = key.into();
-                                let nonce: Nonce<$neon> = nonce.into();
-                                let mut tag: Tag<$neon> = [0; libcrux_aes::TAG_LEN].into();
-
-                                k.encrypt(&mut ciphertext, &mut tag, &nonce, &aad, &payload)
-                                    .unwrap();
-                            },
-                            BatchSize::SmallInput,
-                        )
-                    },
-                );
-
-                #[cfg(all(target_arch = "x86_64"))] // ENABLE: target_feature="aes"
-                group.bench_with_input(
-                    BenchmarkId::new("intel-aes-clmul", fmt(*payload_size)),
-                    payload_size,
-                    |b, payload_size| {
-                        b.iter_batched(
-                            || {
-                                (
-                                    randombytes::<$keylen>(),
-                                    randombytes::<12>(),
-                                    randombytes::<32>(),
-                                    randombytes_vec(*payload_size),
-                                )
-                            },
-                            |(key, nonce, aad, payload)| {
-                                let mut ciphertext = vec![0; *payload_size];
-                                use libcrux_aes::$fun::x64::{$intel, Key, Nonce, Tag};
-
-                                let k: Key<$intel> = key.into();
-                                let nonce: Nonce<$intel> = nonce.into();
-                                let mut tag: Tag<$intel> = [0; libcrux_aes::TAG_LEN].into();
+                                let mut tag: Tag<$portable> = [0; libcrux_iot_aes::TAG_LEN].into();
 
                                 k.encrypt(&mut ciphertext, &mut tag, &nonce, &aad, &payload)
                                     .unwrap();
@@ -194,16 +132,12 @@ impl_comp!(
     aes_gcm_128,
     16,
     PortableAesGcm128,
-    NeonAesGcm128,
-    X64AesGcm128,
     rustcrypto_aes128_gcm_encrypt
 );
 impl_comp!(
     aes_gcm_256,
     32,
     PortableAesGcm256,
-    NeonAesGcm256,
-    X64AesGcm256,
     rustcrypto_aes256_gcm_encrypt
 );
 

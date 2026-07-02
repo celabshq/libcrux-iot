@@ -3,7 +3,7 @@ use wycheproof::{
     TestResult,
 };
 
-fn run<Cipher: libcrux_aes::Aead>(test: &Test, cipher: Cipher) {
+fn run<Cipher: libcrux_iot_aes::Aead>(test: &Test, cipher: Cipher) {
     let mut ciphertext = vec![0u8; test.pt.len()];
     let mut plaintext = vec![0u8; test.pt.len()];
     let mut tag_bytes = vec![0u8; cipher.tag_len()];
@@ -31,7 +31,7 @@ fn run<Cipher: libcrux_aes::Aead>(test: &Test, cipher: Cipher) {
     }
 }
 
-fn test_variant(cipher: impl libcrux_aes::Aead, test_name: TestName) {
+fn test_variant(cipher: impl libcrux_iot_aes::Aead, test_name: TestName) {
     let test_set = wycheproof::aead::TestSet::load(test_name).unwrap();
 
     // Ensure we ran some tests.
@@ -69,31 +69,16 @@ fn test_variant(cipher: impl libcrux_aes::Aead, test_name: TestName) {
 #[test]
 fn aesgcm128() {
     // Multiplexing
-    test_variant(libcrux_aes::AesGcm128, wycheproof::aead::TestName::AesGcm);
+    test_variant(
+        libcrux_iot_aes::AesGcm128,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[test]
 fn aesgcm128_portable() {
     test_variant(
-        libcrux_aes::aes_gcm_128::portable::PortableAesGcm128,
-        wycheproof::aead::TestName::AesGcm,
-    );
-}
-
-#[cfg(feature = "simd128")]
-#[test]
-fn aesgcm128_neon() {
-    test_variant(
-        libcrux_aes::aes_gcm_128::neon::NeonAesGcm128,
-        wycheproof::aead::TestName::AesGcm,
-    );
-}
-
-#[cfg(feature = "simd256")]
-#[test]
-fn aesgcm128_x64() {
-    test_variant(
-        libcrux_aes::aes_gcm_128::x64::X64AesGcm128,
+        libcrux_iot_aes::aes_gcm_128::portable::PortableAesGcm128,
         wycheproof::aead::TestName::AesGcm,
     );
 }
@@ -101,31 +86,16 @@ fn aesgcm128_x64() {
 #[test]
 fn aesgcm256() {
     // Multiplexing
-    test_variant(libcrux_aes::AesGcm256, wycheproof::aead::TestName::AesGcm);
+    test_variant(
+        libcrux_iot_aes::AesGcm256,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[test]
 fn aesgcm256_portable() {
     test_variant(
-        libcrux_aes::aes_gcm_256::portable::PortableAesGcm256,
-        wycheproof::aead::TestName::AesGcm,
-    );
-}
-
-#[cfg(feature = "simd128")]
-#[test]
-fn aesgcm256_neon() {
-    test_variant(
-        libcrux_aes::aes_gcm_256::neon::NeonAesGcm256,
-        wycheproof::aead::TestName::AesGcm,
-    );
-}
-
-#[cfg(feature = "simd256")]
-#[test]
-fn aesgcm256_x64() {
-    test_variant(
-        libcrux_aes::aes_gcm_256::x64::X64AesGcm256,
+        libcrux_iot_aes::aes_gcm_256::portable::PortableAesGcm256,
         wycheproof::aead::TestName::AesGcm,
     );
 }
@@ -133,31 +103,16 @@ fn aesgcm256_x64() {
 #[test]
 fn aesccm128() {
     // Multiplexing
-    test_variant(libcrux_aes::AesCcm128, wycheproof::aead::TestName::AesCcm);
+    test_variant(
+        libcrux_iot_aes::AesCcm128,
+        wycheproof::aead::TestName::AesCcm,
+    );
 }
 
 #[test]
 fn aesccm128_portable() {
     test_variant(
-        libcrux_aes::aes_ccm_128::portable::PortableAesCcm128,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd128")]
-#[test]
-fn aesccm128_neon() {
-    test_variant(
-        libcrux_aes::aes_ccm_128::neon::NeonAesCcm128,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd256")]
-#[test]
-fn aesccm128_x64() {
-    test_variant(
-        libcrux_aes::aes_ccm_128::x64::X64AesCcm128,
+        libcrux_iot_aes::aes_ccm_128::portable::PortableAesCcm128,
         wycheproof::aead::TestName::AesCcm,
     );
 }
@@ -165,31 +120,16 @@ fn aesccm128_x64() {
 #[test]
 fn aesccm256() {
     // Multiplexing
-    test_variant(libcrux_aes::AesCcm256, wycheproof::aead::TestName::AesCcm);
+    test_variant(
+        libcrux_iot_aes::AesCcm256,
+        wycheproof::aead::TestName::AesCcm,
+    );
 }
 
 #[test]
 fn aesccm256_portable() {
     test_variant(
-        libcrux_aes::aes_ccm_256::portable::PortableAesCcm256,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd128")]
-#[test]
-fn aesccm256_neon() {
-    test_variant(
-        libcrux_aes::aes_ccm_256::neon::NeonAesCcm256,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd256")]
-#[test]
-fn aesccm256_x64() {
-    test_variant(
-        libcrux_aes::aes_ccm_256::x64::X64AesCcm256,
+        libcrux_iot_aes::aes_ccm_256::portable::PortableAesCcm256,
         wycheproof::aead::TestName::AesCcm,
     );
 }
@@ -198,7 +138,7 @@ fn aesccm256_x64() {
 fn aesccm128_short_tag() {
     // Multiplexing
     test_variant(
-        libcrux_aes::aes_ccm_128::short_tag::AesCcm128ShortTag,
+        libcrux_iot_aes::aes_ccm_128::short_tag::AesCcm128ShortTag,
         wycheproof::aead::TestName::AesCcm,
     );
 }
@@ -206,25 +146,7 @@ fn aesccm128_short_tag() {
 #[test]
 fn aesccm128_portable_short_tag() {
     test_variant(
-        libcrux_aes::aes_ccm_128::short_tag::portable::PortableAesCcm128ShortTag,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd128")]
-#[test]
-fn aesccm128_neon_short_tag() {
-    test_variant(
-        libcrux_aes::aes_ccm_128::short_tag::neon::NeonAesCcm128ShortTag,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd256")]
-#[test]
-fn aesccm128_x64_short_tag() {
-    test_variant(
-        libcrux_aes::aes_ccm_128::short_tag::x64::X64AesCcm128ShortTag,
+        libcrux_iot_aes::aes_ccm_128::short_tag::portable::PortableAesCcm128ShortTag,
         wycheproof::aead::TestName::AesCcm,
     );
 }
@@ -233,7 +155,7 @@ fn aesccm128_x64_short_tag() {
 fn aesccm256_short_tag() {
     // Multiplexing
     test_variant(
-        libcrux_aes::aes_ccm_256::short_tag::AesCcm256ShortTag,
+        libcrux_iot_aes::aes_ccm_256::short_tag::AesCcm256ShortTag,
         wycheproof::aead::TestName::AesCcm,
     );
 }
@@ -241,25 +163,7 @@ fn aesccm256_short_tag() {
 #[test]
 fn aesccm256_portable_short_tag() {
     test_variant(
-        libcrux_aes::aes_ccm_256::short_tag::portable::PortableAesCcm256ShortTag,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd128")]
-#[test]
-fn aesccm256_neon_short_tag() {
-    test_variant(
-        libcrux_aes::aes_ccm_256::short_tag::neon::NeonAesCcm256ShortTag,
-        wycheproof::aead::TestName::AesCcm,
-    );
-}
-
-#[cfg(feature = "simd256")]
-#[test]
-fn aesccm256_x64_short_tag() {
-    test_variant(
-        libcrux_aes::aes_ccm_256::short_tag::x64::X64AesCcm256ShortTag,
+        libcrux_iot_aes::aes_ccm_256::short_tag::portable::PortableAesCcm256ShortTag,
         wycheproof::aead::TestName::AesCcm,
     );
 }
