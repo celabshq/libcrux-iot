@@ -10,25 +10,18 @@ type AesGcm128CtrContext<T> = AesCtrContext<T, 11, AES_GCM_CTR_LEN, AES_GCM_NONC
 pub(crate) fn aes128_ctr_xor_block<T: AESState>(
     ctx: &AesGcm128CtrContext<T>,
     ctr: u32,
-    inp: &[u8],
-    out: &mut [u8],
+    inp: &mut [u8],
 ) {
-    debug_assert!(inp.len() == out.len() && inp.len() <= 16);
-    ctx.aes_ctr_xor_block(ctr, inp, out);
+    debug_assert!(inp.len() <= 16);
+    ctx.aes_ctr_xor_block(ctr, inp);
 }
 
-pub(crate) fn aes128_ctr_encrypt<T: AESState>(
-    key: &[u8],
-    nonce: &[u8],
-    ctr: u32,
-    inp: &[u8],
-    out: &mut [u8],
-) {
+pub(crate) fn aes128_ctr_encrypt<T: AESState>(key: &[u8], nonce: &[u8], ctr: u32, inp: &mut [u8]) {
     debug_assert!(nonce.len() == NONCE_LEN);
     debug_assert!(key.len() == GCM_KEY_LEN);
-    debug_assert!(inp.len() == out.len());
+
     let ctx = AesGcm128CtrContext::<T>::init(key, nonce);
-    ctx.aes_ctr_update(ctr, inp, out);
+    ctx.aes_ctr_update(ctr, inp);
 }
 
 const INPUT: [u8; 32] = [
@@ -49,9 +42,10 @@ const EXPECTED: [u8; 32] = [
 #[test]
 fn test_ctr_block() {
     let mut computed: [u8; 32] = [0u8; 32];
+    computed.copy_from_slice(&INPUT);
     let ctx = AesGcm128CtrContext::<platform::portable::State>::init(&KEY, &NONCE);
-    aes128_ctr_xor_block(&ctx, 1, &INPUT[0..16], &mut computed[0..16]);
-    aes128_ctr_xor_block(&ctx, 2, &INPUT[16..32], &mut computed[16..32]);
+    aes128_ctr_xor_block(&ctx, 1, &mut computed[0..16]);
+    aes128_ctr_xor_block(&ctx, 2, &mut computed[16..32]);
     for i in 0..32 {
         if computed[i] != EXPECTED[i] {
             #[cfg(feature = "std")]
@@ -69,7 +63,9 @@ fn test_ctr_block() {
 #[test]
 fn test_ctr_encrypt() {
     let mut computed: [u8; 32] = [0u8; 32];
-    aes128_ctr_encrypt::<platform::portable::State>(&KEY, &NONCE, 1, &INPUT, &mut computed);
+    computed.copy_from_slice(&INPUT);
+
+    aes128_ctr_encrypt::<platform::portable::State>(&KEY, &NONCE, 1, &mut computed);
     for i in 0..32 {
         if computed[i] != EXPECTED[i] {
             #[cfg(feature = "std")]

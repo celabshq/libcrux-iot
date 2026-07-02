@@ -480,14 +480,14 @@ impl crate::platform::AESState for State {
     }
 
     #[inline]
-    fn xor_block(&self, input: &[u8], out: &mut [u8]) {
-        debug_assert!(input.len() == out.len() && input.len() <= AES_BLOCK_LEN);
+    fn xor_block(&self, input: &mut [u8]) {
+        debug_assert!(input.len() <= AES_BLOCK_LEN);
 
         let mut block = [0u8; AES_BLOCK_LEN];
         self.store_block(&mut block);
 
         for i in 0..input.len() {
-            out[i] = input[i] ^ block[i];
+            input[i] = input[i] ^ block[i];
         }
     }
 

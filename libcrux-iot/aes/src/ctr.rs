@@ -63,8 +63,8 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
     }
 
     #[inline]
-    fn aes_ctr_xor_block(&self, ctr: u32, input: &[u8], out: &mut [u8]) {
-        debug_assert!(input.len() == out.len() && input.len() <= AES_BLOCK_LEN);
+    fn aes_ctr_xor_block(&self, ctr: u32, input: &mut [u8]) {
+        debug_assert!(input.len() <= AES_BLOCK_LEN);
 
         let mut st_init = self.ctr_nonce;
         st_init[CTR_NONCE_LEN - CTR_LEN..].copy_from_slice(&ctr.to_be_bytes()[4 - CTR_LEN..]);
@@ -73,12 +73,12 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
 
         block_cipher(&mut st, &self.extended_key);
 
-        st.xor_block(input, out);
+        st.xor_block(input);
     }
 
     #[inline]
-    fn aes_ctr_xor_blocks(&self, ctr: u32, input: &[u8], out: &mut [u8]) {
-        debug_assert!(input.len() == out.len() && input.len().is_multiple_of(AES_BLOCK_LEN));
+    fn aes_ctr_xor_blocks(&self, ctr: u32, input: &mut [u8]) {
+        debug_assert!(input.len().is_multiple_of(AES_BLOCK_LEN));
         // If input.len() / AES_BLOCK_LEN == u32::MAX - 1 and we start with
         // ctr == 2 then we'll wrap to 0 below and we'll repeat the initial key
         // block
@@ -91,31 +91,21 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
             let offset = i * AES_BLOCK_LEN;
             self.aes_ctr_xor_block(
                 ctr.wrapping_add(i as u32),
-                &input[offset..offset + AES_BLOCK_LEN],
-                &mut out[offset..offset + AES_BLOCK_LEN],
+                &mut input[offset..offset + AES_BLOCK_LEN],
             );
         }
     }
 
     #[inline]
-    pub(crate) fn aes_ctr_update(&self, ctr: u32, input: &[u8], out: &mut [u8]) {
-        debug_assert!(input.len() == out.len());
+    pub(crate) fn aes_ctr_update(&self, ctr: u32, input: &mut [u8]) {
         debug_assert!(input.len() / AES_BLOCK_LEN < u32::MAX as usize);
 
         let blocks = input.len() / AES_BLOCK_LEN;
-        self.aes_ctr_xor_blocks(
-            ctr,
-            &input[0..blocks * AES_BLOCK_LEN],
-            &mut out[0..blocks * AES_BLOCK_LEN],
-        );
+        self.aes_ctr_xor_blocks(ctr, &mut input[0..blocks * AES_BLOCK_LEN]);
 
         let last = input.len() - input.len() % AES_BLOCK_LEN;
         if last < input.len() {
-            self.aes_ctr_xor_block(
-                ctr.wrapping_add(blocks as u32),
-                &input[last..],
-                &mut out[last..],
-            );
+            self.aes_ctr_xor_block(ctr.wrapping_add(blocks as u32), &mut input[last..]);
         }
     }
 }

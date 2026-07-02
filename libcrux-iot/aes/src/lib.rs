@@ -651,8 +651,7 @@ pub(crate) trait State {
     fn encrypt<'a>(
         &mut self,
         aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-        plaintext: &[u8],
-        ciphertext: &mut [u8],
+        plaintext: &mut [u8],
         tag: &mut [u8],
     );
     fn decrypt<'a>(
@@ -796,8 +795,7 @@ pub(crate) fn encrypt<'a, S: State>(
     key: &[u8],
     nonce: &[u8],
     aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-    plaintext: &[u8],
-    ciphertext: &mut [u8],
+    plaintext: &mut [u8],
     tag: &mut [u8],
 ) -> Result<(), EncryptError> {
     // This should only be reachable via the arrayref trait API which
@@ -805,7 +803,7 @@ pub(crate) fn encrypt<'a, S: State>(
 
     let mut st = S::init(key);
     st.set_nonce(nonce);
-    st.encrypt(aad, plaintext, ciphertext, tag);
+    st.encrypt(aad, plaintext, tag);
 
     Ok(())
 }
@@ -842,12 +840,11 @@ macro_rules! pub_crate_mod {
                 key: &[u8],
                 nonce: &[u8],
                 aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-                plaintext: &[u8],
-                ciphertext: &mut [u8],
+                plaintext: &mut [u8],
                 tag: &mut [u8],
             ) -> Result<(), EncryptError> {
                 debug_assert!(key.len() == $key_len);
-                crate::encrypt::<State>(key, nonce, aad, plaintext, ciphertext, tag)
+                crate::encrypt::<State>(key, nonce, aad, plaintext, tag)
             }
 
             #[doc = $variant_comment]

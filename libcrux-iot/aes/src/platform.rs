@@ -7,7 +7,7 @@ pub(crate) trait AESState: Clone + core::fmt::Debug {
     fn new() -> Self;
     fn load_block(&mut self, b: &[u8]);
     fn store_block(&self, out: &mut [u8]);
-    fn xor_block(&self, inp: &[u8], out: &mut [u8]);
+    fn xor_block(&self, inp: &mut [u8]);
 
     fn xor_key(&mut self, key: &Self);
     fn aes_enc(&mut self, key: &Self);

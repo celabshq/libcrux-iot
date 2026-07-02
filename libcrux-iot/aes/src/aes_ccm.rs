@@ -45,26 +45,23 @@ where
     fn encrypt<'a>(
         &mut self,
         aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-        plaintext: &[u8],
-        ciphertext: &mut [u8],
+        plaintext: &mut [u8],
         tag: &mut [u8],
     ) {
         debug_assert_eq!(tag.len(), TAG_LEN);
-        let mut tag_block = [0u8; AES_BLOCK_LEN];
 
         // fill accumulator with CBC-MAC of AAD and plaintext
         self.ccm_update_aad(aad, plaintext.len());
         self.ccm_update_plaintext(plaintext);
 
         // xor first key block to CBC-MAC
-        self.aes_state
-            .aes_ctr_update(0, &self.accumulator, &mut tag_block);
+        self.aes_state.aes_ctr_update(0, &mut self.accumulator);
 
         // encrypt plaintext
-        self.aes_state.aes_ctr_update(1, plaintext, ciphertext);
+        self.aes_state.aes_ctr_update(1, plaintext);
 
         // write out tag
-        tag.copy_from_slice(&tag_block[..TAG_LEN]);
+        tag.copy_from_slice(&self.accumulator[..TAG_LEN]);
     }
 
     /// Verify authentication tag, and if valid decrypt
@@ -77,7 +74,6 @@ where
         plaintext: &mut [u8],
     ) -> Result<(), DecryptError> {
         debug_assert_eq!(tag.len(), TAG_LEN);
-        let mut tag_block = [0u8; AES_BLOCK_LEN];
 
         // Feed accumulator with AAD.
         self.ccm_update_aad(aad, ciphertext.len());
@@ -91,14 +87,13 @@ where
         self.ccm_update_ciphertext(ciphertext);
 
         // xor first key block to CBC-MAC
-        self.aes_state
-            .aes_ctr_update(0, &self.accumulator, &mut tag_block);
+        self.aes_state.aes_ctr_update(0, &mut self.accumulator);
 
         // Check that recomputed tag in accumulator agrees
         // with provided tag.
         let mut eq_mask = 0u8;
         for i in 0..TAG_LEN {
-            eq_mask |= tag_block[i] ^ tag[i];
+            eq_mask |= self.accumulator[i] ^ tag[i];
         }
 
         if eq_mask != 0 {
@@ -106,7 +101,8 @@ where
         }
 
         // Decrypt and write out plaintext if tag was valid.
-        self.aes_state.aes_ctr_update(1, ciphertext, plaintext);
+        plaintext.copy_from_slice(ciphertext);
+        self.aes_state.aes_ctr_update(1, plaintext);
         Ok(())
     }
 }

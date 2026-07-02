@@ -47,20 +47,17 @@ where
     fn encrypt<'a>(
         &mut self,
         aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-        plaintext: &[u8],
-        ciphertext: &mut [u8],
+        plaintext: &mut [u8],
         tag: &mut [u8],
     ) {
-        debug_assert!(ciphertext.len() == plaintext.len());
         debug_assert!(plaintext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
         debug_assert!(tag.len() == TAG_LEN);
 
-        self.aes_state.aes_ctr_update(2, plaintext, ciphertext);
+        self.aes_state.aes_ctr_update(2, plaintext);
 
         let aad_len = aad.len();
         self.gcm_state.update_padded(aad);
-        self.gcm_state
-            .update_padded(ciphertext.as_ref().into_iter());
+        self.gcm_state.update_padded(plaintext.as_ref().into_iter());
 
         let mut last_block = [0u8; AES_BLOCK_LEN];
         last_block[0..8].copy_from_slice(&((aad_len as u64) * 8).to_be_bytes());
@@ -108,8 +105,9 @@ where
             eq_mask |= computed_tag[i] ^ tag[i];
         }
 
+        plaintext.copy_from_slice(ciphertext);
         if eq_mask == 0 {
-            self.aes_state.aes_ctr_update(2, ciphertext, plaintext);
+            self.aes_state.aes_ctr_update(2, plaintext);
             Ok(())
         } else {
             Err(DecryptError::InvalidTag)
