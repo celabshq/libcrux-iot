@@ -1,5 +1,5 @@
 [workspace]
-members = ["ml-dsa", "ml-kem", "sha3"]
+members = ["ml-dsa", "ml-kem", "sha3", "aes"]
 resolver = "3"
 
 [workspace.package]

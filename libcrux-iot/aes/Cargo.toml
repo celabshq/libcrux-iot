@@ -1,11 +1,11 @@
 [package]
 authors.workspace = true
-description = "Libcrux AES-based AEAD implementations"
+description = "Libcrux-IoT AES-based AEAD implementations"
 edition.workspace = true
 exclude = []
 homepage.workspace = true
 license.workspace = true
-name = "libcrux-aes"
+name = "libcrux-iot-aes"
 readme = "README.md"
 repository.workspace = true
 version = "0.0.8"
@@ -14,20 +14,12 @@ version = "0.0.8"
 bench = false # so libtest doesn't eat the arguments to criterion
 
 [dependencies]
-libcrux-intrinsics.workspace = true
-libcrux-platform.workspace = true
 libcrux-traits.workspace = true
 libcrux-secrets.workspace = true
 
 [features]
 default = []
 std = []
-
-# Hardware features can be force enabled.
-# It is not recommended to use these. This crate performs CPU feature detection
-# and enables the features when they are available.
-simd128 = ["libcrux-intrinsics/simd128"]
-simd256 = ["libcrux-intrinsics/simd256"]
 
 [[bench]]
 harness = false

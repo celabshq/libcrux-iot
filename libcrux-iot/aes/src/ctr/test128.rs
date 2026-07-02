@@ -66,27 +66,6 @@ fn test_ctr_block() {
     }
 }
 
-#[cfg(feature = "simd128")]
-#[test]
-fn test_ctr_block_neon() {
-    let mut computed: [u8; 32] = [0u8; 32];
-    let ctx = AesGcm128CtrContext::<platform::neon::State>::init(&KEY, &NONCE);
-    aes128_ctr_xor_block(&ctx, 1, &INPUT[0..16], &mut computed[0..16]);
-    aes128_ctr_xor_block(&ctx, 2, &INPUT[16..32], &mut computed[16..32]);
-    for i in 0..32 {
-        if computed[i] != EXPECTED[i] {
-            #[cfg(feature = "std")]
-            std::eprintln!(
-                "mismatch at {}: expected is {}, computed is {}",
-                i,
-                EXPECTED[i],
-                computed[i]
-            );
-            panic!();
-        }
-    }
-}
-
 #[test]
 fn test_ctr_encrypt() {
     let mut computed: [u8; 32] = [0u8; 32];
@@ -94,43 +73,6 @@ fn test_ctr_encrypt() {
     for i in 0..32 {
         if computed[i] != EXPECTED[i] {
             #[cfg(feature = "std")]
-            std::eprintln!(
-                "mismatch at {}: expected is {}, computed is {}",
-                i,
-                EXPECTED[i],
-                computed[i]
-            );
-            panic!();
-        }
-    }
-}
-
-#[cfg(feature = "simd128")]
-#[test]
-fn test_ctr_encrypt_neon() {
-    let mut computed: [u8; 32] = [0u8; 32];
-    aes128_ctr_encrypt::<platform::neon::State>(&KEY, &NONCE, 1, &INPUT, &mut computed);
-    for i in 0..32 {
-        if computed[i] != EXPECTED[i] {
-            #[cfg(feature = "std")]
-            std::eprintln!(
-                "mismatch at {}: expected is {}, computed is {}",
-                i,
-                EXPECTED[i],
-                computed[i]
-            );
-            panic!();
-        }
-    }
-}
-
-#[cfg(all(feature = "simd256", feature = "std"))]
-#[test]
-fn test_ctr_encrypt_intel() {
-    let mut computed: [u8; 32] = [0u8; 32];
-    aes128_ctr_encrypt::<platform::x64::State>(&KEY, &NONCE, 1, &INPUT, &mut computed);
-    for i in 0..32 {
-        if computed[i] != EXPECTED[i] {
             std::eprintln!(
                 "mismatch at {}: expected is {}, computed is {}",
                 i,

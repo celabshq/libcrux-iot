@@ -2,12 +2,6 @@
 
 pub(crate) mod portable;
 
-#[cfg(feature = "simd128")]
-pub(crate) mod neon;
-
-#[cfg(feature = "simd256")]
-pub(crate) mod x64;
-
 /// The AES state.
 pub(crate) trait AESState: Clone + core::fmt::Debug {
     fn new() -> Self;

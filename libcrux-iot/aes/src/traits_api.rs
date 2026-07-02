@@ -1,3 +1,8 @@
+use libcrux_traits::aead::{
+    arrayref::{self, DecryptError, EncryptError},
+    consts, slice, typed_owned,
+};
+
 use crate::{
     implementations::{
         AesCcm128, AesCcm128ShortTag, AesCcm256, AesCcm256ShortTag, AesGcm128, AesGcm256,
@@ -5,11 +10,6 @@ use crate::{
         PortableAesGcm128, PortableAesGcm256,
     },
     NONCE_LEN,
-};
-
-use libcrux_traits::aead::{
-    arrayref::{self, DecryptError, EncryptError},
-    consts, slice, typed_owned,
 };
 
 /// Internal error type for length checks
@@ -47,7 +47,7 @@ impl From<LengthError> for DecryptError {
 /// For the blanket impl of `typed_refs::Aead` to take place,
 /// the `$type` must implement `Copy` and `PartialEq`.
 macro_rules! impl_traits_public_api {
-    ($type:ty, $keylen:expr, $taglen:expr, $noncelen:expr ) => {
+    ($type:ty, $keylen:expr, $taglen:expr, $noncelen:expr) => {
         // prerequisite for typed_owned::Aead
         impl consts::AeadConsts for $type {
             const KEY_LEN: usize = $keylen;
@@ -61,7 +61,7 @@ macro_rules! impl_traits_public_api {
 
 /// Macro to implement the different structs and multiplexing.
 macro_rules! api {
-    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $neon:ident, $x64:ident, $key_len:path, $tag_len:path, $aad_limit: expr, $ptxt_limit: expr) => {
+    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $key_len:path, $tag_len:path, $aad_limit: expr, $ptxt_limit: expr) => {
         mod $mod_name {
             use super::*;
             use libcrux_secrets::U8;
@@ -128,18 +128,7 @@ macro_rules! api {
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
                         length_check(ciphertext, plaintext, aad)?;
-
-                        // SIMD256 needs to come first because SIMD128 is true for
-                        // x64 as well, but we don't actually implement it.
-                        if libcrux_platform::simd256_support() && libcrux_platform::aes_ni_support() {
-                            $x64::encrypt(ciphertext, tag, key, nonce, aad, plaintext)
-                        } else if libcrux_platform::simd128_support()
-                            && libcrux_platform::aes_ni_support()
-                        {
-                            $neon::encrypt(ciphertext, tag, key, nonce, aad, plaintext)
-                        } else {
-                            $portable::encrypt(ciphertext, tag, key, nonce, aad, plaintext)
-                        }
+                        $portable::encrypt(ciphertext, tag, key, nonce, aad, plaintext)
                     }
 
                     fn decrypt(
@@ -151,18 +140,7 @@ macro_rules! api {
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
                         length_check(ciphertext, plaintext, aad)?;
-
-                        // SIMD256 needs to come first because SIMD128 is true for
-                        // x64 as well, but we don't actually implement it.
-                        if libcrux_platform::simd256_support() && libcrux_platform::aes_ni_support() {
-                            $x64::decrypt(plaintext, key, nonce, aad, ciphertext, tag)
-                        } else if libcrux_platform::simd128_support()
-                            && libcrux_platform::aes_ni_support()
-                        {
-                            $neon::decrypt(plaintext, key, nonce, aad, ciphertext, tag)
-                        } else {
-                            $portable::decrypt(plaintext, key, nonce, aad, ciphertext, tag)
-                        }
+                        $portable::decrypt(plaintext, key, nonce, aad, ciphertext, tag)
                     }
                 }
             }
@@ -210,158 +188,9 @@ macro_rules! api {
                     }
                 }
             }
-
-            #[cfg(feature = "simd128")]
-            mod _libcrux_traits_apis_neon {
-                use super::*;
-
-                // implement `libcrux_traits` slice trait
-                slice::impl_aead_slice_trait!($neon => KEY_LEN, TAG_LEN, NONCE_LEN);
-
-                // implement `libcrux_traits` public API traits
-                impl_traits_public_api!($neon, KEY_LEN, TAG_LEN, NONCE_LEN);
-
-                /// The plaintext length must be equal to the ciphertext length.
-                impl arrayref::Aead<KEY_LEN, TAG_LEN, NONCE_LEN> for $neon {
-                    fn keygen(key: &mut [u8; KEY_LEN], rand: &[u8; KEY_LEN]) -> Result<(), KeyGenError> {
-                        *key = *rand;
-                        Ok(())
-                    }
-
-                    fn encrypt(
-                        ciphertext: &mut [u8],
-                        tag: &mut Tag,
-                        key: &Key,
-                        nonce: &Nonce,
-                        aad: &[u8],
-                        plaintext: &[u8],
-                    ) -> Result<(), EncryptError> {
-                        length_check(ciphertext, plaintext, aad)?;
-
-                        crate::neon::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
-                    }
-
-                    fn decrypt(
-                        plaintext: &mut [u8],
-                        key: &Key,
-                        nonce: &Nonce,
-                        aad: &[u8],
-                        ciphertext: &[u8],
-                        tag: &Tag,
-                    ) -> Result<(), DecryptError> {
-                        length_check(ciphertext, plaintext, aad)?;
-
-                        crate::neon::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
-                    }
-                }
-            }
-
-            #[cfg(feature = "simd256")]
-            mod _libcrux_traits_api_x64 {
-                use super::*;
-
-                // implement `libcrux_traits` slice trait
-                slice::impl_aead_slice_trait!($x64 => KEY_LEN, TAG_LEN, NONCE_LEN);
-
-                // implement `libcrux_traits` public API traits
-                impl_traits_public_api!($x64, KEY_LEN, TAG_LEN, NONCE_LEN);
-
-                /// The plaintext length must be equal to the ciphertext length.
-                impl arrayref::Aead<KEY_LEN, TAG_LEN, NONCE_LEN> for $x64 {
-                    fn keygen(key: &mut [u8; KEY_LEN], rand: &[u8; KEY_LEN]) -> Result<(), KeyGenError> {
-                        *key = *rand;
-                        Ok(())
-                    }
-
-                    fn encrypt(
-                        ciphertext: &mut [u8],
-                        tag: &mut Tag,
-                        key: &Key,
-                        nonce: &Nonce,
-                        aad: &[u8],
-                        plaintext: &[u8],
-                    ) -> Result<(), EncryptError> {
-                        length_check(ciphertext, plaintext, aad)?;
-
-                        crate::x64::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
-                    }
-
-                    fn decrypt(
-                        plaintext: &mut [u8],
-                        key: &Key,
-                        nonce: &Nonce,
-                        aad: &[u8],
-                        ciphertext: &[u8],
-                        tag: &Tag,
-                    ) -> Result<(), DecryptError> {
-                        length_check(ciphertext, plaintext, aad)?;
-
-                        crate::x64::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
-                    }
-                }
-            }
         }
     };
 }
-
-macro_rules! cfg {
-    ($feature:literal $($it:item)*) => {
-        $(
-        #[cfg(feature = $feature)]
-            $it
-        )*
-    }
-}
-
-macro_rules! not_cfg {
-    ($feature:literal $($it:item)*) => {
-        $(
-        #[cfg(not(feature = $feature))]
-            $it
-        )*
-    }
-}
-
-cfg!(
-    "simd128"
-    use crate::implementations::NeonAesGcm128;
-    use crate::implementations::NeonAesGcm256;
-    use crate::implementations::NeonAesCcm128;
-    use crate::implementations::NeonAesCcm256;
-    use crate::implementations::NeonAesCcm256ShortTag;
-    use crate::implementations::NeonAesCcm128ShortTag;
-);
-
-cfg!(
-    "simd256"
-    use crate::implementations::X64AesGcm128;
-    use crate::implementations::X64AesGcm256;
-    use crate::implementations::X64AesCcm128;
-    use crate::implementations::X64AesCcm256;
-    use crate::implementations::X64AesCcm128ShortTag;
-    use crate::implementations::X64AesCcm256ShortTag;
-);
-
-// If SIMD implementations are not available, fall back to portable.
-not_cfg!(
-    "simd128"
-    use crate::implementations::PortableAesGcm128 as NeonAesGcm128;
-    use crate::implementations::PortableAesGcm256 as NeonAesGcm256;
-    use crate::implementations::PortableAesCcm128 as NeonAesCcm128;
-    use crate::implementations::PortableAesCcm256 as NeonAesCcm256;
-    use crate::implementations::PortableAesCcm128ShortTag as NeonAesCcm128ShortTag;
-    use crate::implementations::PortableAesCcm256ShortTag as NeonAesCcm256ShortTag;
-);
-
-not_cfg!(
-    "simd256"
-    use crate::implementations::PortableAesGcm128 as X64AesGcm128;
-    use crate::implementations::PortableAesGcm256 as X64AesGcm256;
-    use crate::implementations::PortableAesCcm128 as X64AesCcm128;
-    use crate::implementations::PortableAesCcm256 as X64AesCcm256;
-    use crate::implementations::PortableAesCcm128ShortTag as X64AesCcm128ShortTag;
-    use crate::implementations::PortableAesCcm256ShortTag as X64AesCcm256ShortTag;
-);
 
 // The following values are taken from RFC 5116.
 
@@ -415,8 +244,6 @@ api!(
     aes_gcm_128,
     AesGcm128,
     PortableAesGcm128,
-    NeonAesGcm128,
-    X64AesGcm128,
     crate::aes::AES_128_KEY_LEN,
     crate::TAG_LEN,
     limits::GCM_AAD_MAX_LEN,
@@ -428,8 +255,6 @@ api!(
     aes_gcm_256,
     AesGcm256,
     PortableAesGcm256,
-    NeonAesGcm256,
-    X64AesGcm256,
     crate::aes::AES_256_KEY_LEN,
     crate::TAG_LEN,
     limits::GCM_AAD_MAX_LEN,
@@ -441,8 +266,6 @@ api!(
     aes_ccm_128,
     AesCcm128,
     PortableAesCcm128,
-    NeonAesCcm128,
-    X64AesCcm128,
     crate::aes::AES_128_KEY_LEN,
     crate::TAG_LEN,
     limits::CCM_AAD_MAX_LEN,
@@ -454,8 +277,6 @@ api!(
     aes_ccm_256,
     AesCcm256,
     PortableAesCcm256,
-    NeonAesCcm256,
-    X64AesCcm256,
     crate::aes::AES_256_KEY_LEN,
     crate::TAG_LEN,
     limits::CCM_AAD_MAX_LEN,
@@ -467,8 +288,6 @@ api!(
     aes_ccm_128_8,
     AesCcm128ShortTag,
     PortableAesCcm128ShortTag,
-    NeonAesCcm128ShortTag,
-    X64AesCcm128ShortTag,
     crate::aes::AES_128_KEY_LEN,
     crate::CCM_SHORT_TAG_LEN,
     limits::CCM_AAD_MAX_LEN,
@@ -480,8 +299,6 @@ api!(
     aes_ccm_256_8,
     AesCcm256ShortTag,
     PortableAesCcm256ShortTag,
-    NeonAesCcm256ShortTag,
-    X64AesCcm256ShortTag,
     crate::aes::AES_256_KEY_LEN,
     crate::CCM_SHORT_TAG_LEN,
     limits::CCM_AAD_MAX_LEN,
