@@ -5,7 +5,7 @@ fn gf128<T: GF128FieldElement>(key: &[u8], input: &[u8], out: &mut [u8]) {
     debug_assert!(out.len() == 16);
 
     let mut st = GF128State::<T>::init(key);
-    st.update_padded(input);
+    st.update_padded(input.into_iter());
     st.emit(out);
 }
 

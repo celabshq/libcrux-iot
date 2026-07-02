@@ -36,17 +36,6 @@ impl<T: GF128FieldElement> GF128State<T> {
     }
 
     #[inline]
-    pub(crate) fn update_blocks(&mut self, input: &[u8]) {
-        debug_assert!(input.len().is_multiple_of(AES_BLOCK_LEN));
-
-        let blocks = input.len() / AES_BLOCK_LEN;
-        for i in 0..blocks {
-            let offset = i * AES_BLOCK_LEN;
-            self.update(&input[offset..offset + AES_BLOCK_LEN]);
-        }
-    }
-
-    #[inline]
     pub(crate) fn update_last(&mut self, partial_block: &[u8]) {
         debug_assert!(partial_block.len() < 16);
 
@@ -56,13 +45,26 @@ impl<T: GF128FieldElement> GF128State<T> {
     }
 
     #[inline]
-    pub(crate) fn update_padded(&mut self, input: &[u8]) {
-        let blocks = input.len() / AES_BLOCK_LEN;
-        self.update_blocks(&input[0..blocks * AES_BLOCK_LEN]);
+    pub(crate) fn update_padded<'a>(
+        &mut self,
+        mut input: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+    ) {
+        let mut block_buffer = [0u8; AES_BLOCK_LEN];
+        let mut block_index = 0;
+        while let Some(byte) = input.next() {
+            block_buffer[block_index] = *byte;
+            block_index += 1;
 
-        let last = input.len() - input.len() % AES_BLOCK_LEN;
-        if last < input.len() {
-            self.update_last(&input[last..]);
+            // We've filled up the block buffer so we can update once
+            // and reset the block counter.
+            if block_index == AES_BLOCK_LEN {
+                self.update(&block_buffer);
+                block_index = 0;
+            }
+        }
+
+        if block_index > 0 {
+            self.update_last(&block_buffer[..block_index]);
         }
     }
 

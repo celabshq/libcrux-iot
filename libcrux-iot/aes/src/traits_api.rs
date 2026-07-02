@@ -171,7 +171,7 @@ macro_rules! api {
                     ) -> Result<(), EncryptError> {
                         length_check(ciphertext, plaintext, aad)?;
 
-                        crate::portable::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
+                        crate::portable::$variant::encrypt(key, nonce, aad.into_iter(), plaintext, ciphertext, tag)
                     }
 
                     fn decrypt(
@@ -184,7 +184,7 @@ macro_rules! api {
                     ) -> Result<(), DecryptError> {
                         length_check(ciphertext, plaintext, aad)?;
 
-                        crate::portable::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
+                        crate::portable::$variant::decrypt(key, nonce, aad.into_iter(), ciphertext, tag, plaintext)
                     }
                 }
             }

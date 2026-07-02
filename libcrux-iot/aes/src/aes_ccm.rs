@@ -42,7 +42,13 @@ where
     }
 
     /// Encrypt and authenticate AAD and plaintext.
-    fn encrypt(&mut self, aad: &[u8], plaintext: &[u8], ciphertext: &mut [u8], tag: &mut [u8]) {
+    fn encrypt<'a>(
+        &mut self,
+        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        plaintext: &[u8],
+        ciphertext: &mut [u8],
+        tag: &mut [u8],
+    ) {
         debug_assert_eq!(tag.len(), TAG_LEN);
         let mut tag_block = [0u8; AES_BLOCK_LEN];
 
@@ -63,9 +69,9 @@ where
 
     /// Verify authentication tag, and if valid decrypt
     /// plaintext from ciphertext.
-    fn decrypt(
+    fn decrypt<'a>(
         &mut self,
-        aad: &[u8],
+        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
         ciphertext: &[u8],
         tag: &[u8],
         plaintext: &mut [u8],
@@ -123,7 +129,11 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
     /// The state needs to be initialized first to set the
     /// correct nonce in the initial state of the accumulator.
     #[inline]
-    fn ccm_update_aad(&mut self, aad: &[u8], payload_len: usize) {
+    fn ccm_update_aad<'a>(
+        &mut self,
+        mut aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        payload_len: usize,
+    ) {
         // We need this to get the right slices from the end
         // of `x.len().to_be_bytes()` where `x` is a usize.
         const USIZE_LEN: usize = core::mem::size_of::<usize>();
@@ -133,6 +143,7 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
         debug_assert!(MSG_ENC_LEN <= USIZE_LEN);
         debug_assert!(MSG_ENC_LEN <= AES_BLOCK_LEN);
         debug_assert_eq!(15 - MSG_ENC_LEN, NONCE_LEN);
+        let aad_len = aad.len();
 
         // Byte 0 of initial accumulator value:
         // bit 7: `Reserved`, set to 0
@@ -140,7 +151,7 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
         // bits 5..=3: `(TAG_LEN - 2) / 2` encoded in three bytes
         // bits 2..=0: `(MSG_ENC_LEN - 1)` encoded in three bytes
         self.accumulator[0] =
-            64 * (!aad.is_empty() as u8) + ((TAG_LEN as u8 - 2) / 2) * 8 + (MSG_ENC_LEN as u8) - 1;
+            64 * (!(aad_len == 0) as u8) + ((TAG_LEN as u8 - 2) / 2) * 8 + (MSG_ENC_LEN as u8) - 1;
 
         // Bytes 1..=15-MSG_ENC_LEN contain the nonce, which
         // is set in `set_nonce`.
@@ -161,7 +172,6 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
 
         // If len(AAD) == 0, nothing further is accumulated
         // and we move on to accumulating the plaintext.
-        let aad_len = aad.len();
         if aad_len == 0 {
             return;
         }
@@ -200,50 +210,32 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
             current_block[2..10].copy_from_slice(&aad_len.to_be_bytes());
         }
 
-        // We have checked in the traits API that the AAD
-        // length does not exceed `usize::MAX - 10`, so this
-        // addition should not overflow.
-        if aad_len + aad_len_encoding_len <= AES_BLOCK_LEN {
-            // If len(AAD) + aad_len_encoding_len does not fill a
-            // full block, we write out the AAD into the current
-            // block which is implicitly padded with zeroes, and
-            // then accumulate.
-            current_block[aad_len_encoding_len..aad_len + aad_len_encoding_len]
-                .copy_from_slice(&aad);
+        // The first `aad_len_encoding_len` bytes of the first block
+        // are already filled.
+        let mut block_index = aad_len_encoding_len;
+        while let Some(byte) = aad.next() {
+            current_block[block_index] = *byte;
+            block_index += 1;
+
+            // Once a full block has been written, accumulate and
+            // reset block index.
+            if block_index >= AES_BLOCK_LEN {
+                self.accumulate(current_block.as_slice());
+                block_index = 0;
+            }
+        }
+
+        // If `aad_len_encoding_len` + `aad_len` is not a multiple of
+        // `AES_BLOCK_LEN`, `block_index` will be greater than 0 and
+        // point just beyond the last byte of the AAD written to the
+        // last block.  The remainder of the last block must be padded
+        // with zeroes before accumulation.
+        if block_index > 0 {
+            for i in block_index..AES_BLOCK_LEN {
+                current_block[i] = 0;
+            }
 
             self.accumulate(current_block.as_slice());
-        } else {
-            // We have to incorporate the bytes used for the
-            // encoding of len(AAD) into the computation of
-            // full blocks to be accumulated.
-            let full_blocks = (aad_len_encoding_len + aad_len) / AES_BLOCK_LEN;
-            let remainder = (aad_len_encoding_len + aad_len) - full_blocks * AES_BLOCK_LEN;
-
-            let initial_aad_chunk_len = AES_BLOCK_LEN - aad_len_encoding_len;
-
-            for i in 0..full_blocks {
-                if i == 0 {
-                    // The first full block contains the
-                    // encoding of len(AAD) at the beginning,
-                    // so we can only include
-                    // `initial_aad_chunk_len` bytes from the
-                    // AAD here.
-                    current_block[aad_len_encoding_len..]
-                        .copy_from_slice(&aad[0..initial_aad_chunk_len]);
-                } else {
-                    let offset = initial_aad_chunk_len + (i - 1) * AES_BLOCK_LEN;
-                    current_block.copy_from_slice(&aad[offset..offset + AES_BLOCK_LEN]);
-                }
-
-                self.accumulate(current_block.as_slice());
-            }
-
-            if remainder != 0 {
-                current_block = [0u8; AES_BLOCK_LEN];
-                current_block[..remainder].copy_from_slice(&aad[aad_len - remainder..]);
-
-                self.accumulate(current_block.as_slice());
-            }
         }
     }
 

@@ -648,10 +648,16 @@ pub mod aes_ccm_256 {
 pub(crate) trait State {
     fn init(key: &[u8]) -> Self;
     fn set_nonce(&mut self, nonce: &[u8]);
-    fn encrypt(&mut self, aad: &[u8], plaintext: &[u8], ciphertext: &mut [u8], tag: &mut [u8]);
-    fn decrypt(
+    fn encrypt<'a>(
         &mut self,
-        aad: &[u8],
+        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        plaintext: &[u8],
+        ciphertext: &mut [u8],
+        tag: &mut [u8],
+    );
+    fn decrypt<'a>(
+        &mut self,
+        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
         ciphertext: &[u8],
         tag: &[u8],
         plaintext: &mut [u8],
@@ -786,10 +792,10 @@ pub use aes::AES_256_KEY_LEN;
 pub use libcrux_traits::aead::arrayref::{DecryptError, EncryptError, KeyGenError};
 
 /// Generic AES-based AEAD encrypt.
-pub(crate) fn encrypt<S: State>(
+pub(crate) fn encrypt<'a, S: State>(
     key: &[u8],
     nonce: &[u8],
-    aad: &[u8],
+    aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
     plaintext: &[u8],
     ciphertext: &mut [u8],
     tag: &mut [u8],
@@ -805,10 +811,10 @@ pub(crate) fn encrypt<S: State>(
 }
 
 /// Generic AES-based AEAD decrypt.
-pub(crate) fn decrypt<S: State>(
+pub(crate) fn decrypt<'a, S: State>(
     key: &[u8],
     nonce: &[u8],
-    aad: &[u8],
+    aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
     ciphertext: &[u8],
     tag: &[u8],
     plaintext: &mut [u8],
@@ -832,10 +838,10 @@ macro_rules! pub_crate_mod {
 
             #[doc = $variant_comment]
             /// encrypt.
-            pub fn encrypt(
+            pub fn encrypt<'a>(
                 key: &[u8],
                 nonce: &[u8],
-                aad: &[u8],
+                aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
                 plaintext: &[u8],
                 ciphertext: &mut [u8],
                 tag: &mut [u8],
@@ -846,10 +852,10 @@ macro_rules! pub_crate_mod {
 
             #[doc = $variant_comment]
             /// decrypt.
-            pub fn decrypt(
+            pub fn decrypt<'a>(
                 key: &[u8],
                 nonce: &[u8],
-                aad: &[u8],
+                aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
                 ciphertext: &[u8],
                 tag: &[u8],
                 plaintext: &mut [u8],

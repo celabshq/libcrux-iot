@@ -44,18 +44,26 @@ where
         self.aes_state.aes_ctr_key_block(1, &mut self.tag_mix);
     }
 
-    fn encrypt(&mut self, aad: &[u8], plaintext: &[u8], ciphertext: &mut [u8], tag: &mut [u8]) {
+    fn encrypt<'a>(
+        &mut self,
+        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        plaintext: &[u8],
+        ciphertext: &mut [u8],
+        tag: &mut [u8],
+    ) {
         debug_assert!(ciphertext.len() == plaintext.len());
         debug_assert!(plaintext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
         debug_assert!(tag.len() == TAG_LEN);
 
         self.aes_state.aes_ctr_update(2, plaintext, ciphertext);
 
+        let aad_len = aad.len();
         self.gcm_state.update_padded(aad);
-        self.gcm_state.update_padded(ciphertext);
+        self.gcm_state
+            .update_padded(ciphertext.as_ref().into_iter());
 
         let mut last_block = [0u8; AES_BLOCK_LEN];
-        last_block[0..8].copy_from_slice(&((aad.len() as u64) * 8).to_be_bytes());
+        last_block[0..8].copy_from_slice(&((aad_len as u64) * 8).to_be_bytes());
         last_block[8..16].copy_from_slice(&((plaintext.len() as u64) * 8).to_be_bytes());
 
         self.gcm_state.update(&last_block);
@@ -66,9 +74,9 @@ where
         }
     }
 
-    fn decrypt(
+    fn decrypt<'a>(
         &mut self,
-        aad: &[u8],
+        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
         ciphertext: &[u8],
         tag: &[u8],
         plaintext: &mut [u8],
@@ -77,11 +85,13 @@ where
         debug_assert!(ciphertext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
         debug_assert!(tag.len() == TAG_LEN);
 
+        let aad_len = aad.len();
         self.gcm_state.update_padded(aad);
-        self.gcm_state.update_padded(ciphertext);
+        self.gcm_state
+            .update_padded(ciphertext.as_ref().into_iter());
 
         let mut last_block = [0u8; AES_BLOCK_LEN];
-        last_block[0..8].copy_from_slice(&((aad.len() as u64) * 8).to_be_bytes());
+        last_block[0..8].copy_from_slice(&((aad_len as u64) * 8).to_be_bytes());
         last_block[8..16].copy_from_slice(&((plaintext.len() as u64) * 8).to_be_bytes());
 
         self.gcm_state.update(&last_block);
