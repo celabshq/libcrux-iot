@@ -43,7 +43,10 @@ abbrev Acc :=
 /-- FC loop invariant for `subtract_reduce_fc`.
     * (a) Chunks `j < k`: FC equation `lift_chunk acc[j] = chunk_subtract_reduce_pure
           (lift_chunk self[j]) (lift_chunk b_init[j])`.
-    * (b) Chunks `k ≤ j < 16`: `acc[j] = b_init[j]` (unchanged). -/
+    * (b) Chunks `k ≤ j < 16`: `acc[j] = b_init[j]` (unchanged).
+    * (c) Chunks `j < k`: per-lane `|acc[j][m]| ≤ 3328` — the Barrett-reduced
+          output bound, carried so the top-level L7.4 POST can state the impl
+          output in canonical form (no output `lift`). -/
 def inv
     (self b_init : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
@@ -55,7 +58,9 @@ def inv
             (lift_chunk (self.coefficients.val[j]!))
             (lift_chunk (b_init.coefficients.val[j]!)))
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
-        acc.coefficients.val[j]! = b_init.coefficients.val[j]!))
+        acc.coefficients.val[j]! = b_init.coefficients.val[j]!)
+    ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
+        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -100,7 +105,7 @@ theorem subtract_reduce_step_lemma_fc
     Std.Array.length_eq _
   have h_self_coef_len : self.coefficients.length = 16 :=
     Std.Array.length_eq _
-  obtain ⟨h_acc_done, h_acc_undone⟩ := by
+  obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd_done⟩ := by
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.subtract_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
@@ -374,8 +379,10 @@ theorem subtract_reduce_step_lemma_fc
                 (lift_chunk (self.coefficients.val[j]!))
                 (lift_chunk (b_init.coefficients.val[j]!)))
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
-            acc'.coefficients.val[j]! = b_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc'.coefficients.val[j]! = b_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
+            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
         rw [hs_val] at hj
@@ -575,6 +582,44 @@ theorem subtract_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3, h_set4]
         exact h_acc_undone j h_ge' hj_lt
+      · -- (c) j < s.val → per-lane Barrett bound on acc'.coefs[j].
+        intro j hj m hm
+        rw [hs_val] at hj
+        show ((((((acc.coefficients.set k t1).set k t4).set k t6).set k t8).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
+        rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
+        · -- j < k.val: chunk j unchanged through all four sets — reuse the incoming bound.
+          have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
+          have h_set1 : (((((acc.coefficients.set k t1).set k t4).set k t6).set k t8).val[j]!)
+              = ((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                (((acc.coefficients.set k t1).set k t4).set k t6) k j t8 h_ne
+          have h_set2 : ((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!)
+              = (((acc.coefficients.set k t1).set k t4).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                ((acc.coefficients.set k t1).set k t4) k j t6 h_ne
+          have h_set3 : (((acc.coefficients.set k t1).set k t4).val[j]!)
+              = ((acc.coefficients.set k t1).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                (acc.coefficients.set k t1) k j t4 h_ne
+          have h_set4 : ((acc.coefficients.set k t1).val[j]!)
+              = acc.coefficients.val[j]! := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
+          rw [h_set1, h_set2, h_set3, h_set4]
+          exact h_acc_bnd_done j hj_lt_k m hm
+        · -- j = k.val: chunk j = t8, the Barrett-reduced output (|·| ≤ 3328).
+          subst hj_eq_k
+          have h_set_eq : (((((acc.coefficients.set k t1).set k t4).set k t6).set k t8).val[k.val]!)
+              = t8 := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_eq
+                (((acc.coefficients.set k t1).set k t4).set k t6) k k.val t8
+                ⟨rfl, by simp; exact hk_16⟩
+          rw [h_set_eq]
+          exact h_t8_bnd m hm
     show (pure _ : Result Prop).holds
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
   · -- `None` branch: k ≥ 16, done.
@@ -610,13 +655,17 @@ theorem subtract_reduce_step_lemma_fc
                 (lift_chunk (self.coefficients.val[j]!))
                 (lift_chunk (b_init.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            acc.coefficients.val[j]! = b_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc.coefficients.val[j]! = b_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
+      · intro j hj m hm; rw [h16] at hj
+        exact h_acc_bnd_done j (by rw [hk_eq]; exact hj) m hm
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
 
 set_option maxHeartbeats 16000000 in
@@ -645,7 +694,9 @@ theorem subtract_reduce_fc
     libcrux_iot_ml_kem.polynomial.PolynomialRingElement.subtract_reduce
       (vectortraitsOperationsInst := portable_ops_inst) self b
     ⦃ ⇓ p => ⌜ lift_poly p
-                = Spec.subtract_reduce_pure (lift_poly self) (lift_poly b) ⌝ ⦄ := by
+                = Spec.subtract_reduce_pure (lift_poly self) (lift_poly b)
+              ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.subtract_reduce
   -- Resolve `VECTORS_IN_RING_ELEMENT = .ok 16#usize`.
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
@@ -670,11 +721,13 @@ theorem subtract_reduce_fc
         show (pure _ : Result Prop).holds
         simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
-        refine ⟨?_, ?_⟩
+        refine ⟨?_, ?_, ?_⟩
         · -- No chunks done yet.
           intro j hj; exact absurd hj (Nat.not_lt_zero j)
         · -- All chunks unchanged (goal trivializes since acc = b).
-          intro _ _ _; trivial)
+          intro _ _ _; trivial
+        · -- No output bounds to prove yet.
+          intro j hj; exact absurd hj (Nat.not_lt_zero j))
       ?_)
   · -- Post entailment: at k=16, the invariant gives all 16 FC equations.
     rw [PostCond.entails_noThrow]
@@ -688,10 +741,14 @@ theorem subtract_reduce_fc
                   (lift_chunk (self.coefficients.val[j]!))
                   (lift_chunk (b.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            r.coefficients.val[j]! = b.coefficients.val[j]!) := by
+            r.coefficients.val[j]! = b.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              ReducingFromI32ArrayFC.inv] using h_inv_holds
-    obtain ⟨h_done, _h_undone⟩ := h_inv
+    obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
+    -- Split the conjunctive postcondition: lift equation, then the Barrett bound.
+    refine ⟨?_, fun j hj m hm => h_bnd j hj m hm⟩
     -- Build chunks_arr matching the Spec definition, then apply
     -- flatten_chunks_eq_lift_poly_fc.
     unfold Spec.subtract_reduce_pure
@@ -774,7 +831,9 @@ def inv
             (lift_chunk (self_init.coefficients.val[j]!))
             (lift_chunk (error.coefficients.val[j]!)))
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
-        acc.coefficients.val[j]! = self_init.coefficients.val[j]!))
+        acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
+    ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
+        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -819,7 +878,7 @@ theorem add_error_reduce_step_lemma_fc
     Std.Array.length_eq _
   have h_error_coef_len : error.coefficients.length = 16 :=
     Std.Array.length_eq _
-  obtain ⟨h_acc_done, h_acc_undone⟩ := by
+  obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd_done⟩ := by
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_error_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
@@ -939,7 +998,7 @@ theorem add_error_reduce_step_lemma_fc
     -- (9) `barrett_reduce t4` → `t6`. Pre: |t4[ℓ]| ≤ 32767 ✓.
     obtain ⟨t6, h_t6_eq, h_t6_post⟩ :=
       triple_exists_ok_fc (barrett_reduce_fc t4 h_t4_bnd)
-    obtain ⟨_h_t6_bnd, h_t6_lift⟩ := h_t6_post
+    obtain ⟨h_t6_bnd, h_t6_lift⟩ := h_t6_post
     -- (10) Compose acc' = `{ coefficients := a1.set k t6 }`.
     set a2 : Std.Array libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector 16#usize :=
       a1.set k t6 with ha2_def
@@ -1006,8 +1065,10 @@ theorem add_error_reduce_step_lemma_fc
                 (lift_chunk (self_init.coefficients.val[j]!))
                 (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
-            acc'.coefficients.val[j]! = self_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc'.coefficients.val[j]! = self_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
+            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
         rw [hs_val] at hj
@@ -1161,6 +1222,39 @@ theorem add_error_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
+      · -- (c) j < s.val → per-lane Barrett bound on acc'.coefs[j].
+        intro j hj m hm
+        rw [hs_val] at hj
+        show (((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
+        rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
+        · -- j < k.val: chunk j unchanged through all three sets — reuse the incoming bound.
+          have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
+          have h_set1 : ((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!)
+              = (((acc.coefficients.set k t1).set k t4).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                ((acc.coefficients.set k t1).set k t4) k j t6 h_ne
+          have h_set2 : (((acc.coefficients.set k t1).set k t4).val[j]!)
+              = ((acc.coefficients.set k t1).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                (acc.coefficients.set k t1) k j t4 h_ne
+          have h_set3 : ((acc.coefficients.set k t1).val[j]!)
+              = acc.coefficients.val[j]! := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
+          rw [h_set1, h_set2, h_set3]
+          exact h_acc_bnd_done j hj_lt_k m hm
+        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 3328).
+          subst hj_eq_k
+          have h_set_eq : ((((acc.coefficients.set k t1).set k t4).set k t6).val[k.val]!)
+              = t6 := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_eq
+                ((acc.coefficients.set k t1).set k t4) k k.val t6
+                ⟨rfl, by simp; exact hk_16⟩
+          rw [h_set_eq]
+          exact h_t6_bnd m hm
     show (pure _ : Result Prop).holds
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
   · -- `None` branch: k ≥ 16, done.
@@ -1196,13 +1290,17 @@ theorem add_error_reduce_step_lemma_fc
                 (lift_chunk (self_init.coefficients.val[j]!))
                 (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            acc.coefficients.val[j]! = self_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
+      · intro j hj m hm; rw [h16] at hj
+        exact h_acc_bnd_done j (by rw [hk_eq]; exact hj) m hm
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
 
 set_option maxHeartbeats 16000000 in
@@ -1226,7 +1324,9 @@ theorem add_error_reduce_fc
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_error_reduce
       (vectortraitsOperationsInst := portable_ops_inst) self error
-    ⦃ ⇓ p => ⌜ lift_poly p = Spec.add_error_reduce_pure (lift_poly self) (lift_poly error) ⌝ ⦄ := by
+    ⦃ ⇓ p => ⌜ lift_poly p = Spec.add_error_reduce_pure (lift_poly self) (lift_poly error)
+              ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_error_reduce
   -- Resolve `VECTORS_IN_RING_ELEMENT = .ok 16#usize`.
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
@@ -1251,9 +1351,10 @@ theorem add_error_reduce_fc
         show (pure _ : Result Prop).holds
         simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
-        refine ⟨?_, ?_⟩
+        refine ⟨?_, ?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
-        · intro _ _ _; trivial)
+        · intro _ _ _; trivial
+        · intro j hj; exact absurd hj (Nat.not_lt_zero j))
       ?_)
   · -- Post entailment: at k=16, the invariant gives all 16 FC equations.
     rw [PostCond.entails_noThrow]
@@ -1267,10 +1368,14 @@ theorem add_error_reduce_fc
                   (lift_chunk (self.coefficients.val[j]!))
                   (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            r.coefficients.val[j]! = self.coefficients.val[j]!) := by
+            r.coefficients.val[j]! = self.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              AddErrorReduceFC.inv] using h_inv_holds
-    obtain ⟨h_done, _h_undone⟩ := h_inv
+    obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
+    -- Split the conjunctive postcondition: lift equation, then the Barrett bound.
+    refine ⟨?_, fun j hj m hm => h_bnd j hj m hm⟩
     -- Build chunks_arr matching the Spec definition, then apply
     -- flatten_chunks_eq_lift_poly_fc.
     unfold Spec.add_error_reduce_pure
@@ -1327,7 +1432,10 @@ abbrev Acc :=
     * (a) Chunks `j < k`: FC equation `lift_chunk acc[j] =
           chunk_add_standard_error_reduce_pure (lift_chunk self_init[j])
             (lift_chunk error[j])`.
-    * (b) Chunks `k ≤ j < 16`: `acc[j] = self_init[j]` (unchanged). -/
+    * (b) Chunks `k ≤ j < 16`: `acc[j] = self_init[j]` (unchanged).
+    * (c) Chunks `j < k`: per-lane `|acc[j][m]| ≤ 3328` — the Barrett-reduced
+          output bound, carried so the top-level L7.1 POST can state the impl
+          output in canonical form (no output `lift`). -/
 def inv
     (self_init error : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
@@ -1339,7 +1447,9 @@ def inv
             (lift_chunk (self_init.coefficients.val[j]!))
             (lift_chunk (error.coefficients.val[j]!)))
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
-        acc.coefficients.val[j]! = self_init.coefficients.val[j]!))
+        acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
+    ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
+        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -1390,7 +1500,7 @@ theorem add_standard_error_reduce_step_lemma_fc
         = (1353#i16 : Std.I16) := by
     unfold libcrux_iot_ml_kem.vector.traits.MONTGOMERY_R_SQUARED_MOD_FIELD_MODULUS
     rfl
-  obtain ⟨h_acc_done, h_acc_undone⟩ := by
+  obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd_done⟩ := by
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_standard_error_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
@@ -1510,7 +1620,7 @@ theorem add_standard_error_reduce_step_lemma_fc
     -- (9) `barrett_reduce t4` → `t6`. Pre: |t4[ℓ]| ≤ 32767 ✓.
     obtain ⟨t6, h_t6_eq, h_t6_post⟩ :=
       triple_exists_ok_fc (barrett_reduce_fc t4 h_t4_bnd)
-    obtain ⟨_h_t6_bnd, h_t6_lift⟩ := h_t6_post
+    obtain ⟨h_t6_bnd, h_t6_lift⟩ := h_t6_post
     -- (10) Compose acc' = `{ coefficients := a1.set k t6 }`.
     set a2 : Std.Array libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector 16#usize :=
       a1.set k t6 with ha2_def
@@ -1578,8 +1688,10 @@ theorem add_standard_error_reduce_step_lemma_fc
                 (lift_chunk (self_init.coefficients.val[j]!))
                 (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
-            acc'.coefficients.val[j]! = self_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc'.coefficients.val[j]! = self_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
+            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
         rw [hs_val] at hj
@@ -1733,6 +1845,39 @@ theorem add_standard_error_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
+      · -- (c) j < s.val → per-lane Barrett bound on acc'.coefs[j].
+        intro j hj m hm
+        rw [hs_val] at hj
+        show (((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
+        rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
+        · -- j < k.val: chunk j unchanged through all three sets — reuse the incoming bound.
+          have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
+          have h_set1 : ((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!)
+              = (((acc.coefficients.set k t1).set k t4).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                ((acc.coefficients.set k t1).set k t4) k j t6 h_ne
+          have h_set2 : (((acc.coefficients.set k t1).set k t4).val[j]!)
+              = ((acc.coefficients.set k t1).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                (acc.coefficients.set k t1) k j t4 h_ne
+          have h_set3 : ((acc.coefficients.set k t1).val[j]!)
+              = acc.coefficients.val[j]! := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
+          rw [h_set1, h_set2, h_set3]
+          exact h_acc_bnd_done j hj_lt_k m hm
+        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 3328).
+          subst hj_eq_k
+          have h_set_eq : ((((acc.coefficients.set k t1).set k t4).set k t6).val[k.val]!)
+              = t6 := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_eq
+                ((acc.coefficients.set k t1).set k t4) k k.val t6
+                ⟨rfl, by simp; exact hk_16⟩
+          rw [h_set_eq]
+          exact h_t6_bnd m hm
     show (pure _ : Result Prop).holds
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
   · -- `None` branch: k ≥ 16, done.
@@ -1768,13 +1913,17 @@ theorem add_standard_error_reduce_step_lemma_fc
                 (lift_chunk (self_init.coefficients.val[j]!))
                 (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            acc.coefficients.val[j]! = self_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
+      · intro j hj m hm; rw [h16] at hj
+        exact h_acc_bnd_done j (by rw [hk_eq]; exact hj) m hm
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
 
 set_option maxHeartbeats 16000000 in
@@ -1799,7 +1948,9 @@ theorem add_standard_error_reduce_fc
     libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_standard_error_reduce
       (vectortraitsOperationsInst := portable_ops_inst) self error
     ⦃ ⇓ p => ⌜ lift_poly p
-                = Spec.add_standard_error_reduce_pure (lift_poly self) (lift_poly error) ⌝ ⦄ := by
+                = Spec.add_standard_error_reduce_pure (lift_poly self) (lift_poly error)
+              ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_standard_error_reduce
   -- Resolve `VECTORS_IN_RING_ELEMENT = .ok 16#usize`.
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
@@ -1824,9 +1975,10 @@ theorem add_standard_error_reduce_fc
         show (pure _ : Result Prop).holds
         simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
-        refine ⟨?_, ?_⟩
+        refine ⟨?_, ?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
-        · intro _ _ _; trivial)
+        · intro _ _ _; trivial
+        · intro j hj; exact absurd hj (Nat.not_lt_zero j))
       ?_)
   · -- Post entailment: at k=16, the invariant gives all 16 FC equations.
     rw [PostCond.entails_noThrow]
@@ -1840,10 +1992,14 @@ theorem add_standard_error_reduce_fc
                   (lift_chunk (self.coefficients.val[j]!))
                   (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            r.coefficients.val[j]! = self.coefficients.val[j]!) := by
+            r.coefficients.val[j]! = self.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              AddStandardErrorReduceFC.inv] using h_inv_holds
-    obtain ⟨h_done, _h_undone⟩ := h_inv
+    obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
+    -- Split the conjunctive postcondition: lift equation, then the Barrett bound.
+    refine ⟨?_, fun j hj m hm => h_bnd j hj m hm⟩
     -- Build chunks_arr matching the Spec definition, then apply
     -- flatten_chunks_eq_lift_poly_fc.
     unfold Spec.add_standard_error_reduce_pure
@@ -1921,7 +2077,9 @@ def inv
             (lift_chunk (message_init.coefficients.val[j]!))
             (lift_chunk (result_init.coefficients.val[j]!)))
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
-        acc.1.coefficients.val[j]! = result_init.coefficients.val[j]!))
+        acc.1.coefficients.val[j]! = result_init.coefficients.val[j]!)
+    ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
+        ((acc.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -1978,7 +2136,7 @@ theorem add_message_error_reduce_step_lemma_fc
     Std.Array.length_eq _
   have h_msg_coef_len : message_init.coefficients.length = 16 :=
     Std.Array.length_eq _
-  obtain ⟨h_acc_done, h_acc_undone⟩ := by
+  obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd_done⟩ := by
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_message_error_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
@@ -2133,7 +2291,7 @@ theorem add_message_error_reduce_step_lemma_fc
     -- (11) `barrett_reduce t4 = t6`. Pre: |t4[ℓ]| ≤ 32767 ✓.
     obtain ⟨t6, h_t6_eq, h_t6_post⟩ :=
       triple_exists_ok_fc (barrett_reduce_fc t4 h_t4_bnd)
-    obtain ⟨_h_t6_bnd, h_t6_lift⟩ := h_t6_post
+    obtain ⟨h_t6_bnd, h_t6_lift⟩ := h_t6_post
     -- (12) Compose acc'.1 = `{ coefficients := a1.set k t6 }`, acc'.2 = scratch2.
     set a2 : Std.Array libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector 16#usize :=
       a1.set k t6 with ha2_def
@@ -2210,8 +2368,10 @@ theorem add_message_error_reduce_step_lemma_fc
                 (lift_chunk (message_init.coefficients.val[j]!))
                 (lift_chunk (result_init.coefficients.val[j]!)))
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
-            acc'.1.coefficients.val[j]! = result_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc'.1.coefficients.val[j]! = result_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
+            ((acc'.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
         rw [hs_val] at hj
@@ -2397,6 +2557,39 @@ theorem add_message_error_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
+      · -- (c) j < s.val → per-lane Barrett bound on acc'.1.coefs[j].
+        intro j hj m hm
+        rw [hs_val] at hj
+        show (((((acc.1.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
+        rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
+        · -- j < k.val: chunk j unchanged through all three sets — reuse the incoming bound.
+          have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
+          have h_set1 : ((((acc.1.coefficients.set k t1).set k t4).set k t6).val[j]!)
+              = (((acc.1.coefficients.set k t1).set k t4).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                ((acc.1.coefficients.set k t1).set k t4) k j t6 h_ne
+          have h_set2 : (((acc.1.coefficients.set k t1).set k t4).val[j]!)
+              = ((acc.1.coefficients.set k t1).val[j]!) := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne
+                (acc.1.coefficients.set k t1) k j t4 h_ne
+          have h_set3 : ((acc.1.coefficients.set k t1).val[j]!)
+              = acc.1.coefficients.val[j]! := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients k j t1 h_ne
+          rw [h_set1, h_set2, h_set3]
+          exact h_acc_bnd_done j hj_lt_k m hm
+        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 3328).
+          subst hj_eq_k
+          have h_set_eq : ((((acc.1.coefficients.set k t1).set k t4).set k t6).val[k.val]!)
+              = t6 := by
+            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
+              Aeneas.Std.Array.getElem!_Nat_set_eq
+                ((acc.1.coefficients.set k t1).set k t4) k k.val t6
+                ⟨rfl, by simp; exact hk_16⟩
+          rw [h_set_eq]
+          exact h_t6_bnd m hm
     show (pure _ : Result Prop).holds
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
   · -- `None` branch: k ≥ 16, done.
@@ -2433,13 +2626,17 @@ theorem add_message_error_reduce_step_lemma_fc
                 (lift_chunk (message_init.coefficients.val[j]!))
                 (lift_chunk (result_init.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            acc.1.coefficients.val[j]! = result_init.coefficients.val[j]!) := by
-      refine ⟨?_, ?_⟩
+            acc.1.coefficients.val[j]! = result_init.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((acc.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
+      · intro j hj m hm; rw [h16] at hj
+        exact h_acc_bnd_done j (by rw [hk_eq]; exact hj) m hm
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
 
 set_option maxHeartbeats 16000000 in
@@ -2469,7 +2666,9 @@ theorem add_message_error_reduce_fc
       (vectortraitsOperationsInst := portable_ops_inst) self message result scratch
     ⦃ ⇓ p => ⌜ lift_poly p.1
                 = Spec.add_message_error_reduce_pure
-                    (lift_poly self) (lift_poly message) (lift_poly result) ⌝ ⦄ := by
+                    (lift_poly self) (lift_poly message) (lift_poly result)
+              ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+                  ((p.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_message_error_reduce
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
                 = .ok (16#usize : Std.Usize) := by
@@ -2494,9 +2693,10 @@ theorem add_message_error_reduce_fc
         show (pure _ : Result Prop).holds
         simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
-        refine ⟨?_, ?_⟩
+        refine ⟨?_, ?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
-        · intro _ _ _; trivial)
+        · intro _ _ _; trivial
+        · intro j hj; exact absurd hj (Nat.not_lt_zero j))
       ?_)
   · -- Post entailment.
     rw [PostCond.entails_noThrow]
@@ -2511,10 +2711,14 @@ theorem add_message_error_reduce_fc
                   (lift_chunk (message.coefficients.val[j]!))
                   (lift_chunk (result.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
-            r.1.coefficients.val[j]! = result.coefficients.val[j]!) := by
+            r.1.coefficients.val[j]! = result.coefficients.val[j]!)
+        ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
+            ((r.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              AddMessageErrorReduceFC.inv] using h_inv_holds
-    obtain ⟨h_done, _h_undone⟩ := h_inv
+    obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
+    -- Split the conjunctive postcondition: lift equation, then the Barrett bound.
+    refine ⟨?_, fun j hj m hm => h_bnd j hj m hm⟩
     unfold Spec.add_message_error_reduce_pure
     set chunks_arr : Std.Array
         (Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) 16#usize :=

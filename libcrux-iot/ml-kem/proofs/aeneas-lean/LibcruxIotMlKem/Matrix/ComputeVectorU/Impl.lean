@@ -1953,7 +1953,11 @@ noncomputable def row_spec {K : Std.Usize}
     (2) Unchanged rows: for each `r ∈ [0, K)` with `r < start ∨ k ≤ r`,
         `result[r]! = result_init[r]!`.
     (3) Length preservation: `result.length = K.val` (needed to discharge the
-        per-iteration `Slice.index_mut result k` bound; the conjuncts (1)/(2) do not carry it). -/
+        per-iteration `Slice.index_mut result k` bound; the conjuncts (1)/(2) do not carry it).
+    (4) Per-completed-row output bound: for each row `r ∈ [start, k)`, every lane
+        `|result[r][j][m]| ≤ 3328` — the Barrett-reduced output bound, carried so
+        the top-level L7.2 POST can state the impl output in canonical form (no
+        output `lift`). -/
 def rows_inv {K : Std.Usize}
     (lm : Std.Array (Std.Array FEPoly K) K)
     (r_as_ntt error_1 : Slice Poly)
@@ -1964,7 +1968,9 @@ def rows_inv {K : Std.Usize}
         row_spec lm r_as_ntt error_1 r = .ok (lift_poly (result.val[r]!)))
     ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ k.val ≤ r) →
         result.val[r]! = result_init.val[r]!)
-    ∧ result.length = K.val)
+    ∧ result.length = K.val
+    ∧ (∀ r : Nat, start.val ≤ r → r < k.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+        ((result.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize` over the loop's 4-carry
     `(matrix_entry, result, scratch, accumulator)`. -/
@@ -2033,7 +2039,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
       (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) K :=
     lift_matrix_from_seed seed K with hlm_def
   -- Destructure the 3-conjunct invariant.
-  obtain ⟨h_inv_done, h_inv_undone, h_result_len⟩ := by
+  obtain ⟨h_inv_done, h_inv_undone, h_result_len, h_inv_bnd⟩ := by
     simpa [AllRowsFillFC.rows_inv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
       ← List.getElem!_eq_getElem?_getD] using h_inv
   have h_result_len : result.length = K.val := h_result_len
@@ -2192,7 +2198,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
         ((err_k.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 29439 :=
       fun chunk hchunk ℓ hℓ =>
         h_err_bnd k.val h_lt ⟨chunk, hchunk⟩ ⟨ℓ, hℓ⟩
-    obtain ⟨result_poly, h_add_eq, h_result_poly_lift⟩ :=
+    obtain ⟨result_poly, h_add_eq, h_result_poly_lift, h_result_poly_bnd⟩ :=
       triple_exists_ok_fc
         (add_error_reduce_fc result2 err_k h_result2_self_bnd h_err_k_bnd)
     -- result_poly slice: rnew := rslice2.set k result_poly.
@@ -2414,8 +2420,10 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
             AllRowsFillFC.row_spec lm r_as_ntt error_1 r = .ok (lift_poly (rnew.val[r]!)))
         ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ s_iter.val ≤ r) →
             rnew.val[r]! = result_init.val[r]!)
-        ∧ rnew.length = K.val := by
-      refine ⟨?_, ?_, h_rnew_len⟩
+        ∧ rnew.length = K.val
+        ∧ (∀ r : Nat, start.val ≤ r → r < s_iter.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+            ((rnew.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, h_rnew_len, ?_⟩
       · -- Completed rows [start, k+1).
         intro r hr_ge hr_lt
         rw [hs_iter_eq] at hr_lt
@@ -2434,6 +2442,18 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
         have hr_ne : r ≠ k.val := by omega
         rw [h_rnew_ne r hr_ne]
         exact h_inv_undone r hr_lt_K (by omega)
+      · -- Per-completed-row output bound [start, k+1).
+        intro r hr_ge hr_lt j hj m hm
+        rw [hs_iter_eq] at hr_lt
+        rcases Nat.lt_succ_iff_lt_or_eq.mp hr_lt with hr_lt_k | hr_eq_k
+        · -- r < k: unchanged this iteration; use IH (4).
+          have hr_ne : r ≠ k.val := by omega
+          rw [h_rnew_ne r hr_ne]
+          exact h_inv_bnd r hr_ge hr_lt_k j hj m hm
+        · -- r = k: the Barrett-reduced row written this iteration (|·| ≤ 3328).
+          subst hr_eq_k
+          rw [h_rnew_at]
+          exact h_result_poly_bnd j hj m hm
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
   · -- `None` branch (k = K): loop ends, done.
     have hk_eq : k.val = K.val := le_antisymm h_le (Nat.not_lt.mp h_lt)
@@ -2481,8 +2501,10 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
             AllRowsFillFC.row_spec lm r_as_ntt error_1 r = .ok (lift_poly (result.val[r]!)))
         ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ K.val ≤ r) →
             result.val[r]! = result_init.val[r]!)
-        ∧ result.length = K.val := by
-      refine ⟨?_, ?_, h_result_len⟩
+        ∧ result.length = K.val
+        ∧ (∀ r : Nat, start.val ≤ r → r < K.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+            ((result.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, h_result_len, ?_⟩
       · intro r hr_ge hr_lt
         exact h_inv_done r hr_ge (by rw [hk_eq]; exact hr_lt)
       · intro r hr_lt_K hr_cond
@@ -2490,6 +2512,8 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
           rcases hr_cond with h | h
           · exact Or.inl h
           · exact Or.inr (by rw [hk_eq]; exact h))
+      · intro r hr_ge hr_lt j hj m hm
+        exact h_inv_bnd r hr_ge (by rw [hk_eq]; exact hr_lt) j hj m hm
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
 
 set_option maxHeartbeats 1600000 in
@@ -2547,9 +2571,10 @@ theorem compute_vector_u_loop1_fc {K : Std.Usize} {Hasher : Type}
         show (pure _ : Result Prop).holds
         simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
-        refine ⟨?_, ?_, h_result_len⟩
+        refine ⟨?_, ?_, h_result_len, ?_⟩
         · intro r hr_ge hr_lt; omega
-        · intro r _ _; trivial)
+        · intro r _ _; trivial
+        · intro r hr_ge hr_lt; omega)
       ?_)
   · -- Post entailment: at k = K, rows_inv holds.
     rw [PostCond.entails_noThrow]

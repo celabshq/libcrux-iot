@@ -17,8 +17,14 @@ trust boundary.
 ## Matrix-level theorems
 
 All four main results are `mvcgen` Triples of the form
-`⦃ True ⦄ <impl> ⦃ ⇓ p => ⌜ <hacspec> (lift args…) = .ok (lift p…) ⌝ ⦄`
-— i.e. they link the Aeneas-extracted impl to the hacspec spec through a `lift` bridge.
+`⦃ True ⦄ <impl> ⦃ ⇓ p => ⌜ ∃ spec_out, <hacspec> (lift args…) = .ok spec_out ∧ <output p relates to spec_out> ⌝ ⦄`
+— i.e. they link the Aeneas-extracted impl to the hacspec spec through a `lift`
+bridge **on the inputs**, while the output side is stated by a single shared
+predicate — `VecMatches impl spec` for the vector results (L7.1, L7.2) and
+`PolyMatches impl spec` for the single-polynomial results (L7.3, L7.4). Both reduce
+to a per-lane `LaneMatches x f`: each impl output lane `x` is the **unique centered
+Barrett representative** of the spec residue — `|x| ≤ 1664 = ⌊q/2⌋` **and**
+`(x : ZMod q) = f` (see [The lift bridge](#the-lift-bridge)).
 The `lift` bridge accounts for different representations of the input/output data:
 The impl uses potentially non-canonical values mod 3329,
 stores coefficients in the Montgomery domain, and
@@ -35,16 +41,21 @@ and a flat array of 256 field elements.
   libcrux_iot_ml_kem.matrix.compute_As_plus_e
     (vectortraitsOperationsInst := portable_ops_inst)
     t_as_ntt matrix_A s_as_ntt error_as_ntt s_cache accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_As_plus_e
-              (lift_matrix_from_slice matrix_A K)
-              (lift_vec s_as_ntt) (lift_vec error_as_ntt)
-            = .ok (lift_vec p.1) ⌝ ⦄ 
+⦃ ⇓ p => ⌜ ∃ spec_out,
+              hacspec_ml_kem.matrix.compute_As_plus_e
+                (lift_matrix_from_slice matrix_A K)
+                (lift_vec s_as_ntt) (lift_vec error_as_ntt) = .ok spec_out
+            ∧ VecMatches p.1.val spec_out ⌝ ⦄
 ```
 
-The impl's `compute_As_plus_e`, lifted, equals
-the hacspec `compute_As_plus_e`. The matrix is read from a **stored**
-array, so this theorem is fully
-axiom-clean.
+The impl's `compute_As_plus_e` inputs are lifted into the hacspec spec, and the
+spec output `spec_out` is related to the impl output via `VecMatches`: each impl
+coefficient `x` is the **unique centered Barrett representative** of the spec
+residue — `|x| ≤ 1664 = ⌊q/2⌋` (a *complete* residue system of exactly `q` values,
+so the representative is pinned uniquely) **and** `(x : ZMod q) = <spec lane>`,
+the residue equality stated directly in `ZMod q`. The `≤ 1664` bound is threaded up
+from `barrett_reduce_fc`. The matrix is read from a **stored** array, so this
+theorem is fully axiom-clean.
 
 ### L7.2 — encryption: `Âᵀ · r̂ + ê₁`
 
@@ -55,16 +66,20 @@ axiom-clean.
   libcrux_iot_ml_kem.matrix.compute_vector_u
     K (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
     matrix_entry seed r_as_ntt error_1 result scratch cache accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_vector_u
-              (lift_matrix_from_seed seed K)
-              (lift_vec_slice r_as_ntt K)
-              (lift_vec_slice error_1 K)
-            = .ok (lift_vec_slice p.2.1 K) ⌝ ⦄
+⦃ ⇓ p => ⌜ ∃ spec_out,
+              hacspec_ml_kem.matrix.compute_vector_u
+                (lift_matrix_from_seed seed K)
+                (lift_vec_slice r_as_ntt K)
+                (lift_vec_slice error_1 K)
+              = .ok spec_out
+            ∧ VecMatches p.2.1.val spec_out ⌝ ⦄
 ```
-The impl's `compute_vector_u`, lifted, equals
-the hacspec `compute_vector_u`. Here the matrix is
-**sampled on the fly** from `seed` (`lift_matrix_from_seed`), so this
-theorem is conditional on the matrix-sampling leaf axiom **A1** (see
+The impl's `compute_vector_u` inputs are lifted into the hacspec spec, and the
+spec output `spec_out` is related to the impl output via `VecMatches` — the same
+centered-representative form as L7.1: each impl lane `x` satisfies `|x| ≤ 1664`
+(the unique centered Barrett representative) **and** `(x : ZMod q) = <spec lane>`.
+Here the matrix is **sampled on the fly** from `seed` (`lift_matrix_from_seed`),
+so this theorem is conditional on the matrix-sampling leaf axiom **A1** (see
 [Assumptions](#assumptions-trust-boundary)).
 
 ### L7.3 — encryption: `t̂ · r̂ + e₂ + Decompress(message)`
@@ -77,18 +92,21 @@ theorem is conditional on the matrix-sampling leaf axiom **A1** (see
     K (vectortraitsOperationsInst := portable_ops_inst)
     public_key t_as_ntt_entry r_as_ntt error_2 message result scratch
     cache accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_ring_element_v
-              (lift_t_as_ntt_from_public_key public_key K)
-              (lift_vec_slice r_as_ntt K)
-              (lift_poly error_2) (lift_poly message)
-            = .ok (lift_poly p.2.1) ⌝ ⦄
+⦃ ⇓ p => ⌜ ∃ spec_out,
+              hacspec_ml_kem.matrix.compute_ring_element_v
+                (lift_t_as_ntt_from_public_key public_key K)
+                (lift_vec_slice r_as_ntt K)
+                (lift_poly error_2) (lift_poly message)
+              = .ok spec_out
+            ∧ PolyMatches p.2.1 spec_out ⌝ ⦄
 ```
 
-The impl's `compute_ring_element_v`, lifted, equals
-the hacspec `compute_ring_element_v`. The first vector `t̂` is **deserialized**
-from the public key (`lift_t_as_ntt_from_public_key`), so this theorem
-is conditional on the deserialization leaf axiom **A2** (see
-[Assumptions](#assumptions-trust-boundary)).
+The impl's `compute_ring_element_v` inputs are lifted into the hacspec spec, and
+the spec output `spec_out` is related to the impl output via `PolyMatches`
+(centered-representative form; `|x| ≤ 1664` **and** `(x : ZMod q) = <spec lane>`).
+The first vector `t̂` is **deserialized** from the public key
+(`lift_t_as_ntt_from_public_key`), so this theorem is conditional on the
+deserialization leaf axiom **A2** (see [Assumptions](#assumptions-trust-boundary)).
 
 ### L7.4 — decryption: `NTT⁻¹(v̂ − ŝ · û)`
 
@@ -99,15 +117,18 @@ is conditional on the deserialization leaf axiom **A2** (see
   libcrux_iot_ml_kem.matrix.compute_message
     (vectortraitsOperationsInst := portable_ops_inst)
     v secret_as_ntt u_as_ntt result scratch accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_message
-              (lift_poly v)
-              (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
-            = .ok (lift_poly p.1) ⌝ ⦄ 
+⦃ ⇓ p => ⌜ ∃ spec_out,
+              hacspec_ml_kem.matrix.compute_message
+                (lift_poly v)
+                (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
+              = .ok spec_out
+            ∧ PolyMatches p.1 spec_out ⌝ ⦄
 ```
 
-The impl's `compute_message`, lifted, equals
-the hacspec `compute_message`. All inputs are passed-in polynomials,
-so this theorem is fully axiom-clean.
+The impl's `compute_message` inputs are lifted into the hacspec spec, and the
+spec output `spec_out` is related to the impl output via `PolyMatches`
+(centered-representative form; `|x| ≤ 1664` **and** `(x : ZMod q) = <spec lane>`).
+All inputs are passed-in polynomials, so this theorem is fully axiom-clean.
 
 ## Polynomial-level theorems
 
@@ -188,6 +209,53 @@ the (signed, possibly non-canonical) **Montgomery** domain; the hacspec
 works over `parameters.FieldElement` (a `u16` wrapping `ZMod 3329`). The
 lift family (in [`Spec/Lift.lean`](Spec/Lift.lean), namespace
 `libcrux_iot_ml_kem.Spec.Lift`) maps impl values to canonical spec values.
+
+All four L7 POSTs lift their *inputs* into the spec (unavoidable — the hacspec is
+typed in `FieldElement`), so each is only as strong as `lift` is
+information-preserving on those inputs. A reviewer need not read the `lift_*`
+bodies to trust them: the `§Audit` section at the end of
+[`Spec/Lift.lean`](Spec/Lift.lean) proves the bridge is **faithful**
+(`lift_fe_spec`: projecting a lifted lane back yields the impl lane mod
+`q = 3329`) and **injective up to `q`** (`lift_fe_inj_mod`: a
+constant/collapsing lift is impossible), then lifts both facts up the tower
+to `lift_poly_*`, `lift_vec_*`, and `lift_matrix_from_slice_*`. Reading
+those lemma *statements* is enough to confirm each input lift expresses genuine
+spec↔impl equivalence, coefficient-by-coefficient mod `q` — not a vacuous
+equation. (The input lift equates residue classes mod `q`; it deliberately does
+not constrain the concrete i16 representative — see the trust boundary.)
+
+**The output-match predicates — all four L7 POSTs.** Rather than an equation
+*through* `lift` on the output side, each POST relates the impl output to the spec
+via one shared predicate family (all defined in [`Spec/Lift.lean`](Spec/Lift.lean)):
+
+- `LaneMatches x f := x.natAbs ≤ 1664 ∧ (x : ZMod q) = f` — one impl lane vs one
+  spec residue;
+- `PolyMatches impl spec := ∀ ℓ < 256, LaneMatches (impl lane ℓ) (zmodOfFE (spec.val[ℓ]!))`
+  — a ring element (L7.3, L7.4);
+- `VecMatches impl spec := ∀ r < K, PolyMatches (impl row r) (spec.val[r]!)`
+  — a vector of ring elements (L7.1, L7.2).
+
+Reading `VecMatches p spec_out` (or `PolyMatches`) *is* the equivalence: every impl
+output lane is the centered Barrett representative of the corresponding spec
+residue. Two guarantees fall out of `LaneMatches`:
+
+- **Uniqueness.** `|x| ≤ 1664 = ⌊q/2⌋` is the *centered* Barrett range — a
+  complete residue system of exactly `q = 3329` values — so the residue class
+  together with the bound pins the representative `x` uniquely.
+- **`ZMod q` residue.** The residue equality is stated directly in `ZMod q`, with
+  no `.toNat` and no sign correction on the output.
+
+The `≤ 1664` bound is the output bound of Barrett reduction, proven once in
+`barrett_reduce_core` (the pure-`Int` core) and carried by the `barrett_reduce`
+spec chain (`barrett_reduce_element_spec` → `barrett_reduce_spec` →
+`barrett_reduce_fc`) — the NTT butterfly layers, which only need looseness, weaken
+it to `≤ 3328` at their call sites. It threads through the tail poly-level op
+(`add_standard_error_reduce_fc` for L7.1, `add_error_reduce_fc` for L7.2,
+`add_message_error_reduce_fc` for L7.3, `subtract_reduce_fc` for L7.4), the loop
+invariants, and the per-row/finalize glue. Each L7 endgame discharges `LaneMatches`
+with `laneMatches_lift_fe` (tight bound + `lift_fe_spec` residue equality) after the
+§Audit getters (`lift_poly_getElem`/`lift_vec_getElem`/`lift_vec_slice_lane`)
+rewrite the spec lane to `zmodOfFE (lift_fe x)`.
 
 ### Hierarchy (L0 → L7)
 

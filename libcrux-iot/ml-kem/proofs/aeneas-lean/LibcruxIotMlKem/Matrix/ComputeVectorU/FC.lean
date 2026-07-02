@@ -977,11 +977,13 @@ theorem compute_vector_u_fc
     libcrux_iot_ml_kem.matrix.compute_vector_u
       K (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
       matrix_entry seed r_as_ntt error_1 result scratch cache accumulator
-    ⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_vector_u
-                  (lift_matrix_from_seed seed K)
-                  (lift_vec_slice r_as_ntt K)
-                  (lift_vec_slice error_1 K)
-                = .ok (lift_vec_slice p.2.1 K) ⌝ ⦄ := by
+    ⦃ ⇓ p => ⌜ ∃ spec_out,
+                  hacspec_ml_kem.matrix.compute_vector_u
+                    (lift_matrix_from_seed seed K)
+                    (lift_vec_slice r_as_ntt K)
+                    (lift_vec_slice error_1 K)
+                  = .ok spec_out
+                ∧ VecMatches p.2.1.val spec_out ⌝ ⦄ := by
   set lm : Std.Array
       (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) K :=
     lift_matrix_from_seed seed K with hlm_def
@@ -1142,7 +1144,7 @@ theorem compute_vector_u_fc
   have h_err0_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
       ((err0.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 29439 :=
     fun chunk hchunk ℓ hℓ => h_err_bnd 0 h0lt ⟨chunk, hchunk⟩ ⟨ℓ, hℓ⟩
-  obtain ⟨row0poly, h_add0_eq, h_row0poly_lift⟩ :=
+  obtain ⟨row0poly, h_add0_eq, h_row0poly_lift, h_row0poly_bnd⟩ :=
     triple_exists_ok_fc
       (add_error_reduce_fc result2 err0 h_result2_self_bnd h_err0_bnd)
   set s1 : Slice _ := rslice2.set 0#usize row0poly with h_s1_def
@@ -1175,7 +1177,7 @@ theorem compute_vector_u_fc
       h_r_arr h_r_bnd h_err_bnd h_cache_post)
   dsimp only at h_loop1_eq h_rows
   -- Destructure rows_inv: done rows [1,K) + unchanged rows + length.
-  obtain ⟨h_rows_done, h_rows_undone, h_result3_len⟩ := by
+  obtain ⟨h_rows_done, h_rows_undone, h_result3_len, h_rows_bnd⟩ := by
     simpa [AllRowsFillFC.rows_inv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
       ← List.getElem!_eq_getElem?_getD] using h_rows
   -- result3[0] = s1[0] = row0poly (loop1 leaves row 0 since start = 1).
@@ -1269,12 +1271,35 @@ theorem compute_vector_u_fc
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show (rslice2.set 0#usize) row0poly = s1 from rfl]
     rw [h_loop1_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  · -- Spec equation: hacspec compute_vector_u ... = .ok (lift_vec_slice result3 K).
-    show hacspec_ml_kem.matrix.compute_vector_u (lift_matrix_from_seed seed K)
-          (lift_vec_slice r_as_ntt K) (lift_vec_slice error_1 K)
-        = .ok (lift_vec_slice result3 K)
-    rw [← hlm_def, ← hW_def]
-    exact h_hacspec
+  · -- POST: witness `spec_out := lift_vec_slice result3 K` (hacspec equation
+    -- `h_hacspec`), then the per-lane `LaneMatches` bridge. Each impl output lane
+    -- is the unique centered Barrett representative `|x| ≤ 1664` whose residue
+    -- `(x : ZMod q)` equals `zmodOfFE (spec lane)`.
+    refine ⟨lift_vec_slice result3 K, ?_, ?_⟩
+    · show hacspec_ml_kem.matrix.compute_vector_u (lift_matrix_from_seed seed K)
+            (lift_vec_slice r_as_ntt K) (lift_vec_slice error_1 K)
+          = .ok (lift_vec_slice result3 K)
+      rw [← hlm_def, ← hW_def]
+      exact h_hacspec
+    · unfold VecMatches PolyMatches
+      intro r hr ℓ hℓ
+      have hj : ℓ / 16 < 16 := Nat.div_lt_iff_lt_mul (by decide : 0 < 16) |>.mpr hℓ
+      have hm : ℓ % 16 < 16 := Nat.mod_lt _ (by decide : 0 < 16)
+      -- Tight centered Barrett output bound on this lane: row 0 from `row0poly`,
+      -- rows [1,K) from the loop invariant's per-row bound.
+      have hbnd :
+          (((result3.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val).natAbs ≤ 1664 := by
+        by_cases h0 : r = 0
+        · subst h0
+          rw [h_result3_at0]
+          exact h_row0poly_bnd (ℓ / 16) hj (ℓ % 16) hm
+        · have hr1 : (1#usize : Std.Usize).val ≤ r := by
+            have h1v : (1#usize : Std.Usize).val = 1 := rfl
+            omega
+          exact h_rows_bnd r hr1 hr (ℓ / 16) hj (ℓ % 16) hm
+      -- `LaneMatches` via `laneMatches_lift_fe`: tight bound + residue equality.
+      rw [lift_vec_slice_lane result3 K r hr, lift_poly_getElem _ ℓ hℓ]
+      exact laneMatches_lift_fe _ hbnd
 
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeVectorU.FC.compute_vector_u_fc' depends on axioms: [propext,

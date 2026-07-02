@@ -15,15 +15,23 @@
     hax.url = "github:hacspec/hax/87ba96831ecfeb7dbb54efcf97036fbc5f25bc71";
     fstar-pinned.url = "github:FStarLang/FStar/v2025.10.06";
 
-    # --- Aeneas/Lean SHA-3 proof toolchain ---------------------------------
-    # Used only by the `aeneas-lean` devShell. Keep these revisions in sync
-    # with `libcrux-iot/sha3/proofs/aeneas-lean/{lean-toolchain,lakefile.toml}`
-    # and `libcrux-iot/sha3/hax_aeneas.py`.
+    # Lean LSP MCP server (https://github.com/oOo0oOo/lean-lsp-mcp), used by
+    # the `aeneas-lean` devShell. Its flake exposes `packages.<system>.default`
+    # providing the `lean-lsp-mcp` binary, so we pin it here instead of
+    # fetching from PyPI via `uvx` at runtime.
+    lean-lsp-mcp.url = "github:oOo0oOo/lean-lsp-mcp";
+
+    # --- Aeneas/Lean proof toolchain ---------------------------------------
+    # Used by the `aeneas-lean` devShell, which serves *all* the Aeneas/Lean
+    # proofs in this repo (currently sha3 and ml-kem; they share one toolchain).
+    # Keep these revisions in sync with each proof's
+    # `proofs/aeneas-lean/{lean-toolchain,lakefile.toml}` and `hax_aeneas.py`
+    # — i.e. `libcrux-iot/{sha3,ml-kem}/...`.
     #
     # `hax-evit` is the private fork the Lean extraction requires. It is fetched
     # over SSH, so the calling user needs read access (and an SSH key/agent
     # configured) for `nix develop .#aeneas-lean` to evaluate.
-    hax-evit.url = "git+ssh://git@github.com/cryspen/hax-evit?ref=refs/heads/main&rev=1f85fc13b9967080cc657863e2000ba5d4aa8647";
+    hax-evit.url = "git+ssh://git@github.com/cryspen/hax-evit?ref=refs/heads/main&rev=ffdf432705d409b62ec025d253a340234b59766f";
     # cryspen/aeneas@nightly-2026.06.04 == 8d2077c (matches AENEAS_VERSION in
     # hax_aeneas.py). Its flake.lock pins the matching Charon nightly-2026.06.02,
     # and its default package bundles a `charon` binary alongside `aeneas`.
@@ -157,16 +165,17 @@
           }
         );
 
-        # Toolchain for the SHA-3 Aeneas/Lean proof. Reproduces the
-        # "Reproduction" section of
-        # libcrux-iot/sha3/proofs/aeneas-lean/LibcruxIotSha3/README.md.
+        # Toolchain for the Aeneas/Lean proofs. A single shell serves all of
+        # them (sha3 and ml-kem share the same hax/aeneas/charon/Lean pins);
+        # reproduces the "Reproduction" section of each proof's README, e.g.
+        # libcrux-iot/{sha3,ml-kem}/proofs/aeneas-lean/.../README.md.
         #
         #   nix develop .#aeneas-lean
         #
-        # Extraction (Rust -> Lean):
-        #   cd libcrux-iot/sha3 && ./hax_aeneas.py
+        # Extraction (Rust -> Lean), per proof (substitute sha3 or ml-kem):
+        #   cd libcrux-iot/<proof> && ./hax_aeneas.py
         # Proving:
-        #   cd libcrux-iot/sha3/proofs/aeneas-lean
+        #   cd libcrux-iot/<proof>/proofs/aeneas-lean
         #   lake exe cache get && lake build
         devShells.aeneas-lean = pkgs.mkShell {
           packages = [
@@ -181,6 +190,13 @@
             # Proving: elan provisions the pinned Lean toolchain (from the
             # lean-toolchain file) and provides `lake`.
             pkgs.elan
+
+            # Lean LSP MCP server, pinned via the `lean-lsp-mcp` flake input
+            # (provides the `lean-lsp-mcp` binary). It drives the Lean
+            # toolchain above and uses `ripgrep` (`rg`) for its local-search
+            # tools.
+            inputs.lean-lsp-mcp.packages.${system}.default
+            pkgs.ripgrep
 
             # Common build deps for lake / native crates.
             pkgs.git
