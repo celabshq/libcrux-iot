@@ -1291,6 +1291,54 @@ theorem canonical_rep_eq (x : Int) (hx : x.natAbs ≤ 3328) :
   · simp only [if_pos h]; omega
   · simp only [if_neg h]; omega
 
+/-- **Impl lane `x` is the canonical *centered* Barrett representative of spec
+    field element `f`.**
+
+    Shared per-lane output relation for all four L7 POSTs. Two conjuncts:
+    * `x.natAbs ≤ 1664 = ⌊q/2⌋` — the symmetric Barrett range, a *complete*
+      residue system of exactly `q = 3329` values, so together with the residue
+      the representative `x` is **unique**;
+    * `(x : ZMod 3329) = f` — the residue equality, stated directly in `ZMod 3329`
+      (no `.toNat`, no sign correction). -/
+def LaneMatches (x : Int) (f : ZMod 3329) : Prop :=
+  x.natAbs ≤ 1664 ∧ (x : ZMod 3329) = f
+
+/-- Bridge: an impl lane `x` with the tight centered bound `|x| ≤ 1664` matches
+    (via `LaneMatches`) the residue of its own leaf lift `zmodOfFE (lift_fe x)`.
+    Discharges the per-lane obligation in the L7 endgames after the spec residue
+    has been rewritten to `zmodOfFE (lift_fe x)` through the §Audit getters. -/
+theorem laneMatches_lift_fe (x : Std.I16) (h : x.val.natAbs ≤ 1664) :
+    LaneMatches x.val (zmodOfFE (lift_fe x)) :=
+  ⟨h, (lift_fe_spec x).symm⟩
+
+/-- **An impl ring element matches a spec ring element.** Lane-wise `LaneMatches`
+    over all 256 coefficients: each impl coefficient is the unique centered Barrett
+    representative of the corresponding spec residue. The shared output relation
+    for the single-polynomial L7 POSTs (L7.3 `compute_ring_element_v`,
+    L7.4 `compute_message`). -/
+def PolyMatches
+    (impl : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+              libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (spec : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) : Prop :=
+  ∀ ℓ : Nat, ℓ < 256 →
+    LaneMatches ((impl.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val)
+      (zmodOfFE (spec.val[ℓ]!))
+
+/-- **An impl vector matches a spec vector.** Row-wise `PolyMatches` over the `K`
+    ring elements. The shared output relation for the vector-valued L7 POSTs
+    (L7.1 `compute_As_plus_e`, L7.2 `compute_vector_u`).
+
+    The impl rows are passed as the underlying `List` (`.val`) so this serves both
+    the `Std.Array`-backed output of `compute_As_plus_e` and the `Slice`-backed
+    output of `compute_vector_u` uniformly. -/
+def VecMatches {K : Std.Usize}
+    (impl : List
+              (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (spec : Std.Array
+              (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) : Prop :=
+  ∀ r : Nat, r < K.val → PolyMatches (impl[r]!) (spec.val[r]!)
+
 /-- Lane getter for `lift_poly`: the `j`-th of the 256 output lanes is
     `lift_fe` of the impl coefficient at chunk `j / 16`, lane `j % 16`. -/
 theorem lift_poly_getElem

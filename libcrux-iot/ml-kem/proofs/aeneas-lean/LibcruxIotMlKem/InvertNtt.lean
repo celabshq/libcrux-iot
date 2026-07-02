@@ -1512,8 +1512,12 @@ theorem inv_ntt_layer_int_vec_step_reduce_fc
       (scratch2.elements.val[ℓ]!).val.natAbs ≤ 32767 := by
     intro ℓ hℓ
     have := h_s2_bnd ℓ hℓ; omega
-  obtain ⟨scratch3, h_s3_eq, h_s3_bnd, _h_s3_lift⟩ :=
+  obtain ⟨scratch3, h_s3_eq, h_s3_bnd_t, _h_s3_lift⟩ :=
     triple_exists_ok_fc (barrett_reduce_fc scratch2 h_barrett_pre)
+  -- `barrett_reduce_fc` now gives the centered `≤ 1664`; this inverse-NTT step
+  -- only needs the looser `≤ 3328`, so weaken.
+  have h_s3_bnd : ∀ i : Nat, i < 16 → (scratch3.elements.val[i]!).val.natAbs ≤ 3328 :=
+    fun i hi => Nat.le_trans (h_s3_bnd_t i hi) (by decide)
   have h_s3_legacy :=
     libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element.barrett_reduce_spec scratch2 h_barrett_pre
   obtain ⟨scratch3', h_s3_eq', h_s3_per⟩ := triple_exists_ok_fc h_s3_legacy

@@ -1970,7 +1970,7 @@ def rows_inv {K : Std.Usize}
         result.val[r]! = result_init.val[r]!)
     ∧ result.length = K.val
     ∧ (∀ r : Nat, start.val ≤ r → r < k.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-        ((result.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 3328))
+        ((result.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize` over the loop's 4-carry
     `(matrix_entry, result, scratch, accumulator)`. -/
@@ -2422,7 +2422,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
             rnew.val[r]! = result_init.val[r]!)
         ∧ rnew.length = K.val
         ∧ (∀ r : Nat, start.val ≤ r → r < s_iter.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-            ((rnew.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 3328) := by
+            ((rnew.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, h_rnew_len, ?_⟩
       · -- Completed rows [start, k+1).
         intro r hr_ge hr_lt
@@ -2503,7 +2503,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
             result.val[r]! = result_init.val[r]!)
         ∧ result.length = K.val
         ∧ (∀ r : Nat, start.val ≤ r → r < K.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-            ((result.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 3328) := by
+            ((result.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, h_result_len, ?_⟩
       · intro r hr_ge hr_lt
         exact h_inv_done r hr_ge (by rw [hk_eq]; exact hr_lt)

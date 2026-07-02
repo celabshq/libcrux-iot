@@ -19,9 +19,12 @@ trust boundary.
 All four main results are `mvcgen` Triples of the form
 `⦃ True ⦄ <impl> ⦃ ⇓ p => ⌜ ∃ spec_out, <hacspec> (lift args…) = .ok spec_out ∧ <output p relates to spec_out> ⌝ ⦄`
 — i.e. they link the Aeneas-extracted impl to the hacspec spec through a `lift`
-bridge **on the inputs**, while the output side carries **no** `lift`: each impl
-output lane, sign-corrected into `[0, q)`, is stated to literally equal the spec
-residue `.val.val` (see [The lift bridge](#the-lift-bridge)).
+bridge **on the inputs**, while the output side is stated by a single shared
+predicate — `VecMatches impl spec` for the vector results (L7.1, L7.2) and
+`PolyMatches impl spec` for the single-polynomial results (L7.3, L7.4). Both reduce
+to a per-lane `LaneMatches x f`: each impl output lane `x` is the **unique centered
+Barrett representative** of the spec residue — `|x| ≤ 1664 = ⌊q/2⌋` **and**
+`(x : ZMod q) = f` (see [The lift bridge](#the-lift-bridge)).
 The `lift` bridge accounts for different representations of the input/output data:
 The impl uses potentially non-canonical values mod 3329,
 stores coefficients in the Montgomery domain, and
@@ -42,23 +45,17 @@ and a flat array of 256 field elements.
               hacspec_ml_kem.matrix.compute_As_plus_e
                 (lift_matrix_from_slice matrix_A K)
                 (lift_vec s_as_ntt) (lift_vec error_as_ntt) = .ok spec_out
-            ∧ (∀ r < K.val, ∀ ℓ < 256,
-                let x := (p.1.val[r]!).coefficients.val[ℓ/16]!.elements.val[ℓ%16]!.val
-                (x + (if x < 0 then 3329 else 0)).toNat
-                  = ((spec_out.val[r]!).val[ℓ]!).val.val) ⌝ ⦄
+            ∧ VecMatches p.1.val spec_out ⌝ ⦄
 ```
 
 The impl's `compute_As_plus_e` inputs are lifted into the hacspec spec, and the
-spec output `spec_out` is related to the impl output **without any lift on the
-output**: each impl coefficient — a Barrett representative in the symmetric range
-`|x| ≤ 3328`, so possibly negative — is sign-corrected into `[0, q)` by adding
-`q` when negative, and this **literally equals** the spec's canonical residue
-`.val.val`. No `mod`, no `ZMod`, no `lift_*` appears on the output; the sign-fix
-`if x < 0 then q else 0` is the whole audit surface. This strengthens the older
-`= .ok (lift_vec p.1)` form: it additionally certifies the output magnitude bound
-`|x| ≤ 3328` (threaded up from `barrett_reduce_fc`) and the exact representative
-correspondence. The matrix is read from a **stored** array, so this theorem is
-fully axiom-clean.
+spec output `spec_out` is related to the impl output via `VecMatches`: each impl
+coefficient `x` is the **unique centered Barrett representative** of the spec
+residue — `|x| ≤ 1664 = ⌊q/2⌋` (a *complete* residue system of exactly `q` values,
+so the representative is pinned uniquely) **and** `(x : ZMod q) = <spec lane>`,
+the residue equality stated directly in `ZMod q`. The `≤ 1664` bound is threaded up
+from `barrett_reduce_fc`. The matrix is read from a **stored** array, so this
+theorem is fully axiom-clean.
 
 ### L7.2 — encryption: `Âᵀ · r̂ + ê₁`
 
@@ -75,18 +72,14 @@ fully axiom-clean.
                 (lift_vec_slice r_as_ntt K)
                 (lift_vec_slice error_1 K)
               = .ok spec_out
-            ∧ (∀ r < K.val, ∀ ℓ < 256,
-                let x := (p.2.1.val[r]!).coefficients.val[ℓ/16]!.elements.val[ℓ%16]!.val
-                (x + (if x < 0 then 3329 else 0)).toNat
-                  = ((spec_out.val[r]!).val[ℓ]!).val.val) ⌝ ⦄
+            ∧ VecMatches p.2.1.val spec_out ⌝ ⦄
 ```
 The impl's `compute_vector_u` inputs are lifted into the hacspec spec, and the
-spec output `spec_out` is related to the impl output **without any lift on the
-output** — the same canonical-output form as L7.1: each impl lane is a symmetric
-Barrett representative `|x| ≤ 3328`, sign-corrected into `[0, q)` by adding `q`
-when negative, literally equal to the spec residue `.val.val`. Here the matrix is
-**sampled on the fly** from `seed` (`lift_matrix_from_seed`), so this theorem is
-conditional on the matrix-sampling leaf axiom **A1** (see
+spec output `spec_out` is related to the impl output via `VecMatches` — the same
+centered-representative form as L7.1: each impl lane `x` satisfies `|x| ≤ 1664`
+(the unique centered Barrett representative) **and** `(x : ZMod q) = <spec lane>`.
+Here the matrix is **sampled on the fly** from `seed` (`lift_matrix_from_seed`),
+so this theorem is conditional on the matrix-sampling leaf axiom **A1** (see
 [Assumptions](#assumptions-trust-boundary)).
 
 ### L7.3 — encryption: `t̂ · r̂ + e₂ + Decompress(message)`
@@ -105,19 +98,15 @@ conditional on the matrix-sampling leaf axiom **A1** (see
                 (lift_vec_slice r_as_ntt K)
                 (lift_poly error_2) (lift_poly message)
               = .ok spec_out
-            ∧ (∀ ℓ < 256,
-                let x := (p.2.1.coefficients.val[ℓ/16]!).elements.val[ℓ%16]!.val
-                (x + (if x < 0 then 3329 else 0)).toNat
-                  = (spec_out.val[ℓ]!).val.val) ⌝ ⦄
+            ∧ PolyMatches p.2.1 spec_out ⌝ ⦄
 ```
 
 The impl's `compute_ring_element_v` inputs are lifted into the hacspec spec, and
-the spec output `spec_out` is related to the impl output **without any lift on
-the output** (canonical-output form; symmetric Barrett representative
-`|x| ≤ 3328` sign-corrected into `[0, q)`). The first vector `t̂` is
-**deserialized** from the public key (`lift_t_as_ntt_from_public_key`), so this
-theorem is conditional on the deserialization leaf axiom **A2** (see
-[Assumptions](#assumptions-trust-boundary)).
+the spec output `spec_out` is related to the impl output via `PolyMatches`
+(centered-representative form; `|x| ≤ 1664` **and** `(x : ZMod q) = <spec lane>`).
+The first vector `t̂` is **deserialized** from the public key
+(`lift_t_as_ntt_from_public_key`), so this theorem is conditional on the
+deserialization leaf axiom **A2** (see [Assumptions](#assumptions-trust-boundary)).
 
 ### L7.4 — decryption: `NTT⁻¹(v̂ − ŝ · û)`
 
@@ -133,17 +122,13 @@ theorem is conditional on the deserialization leaf axiom **A2** (see
                 (lift_poly v)
                 (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
               = .ok spec_out
-            ∧ (∀ ℓ < 256,
-                let x := (p.1.coefficients.val[ℓ/16]!).elements.val[ℓ%16]!.val
-                (x + (if x < 0 then 3329 else 0)).toNat
-                  = (spec_out.val[ℓ]!).val.val) ⌝ ⦄
+            ∧ PolyMatches p.1 spec_out ⌝ ⦄
 ```
 
 The impl's `compute_message` inputs are lifted into the hacspec spec, and the
-spec output `spec_out` is related to the impl output **without any lift on the
-output** (canonical-output form; symmetric Barrett representative `|x| ≤ 3328`
-sign-corrected into `[0, q)`). All inputs are passed-in polynomials, so this
-theorem is fully axiom-clean.
+spec output `spec_out` is related to the impl output via `PolyMatches`
+(centered-representative form; `|x| ≤ 1664` **and** `(x : ZMod q) = <spec lane>`).
+All inputs are passed-in polynomials, so this theorem is fully axiom-clean.
 
 ## Polynomial-level theorems
 
@@ -239,19 +224,38 @@ spec↔impl equivalence, coefficient-by-coefficient mod `q` — not a vacuous
 equation. (The input lift equates residue classes mod `q`; it deliberately does
 not constrain the concrete i16 representative — see the trust boundary.)
 
-**No `lift` on the output — all four L7 POSTs.** Rather than an equation *through*
-`lift` on the output side, each POST relates the impl output to the spec residue
-by a *literal* `Nat` equality with an explicit sign-fix,
-`(x + if x < 0 then q else 0).toNat = spec.val.val`. This needs the impl output
-bound `|x| ≤ 3328`, threaded up from `barrett_reduce_fc` through the tail
-poly-level op (`add_standard_error_reduce_fc` for L7.1, `add_error_reduce_fc` for
-L7.2, `add_message_error_reduce_fc` for L7.3, `subtract_reduce_fc` for L7.4), the
-loop invariants, and the per-row/finalize glue. The residue↔canonical step is
-`canonical_rep_eq` (pure arithmetic) plus the §Audit getters
-(`lift_poly_getElem`/`lift_vec_getElem`/`lift_vec_slice_lane`) and
-`Element.lift_fe_val_val`. The payoff: every L7 POST additionally certifies the
-output magnitude bound and the exact representative, so there is no residual
-"concrete representative" gap on the output.
+**The output-match predicates — all four L7 POSTs.** Rather than an equation
+*through* `lift` on the output side, each POST relates the impl output to the spec
+via one shared predicate family (all defined in [`Spec/Lift.lean`](Spec/Lift.lean)):
+
+- `LaneMatches x f := x.natAbs ≤ 1664 ∧ (x : ZMod q) = f` — one impl lane vs one
+  spec residue;
+- `PolyMatches impl spec := ∀ ℓ < 256, LaneMatches (impl lane ℓ) (zmodOfFE (spec.val[ℓ]!))`
+  — a ring element (L7.3, L7.4);
+- `VecMatches impl spec := ∀ r < K, PolyMatches (impl row r) (spec.val[r]!)`
+  — a vector of ring elements (L7.1, L7.2).
+
+Reading `VecMatches p spec_out` (or `PolyMatches`) *is* the equivalence: every impl
+output lane is the centered Barrett representative of the corresponding spec
+residue. Two guarantees fall out of `LaneMatches`:
+
+- **Uniqueness.** `|x| ≤ 1664 = ⌊q/2⌋` is the *centered* Barrett range — a
+  complete residue system of exactly `q = 3329` values — so the residue class
+  together with the bound pins the representative `x` uniquely.
+- **`ZMod q` residue.** The residue equality is stated directly in `ZMod q`, with
+  no `.toNat` and no sign correction on the output.
+
+The `≤ 1664` bound is the output bound of Barrett reduction, proven once in
+`barrett_reduce_core` (the pure-`Int` core) and carried by the `barrett_reduce`
+spec chain (`barrett_reduce_element_spec` → `barrett_reduce_spec` →
+`barrett_reduce_fc`) — the NTT butterfly layers, which only need looseness, weaken
+it to `≤ 3328` at their call sites. It threads through the tail poly-level op
+(`add_standard_error_reduce_fc` for L7.1, `add_error_reduce_fc` for L7.2,
+`add_message_error_reduce_fc` for L7.3, `subtract_reduce_fc` for L7.4), the loop
+invariants, and the per-row/finalize glue. Each L7 endgame discharges `LaneMatches`
+with `laneMatches_lift_fe` (tight bound + `lift_fe_spec` residue equality) after the
+§Audit getters (`lift_poly_getElem`/`lift_vec_getElem`/`lift_vec_slice_lane`)
+rewrite the spec lane to `zmodOfFE (lift_fe x)`.
 
 ### Hierarchy (L0 → L7)
 
