@@ -64,10 +64,6 @@ class extractAction(argparse.Action):
         cargo_hax_into = [
             "cargo",
             "hax",
-            "-C",
-            "--features",
-            "simd128,simd256",
-            ";",
             "into",
             "-i",
             include_str,
@@ -109,10 +105,6 @@ class extractAction(argparse.Action):
         cargo_hax_into = [
             "cargo",
             "hax",
-            "-C",
-            "--features",
-            "simd128,simd256",
-            ";",
             "into",
             "-i",
             include_str,
