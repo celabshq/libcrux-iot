@@ -69,9 +69,8 @@ where
     fn decrypt<'a>(
         &mut self,
         aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-        ciphertext: &[u8],
+        ciphertext: &mut [u8],
         tag: &[u8],
-        plaintext: &mut [u8],
     ) -> Result<(), DecryptError> {
         debug_assert_eq!(tag.len(), TAG_LEN);
 
@@ -101,8 +100,7 @@ where
         }
 
         // Decrypt and write out plaintext if tag was valid.
-        plaintext.copy_from_slice(ciphertext);
-        self.aes_state.aes_ctr_update(1, plaintext);
+        self.aes_state.aes_ctr_update(1, ciphertext);
         Ok(())
     }
 }
@@ -260,12 +258,13 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
     /// Update authentication state by accumulating ciphertext
     /// blocks, decrypting on the fly.
     ///
-    /// This needs to be called after `ccm_update_aad`.
-    /// Afterwards, `self.accumulator` will contain the
-    /// block-length CBC-MAC of AAD and message plaintext,
-    /// which needs to be xor-ed with the first block of the
-    /// CTR key stream and truncated to the final
-    /// authentication tag length.
+    /// This needs to be called after `ccm_update_aad`.  Afterwards,
+    /// `self.accumulator` will contain the block-length CBC-MAC of
+    /// AAD and message plaintext, which needs to be xor-ed with the
+    /// first block of the CTR key stream and truncated to the final
+    /// authentication tag length.  Note that `ciphertext` is provided
+    /// by shared reference, so it is ensured that no output blocks
+    /// are written before the authentication tag has been verified.
     fn ccm_update_ciphertext(&mut self, ciphertext: &[u8]) {
         let full_blocks = ciphertext.len() / AES_BLOCK_LEN;
         let remainder = ciphertext.len() - full_blocks * AES_BLOCK_LEN;

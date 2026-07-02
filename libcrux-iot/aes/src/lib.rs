@@ -657,9 +657,8 @@ pub(crate) trait State {
     fn decrypt<'a>(
         &mut self,
         aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-        ciphertext: &[u8],
+        ciphertext: &mut [u8],
         tag: &[u8],
-        plaintext: &mut [u8],
     ) -> Result<(), DecryptError>;
 }
 
@@ -813,16 +812,15 @@ pub(crate) fn decrypt<'a, S: State>(
     key: &[u8],
     nonce: &[u8],
     aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-    ciphertext: &[u8],
+    ciphertext: &mut [u8],
     tag: &[u8],
-    plaintext: &mut [u8],
 ) -> Result<(), DecryptError> {
     // This should only be reachable via the arrayref trait API which
     // checks the lengths.
 
     let mut st = S::init(key);
     st.set_nonce(nonce);
-    st.decrypt(aad, ciphertext, tag, plaintext)
+    st.decrypt(aad, ciphertext, tag)
 }
 
 /// Macro to instantiate the different variants, both 128/256 and platforms.
@@ -853,12 +851,11 @@ macro_rules! pub_crate_mod {
                 key: &[u8],
                 nonce: &[u8],
                 aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-                ciphertext: &[u8],
+                ciphertext: &mut [u8],
                 tag: &[u8],
-                plaintext: &mut [u8],
             ) -> Result<(), DecryptError> {
                 debug_assert!(key.len() == $key_len);
-                crate::decrypt::<State>(key, nonce, aad, ciphertext, tag, plaintext)
+                crate::decrypt::<State>(key, nonce, aad, ciphertext, tag)
             }
         }
     };

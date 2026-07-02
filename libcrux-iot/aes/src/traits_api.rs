@@ -185,7 +185,8 @@ macro_rules! api {
                     ) -> Result<(), DecryptError> {
                         length_check(ciphertext, plaintext, aad)?;
 
-                        crate::portable::$variant::decrypt(key, nonce, aad.into_iter(), ciphertext, tag, plaintext)
+                        plaintext.copy_from_slice(ciphertext);
+                        crate::portable::$variant::decrypt(key, nonce, aad.into_iter(), plaintext, tag)
                     }
                 }
             }
