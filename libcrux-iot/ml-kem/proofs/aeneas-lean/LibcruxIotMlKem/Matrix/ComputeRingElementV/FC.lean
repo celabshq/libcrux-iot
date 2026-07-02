@@ -147,11 +147,7 @@ theorem compute_ring_element_v_fc
                     (lift_vec_slice r_as_ntt K)
                     (lift_poly error_2) (lift_poly message)
                   = .ok spec_out
-                ∧ (∀ ℓ : Nat, ℓ < 256 →
-                    (((p.2.1.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val
-                       + (if ((p.2.1.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val < 0
-                          then 3329 else 0)).toNat
-                      = ((spec_out.val[ℓ]!)).val.val) ⌝ ⦄ := by
+                ∧ PolyMatches p.2.1 spec_out ⌝ ⦄ := by
   -- r_arr : Array Poly K from r_as_ntt.
   set r_arr : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K :=
@@ -289,7 +285,7 @@ theorem compute_ring_element_v_fc
         Result.ok (t_ent1, result3, scratch2, acc2))
         = Result.ok (t_ent1, result3, scratch2, acc2)
     rw [h_add_eq]; rfl
-  · -- Spec witness `lift_poly result3`, then the per-lane sign-fix bridge.
+  · -- Spec witness `lift_poly result3`, then the per-lane `LaneMatches` bridge.
     refine ⟨lift_poly result3, ?_, ?_⟩
     -- Chain A/C/B/compose/glue/D′: prove hacspec spec = .ok (lift_poly result3).
     · show hacspec_ml_kem.matrix.compute_ring_element_v
@@ -326,17 +322,17 @@ theorem compute_ring_element_v_fc
       -- add_message_error_reduce_pure (lift_poly error_2) (lift_poly message) (lift_poly result2)
       --   = lift_poly result3.
       rw [← h_result3_lift]
-    · -- Per-lane sign-fix bridge: the impl output is a symmetric Barrett
-      -- representative `|x| ≤ 3328`; adding `q` when negative lands in `[0,q)`
-      -- and literally equals the spec residue `.val.val`.
+    · -- Per-lane bridge: the impl output is the centered Barrett representative
+      -- `|x| ≤ 1664`; `LaneMatches` records the tight bound + the residue equality
+      -- `(x : ZMod q) = zmodOfFE (spec lane)`, discharged by `laneMatches_lift_fe`.
+      unfold PolyMatches
       intro ℓ hℓ
       have hj : ℓ / 16 < 16 := Nat.div_lt_iff_lt_mul (by decide : 0 < 16) |>.mpr hℓ
       have hm : ℓ % 16 < 16 := Nat.mod_lt _ (by decide : 0 < 16)
-      have hbnd : (((result3.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val).natAbs ≤ 3328 :=
+      have hbnd : (((result3.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val).natAbs ≤ 1664 :=
         h_result3_bnd (ℓ / 16) hj (ℓ % 16) hm
-      rw [lift_poly_getElem result3 ℓ hℓ,
-        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element.lift_fe_val_val]
-      exact canonical_rep_eq _ hbnd
+      rw [lift_poly_getElem result3 ℓ hℓ]
+      exact laneMatches_lift_fe _ hbnd
 
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc' depends on axioms: [propext,

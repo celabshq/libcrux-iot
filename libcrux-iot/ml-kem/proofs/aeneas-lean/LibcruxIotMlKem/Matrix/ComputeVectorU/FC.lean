@@ -983,11 +983,7 @@ theorem compute_vector_u_fc
                     (lift_vec_slice r_as_ntt K)
                     (lift_vec_slice error_1 K)
                   = .ok spec_out
-                ∧ (∀ r : Nat, r < K.val → ∀ ℓ : Nat, ℓ < 256 →
-                    (((p.2.1.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val
-                       + (if ((p.2.1.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val < 0
-                          then 3329 else 0)).toNat
-                      = ((spec_out.val[r]!).val[ℓ]!).val.val) ⌝ ⦄ := by
+                ∧ VecMatches p.2.1.val spec_out ⌝ ⦄ := by
   set lm : Std.Array
       (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) K :=
     lift_matrix_from_seed seed K with hlm_def
@@ -1276,22 +1272,23 @@ theorem compute_vector_u_fc
     rw [show (rslice2.set 0#usize) row0poly = s1 from rfl]
     rw [h_loop1_eq]; simp only [Aeneas.Std.bind_tc_ok]
   · -- POST: witness `spec_out := lift_vec_slice result3 K` (hacspec equation
-    -- `h_hacspec`), then the per-lane sign-fix bridge. Each impl output lane is a
-    -- symmetric Barrett representative `|x| ≤ 3328`; adding `q` when negative lands
-    -- in `[0,q)` and literally equals the spec residue `.val.val`.
+    -- `h_hacspec`), then the per-lane `LaneMatches` bridge. Each impl output lane
+    -- is the unique centered Barrett representative `|x| ≤ 1664` whose residue
+    -- `(x : ZMod q)` equals `zmodOfFE (spec lane)`.
     refine ⟨lift_vec_slice result3 K, ?_, ?_⟩
     · show hacspec_ml_kem.matrix.compute_vector_u (lift_matrix_from_seed seed K)
             (lift_vec_slice r_as_ntt K) (lift_vec_slice error_1 K)
           = .ok (lift_vec_slice result3 K)
       rw [← hlm_def, ← hW_def]
       exact h_hacspec
-    · intro r hr ℓ hℓ
+    · unfold VecMatches PolyMatches
+      intro r hr ℓ hℓ
       have hj : ℓ / 16 < 16 := Nat.div_lt_iff_lt_mul (by decide : 0 < 16) |>.mpr hℓ
       have hm : ℓ % 16 < 16 := Nat.mod_lt _ (by decide : 0 < 16)
-      -- Barrett output bound on this lane: row 0 from `row0poly`, rows [1,K) from
-      -- the loop invariant's per-row bound.
+      -- Tight centered Barrett output bound on this lane: row 0 from `row0poly`,
+      -- rows [1,K) from the loop invariant's per-row bound.
       have hbnd :
-          (((result3.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val).natAbs ≤ 3328 := by
+          (((result3.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val).natAbs ≤ 1664 := by
         by_cases h0 : r = 0
         · subst h0
           rw [h_result3_at0]
@@ -1300,9 +1297,9 @@ theorem compute_vector_u_fc
             have h1v : (1#usize : Std.Usize).val = 1 := rfl
             omega
           exact h_rows_bnd r hr1 hr (ℓ / 16) hj (ℓ % 16) hm
-      rw [lift_vec_slice_lane result3 K r hr, lift_poly_getElem _ ℓ hℓ,
-        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element.lift_fe_val_val]
-      exact canonical_rep_eq _ hbnd
+      -- `LaneMatches` via `laneMatches_lift_fe`: tight bound + residue equality.
+      rw [lift_vec_slice_lane result3 K r hr, lift_poly_getElem _ ℓ hℓ]
+      exact laneMatches_lift_fe _ hbnd
 
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeVectorU.FC.compute_vector_u_fc' depends on axioms: [propext,

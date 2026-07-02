@@ -1364,7 +1364,7 @@ def rows_inv {K : Std.Usize}
     ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ k.val ≤ r) →
         t_as_ntt.val[r]! = t_as_ntt_init.val[r]!)
     ∧ (∀ r : Nat, start.val ≤ r → r < k.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-        ((t_as_ntt.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 3328))
+        ((t_as_ntt.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize` over (t_as_ntt, accumulator). -/
 def rows_step_post {K : Std.Usize}
@@ -1981,7 +1981,7 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
         ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ s_iter.val ≤ r) →
             t_as_ntt_new.val[r]! = t_as_ntt_init.val[r]!)
         ∧ (∀ r : Nat, start.val ≤ r → r < s_iter.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-            ((t_as_ntt_new.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 3328) := by
+            ((t_as_ntt_new.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · -- Conjunct (1): per-completed-row lane characterization.
         intro r hr_ge hr_lt ℓ hℓ
@@ -2200,7 +2200,7 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
         · exact Or.inl hr_lt_start
         · -- k+1 ≤ r, so k ≤ r.
           exact Or.inr (by omega)
-      · -- Conjunct (3): per-completed-row Barrett bound |lane| ≤ 3328.
+      · -- Conjunct (3): per-completed-row centered Barrett bound |lane| ≤ 1664.
         intro r hr_ge hr_lt j hj m hm
         rw [hs_iter_eq] at hr_lt
         rcases Nat.lt_succ_iff_lt_or_eq.mp hr_lt with hr_lt_k | hr_eq_k
@@ -2266,7 +2266,7 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
         ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ K.val ≤ r) →
             t_as_ntt.val[r]! = t_as_ntt_init.val[r]!)
         ∧ (∀ r : Nat, start.val ≤ r → r < K.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-            ((t_as_ntt.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 3328) := by
+            ((t_as_ntt.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · intro r hr_ge hr_lt ℓ hℓ
         have h_eq := h_inv_done r hr_ge (by rw [hk_eq]; exact hr_lt) ℓ hℓ
@@ -2460,7 +2460,7 @@ theorem compute_As_plus_e_row0_finalize_fc
         ∧ (∀ r : Nat, 0 < r → r < K.val →
             a.val[r]! = t_as_ntt.val[r]!)
         ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-            ((a.val[0]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 3328) ⌝ ⦄ := by
+            ((a.val[0]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) ⌝ ⦄ := by
   have h_t_as_ntt_len : t_as_ntt.length = K.val := Std.Array.length_eq t_as_ntt
   have h_error_len : error_as_ntt.length = K.val := Std.Array.length_eq error_as_ntt
   -- Convenience: (0#usize).val = 0.
@@ -2806,7 +2806,7 @@ theorem compute_As_plus_e_row0_finalize_fc
     intro r hr_pos _hr_lt_K
     have hr_ne : r ≠ 0 := by omega
     exact h_t_as_ntt_new_ne r hr_ne
-  · -- Conjunct (3): row-0 Barrett output bound |lane| ≤ 3328 (from L6.5).
+  · -- Conjunct (3): row-0 centered Barrett output bound |lane| ≤ 1664 (from L6.5).
     intro j hj m hm
     rw [h_t_as_ntt_new_at]
     exact h_pre4_bnd j hj m hm
@@ -3880,25 +3880,24 @@ end Stage4MatrixAddFC
       requires `acc[n] + K · 2^25 ≤ 2^30`; rows 1..K-1 re-zero the
       accumulator inside `compute_As_plus_e_loop1`).
 
-    POST (canonical-output form — no `lift` on the output). The spec is run on the lifted
+    POST (`VecMatches`-output form). The spec is run on the lifted
     *inputs* (`lift_matrix_from_slice` / `lift_vec` — irreducible, since the
     hacspec spec is typed in `FieldElement`), yielding some `spec_out`. The
-    output side carries NO lift: for every row `r` and lane `ℓ`, the raw impl
-    coefficient `x := (p.1 … lane r ℓ).val : Int` (Barrett-reduced into the
-    symmetric range `|x| ≤ 3328`, hence possibly negative) is sign-corrected
-    into `[0, q)` by adding `q` exactly when `x < 0`, and this equals the spec
-    residue `(spec_out … lane r ℓ).val.val : Nat` — a *literal* `Nat` equality
-    with no `mod`, no `ZMod`, and no `lift_*` on the output.
+    output side is stated via the shared `VecMatches` predicate (row-wise
+    `PolyMatches`, lane-wise `LaneMatches`): for every row `r` and lane `ℓ`, the
+    raw impl coefficient `x := (p.1 … lane r ℓ).val : Int` is the *unique centered
+    Barrett representative* of the spec residue — `|x| ≤ 1664 = ⌊q/2⌋` (a complete
+    residue system, so `x` is pinned uniquely) **and** `(x : ZMod q) =
+    zmodOfFE (spec_out … lane r ℓ)`.
 
-    REVIEWING THE POST: the output relation uses only the projections `.val`,
-    `.toNat`, `.val.val` plus the explicit `if x < 0 then q else 0` correction —
-    nothing to audit there. The output bound `|x| ≤ 3328` is threaded up from
+    REVIEWING THE POST: `VecMatches`/`PolyMatches`/`LaneMatches` (in `Spec/Lift.lean`)
+    reduce to a magnitude bound plus a residue equality in `ZMod q` (no `.toNat`).
+    The centered bound `|x| ≤ 1664` is threaded up from `barrett_reduce_core` via
     `barrett_reduce_fc` through `add_standard_error_reduce_fc`, the loop
-    invariants, and `row0_finalize`/`loop1`. The residue↔canonical bridge is
-    `Spec/Lift.lean`'s `canonical_rep_eq` (arithmetic) composed with the §Audit
-    getters `lift_vec_getElem`/`lift_poly_getElem` and `Element.lift_fe_val_val`
-    (`(lift_fe x).val.val = (x.val : ZMod q).val`). The INPUT bridge is still
-    audited from `§Audit`'s `lift_fe_spec`/`lift_fe_inj_mod` lifted through
+    invariants, and `row0_finalize`/`loop1`. The residue equality is discharged by
+    `Spec/Lift.lean`'s `laneMatches_lift_fe` (from `lift_fe_spec`) composed with
+    the §Audit getters `lift_vec_getElem`/`lift_poly_getElem`. The INPUT bridge is
+    still audited from `§Audit`'s `lift_fe_spec`/`lift_fe_inj_mod` lifted through
     `lift_matrix_from_slice_{spec,inj_mod}` and `lift_vec_{spec,inj_mod}`. -/
 @[spec]
 theorem compute_As_plus_e_fc
@@ -3933,11 +3932,7 @@ theorem compute_As_plus_e_fc
                   hacspec_ml_kem.matrix.compute_As_plus_e
                     (lift_matrix_from_slice matrix_A K)
                     (lift_vec s_as_ntt) (lift_vec error_as_ntt) = .ok spec_out
-                ∧ (∀ r : Nat, r < K.val → ∀ ℓ : Nat, ℓ < 256 →
-                    (((p.1.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val
-                       + (if ((p.1.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val < 0
-                          then 3329 else 0)).toNat
-                      = ((spec_out.val[r]!).val[ℓ]!).val.val) ⌝ ⦄ := by
+                ∧ VecMatches p.1.val spec_out ⌝ ⦄ := by
   -- Length facts.
   have h_t_len : t_as_ntt.length = K.val := Std.Array.length_eq t_as_ntt
   have h_err_len : error_as_ntt.length = K.val := Std.Array.length_eq error_as_ntt
@@ -4090,12 +4085,13 @@ theorem compute_As_plus_e_fc
     -- (so the hacspec equation is `h_hacspec`), then show every impl output lane,
     -- sign-corrected into [0, q), equals the spec residue `.val.val`.
     refine ⟨lift_vec t_as_ntt2, h_hacspec, ?_⟩
+    unfold VecMatches PolyMatches
     intro r hr ℓ hℓ
     have hj : ℓ / 16 < 16 := Nat.div_lt_iff_lt_mul (by decide : 0 < 16) |>.mpr hℓ
     have hm : ℓ % 16 < 16 := Nat.mod_lt _ (by decide : 0 < 16)
-    -- (a) Barrett output bound on this lane: |t_as_ntt2[r] lane| ≤ 3328.
+    -- (a) Tight centered Barrett output bound on this lane: |t_as_ntt2[r] lane| ≤ 1664.
     have hbnd :
-        (((t_as_ntt2.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val).natAbs ≤ 3328 := by
+        (((t_as_ntt2.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val).natAbs ≤ 1664 := by
       by_cases h0 : r = 0
       · subst h0
         rw [h_t2_at0]
@@ -4104,12 +4100,11 @@ theorem compute_As_plus_e_fc
           have h1v : (1#usize : Std.Usize).val = 1 := rfl
           omega
         exact h_rows_bnd r hr1 hr (ℓ / 16) hj (ℓ % 16) hm
-    -- (b) The spec residue is the canonical value of the lifted lane; rewrite
-    -- the RHS through the §Audit getters + `lift_fe_val_val`, then discharge
-    -- the sign-corrected equality with `canonical_rep_eq`.
-    rw [lift_vec_getElem t_as_ntt2 r hr, lift_poly_getElem _ ℓ hℓ,
-      libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element.lift_fe_val_val]
-    exact canonical_rep_eq _ hbnd
+    -- (b) The spec residue is `zmodOfFE` of the lifted lane; rewrite the RHS
+    -- through the §Audit getters, then discharge `LaneMatches` with the tight
+    -- bound via `laneMatches_lift_fe`.
+    rw [lift_vec_getElem t_as_ntt2 r hr, lift_poly_getElem _ ℓ hℓ]
+    exact laneMatches_lift_fe _ hbnd
 
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on axioms: [propext,

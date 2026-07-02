@@ -60,7 +60,7 @@ def inv
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
         acc.coefficients.val[j]! = b_init.coefficients.val[j]!)
     ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
-        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328))
+        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -381,7 +381,7 @@ theorem subtract_reduce_step_lemma_fc
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
             acc'.coefficients.val[j]! = b_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
-            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
@@ -585,7 +585,7 @@ theorem subtract_reduce_step_lemma_fc
       · -- (c) j < s.val → per-lane Barrett bound on acc'.coefs[j].
         intro j hj m hm
         rw [hs_val] at hj
-        show ((((((acc.coefficients.set k t1).set k t4).set k t6).set k t8).val[j]!).elements.val[m]!).val.natAbs ≤ 3328
+        show ((((((acc.coefficients.set k t1).set k t4).set k t6).set k t8).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
         rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
         · -- j < k.val: chunk j unchanged through all four sets — reuse the incoming bound.
           have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
@@ -657,7 +657,7 @@ theorem subtract_reduce_step_lemma_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             acc.coefficients.val[j]! = b_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
@@ -696,7 +696,7 @@ theorem subtract_reduce_fc
     ⦃ ⇓ p => ⌜ lift_poly p
                 = Spec.subtract_reduce_pure (lift_poly self) (lift_poly b)
               ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) ⌝ ⦄ := by
+                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.subtract_reduce
   -- Resolve `VECTORS_IN_RING_ELEMENT = .ok 16#usize`.
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
@@ -743,7 +743,7 @@ theorem subtract_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = b.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              ReducingFromI32ArrayFC.inv] using h_inv_holds
     obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
@@ -833,7 +833,7 @@ def inv
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
         acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
     ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
-        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328))
+        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -1067,7 +1067,7 @@ theorem add_error_reduce_step_lemma_fc
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
             acc'.coefficients.val[j]! = self_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
-            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
@@ -1225,7 +1225,7 @@ theorem add_error_reduce_step_lemma_fc
       · -- (c) j < s.val → per-lane Barrett bound on acc'.coefs[j].
         intro j hj m hm
         rw [hs_val] at hj
-        show (((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 3328
+        show (((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
         rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
         · -- j < k.val: chunk j unchanged through all three sets — reuse the incoming bound.
           have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
@@ -1292,7 +1292,7 @@ theorem add_error_reduce_step_lemma_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
@@ -1326,7 +1326,7 @@ theorem add_error_reduce_fc
       (vectortraitsOperationsInst := portable_ops_inst) self error
     ⦃ ⇓ p => ⌜ lift_poly p = Spec.add_error_reduce_pure (lift_poly self) (lift_poly error)
               ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) ⌝ ⦄ := by
+                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_error_reduce
   -- Resolve `VECTORS_IN_RING_ELEMENT = .ok 16#usize`.
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
@@ -1370,7 +1370,7 @@ theorem add_error_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              AddErrorReduceFC.inv] using h_inv_holds
     obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
@@ -1449,7 +1449,7 @@ def inv
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
         acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
     ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
-        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328))
+        ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -1690,7 +1690,7 @@ theorem add_standard_error_reduce_step_lemma_fc
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
             acc'.coefficients.val[j]! = self_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
-            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc'.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
@@ -1848,7 +1848,7 @@ theorem add_standard_error_reduce_step_lemma_fc
       · -- (c) j < s.val → per-lane Barrett bound on acc'.coefs[j].
         intro j hj m hm
         rw [hs_val] at hj
-        show (((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 3328
+        show (((((acc.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
         rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
         · -- j < k.val: chunk j unchanged through all three sets — reuse the incoming bound.
           have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
@@ -1915,7 +1915,7 @@ theorem add_standard_error_reduce_step_lemma_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             acc.coefficients.val[j]! = self_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
@@ -1950,7 +1950,7 @@ theorem add_standard_error_reduce_fc
     ⦃ ⇓ p => ⌜ lift_poly p
                 = Spec.add_standard_error_reduce_pure (lift_poly self) (lift_poly error)
               ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) ⌝ ⦄ := by
+                  ((p.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_standard_error_reduce
   -- Resolve `VECTORS_IN_RING_ELEMENT = .ok 16#usize`.
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
@@ -1994,7 +1994,7 @@ theorem add_standard_error_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((r.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              AddStandardErrorReduceFC.inv] using h_inv_holds
     obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
@@ -2079,7 +2079,7 @@ def inv
     ∧ (∀ j : Nat, k.val ≤ j → j < 16 →
         acc.1.coefficients.val[j]! = result_init.coefficients.val[j]!)
     ∧ (∀ j : Nat, j < k.val → ∀ m : Nat, m < 16 →
-        ((acc.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328))
+        ((acc.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize`. -/
 def step_post
@@ -2370,7 +2370,7 @@ theorem add_message_error_reduce_step_lemma_fc
         ∧ (∀ j : Nat, s.val ≤ j → j < 16 →
             acc'.1.coefficients.val[j]! = result_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < s.val → ∀ m : Nat, m < 16 →
-            ((acc'.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc'.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · -- (a) j < s.val → FC equation at chunk j.
         intro j hj
@@ -2560,7 +2560,7 @@ theorem add_message_error_reduce_step_lemma_fc
       · -- (c) j < s.val → per-lane Barrett bound on acc'.1.coefs[j].
         intro j hj m hm
         rw [hs_val] at hj
-        show (((((acc.1.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 3328
+        show (((((acc.1.coefficients.set k t1).set k t4).set k t6).val[j]!).elements.val[m]!).val.natAbs ≤ 1664
         rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hj_lt_k | hj_eq_k
         · -- j < k.val: chunk j unchanged through all three sets — reuse the incoming bound.
           have h_ne : k.val ≠ j := Nat.ne_of_gt hj_lt_k
@@ -2628,7 +2628,7 @@ theorem add_message_error_reduce_step_lemma_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             acc.1.coefficients.val[j]! = result_init.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((acc.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((acc.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       refine ⟨?_, ?_, ?_⟩
       · intro j hj; rw [h16] at hj
         apply h_acc_done j; rw [hk_eq]; exact hj
@@ -2668,7 +2668,7 @@ theorem add_message_error_reduce_fc
                 = Spec.add_message_error_reduce_pure
                     (lift_poly self) (lift_poly message) (lift_poly result)
               ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
-                  ((p.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) ⌝ ⦄ := by
+                  ((p.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_message_error_reduce
   have h_vre : libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
                 = .ok (16#usize : Std.Usize) := by
@@ -2713,7 +2713,7 @@ theorem add_message_error_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.1.coefficients.val[j]! = result.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ m : Nat, m < 16 →
-            ((r.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 3328) := by
+            ((r.1.coefficients.val[j]!).elements.val[m]!).val.natAbs ≤ 1664) := by
       simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
              AddMessageErrorReduceFC.inv] using h_inv_holds
     obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
