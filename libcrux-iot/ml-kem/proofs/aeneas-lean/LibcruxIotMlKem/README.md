@@ -145,9 +145,21 @@ but use a pure Lean reference that reimplements the hacspec functions.
 
 | Theorem | impl function | what it does |
 |---------|---------------|--------------|
-| `libcrux_iot_ml_kem.Ntt.ntt_binomially_sampled_ring_element_fc` ([`Ntt.lean`](Ntt.lean)) | `ntt.ntt_binomially_sampled_ring_element` | forward NTT |
 | `libcrux_iot_ml_kem.InvertNtt.invert_ntt_montgomery_fc` ([`InvertNtt.lean`](InvertNtt.lean)) | `invert_ntt.invert_ntt_montgomery` | inverse NTT |
 | `libcrux_iot_ml_kem.Polynomial.NttMultiply.accumulating_ntt_multiply_fc` ([`Polynomial/NttMultiply.lean`](Polynomial/NttMultiply.lean)) | `vector.portable.ntt.accumulating_ntt_multiply` | pointwise NTT multiplication |
+
+### Standalone leaf theorems (not consumed by the matrix theorems)
+
+The theorem below is proven at the polynomial level but is **not** used by any
+of the four matrix-level theorems above. The matrix operations take their
+vector inputs already in the NTT domain (`r_as_ntt`, `t_as_ntt`, etc.); the
+forward NTT of freshly binomially-sampled secret/error polynomials happens one
+level up, in key generation / encapsulation, *before* the matrix multiply. It
+is a proven leaf awaiting that (not-yet-present) keygen/encaps layer.
+
+| Theorem | impl function | what it does |
+|---------|---------------|--------------|
+| `libcrux_iot_ml_kem.Ntt.ntt_binomially_sampled_ring_element_fc` ([`Ntt.lean`](Ntt.lean)) | `ntt.ntt_binomially_sampled_ring_element` | forward NTT |
 
 ### Reduction, error, and message combination
 
