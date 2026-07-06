@@ -209,7 +209,7 @@ Every theorem depends on Lean's three standard axioms: `propext`,
   `(lift_t_as_ntt_from_public_key public_key K).val[i]!`, coefficients in
   `[0, 3328]`. 
   
-These are largly orthogonal to the matrix arithmetic,
+These are largely orthogonal to the matrix arithmetic,
 which is why we omitted its verification.
 
 ## Proof architecture
@@ -224,17 +224,21 @@ lift family (in [`Spec/Lift.lean`](Spec/Lift.lean), namespace
 
 All four L7 POSTs lift their *inputs* into the spec (unavoidable — the hacspec is
 typed in `FieldElement`), so each is only as strong as `lift` is
-information-preserving on those inputs. A reviewer need not read the `lift_*`
-bodies to trust them: the `§Audit` section at the end of
-[`Spec/Lift.lean`](Spec/Lift.lean) proves the bridge is **faithful**
+information-preserving on those inputs. **The `lift_*` definitions are therefore
+the primary object of the audit.** They are short and direct, so the reviewer's
+first task is to read the `lift_*` bodies in [`Spec/Lift.lean`](Spec/Lift.lean)
+and confirm each one carries the impl coefficients over to the spec
+coefficient-by-coefficient, without collapsing or discarding information.
+
+The `§Audit` section at the end of [`Spec/Lift.lean`](Spec/Lift.lean) supports
+that reading with two lemmas about the lift itself: it is **faithful**
 (`lift_fe_spec`: projecting a lifted lane back yields the impl lane mod
-`q = 3329`) and **injective up to `q`** (`lift_fe_inj_mod`: a
-constant/collapsing lift is impossible), then lifts both facts up the tower
-to `lift_poly_*`, `lift_vec_*`, and `lift_matrix_from_slice_*`. Reading
-those lemma *statements* is enough to confirm each input lift expresses genuine
-spec↔impl equivalence, coefficient-by-coefficient mod `q` — not a vacuous
-equation. (The input lift equates residue classes mod `q`; it deliberately does
-not constrain the concrete i16 representative — see the trust boundary.)
+`q = 3329`) and **injective up to `q`** (`lift_fe_inj_mod`: a constant/collapsing
+lift is impossible), both lifted up the tower to `lift_poly_*`, `lift_vec_*`, and
+`lift_matrix_from_slice_*`. These lemma statements are a confidence check on the
+definitions, not a replacement for reading them. (The input lift equates residue
+classes mod `q`; it deliberately does not constrain the concrete i16
+representative — see the trust boundary.)
 
 **The output-match predicates — all four L7 POSTs.** Rather than an equation
 *through* `lift` on the output side, each POST relates the impl output to the spec
