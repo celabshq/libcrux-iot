@@ -1229,5 +1229,231 @@ noncomputable def Spec.subtract_reduce_pure
 
 -- `Spec.sample_matrix_A_pure` is declared above (with `lift_matrix_from_seed`).
 
+/-! ## §Audit — the lift bridge is faithful and non-degenerate
+
+    The L7 matrix-level FC theorems state spec/impl equivalence *through*
+    the `lift_*` tower (`lift_fe → lift_poly → lift_vec /
+    lift_matrix_from_slice`). Both sides of each POST equation have already
+    been pushed through `lift`, so the theorem is only as strong as `lift`
+    is information-preserving: a degenerate `lift` (e.g. one collapsing every
+    lane to `0`) would make the equation vacuously true while saying nothing
+    about the impl.
+
+    Auditing the tower therefore reduces to two checkable facts about the
+    single leaf map `lift_fe`, which this section states and proves so a
+    reviewer can trust the bridge from **lemma statements** rather than by
+    reading the `lift_*` bodies:
+
+    * **Faithfulness** (`lift_fe_spec`) — projecting a lifted lane back with
+      `zmodOfFE` returns exactly the impl lane taken mod `q = 3329`. So `lift`
+      *is* the intended reduction, and forgets nothing beyond the residue class.
+    * **Injectivity up to `q`** (`lift_fe_inj_mod`) — equal lifts force equal
+      lanes mod `q`. This rules out the "constant/collapsing lift" vacuity mode
+      by a fact, not by inspecting code.
+
+    Everything above `lift_fe` is purely structural (`List.map` over the fixed
+    16×16 lane decomposition and the K-shaped vector / K×K matrix reshapes).
+    The `*_spec` / `*_inj_mod` lemmas below lift both facts up each structural
+    layer, so the whole tower feeding L7.1's POST — `lift_matrix_from_slice`
+    (inputs), `lift_vec` (inputs and the `lift_vec p.1` output) — is certified
+    faithful and injective mod `q` position-by-position. Concretely,
+    `lift_vec_inj_mod` applied to the output says: the L7.1 equation pins every
+    coefficient lane of the impl's `t_as_ntt` to the spec's value mod `q`.
+
+    (This is exactly the "equal as elements of `ZMod 3329`, position-by-position"
+    guarantee; it does not constrain the concrete i16 representative beyond its
+    residue class — see the README trust-boundary discussion.) -/
+
+/-- **Faithfulness of the leaf lift.** Lifting an `Std.I16` lane to a
+    `FieldElement` and projecting back with `zmodOfFE` yields exactly the
+    lane taken mod `q = 3329`. The bridge is the intended reduction. -/
+theorem lift_fe_spec (x : Std.I16) :
+    zmodOfFE (lift_fe x) = (x.val : ZMod 3329) := by
+  unfold lift_fe
+  rw [zmodOfFE_feOfZMod, i16_to_spec_fe_plain_unfold]
+
+/-- **Injectivity of the leaf lift, up to `q`.** Equal lifts force equal
+    lanes mod `q`. Rules out a degenerate/collapsing `lift_fe`. -/
+theorem lift_fe_inj_mod {x y : Std.I16} (h : lift_fe x = lift_fe y) :
+    (x.val : ZMod 3329) = (y.val : ZMod 3329) := by
+  have h' := congrArg zmodOfFE h
+  rwa [lift_fe_spec, lift_fe_spec] at h'
+
+/-- **Impl lane `x` is the canonical *centered* Barrett representative of spec
+    field element `f`.**
+
+    Shared per-lane output relation for all four L7 POSTs. Two conjuncts:
+    * `x.natAbs ≤ 1664 = ⌊q/2⌋` — the symmetric Barrett range, a *complete*
+      residue system of exactly `q = 3329` values, so together with the residue
+      the representative `x` is **unique**;
+    * `(x : ZMod 3329) = f` — the residue equality, stated directly in `ZMod 3329`
+      (no `.toNat`, no sign correction). -/
+def LaneMatches (x : Int) (f : ZMod 3329) : Prop :=
+  x.natAbs ≤ 1664 ∧ (x : ZMod 3329) = f
+
+/-- Bridge: an impl lane `x` with the tight centered bound `|x| ≤ 1664` matches
+    (via `LaneMatches`) the residue of its own leaf lift `zmodOfFE (lift_fe x)`.
+    Discharges the per-lane obligation in the L7 endgames after the spec residue
+    has been rewritten to `zmodOfFE (lift_fe x)` through the §Audit getters. -/
+theorem laneMatches_lift_fe (x : Std.I16) (h : x.val.natAbs ≤ 1664) :
+    LaneMatches x.val (zmodOfFE (lift_fe x)) :=
+  ⟨h, (lift_fe_spec x).symm⟩
+
+/-- **An impl ring element matches a spec ring element.** Lane-wise `LaneMatches`
+    over all 256 coefficients: each impl coefficient is the unique centered Barrett
+    representative of the corresponding spec residue. The shared output relation
+    for the single-polynomial L7 POSTs (L7.3 `compute_ring_element_v`,
+    L7.4 `compute_message`). -/
+def PolyMatches
+    (impl : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+              libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (spec : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) : Prop :=
+  ∀ ℓ : Nat, ℓ < 256 →
+    LaneMatches ((impl.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val)
+      (zmodOfFE (spec.val[ℓ]!))
+
+/-- **An impl vector matches a spec vector.** Row-wise `PolyMatches` over the `K`
+    ring elements. The shared output relation for the vector-valued L7 POSTs
+    (L7.1 `compute_As_plus_e`, L7.2 `compute_vector_u`).
+
+    The impl rows are passed as the underlying `List` (`.val`) so this serves both
+    the `Std.Array`-backed output of `compute_As_plus_e` and the `Slice`-backed
+    output of `compute_vector_u` uniformly. -/
+def VecMatches {K : Std.Usize}
+    (impl : List
+              (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (spec : Std.Array
+              (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) : Prop :=
+  ∀ r : Nat, r < K.val → PolyMatches (impl[r]!) (spec.val[r]!)
+
+/-- Lane getter for `lift_poly`: the `j`-th of the 256 output lanes is
+    `lift_fe` of the impl coefficient at chunk `j / 16`, lane `j % 16`. -/
+theorem lift_poly_getElem
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (j : Nat) (hj : j < 256) :
+    (lift_poly re).val[j]!
+      = lift_fe (re.coefficients.val[j / 16]!).elements.val[j % 16]! := by
+  unfold lift_poly
+  show ((List.range 256).map (fun j =>
+          lift_fe (re.coefficients.val[j / 16]!).elements.val[j % 16]!))[j]! = _
+  have h_len : ((List.range 256).map (fun j =>
+          lift_fe (re.coefficients.val[j / 16]!).elements.val[j % 16]!)).length = 256 := by simp
+  rw [getElem!_pos _ j (by rw [h_len]; exact hj)]
+  rw [List.getElem_map, List.getElem_range]
+
+/-- **Faithfulness of `lift_poly`** (per lane). -/
+theorem lift_poly_spec
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (j : Nat) (hj : j < 256) :
+    zmodOfFE ((lift_poly re).val[j]!)
+      = (((re.coefficients.val[j / 16]!).elements.val[j % 16]!).val : ZMod 3329) := by
+  rw [lift_poly_getElem re j hj, lift_fe_spec]
+
+/-- **Injectivity of `lift_poly`, up to `q`** (per lane). -/
+theorem lift_poly_inj_mod
+    (re re' : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (j : Nat) (hj : j < 256) (h : lift_poly re = lift_poly re') :
+    (((re.coefficients.val[j / 16]!).elements.val[j % 16]!).val : ZMod 3329)
+      = (((re'.coefficients.val[j / 16]!).elements.val[j % 16]!).val : ZMod 3329) := by
+  rw [← lift_poly_spec re j hj, ← lift_poly_spec re' j hj, h]
+
+/-- Row getter for `lift_vec`: the `r`-th of the K output rows is
+    `lift_poly` of the impl's `r`-th ring element. -/
+theorem lift_vec_getElem {K : Std.Usize}
+    (v : Std.Array
+          (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
+    (r : Nat) (hr : r < K.val) :
+    (lift_vec v).val[r]! = lift_poly (v.val[r]!) := by
+  unfold lift_vec
+  show (v.val.map lift_poly)[r]! = lift_poly (v.val[r]!)
+  have h_len : (v.val.map lift_poly).length = K.val := by
+    rw [List.length_map]; exact v.property
+  rw [getElem!_pos _ r (by rw [h_len]; exact hr)]
+  rw [List.getElem_map, getElem!_pos v.val r (by rw [v.property]; exact hr)]
+
+/-- **Faithfulness of `lift_vec`** (per row, per lane). -/
+theorem lift_vec_spec {K : Std.Usize}
+    (v : Std.Array
+          (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
+    (r : Nat) (hr : r < K.val) (j : Nat) (hj : j < 256) :
+    zmodOfFE ((lift_vec v).val[r]!.val[j]!)
+      = (((v.val[r]!.coefficients.val[j / 16]!).elements.val[j % 16]!).val : ZMod 3329) := by
+  rw [lift_vec_getElem v r hr, lift_poly_spec _ j hj]
+
+/-- **Injectivity of `lift_vec`, up to `q`** (per row, per lane).
+    Applied to L7.1's output `lift_vec p.1`, this is precisely the
+    guarantee that the theorem pins every impl coefficient lane to the
+    spec value mod `q`. -/
+theorem lift_vec_inj_mod {K : Std.Usize}
+    (u v : Std.Array
+          (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
+    (r : Nat) (hr : r < K.val) (j : Nat) (hj : j < 256)
+    (h : lift_vec u = lift_vec v) :
+    (((u.val[r]!.coefficients.val[j / 16]!).elements.val[j % 16]!).val : ZMod 3329)
+      = (((v.val[r]!.coefficients.val[j / 16]!).elements.val[j % 16]!).val : ZMod 3329) := by
+  rw [← lift_vec_spec u r hr j hj, ← lift_vec_spec v r hr j hj, h]
+
+/-- Entry getter for `lift_matrix_from_slice`: under the column-major
+    convention (outer index = column `j`, inner index = row `i`), the
+    `(j, i)` entry is `lift_poly` of the flat row-major slot `i * K + j`.
+    Mirrors `Matrix.Common.matrix.entry_fc`'s reshape. -/
+theorem lift_matrix_from_slice_getElem
+    (slice : Slice
+              (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (K : Std.Usize) (i j : Nat) (hi : i < K.val) (hj : j < K.val) :
+    (lift_matrix_from_slice slice K).val[j]!.val[i]!
+      = lift_poly slice.val[i * K.val + j]! := by
+  unfold lift_matrix_from_slice
+  have h_outer_len : ((List.range K.val).map (fun j' =>
+        Std.Array.make K ((List.range K.val).map (fun i' =>
+          lift_poly slice.val[i' * K.val + j']!)) (by simp))).length = K.val := by
+    rw [List.length_map, List.length_range]
+  show ((((List.range K.val).map (fun j' =>
+          Std.Array.make K ((List.range K.val).map (fun i' =>
+            lift_poly slice.val[i' * K.val + j']!)) (by simp)))[j]!).val[i]!) = _
+  rw [getElem!_pos _ j (by rw [h_outer_len]; exact hj)]
+  rw [List.getElem_map, List.getElem_range]
+  show ((List.range K.val).map (fun i' =>
+          lift_poly slice.val[i' * K.val + j]!))[i]! = _
+  have h_inner_len : ((List.range K.val).map (fun i' =>
+        lift_poly slice.val[i' * K.val + j]!)).length = K.val := by
+    rw [List.length_map, List.length_range]
+  rw [getElem!_pos _ i (by rw [h_inner_len]; exact hi)]
+  rw [List.getElem_map, List.getElem_range]
+
+/-- **Faithfulness of `lift_matrix_from_slice`** (per entry, per lane). -/
+theorem lift_matrix_from_slice_spec
+    (slice : Slice
+              (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (K : Std.Usize) (i j : Nat) (hi : i < K.val) (hj : j < K.val)
+    (ℓ : Nat) (hℓ : ℓ < 256) :
+    zmodOfFE ((lift_matrix_from_slice slice K).val[j]!.val[i]!.val[ℓ]!)
+      = (((slice.val[i * K.val + j]!.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val
+          : ZMod 3329) := by
+  rw [lift_matrix_from_slice_getElem slice K i j hi hj, lift_poly_spec _ ℓ hℓ]
+
+/-- **Injectivity of `lift_matrix_from_slice`, up to `q`** (per entry, per lane). -/
+theorem lift_matrix_from_slice_inj_mod
+    (s t : Slice
+              (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (K : Std.Usize) (i j : Nat) (hi : i < K.val) (hj : j < K.val)
+    (ℓ : Nat) (hℓ : ℓ < 256)
+    (h : lift_matrix_from_slice s K = lift_matrix_from_slice t K) :
+    (((s.val[i * K.val + j]!.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val : ZMod 3329)
+      = (((t.val[i * K.val + j]!.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val
+          : ZMod 3329) := by
+  rw [← lift_matrix_from_slice_spec s K i j hi hj ℓ hℓ,
+      ← lift_matrix_from_slice_spec t K i j hi hj ℓ hℓ, h]
+
 
 end libcrux_iot_ml_kem.Spec.Lift

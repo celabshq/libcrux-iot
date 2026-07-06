@@ -145,12 +145,14 @@ private def barrett_q (v : Int) : Int :=
 
     Given `|value| ≤ 32767`, the residual `value - barrett_q value * 3329`
     is congruent to `value` mod 3329 (trivially, since the difference is
-    a multiple of 3329) and has absolute value at most 3328. -/
+    a multiple of 3329) and has absolute value at most 1664 = ⌊3329/2⌋.
+    This is the centered Barrett representative: a complete residue system
+    of exactly 3329 values, so the representative is unique. -/
 private theorem barrett_reduce_core
     (v : Int) (h_v : v.natAbs ≤ 32767) :
     let q := barrett_q v
     let r := v - q * 3329
-    modq_eq r v 3329 ∧ r.natAbs ≤ 3328 := by
+    modq_eq r v 3329 ∧ r.natAbs ≤ 1664 := by
   -- |v| ≤ 32767 as an Int.
   have h_v_abs : |v| ≤ (32767 : Int) := by
     rw [Int.abs_eq_natAbs]; exact_mod_cast h_v
@@ -252,28 +254,28 @@ private theorem barrett_reduce_core
       omega
     -- Conclude |r| ≤ 3328 by contradiction (numerical chase).
     have h_pow_pos : (0 : Int) < 2^26 := by decide
-    have h_r_lb : (-3328 : Int) ≤ r := by
+    have h_r_lb : (-1664 : Int) ≤ r := by
       by_contra h_neg
       push Not at h_neg
-      have h_r_le : r ≤ -3329 := by omega
-      have h_mul_le : r * (2^26 : Int) ≤ (-3329) * (2^26 : Int) := by
-        have h_neg3329_le : (-3329 : Int) * (2^26 : Int) ≥ r * (2^26 : Int) := by
+      have h_r_le : r ≤ -1665 := by omega
+      have h_mul_le : r * (2^26 : Int) ≤ (-1665) * (2^26 : Int) := by
+        have h_neg1665_le : (-1665 : Int) * (2^26 : Int) ≥ r * (2^26 : Int) := by
           have := mul_le_mul_of_nonneg_right h_r_le (le_of_lt h_pow_pos)
           exact this
         omega
-      have h_const : ((-3329) * (2^26 : Int)) < -(2^25 * 3329 + 32767 * 447 : Int) := by
+      have h_const : ((-1665) * (2^26 : Int)) < -(2^25 * 3329 + 32767 * 447 : Int) := by
         decide
       omega
-    have h_r_ub : r ≤ (3328 : Int) := by
+    have h_r_ub : r ≤ (1664 : Int) := by
       by_contra h_pos
       push Not at h_pos
-      have h_r_ge : (3329 : Int) ≤ r := by omega
-      have h_mul_ge : ((3329) * (2^26 : Int)) ≤ r * (2^26 : Int) :=
+      have h_r_ge : (1665 : Int) ≤ r := by omega
+      have h_mul_ge : ((1665) * (2^26 : Int)) ≤ r * (2^26 : Int) :=
         mul_le_mul_of_nonneg_right h_r_ge (le_of_lt h_pow_pos)
-      have h_const : (((2^25 - 1) * 3329 + 32767 * 447 : Int)) < (3329 * (2^26 : Int)) := by
+      have h_const : (((2^25 - 1) * 3329 + 32767 * 447 : Int)) < (1665 * (2^26 : Int)) := by
         decide
       omega
-    have h_abs_le : |r| ≤ (3328 : Int) := abs_le.mpr ⟨h_r_lb, h_r_ub⟩
+    have h_abs_le : |r| ≤ (1664 : Int) := abs_le.mpr ⟨h_r_lb, h_r_ub⟩
     have h_abs_natAbs : |r| = (r.natAbs : Int) := Int.abs_eq_natAbs r
     rw [h_abs_natAbs] at h_abs_le
     exact_mod_cast h_abs_le
@@ -493,7 +495,7 @@ private theorem barrett_reduce_impl_value_val
   have h_q_eq_i5 : q = i5.val := by
     unfold barrett_q at hq_def
     rw [hq_def, h_i5_eq_q]
-  have h_core_bound : (v - q * 3329).natAbs ≤ 3328 := h_core.2
+  have h_core_bound : (v - q * 3329).natAbs ≤ 3328 := Nat.le_trans h_core.2 (by decide)
   have h_core_bound_int : |v - q * 3329| ≤ (3328 : Int) := by
     have h_abs : |v - q * 3329| = ((v - q * 3329).natAbs : Int) := Int.abs_eq_natAbs _
     rw [h_abs]; exact_mod_cast h_core_bound
@@ -525,19 +527,22 @@ private theorem barrett_reduce_impl_value_val
 
 /-! ### L0.2 Triple. -/
 
+/-- L0.2 spec: the Barrett-reduced lane is the **centered representative**
+    `|r| ≤ 1664 = ⌊3329/2⌋` — a complete residue system that pins the
+    representative uniquely — and is congruent to `value` mod 3329. Consumers that
+    only need looseness (the NTT butterfly layers) weaken `≤ 1664` to `≤ 3328` at
+    the call site. -/
 @[spec]
 theorem barrett_reduce_element_spec
     (value : Std.I16) (hb : value.val.natAbs ≤ 32767) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.vector.portable.arithmetic.barrett_reduce_element value
     ⦃ ⇓ r => ⌜ modq_eq r.val value.val 3329
-              ∧ r.val.natAbs ≤ 3328 ⌝ ⦄ := by
+              ∧ r.val.natAbs ≤ 1664 ⌝ ⦄ := by
   apply triple_of_ok_l0 (v := barrett_reduce_impl_value value)
     (barrett_reduce_element_eq_ok value)
-  -- Two conjuncts: congruence and bound.
+  -- Two conjuncts: congruence and the centered bound, both from the Int core.
   rw [barrett_reduce_impl_value_val value hb]
-  -- Goal: modq_eq (value.val - barrett_q value.val * 3329) value.val 3329
-  --        ∧ (value.val - barrett_q value.val * 3329).natAbs ≤ 3328.
   exact barrett_reduce_core value.val hb
 
 /-! ## L0.3 — `montgomery_reduce_element_spec`
@@ -1546,7 +1551,8 @@ theorem barrett_reduce_element_fc
   have h_legacy := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.barrett_reduce_element_spec value hb
   obtain ⟨r0, h_eq, h_modq, h_bnd⟩ := triple_exists_ok_fc h_legacy
   apply triple_of_ok_fc (v := r0) h_eq
-  refine ⟨h_bnd, ?_⟩
+  -- `h_bnd : |r0| ≤ 1664` (centered); this fc keeps the looser `≤ 3328` for NTT.
+  refine ⟨Nat.le_trans h_bnd (by decide), ?_⟩
   rw [barrett_pure_lift_fe]
   unfold lift_fe
   congr 1

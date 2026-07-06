@@ -1362,7 +1362,9 @@ def rows_inv {K : Std.Usize}
               (lift_fe_mont (1353#i16 : Std.I16)))
             ((lift_poly error_as_ntt.val[r]!).val[ℓ]!))
     ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ k.val ≤ r) →
-        t_as_ntt.val[r]! = t_as_ntt_init.val[r]!))
+        t_as_ntt.val[r]! = t_as_ntt_init.val[r]!)
+    ∧ (∀ r : Nat, start.val ≤ r → r < k.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+        ((t_as_ntt.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664))
 
 /-- Step-post for `loop_range_spec_usize` over (t_as_ntt, accumulator). -/
 def rows_step_post {K : Std.Usize}
@@ -1682,7 +1684,7 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
   have h_t_as_ntt_len : t_as_ntt.length = K.val := Std.Array.length_eq t_as_ntt
   have h_error_len : error_as_ntt.length = K.val := Std.Array.length_eq error_as_ntt
   -- Destructure the 2-conjunct invariant.
-  obtain ⟨h_inv_done, h_inv_undone⟩ := by
+  obtain ⟨h_inv_done, h_inv_undone, h_inv_bnd⟩ := by
     simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.matrix.compute_As_plus_e_loop1.body
   by_cases h_lt : k.val < K.val
@@ -1822,7 +1824,7 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
         h_error_bnd ⟨k.val, h_lt⟩ ⟨chunk, hchunk⟩ ⟨ℓ, hℓ⟩
     have h_l65 :=
       add_standard_error_reduce_fc t1 pre3 h_t1_self_bnd h_pre3_error_bnd
-    obtain ⟨pre4, h_pre4_eq, h_pre4_post⟩ := triple_exists_ok_fc h_l65
+    obtain ⟨pre4, h_pre4_eq, h_pre4_lift, h_pre4_bnd⟩ := triple_exists_ok_fc h_l65
     -- h_pre4_post : lift_poly pre4 = Spec.add_standard_error_reduce_pure (lift_poly t1) (lift_poly pre3).
     -- (12) t_as_ntt_new := set t_as_ntt1 k pre4.
     set t_as_ntt_new : Stage3MontStripFC.TVec K := t_as_ntt1.set k pre4 with h_t_as_ntt_new_def
@@ -1977,8 +1979,10 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
                   (lift_fe_mont (1353#i16 : Std.I16)))
                 ((lift_poly error_as_ntt.val[r]!).val[ℓ]!))
         ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ s_iter.val ≤ r) →
-            t_as_ntt_new.val[r]! = t_as_ntt_init.val[r]!) := by
-      refine ⟨?_, ?_⟩
+            t_as_ntt_new.val[r]! = t_as_ntt_init.val[r]!)
+        ∧ (∀ r : Nat, start.val ≤ r → r < s_iter.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+            ((t_as_ntt_new.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · -- Conjunct (1): per-completed-row lane characterization.
         intro r hr_ge hr_lt ℓ hℓ
         rw [hs_iter_eq] at hr_lt
@@ -2013,8 +2017,8 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
                     (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure
                       ((lift_poly t1).val[ℓ]!) (lift_fe_mont (1353#i16 : Std.I16)))
                     ((lift_poly pre3).val[ℓ]!) := by
-            -- Use h_pre4_post (full equality) + flatten_chunks + chunk_at lane.
-            rw [h_pre4_post]
+            -- Use h_pre4_lift (full equality) + flatten_chunks + chunk_at lane.
+            rw [h_pre4_lift]
             unfold Spec.add_standard_error_reduce_pure
             unfold Spec.flatten_chunks
             -- Goal: (Std.Array.make 256 ((List.range 256).map (fun j => ...)) _).val[ℓ]! = ...
@@ -2196,6 +2200,18 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
         · exact Or.inl hr_lt_start
         · -- k+1 ≤ r, so k ≤ r.
           exact Or.inr (by omega)
+      · -- Conjunct (3): per-completed-row centered Barrett bound |lane| ≤ 1664.
+        intro r hr_ge hr_lt j hj m hm
+        rw [hs_iter_eq] at hr_lt
+        rcases Nat.lt_succ_iff_lt_or_eq.mp hr_lt with hr_lt_k | hr_eq_k
+        · -- r < k: row unchanged; reuse inv (3) at k.
+          have hr_ne : r ≠ k.val := by omega
+          rw [h_t_as_ntt_new_ne r hr_ne]
+          exact h_inv_bnd r hr_ge hr_lt_k j hj m hm
+        · -- r = k: the row just written = pre4; use the L6.5 output bound.
+          subst hr_eq_k
+          rw [h_t_as_ntt_new_at]
+          exact h_pre4_bnd j hj m hm
     simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
     intro _; exact h_inv_pure
   · -- `None` branch: k ≥ K, done.
@@ -2248,8 +2264,10 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
                   (lift_fe_mont (1353#i16 : Std.I16)))
                 ((lift_poly error_as_ntt.val[r]!).val[ℓ]!))
         ∧ (∀ r : Nat, r < K.val → (r < start.val ∨ K.val ≤ r) →
-            t_as_ntt.val[r]! = t_as_ntt_init.val[r]!) := by
-      refine ⟨?_, ?_⟩
+            t_as_ntt.val[r]! = t_as_ntt_init.val[r]!)
+        ∧ (∀ r : Nat, start.val ≤ r → r < K.val → ∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+            ((t_as_ntt.val[r]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) := by
+      refine ⟨?_, ?_, ?_⟩
       · intro r hr_ge hr_lt ℓ hℓ
         have h_eq := h_inv_done r hr_ge (by rw [hk_eq]; exact hr_lt) ℓ hℓ
         exact h_eq
@@ -2258,6 +2276,8 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
           rcases hr_disj with hl | hr
           · exact Or.inl hl
           · exact Or.inr (by rw [hk_eq]; exact hr))
+      · intro r hr_ge hr_lt j hj m hm
+        exact h_inv_bnd r hr_ge (by rw [hk_eq]; exact hr_lt) j hj m hm
     simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
     intro _; exact h_inv_pure
 
@@ -2330,11 +2350,13 @@ theorem compute_As_plus_e_loop1_fc
         show (pure _ : Result Prop).holds
         simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
-        refine ⟨?_, ?_⟩
+        refine ⟨?_, ?_, ?_⟩
         · -- (1) Vacuous: r ∈ [start, start) is empty.
           intro r hr_ge hr_lt _ _; omega
         · -- (2) For r ∉ [start, start), trivially t_as_ntt_init[r] = t_as_ntt_init[r].
-          intro r _ _; trivial)
+          intro r _ _; trivial
+        · -- (3) Vacuous: r ∈ [start, start) is empty.
+          intro r hr_ge hr_lt _ _ _ _; omega)
       ?_)
   · -- Post entailment: at k = K, rows_inv holds.
     rw [PostCond.entails_noThrow]
@@ -2436,7 +2458,9 @@ theorem compute_As_plus_e_row0_finalize_fc
                   (lift_fe_mont (1353#i16 : Std.I16)))
                 ((lift_poly error_as_ntt.val[0]!).val[ℓ]!))
         ∧ (∀ r : Nat, 0 < r → r < K.val →
-            a.val[r]! = t_as_ntt.val[r]!) ⌝ ⦄ := by
+            a.val[r]! = t_as_ntt.val[r]!)
+        ∧ (∀ j : Nat, j < 16 → ∀ m : Nat, m < 16 →
+            ((a.val[0]!).coefficients.val[j]!).elements.val[m]!.val.natAbs ≤ 1664) ⌝ ⦄ := by
   have h_t_as_ntt_len : t_as_ntt.length = K.val := Std.Array.length_eq t_as_ntt
   have h_error_len : error_as_ntt.length = K.val := Std.Array.length_eq error_as_ntt
   -- Convenience: (0#usize).val = 0.
@@ -2514,7 +2538,7 @@ theorem compute_As_plus_e_row0_finalize_fc
       h_error_bnd ⟨(0#usize : Std.Usize).val, hK_pos⟩ ⟨chunk, hchunk⟩ ⟨ℓ, hℓ⟩
   have h_l65 :=
     add_standard_error_reduce_fc t1 pre3 h_t1_self_bnd h_pre3_error_bnd
-  obtain ⟨pre4, h_pre4_eq, h_pre4_post⟩ := triple_exists_ok_fc h_l65
+  obtain ⟨pre4, h_pre4_eq, h_pre4_lift, h_pre4_bnd⟩ := triple_exists_ok_fc h_l65
   -- (8) t_as_ntt_new := set t_as_ntt1 0 pre4.
   set t_as_ntt_new : Stage3MontStripFC.TVec K := t_as_ntt1.set (0#usize : Std.Usize) pre4
     with h_t_as_ntt_new_def
@@ -2599,8 +2623,8 @@ theorem compute_As_plus_e_row0_finalize_fc
     simp only [Aeneas.Std.bind_tc_ok]
     rfl
   apply triple_of_ok_fc h_body
-  -- (10) Discharge the 2-conjunct post.
-  refine ⟨?_, ?_⟩
+  -- (10) Discharge the 3-conjunct post.
+  refine ⟨?_, ?_, ?_⟩
   · -- Conjunct (1): per-lane characterization at row 0.
     intro ℓ hℓ
     rw [h_t_as_ntt_new_at]
@@ -2619,7 +2643,7 @@ theorem compute_As_plus_e_row0_finalize_fc
               (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure
                 ((lift_poly t1).val[ℓ]!) (lift_fe_mont (1353#i16 : Std.I16)))
               ((lift_poly pre3).val[ℓ]!) := by
-      rw [h_pre4_post]
+      rw [h_pre4_lift]
       unfold Spec.add_standard_error_reduce_pure
       unfold Spec.flatten_chunks
       show ((List.range 256).map (fun j =>
@@ -2782,6 +2806,10 @@ theorem compute_As_plus_e_row0_finalize_fc
     intro r hr_pos _hr_lt_K
     have hr_ne : r ≠ 0 := by omega
     exact h_t_as_ntt_new_ne r hr_ne
+  · -- Conjunct (3): row-0 centered Barrett output bound |lane| ≤ 1664 (from L6.5).
+    intro j hj m hm
+    rw [h_t_as_ntt_new_at]
+    exact h_pre4_bnd j hj m hm
 
 end L7_1c_irreducible
 
@@ -3850,7 +3878,27 @@ end Stage4MatrixAddFC
     - `h_acc_bnd`    : per-lane additive-budget bound on initial
       `accumulator` (consumed by row-0 forward dep `Stage 1`, whose PRE
       requires `acc[n] + K · 2^25 ≤ 2^30`; rows 1..K-1 re-zero the
-      accumulator inside `compute_As_plus_e_loop1`). -/
+      accumulator inside `compute_As_plus_e_loop1`).
+
+    POST (`VecMatches`-output form). The spec is run on the lifted
+    *inputs* (`lift_matrix_from_slice` / `lift_vec` — irreducible, since the
+    hacspec spec is typed in `FieldElement`), yielding some `spec_out`. The
+    output side is stated via the shared `VecMatches` predicate (row-wise
+    `PolyMatches`, lane-wise `LaneMatches`): for every row `r` and lane `ℓ`, the
+    raw impl coefficient `x := (p.1 … lane r ℓ).val : Int` is the *unique centered
+    Barrett representative* of the spec residue — `|x| ≤ 1664 = ⌊q/2⌋` (a complete
+    residue system, so `x` is pinned uniquely) **and** `(x : ZMod q) =
+    zmodOfFE (spec_out … lane r ℓ)`.
+
+    REVIEWING THE POST: `VecMatches`/`PolyMatches`/`LaneMatches` (in `Spec/Lift.lean`)
+    reduce to a magnitude bound plus a residue equality in `ZMod q` (no `.toNat`).
+    The centered bound `|x| ≤ 1664` is threaded up from `barrett_reduce_core` via
+    `barrett_reduce_fc` through `add_standard_error_reduce_fc`, the loop
+    invariants, and `row0_finalize`/`loop1`. The residue equality is discharged by
+    `Spec/Lift.lean`'s `laneMatches_lift_fe` (from `lift_fe_spec`) composed with
+    the §Audit getters `lift_vec_getElem`/`lift_poly_getElem`. The INPUT bridge is
+    still audited from `§Audit`'s `lift_fe_spec`/`lift_fe_inj_mod` lifted through
+    `lift_matrix_from_slice_{spec,inj_mod}` and `lift_vec_{spec,inj_mod}`. -/
 @[spec]
 theorem compute_As_plus_e_fc
     {K : Std.Usize}
@@ -3880,10 +3928,11 @@ theorem compute_As_plus_e_fc
     libcrux_iot_ml_kem.matrix.compute_As_plus_e
       (vectortraitsOperationsInst := portable_ops_inst)
       t_as_ntt matrix_A s_as_ntt error_as_ntt s_cache accumulator
-    ⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_As_plus_e
-                  (lift_matrix_from_slice matrix_A K)
-                  (lift_vec s_as_ntt) (lift_vec error_as_ntt)
-                = .ok (lift_vec p.1) ⌝ ⦄ := by
+    ⦃ ⇓ p => ⌜ ∃ spec_out,
+                  hacspec_ml_kem.matrix.compute_As_plus_e
+                    (lift_matrix_from_slice matrix_A K)
+                    (lift_vec s_as_ntt) (lift_vec error_as_ntt) = .ok spec_out
+                ∧ VecMatches p.1.val spec_out ⌝ ⦄ := by
   -- Length facts.
   have h_t_len : t_as_ntt.length = K.val := Std.Array.length_eq t_as_ntt
   have h_err_len : error_as_ntt.length = K.val := Std.Array.length_eq error_as_ntt
@@ -3918,19 +3967,21 @@ theorem compute_As_plus_e_fc
     have hK4 : K.val * 2^25 ≤ 4 * 2^25 := Nat.mul_le_mul_right _ hK
     have h2 : (4 : Nat) * 2^25 ≤ 2^16 * 3328 := by decide
     omega
-  -- ── Row-0 finalize: produces `a` with row-0 lane eq + rows>0 unchanged. ──
-  obtain ⟨a, h_fin_eq, h_a0_lane, h_a_unch⟩ := triple_exists_ok_fc
+  -- ── Row-0 finalize: produces `a` with row-0 lane eq + rows>0 unchanged
+  --    + row-0 Barrett output bound. ──
+  obtain ⟨a, h_fin_eq, h_a0_lane, h_a_unch, h_a0_bnd⟩ := triple_exists_ok_fc
     (compute_As_plus_e_row0_finalize_fc t_as_ntt matrix_A s_as_ntt error_as_ntt s_cache
       accumulator acc2 cache1 hK_pos h_error_bnd h_acc_zero h_acc2_lane_bnd h_row0)
-  dsimp only at h_fin_eq h_a0_lane h_a_unch
+  dsimp only at h_fin_eq h_a0_lane h_a_unch h_a0_bnd
   -- ── S2: outer rows loop [1, K). t_as_ntt_init = a. acc seed = acc2 (loop1 re-zeros). ──
   obtain ⟨⟨t_as_ntt2, accumulator2⟩, h_loop1_eq, h_rows⟩ := triple_exists_ok_fc
     (compute_As_plus_e_loop1_fc a matrix_A s_as_ntt error_as_ntt cache1 acc2 1#usize hK
       (by show (1#usize : Std.Usize).val ≤ K.val; exact hK_pos) hAlen
       h_matrix_bnd h_s_bnd h_error_bnd h_cache_post)
   dsimp only at h_loop1_eq h_rows
-  -- Destructure rows_inv: (1) done rows [1,K), (2) unchanged rows.
-  obtain ⟨h_rows_done, h_rows_undone⟩ := by
+  -- Destructure rows_inv: (1) done rows [1,K), (2) unchanged rows,
+  -- (3) per-done-row Barrett output bound |lane| ≤ 1664.
+  obtain ⟨h_rows_done, h_rows_undone, h_rows_bnd⟩ := by
     simpa [Stage3MontStripFC.rows_inv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
       ← List.getElem!_eq_getElem?_getD] using h_rows
   -- t_as_ntt2[0] = a[0] (loop1 starts at 1, leaves row 0 unchanged).
@@ -4030,12 +4081,30 @@ theorem compute_As_plus_e_fc
               -- Step through the goal using the same step equations:
               simp [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, h1, h2, h4, h_a_eq,
                 h_loop1_eq]
-  · -- POST = the hacspec equation. p.1 = t_as_ntt2.
-    show hacspec_ml_kem.matrix.compute_As_plus_e
-            (lift_matrix_from_slice matrix_A K)
-            (lift_vec s_as_ntt) (lift_vec error_as_ntt)
-          = .ok (lift_vec t_as_ntt2)
-    exact h_hacspec
+  · -- POST (canonical-output form). p.1 = t_as_ntt2. Witness spec_out := lift_vec t_as_ntt2
+    -- (so the hacspec equation is `h_hacspec`), then show every impl output lane,
+    -- sign-corrected into [0, q), equals the spec residue `.val.val`.
+    refine ⟨lift_vec t_as_ntt2, h_hacspec, ?_⟩
+    unfold VecMatches PolyMatches
+    intro r hr ℓ hℓ
+    have hj : ℓ / 16 < 16 := Nat.div_lt_iff_lt_mul (by decide : 0 < 16) |>.mpr hℓ
+    have hm : ℓ % 16 < 16 := Nat.mod_lt _ (by decide : 0 < 16)
+    -- (a) Tight centered Barrett output bound on this lane: |t_as_ntt2[r] lane| ≤ 1664.
+    have hbnd :
+        (((t_as_ntt2.val[r]!).coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!.val).natAbs ≤ 1664 := by
+      by_cases h0 : r = 0
+      · subst h0
+        rw [h_t2_at0]
+        exact h_a0_bnd (ℓ / 16) hj (ℓ % 16) hm
+      · have hr1 : (1#usize : Std.Usize).val ≤ r := by
+          have h1v : (1#usize : Std.Usize).val = 1 := rfl
+          omega
+        exact h_rows_bnd r hr1 hr (ℓ / 16) hj (ℓ % 16) hm
+    -- (b) The spec residue is `zmodOfFE` of the lifted lane; rewrite the RHS
+    -- through the §Audit getters, then discharge `LaneMatches` with the tight
+    -- bound via `laneMatches_lift_fe`.
+    rw [lift_vec_getElem t_as_ntt2 r hr, lift_poly_getElem _ ℓ hℓ]
+    exact laneMatches_lift_fe _ hbnd
 
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on axioms: [propext,
@@ -4053,9 +4122,12 @@ info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on
    boundary. The proof lives downstream because the `L7/` bridge tree
    imports `FCTargets`.
 
-   POST: `hacspec_ml_kem.matrix.compute_vector_u (lift_matrix_from_seed seed K)
-   (lift_vec_slice r_as_ntt K) (lift_vec_slice error_1 K)
-   = .ok (lift_vec_slice p.2.1 K)`. -/
+   POST (canonical-output form, no output `lift`): `∃ spec_out,
+   hacspec_ml_kem.matrix.compute_vector_u (lift_matrix_from_seed seed K)
+   (lift_vec_slice r_as_ntt K) (lift_vec_slice error_1 K) = .ok spec_out
+   ∧ VecMatches p.2.1.val spec_out` — each impl output lane `x` is the unique
+   centered Barrett representative of the spec residue
+   (`|x| ≤ 1664 ∧ (x : ZMod q) = <spec lane>`). -/
 
 /- L7.3 — `matrix.compute_ring_element_v`: `t · r + e₂ + message` (the
    decryption-side ring element `v`). Proven as
@@ -4068,9 +4140,13 @@ info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on
    `deserialize_to_reduced_ring_element_fc` (A2) /
    `Spec.t_as_ntt_from_public_key_pure` spec-stub boundary.
 
-   POST: `hacspec_ml_kem.matrix.compute_ring_element_v
+   POST (canonical-output form, no output `lift`): `∃ spec_out,
+   hacspec_ml_kem.matrix.compute_ring_element_v
    (lift_t_as_ntt_from_public_key public_key K) (lift_vec_slice r_as_ntt K)
-   (lift_poly error_2) (lift_poly message) = .ok (lift_poly p.2.1)`. -/
+   (lift_poly error_2) (lift_poly message) = .ok spec_out
+   ∧ PolyMatches p.2.1 spec_out` — each impl output lane `x` is the unique
+   centered Barrett representative of the spec residue
+   (`|x| ≤ 1664 ∧ (x : ZMod q) = <spec lane>`). -/
 
 /- L7.4 — `matrix.compute_message`: `v - secret · u` then NTT-inverse.
    Proven (with explicit PRE bounds `hK ≤ 4` + per-lane `≤ 3328`) as
@@ -4078,8 +4154,12 @@ info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on
    `Matrix/ComputeMessage/FC.lean`. The proof lives downstream
    because the L7 bridge tree imports `FCTargets`.
 
-   POST: `hacspec_ml_kem.matrix.compute_message (lift_poly v) (lift_vec secret_as_ntt)
-   (lift_vec u_as_ntt) = .ok (lift_poly p.1)`. -/
+   POST (canonical-output form, no output `lift`): `∃ spec_out,
+   hacspec_ml_kem.matrix.compute_message (lift_poly v) (lift_vec secret_as_ntt)
+   (lift_vec u_as_ntt) = .ok spec_out
+   ∧ PolyMatches p.1 spec_out` — each impl output lane `x` is the unique
+   centered Barrett representative of the spec residue
+   (`|x| ≤ 1664 ∧ (x : ZMod q) = <spec lane>`). -/
 
 /-! ## Roll-up
 

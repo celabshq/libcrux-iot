@@ -141,11 +141,13 @@ theorem compute_ring_element_v_fc
       K (vectortraitsOperationsInst := portable_ops_inst)
       public_key t_as_ntt_entry r_as_ntt error_2 message result scratch
       cache accumulator
-    ⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_ring_element_v
-                  (lift_t_as_ntt_from_public_key public_key K)
-                  (lift_vec_slice r_as_ntt K)
-                  (lift_poly error_2) (lift_poly message)
-                = .ok (lift_poly p.2.1) ⌝ ⦄ := by
+    ⦃ ⇓ p => ⌜ ∃ spec_out,
+                  hacspec_ml_kem.matrix.compute_ring_element_v
+                    (lift_t_as_ntt_from_public_key public_key K)
+                    (lift_vec_slice r_as_ntt K)
+                    (lift_poly error_2) (lift_poly message)
+                  = .ok spec_out
+                ∧ PolyMatches p.2.1 spec_out ⌝ ⦄ := by
   -- r_arr : Array Poly K from r_as_ntt.
   set r_arr : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K :=
@@ -220,11 +222,11 @@ theorem compute_ring_element_v_fc
     have he := h_error_bnd chunk hchunk ℓ hℓ
     have hm := h_message_bnd chunk hchunk ℓ hℓ
     omega
-  obtain ⟨⟨result3, scratch2⟩, h_add_eq, h_result3_lift⟩ :=
+  obtain ⟨⟨result3, scratch2⟩, h_add_eq, h_result3_lift, h_result3_bnd⟩ :=
     triple_exists_ok_fc
       (add_message_error_reduce_fc error_2 message result2 scratch1
         h_result2_b_bnd h_sum_bnd)
-  dsimp only at h_add_eq h_result3_lift
+  dsimp only at h_add_eq h_result3_lift h_result3_bnd
   -- BYTES_PER_RING_ELEMENT reduces to 384 (both constants are `irreducible`).
   have h_bpr : (libcrux_iot_ml_kem.constants.BYTES_PER_RING_ELEMENT : Result Std.Usize)
       = .ok (384#usize : Std.Usize) := by
@@ -283,41 +285,54 @@ theorem compute_ring_element_v_fc
         Result.ok (t_ent1, result3, scratch2, acc2))
         = Result.ok (t_ent1, result3, scratch2, acc2)
     rw [h_add_eq]; rfl
-  · -- Chain A/C/B/compose/glue/D′: prove hacspec spec = .ok (lift_poly result3).
-    show hacspec_ml_kem.matrix.compute_ring_element_v
+  · -- Spec witness `lift_poly result3`, then the per-lane `LaneMatches` bridge.
+    refine ⟨lift_poly result3, ?_, ?_⟩
+    -- Chain A/C/B/compose/glue/D′: prove hacspec spec = .ok (lift_poly result3).
+    · show hacspec_ml_kem.matrix.compute_ring_element_v
           (lift_t_as_ntt_from_public_key public_key K) (lift_vec_slice r_as_ntt K)
           (lift_poly error_2) (lift_poly message) = .ok (lift_poly result3)
-    unfold hacspec_ml_kem.matrix.compute_ring_element_v
-    -- A: multiply_vectors = .ok (scaleZ 2285 (lift_poly result1)).
-    have hA := compute_ring_element_v_acc_bridge hK public_key r_as_ntt r_arr
-      acc1 acc2 h_acc1_zero h_r_arr h_r_bnd t_ent1 h_char
-    rw [← h_result1_lift] at hA
-    rw [hA]; simp only [Aeneas.Std.bind_tc_ok]
-    -- C: ntt_inverse (scaleZ 2285 (lift_poly result1))
-    --      = .ok (scaleZ 3303 (invert_pure (scaleZ 2285 (lift_poly result1)))).
-    have hCanon_s : ∀ j : Nat, j < 256 →
-        libcrux_iot_ml_kem.Spec.Pure.Canonical
-          ((scaleZ 2285 (lift_poly result1)).val[j]!) :=
-      fun j hj => scaleZ_canon 2285 (lift_poly result1) j hj
-    rw [ntt_inverse_eq_scaleZ_invert_pure (scaleZ 2285 (lift_poly result1)) hCanon_s]
-    simp only [Aeneas.Std.bind_tc_ok]
-    -- B: invert_pure (scaleZ 2285 x) = scaleZ 2285 (invert_pure x).
-    rw [invert_ntt_montgomery_pure_scaleZ 2285 (lift_poly result1)
-        (fun j hj => lift_poly_canon result1 j hj)]
-    -- scaleZ 3303 (scaleZ 2285 y) = scaleZ 512 y.
-    rw [scaleZ_compose 3303 2285 (Spec.invert_ntt_montgomery_pure (lift_poly result1)),
-        glue_3303_2285]
-    -- invert_pure (lift_poly result1) = lift_poly result2.
-    rw [← h_result2_lift]
-    -- D′: (add_polynomials (scaleZ 512 (lift_poly result2)) (lift_poly error_2)
-    --       >>= add_polynomials · (lift_poly message))
-    --      = .ok (add_message_error_reduce_pure (lift_poly error_2) (lift_poly message)
-    --              (lift_poly result2)).
-    rw [add_message_error_scaleZ_eq (lift_poly result2) (lift_poly error_2) (lift_poly message)
-        (fun j hj => lift_poly_canon result2 j hj)]
-    -- add_message_error_reduce_pure (lift_poly error_2) (lift_poly message) (lift_poly result2)
-    --   = lift_poly result3.
-    rw [← h_result3_lift]
+      unfold hacspec_ml_kem.matrix.compute_ring_element_v
+      -- A: multiply_vectors = .ok (scaleZ 2285 (lift_poly result1)).
+      have hA := compute_ring_element_v_acc_bridge hK public_key r_as_ntt r_arr
+        acc1 acc2 h_acc1_zero h_r_arr h_r_bnd t_ent1 h_char
+      rw [← h_result1_lift] at hA
+      rw [hA]; simp only [Aeneas.Std.bind_tc_ok]
+      -- C: ntt_inverse (scaleZ 2285 (lift_poly result1))
+      --      = .ok (scaleZ 3303 (invert_pure (scaleZ 2285 (lift_poly result1)))).
+      have hCanon_s : ∀ j : Nat, j < 256 →
+          libcrux_iot_ml_kem.Spec.Pure.Canonical
+            ((scaleZ 2285 (lift_poly result1)).val[j]!) :=
+        fun j hj => scaleZ_canon 2285 (lift_poly result1) j hj
+      rw [ntt_inverse_eq_scaleZ_invert_pure (scaleZ 2285 (lift_poly result1)) hCanon_s]
+      simp only [Aeneas.Std.bind_tc_ok]
+      -- B: invert_pure (scaleZ 2285 x) = scaleZ 2285 (invert_pure x).
+      rw [invert_ntt_montgomery_pure_scaleZ 2285 (lift_poly result1)
+          (fun j hj => lift_poly_canon result1 j hj)]
+      -- scaleZ 3303 (scaleZ 2285 y) = scaleZ 512 y.
+      rw [scaleZ_compose 3303 2285 (Spec.invert_ntt_montgomery_pure (lift_poly result1)),
+          glue_3303_2285]
+      -- invert_pure (lift_poly result1) = lift_poly result2.
+      rw [← h_result2_lift]
+      -- D′: (add_polynomials (scaleZ 512 (lift_poly result2)) (lift_poly error_2)
+      --       >>= add_polynomials · (lift_poly message))
+      --      = .ok (add_message_error_reduce_pure (lift_poly error_2) (lift_poly message)
+      --              (lift_poly result2)).
+      rw [add_message_error_scaleZ_eq (lift_poly result2) (lift_poly error_2) (lift_poly message)
+          (fun j hj => lift_poly_canon result2 j hj)]
+      -- add_message_error_reduce_pure (lift_poly error_2) (lift_poly message) (lift_poly result2)
+      --   = lift_poly result3.
+      rw [← h_result3_lift]
+    · -- Per-lane bridge: the impl output is the centered Barrett representative
+      -- `|x| ≤ 1664`; `LaneMatches` records the tight bound + the residue equality
+      -- `(x : ZMod q) = zmodOfFE (spec lane)`, discharged by `laneMatches_lift_fe`.
+      unfold PolyMatches
+      intro ℓ hℓ
+      have hj : ℓ / 16 < 16 := Nat.div_lt_iff_lt_mul (by decide : 0 < 16) |>.mpr hℓ
+      have hm : ℓ % 16 < 16 := Nat.mod_lt _ (by decide : 0 < 16)
+      have hbnd : (((result3.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val).natAbs ≤ 1664 :=
+        h_result3_bnd (ℓ / 16) hj (ℓ % 16) hm
+      rw [lift_poly_getElem result3 ℓ hℓ]
+      exact laneMatches_lift_fe _ hbnd
 
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc' depends on axioms: [propext,
