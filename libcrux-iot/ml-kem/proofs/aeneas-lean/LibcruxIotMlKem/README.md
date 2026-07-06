@@ -32,6 +32,14 @@ stores ring elements as 16 SIMD-shaped chunks of 16 lanes each.
 In contrast, the spec uses canonical representations, plain coefficients, 
 and a flat array of 256 field elements.
 
+The code blocks below show only the Hoare triple (the precondition really is
+`True`); each theorem additionally carries input **hypotheses**, elided here,
+that the equivalence is conditional on. In brief: every impl input coefficient
+is bounded (`|·| ≤ 3328`, relaxed to `≤ 29439` for the additive error terms),
+the rank `K ≤ 4`, the input slices/arrays have their expected lengths, and the
+`i32` accumulator starts zeroed. These pin the impl inputs to the range the
+arithmetic is designed for; the spec side is unconstrained.
+
 ### L7.1 — key generation: `Â · ŝ + ê`
 
 [`Matrix/ComputeAsPlusE.lean`](Matrix/ComputeAsPlusE.lean) — `libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc`:
@@ -193,6 +201,12 @@ Every theorem depends on Lean's three standard axioms: `propext`,
 | L7.2 `Matrix.ComputeVectorU.FC.compute_vector_u_fc`      | ✓ | **A1** `Sampling.sample_matrix_entry_fc` |
 | L7.3 `Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc` | ✓ | **A2** `Serialize.deserialize_to_reduced_ring_element_fc` |
 | L7.4 `Matrix.ComputeMessage.FC.compute_message_fc`       | ✓ | — (fully clean) |
+
+Each row is **pinned in the source and checked on every build**: the FC file
+for each theorem ends with a `#guard_msgs in` / `#print axioms` block, so the
+build fails if a theorem's axiom dependencies ever change (a stray `sorry` or a
+new leaf axiom creeping in). You can reproduce any row manually with
+`#print axioms <theorem>`.
 
 ### The two deferred-leaf axioms (A1 / A2)
 
