@@ -921,7 +921,7 @@ macro_rules! pub_crate_mod {
     };
 }
 
-pub(crate) mod portable {
+pub mod portable {
     pub_crate_mod!(aes_gcm_128, 16, crate::aes_gcm_128::State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 128 ");
     pub_crate_mod!(aes_gcm_256, 32, crate::aes_gcm_256::State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 256 ");
     pub_crate_mod!(
