@@ -44,7 +44,7 @@ abbrev Acc :=
     * (a) Chunks `j < k`: FC equation `lift_chunk acc[j] = chunk_subtract_reduce_pure
           (lift_chunk self[j]) (lift_chunk b_init[j])`.
     * (b) Chunks `k ≤ j < 16`: `acc[j] = b_init[j]` (unchanged).
-    * (c) Chunks `j < k`: per-lane `|acc[j][m]| ≤ 3328` — the Barrett-reduced
+    * (c) Chunks `j < k`: per-lane `|acc[j][m]| ≤ 1664` — the Barrett-reduced
           output bound, carried so the top-level L7.4 POST can state the impl
           output in canonical form (no output `lift`). -/
 def inv
@@ -610,7 +610,7 @@ theorem subtract_reduce_step_lemma_fc
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
           rw [h_set1, h_set2, h_set3, h_set4]
           exact h_acc_bnd_done j hj_lt_k m hm
-        · -- j = k.val: chunk j = t8, the Barrett-reduced output (|·| ≤ 3328).
+        · -- j = k.val: chunk j = t8, the Barrett-reduced output (|·| ≤ 1664).
           subst hj_eq_k
           have h_set_eq : (((((acc.coefficients.set k t1).set k t4).set k t6).set k t8).val[k.val]!)
               = t8 := by
@@ -1245,7 +1245,7 @@ theorem add_error_reduce_step_lemma_fc
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
           rw [h_set1, h_set2, h_set3]
           exact h_acc_bnd_done j hj_lt_k m hm
-        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 3328).
+        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 1664).
           subst hj_eq_k
           have h_set_eq : ((((acc.coefficients.set k t1).set k t4).set k t6).val[k.val]!)
               = t6 := by
@@ -1433,7 +1433,7 @@ abbrev Acc :=
           chunk_add_standard_error_reduce_pure (lift_chunk self_init[j])
             (lift_chunk error[j])`.
     * (b) Chunks `k ≤ j < 16`: `acc[j] = self_init[j]` (unchanged).
-    * (c) Chunks `j < k`: per-lane `|acc[j][m]| ≤ 3328` — the Barrett-reduced
+    * (c) Chunks `j < k`: per-lane `|acc[j][m]| ≤ 1664` — the Barrett-reduced
           output bound, carried so the top-level L7.1 POST can state the impl
           output in canonical form (no output `lift`). -/
 def inv
@@ -1868,7 +1868,7 @@ theorem add_standard_error_reduce_step_lemma_fc
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
           rw [h_set1, h_set2, h_set3]
           exact h_acc_bnd_done j hj_lt_k m hm
-        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 3328).
+        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 1664).
           subst hj_eq_k
           have h_set_eq : ((((acc.coefficients.set k t1).set k t4).set k t6).val[k.val]!)
               = t6 := by
@@ -2580,7 +2580,7 @@ theorem add_message_error_reduce_step_lemma_fc
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients k j t1 h_ne
           rw [h_set1, h_set2, h_set3]
           exact h_acc_bnd_done j hj_lt_k m hm
-        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 3328).
+        · -- j = k.val: chunk j = t6, the Barrett-reduced output (|·| ≤ 1664).
           subst hj_eq_k
           have h_set_eq : ((((acc.1.coefficients.set k t1).set k t4).set k t6).val[k.val]!)
               = t6 := by

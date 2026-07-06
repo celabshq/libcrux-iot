@@ -1279,18 +1279,6 @@ theorem lift_fe_inj_mod {x y : Std.I16} (h : lift_fe x = lift_fe y) :
   have h' := congrArg zmodOfFE h
   rwa [lift_fe_spec, lift_fe_spec] at h'
 
-/-- **Canonical representative bridge.** For an integer already reduced into
-    the symmetric Barrett range `|x| ≤ 3328` (as the impl output lanes are),
-    adding `q` exactly when `x` is negative recovers the canonical residue
-    `(x : ZMod q).val ∈ [0, q)` — no `mod`, no `lift`, just an explicit,
-    auditable sign correction. Arithmetic core of the canonical-output L7 POSTs. -/
-theorem canonical_rep_eq (x : Int) (hx : x.natAbs ≤ 3328) :
-    (x + (if x < 0 then 3329 else 0)).toNat = ((x : ZMod 3329)).val := by
-  have hkey : (((x : ZMod 3329)).val : ℤ) = x % 3329 := ZMod.val_intCast x
-  by_cases h : x < 0
-  · simp only [if_pos h]; omega
-  · simp only [if_neg h]; omega
-
 /-- **Impl lane `x` is the canonical *centered* Barrett representative of spec
     field element `f`.**
 

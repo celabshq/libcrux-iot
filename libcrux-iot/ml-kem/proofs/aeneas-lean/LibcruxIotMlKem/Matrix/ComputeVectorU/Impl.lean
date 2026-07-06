@@ -1955,7 +1955,7 @@ noncomputable def row_spec {K : Std.Usize}
     (3) Length preservation: `result.length = K.val` (needed to discharge the
         per-iteration `Slice.index_mut result k` bound; the conjuncts (1)/(2) do not carry it).
     (4) Per-completed-row output bound: for each row `r ∈ [start, k)`, every lane
-        `|result[r][j][m]| ≤ 3328` — the Barrett-reduced output bound, carried so
+        `|result[r][j][m]| ≤ 1664` — the Barrett-reduced output bound, carried so
         the top-level L7.2 POST can state the impl output in canonical form (no
         output `lift`). -/
 def rows_inv {K : Std.Usize}
@@ -2450,7 +2450,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
           have hr_ne : r ≠ k.val := by omega
           rw [h_rnew_ne r hr_ne]
           exact h_inv_bnd r hr_ge hr_lt_k j hj m hm
-        · -- r = k: the Barrett-reduced row written this iteration (|·| ≤ 3328).
+        · -- r = k: the Barrett-reduced row written this iteration (|·| ≤ 1664).
           subst hr_eq_k
           rw [h_rnew_at]
           exact h_result_poly_bnd j hj m hm

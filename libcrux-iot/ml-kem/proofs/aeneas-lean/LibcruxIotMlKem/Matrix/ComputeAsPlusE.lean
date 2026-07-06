@@ -3980,7 +3980,7 @@ theorem compute_As_plus_e_fc
       h_matrix_bnd h_s_bnd h_error_bnd h_cache_post)
   dsimp only at h_loop1_eq h_rows
   -- Destructure rows_inv: (1) done rows [1,K), (2) unchanged rows,
-  -- (3) per-done-row Barrett output bound |lane| ≤ 3328.
+  -- (3) per-done-row Barrett output bound |lane| ≤ 1664.
   obtain ⟨h_rows_done, h_rows_undone, h_rows_bnd⟩ := by
     simpa [Stage3MontStripFC.rows_inv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
       ← List.getElem!_eq_getElem?_getD] using h_rows
@@ -4125,8 +4125,9 @@ info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on
    POST (canonical-output form, no output `lift`): `∃ spec_out,
    hacspec_ml_kem.matrix.compute_vector_u (lift_matrix_from_seed seed K)
    (lift_vec_slice r_as_ntt K) (lift_vec_slice error_1 K) = .ok spec_out
-   ∧ ∀ r < K, ∀ ℓ < 256, (x + if x < 0 then q else 0).toNat
-   = ((spec_out.val[r]!).val[ℓ]!).val.val` where `x` is impl lane `p.2.1[r][ℓ]`. -/
+   ∧ VecMatches p.2.1.val spec_out` — each impl output lane `x` is the unique
+   centered Barrett representative of the spec residue
+   (`|x| ≤ 1664 ∧ (x : ZMod q) = <spec lane>`). -/
 
 /- L7.3 — `matrix.compute_ring_element_v`: `t · r + e₂ + message` (the
    decryption-side ring element `v`). Proven as
@@ -4143,8 +4144,9 @@ info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on
    hacspec_ml_kem.matrix.compute_ring_element_v
    (lift_t_as_ntt_from_public_key public_key K) (lift_vec_slice r_as_ntt K)
    (lift_poly error_2) (lift_poly message) = .ok spec_out
-   ∧ ∀ ℓ < 256, (x + if x < 0 then q else 0).toNat = (spec_out.val[ℓ]!).val.val`
-   where `x` is impl lane `p.2.1[ℓ]`. -/
+   ∧ PolyMatches p.2.1 spec_out` — each impl output lane `x` is the unique
+   centered Barrett representative of the spec residue
+   (`|x| ≤ 1664 ∧ (x : ZMod q) = <spec lane>`). -/
 
 /- L7.4 — `matrix.compute_message`: `v - secret · u` then NTT-inverse.
    Proven (with explicit PRE bounds `hK ≤ 4` + per-lane `≤ 3328`) as
@@ -4155,8 +4157,9 @@ info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on
    POST (canonical-output form, no output `lift`): `∃ spec_out,
    hacspec_ml_kem.matrix.compute_message (lift_poly v) (lift_vec secret_as_ntt)
    (lift_vec u_as_ntt) = .ok spec_out
-   ∧ ∀ ℓ < 256, (x + if x < 0 then q else 0).toNat = (spec_out.val[ℓ]!).val.val`
-   where `x` is impl lane `p.1[ℓ]`. -/
+   ∧ PolyMatches p.1 spec_out` — each impl output lane `x` is the unique
+   centered Barrett representative of the spec residue
+   (`|x| ≤ 1664 ∧ (x : ZMod q) = <spec lane>`). -/
 
 /-! ## Roll-up
 
