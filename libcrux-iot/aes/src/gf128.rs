@@ -45,14 +45,11 @@ impl<T: GF128FieldElement> GF128State<T> {
     }
 
     #[inline]
-    pub(crate) fn update_padded<'a>(
-        &mut self,
-        mut input: impl core::iter::ExactSizeIterator<Item = &'a u8>,
-    ) {
+    pub(crate) fn update_padded(&mut self, input: impl core::iter::ExactSizeIterator<Item = u8>) {
         let mut block_buffer = [0u8; AES_BLOCK_LEN];
         let mut block_index = 0;
-        while let Some(byte) = input.next() {
-            block_buffer[block_index] = *byte;
+        for byte in input {
+            block_buffer[block_index] = byte;
             block_index += 1;
 
             // We've filled up the block buffer so we can update once

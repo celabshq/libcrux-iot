@@ -42,9 +42,9 @@ where
     }
 
     /// Encrypt and authenticate AAD and plaintext.
-    fn encrypt<'a>(
+    fn encrypt(
         &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        aad: impl core::iter::ExactSizeIterator<Item = u8>,
         plaintext: &mut [u8],
         tag: &mut [u8],
     ) {
@@ -68,7 +68,7 @@ where
     /// plaintext from ciphertext.
     fn decrypt<'a>(
         &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        aad: impl core::iter::ExactSizeIterator<Item = u8>,
         ciphertext: &mut [u8],
         tag: &[u8],
     ) -> Result<(), DecryptError> {
@@ -123,9 +123,9 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
     /// The state needs to be initialized first to set the
     /// correct nonce in the initial state of the accumulator.
     #[inline]
-    fn ccm_update_aad<'a>(
+    fn ccm_update_aad(
         &mut self,
-        mut aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        aad: impl core::iter::ExactSizeIterator<Item = u8>,
         payload_len: usize,
     ) {
         // We need this to get the right slices from the end
@@ -145,15 +145,15 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
         // bits 5..=3: `(TAG_LEN - 2) / 2` encoded in three bytes
         // bits 2..=0: `(MSG_ENC_LEN - 1)` encoded in three bytes
         self.accumulator[0] =
-            64 * (!(aad_len == 0) as u8) + ((TAG_LEN as u8 - 2) / 2) * 8 + (MSG_ENC_LEN as u8) - 1;
+            64 * ((aad_len != 0) as u8) + ((TAG_LEN as u8 - 2) / 2) * 8 + (MSG_ENC_LEN as u8) - 1;
 
         // Bytes 1..=15-MSG_ENC_LEN contain the nonce, which
         // is set in `set_nonce`.
 
         // Bytes 16-MSG_ENC_LEN..=15 contain the plaintext
         // length, encoded in `MSG_ENC_LEN` bytes.
-        self.accumulator[AES_BLOCK_LEN - MSG_ENC_LEN as usize..]
-            .copy_from_slice(&payload_len.to_be_bytes()[USIZE_LEN - MSG_ENC_LEN as usize..]);
+        self.accumulator[AES_BLOCK_LEN - MSG_ENC_LEN..]
+            .copy_from_slice(&payload_len.to_be_bytes()[USIZE_LEN - MSG_ENC_LEN..]);
 
         // Process the initial value
         let mut st = T::new();
@@ -207,8 +207,8 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
         // The first `aad_len_encoding_len` bytes of the first block
         // are already filled.
         let mut block_index = aad_len_encoding_len;
-        while let Some(byte) = aad.next() {
-            current_block[block_index] = *byte;
+        for byte in aad {
+            current_block[block_index] = byte;
             block_index += 1;
 
             // Once a full block has been written, accumulate and

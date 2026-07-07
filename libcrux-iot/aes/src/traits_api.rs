@@ -176,7 +176,7 @@ macro_rules! api {
                         // Therefore, we need perform declassify operations at the boundaries between
                         // the libcrux-traits APIs and the internal ones.
                         ciphertext.copy_from_slice(plaintext.declassify_ref());
-                        crate::portable::$variant::encrypt(key.declassify_ref(), nonce.declassify_ref(), aad.into_iter(), ciphertext, tag.declassify_ref_mut())
+                        crate::portable::$variant::encrypt(key.declassify_ref(), nonce.declassify_ref(), aad.iter().copied(), ciphertext, tag.declassify_ref_mut())
                     }
 
                     fn decrypt(
@@ -194,7 +194,7 @@ macro_rules! api {
                         // the libcrux-traits APIs and the internal ones.
                         let plaintext = plaintext.declassify_ref_mut();
                         plaintext.copy_from_slice(ciphertext);
-                        crate::portable::$variant::decrypt(key.declassify_ref(), nonce.declassify_ref(), aad.into_iter(), plaintext, tag.declassify_ref())
+                        crate::portable::$variant::decrypt(key.declassify_ref(), nonce.declassify_ref(), aad.iter().copied(), plaintext, tag.declassify_ref())
                     }
                 }
             }

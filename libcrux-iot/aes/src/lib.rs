@@ -708,15 +708,15 @@ pub mod aes_ccm_256 {
 pub(crate) trait State {
     fn init(key: &[u8]) -> Self;
     fn set_nonce(&mut self, nonce: &[u8]);
-    fn encrypt<'a>(
+    fn encrypt(
         &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        aad: impl core::iter::ExactSizeIterator<Item = u8>,
         plaintext: &mut [u8],
         tag: &mut [u8],
     );
-    fn decrypt<'a>(
+    fn decrypt(
         &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        aad: impl core::iter::ExactSizeIterator<Item = u8>,
         ciphertext: &mut [u8],
         tag: &[u8],
     ) -> Result<(), DecryptError>;
@@ -850,10 +850,10 @@ pub use aes::AES_256_KEY_LEN;
 pub use libcrux_traits::aead::arrayref::{DecryptError, EncryptError, KeyGenError};
 
 /// Generic AES-based AEAD encrypt.
-pub(crate) fn encrypt<'a, S: State>(
+pub(crate) fn encrypt<S: State>(
     key: &[u8],
     nonce: &[u8],
-    aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+    aad: impl core::iter::ExactSizeIterator<Item = u8>,
     plaintext: &mut [u8],
     tag: &mut [u8],
 ) -> Result<(), EncryptError> {
@@ -868,10 +868,10 @@ pub(crate) fn encrypt<'a, S: State>(
 }
 
 /// Generic AES-based AEAD decrypt.
-pub(crate) fn decrypt<'a, S: State>(
+pub(crate) fn decrypt<S: State>(
     key: &[u8],
     nonce: &[u8],
-    aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+    aad: impl core::iter::ExactSizeIterator<Item = u8>,
     ciphertext: &mut [u8],
     tag: &[u8],
 ) -> Result<(), DecryptError> {
@@ -894,10 +894,10 @@ macro_rules! pub_crate_mod {
 
             #[doc = $variant_comment]
             /// encrypt.
-            pub fn encrypt<'a>(
+            pub fn encrypt(
                 key: &[u8],
                 nonce: &[u8],
-                aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+                aad: impl core::iter::ExactSizeIterator<Item = u8>,
                 plaintext: &mut [u8],
                 tag: &mut [u8],
             ) -> Result<(), EncryptError> {
@@ -907,10 +907,10 @@ macro_rules! pub_crate_mod {
 
             #[doc = $variant_comment]
             /// decrypt.
-            pub fn decrypt<'a>(
+            pub fn decrypt(
                 key: &[u8],
                 nonce: &[u8],
-                aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+                aad: impl core::iter::ExactSizeIterator<Item = u8>,
                 ciphertext: &mut [u8],
                 tag: &[u8],
             ) -> Result<(), DecryptError> {

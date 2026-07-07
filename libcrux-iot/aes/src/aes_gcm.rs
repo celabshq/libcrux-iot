@@ -44,9 +44,9 @@ where
         self.aes_state.aes_ctr_key_block(1, &mut self.tag_mix);
     }
 
-    fn encrypt<'a>(
+    fn encrypt(
         &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        aad: impl core::iter::ExactSizeIterator<Item = u8>,
         plaintext: &mut [u8],
         tag: &mut [u8],
     ) {
@@ -57,7 +57,7 @@ where
 
         let aad_len = aad.len();
         self.gcm_state.update_padded(aad);
-        self.gcm_state.update_padded(plaintext.as_ref().into_iter());
+        self.gcm_state.update_padded(plaintext.iter().copied());
 
         let mut last_block = [0u8; AES_BLOCK_LEN];
         last_block[0..8].copy_from_slice(&((aad_len as u64) * 8).to_be_bytes());
@@ -71,9 +71,9 @@ where
         }
     }
 
-    fn decrypt<'a>(
+    fn decrypt(
         &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = &'a u8>,
+        aad: impl core::iter::ExactSizeIterator<Item = u8>,
         ciphertext: &mut [u8],
         tag: &[u8],
     ) -> Result<(), DecryptError> {
@@ -82,8 +82,7 @@ where
 
         let aad_len = aad.len();
         self.gcm_state.update_padded(aad);
-        self.gcm_state
-            .update_padded(ciphertext.as_ref().into_iter());
+        self.gcm_state.update_padded(ciphertext.iter().copied());
 
         let mut last_block = [0u8; AES_BLOCK_LEN];
         last_block[0..8].copy_from_slice(&((aad_len as u64) * 8).to_be_bytes());

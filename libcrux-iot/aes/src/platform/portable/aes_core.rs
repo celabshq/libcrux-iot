@@ -487,7 +487,7 @@ impl crate::platform::AESState for State {
         self.store_block(&mut block);
 
         for i in 0..input.len() {
-            input[i] = input[i] ^ block[i];
+            input[i] ^= block[i];
         }
     }
 
