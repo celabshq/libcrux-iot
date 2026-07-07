@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: 5db7272c7ac7c1933d461a7c12ea5d00fdf450d2
+ * Libcrux: 95a43e554866d4eb2db411c066ca0fb528eddbfd
  */
 
 #ifndef internal_libcrux_iot_core_H
@@ -48,6 +48,19 @@ static inline int16_t core_num__i16__wrapping_sub(int16_t x0, int16_t x1);
 static inline int32_t core_num__i32__wrapping_add(int32_t x0, int32_t x1);
 
 static inline int32_t core_num__i32__wrapping_mul(int32_t x0, int32_t x1);
+
+/**
+A monomorphic instance of core.option.Option
+with types uint32_t
+
+*/
+typedef struct core_option_Option_7e_s {
+  core_option_Option_87_tags tag;
+  uint32_t f0;
+} core_option_Option_7e;
+
+static inline core_option_Option_7e core_num__u32__checked_add(uint32_t x0,
+                                                               uint32_t x1);
 
 static inline uint32_t core_num__u32__from_le_bytes(Eurydice_array_u8x4 x0);
 
