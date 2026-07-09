@@ -25,7 +25,7 @@ libcrux-iot-ml-kem = { path = "../libcrux-iot/ml-kem", default-features = false,
 
 [patch.crates-io]
 # patch until libcrux-secrets 0.0.6 is released
-libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "c4253d211a605f4a284c595fc6ca28ae18dd07ba" }
+libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "ff50cd1f5e20e88dcba911469ba32ba87733006c" }
 
 [profile.release]
 codegen-units = 1
