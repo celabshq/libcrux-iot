@@ -43,43 +43,67 @@ DATA_VALUE = re.compile(
 )
 
 
-def parse(path):
-    """Yield (key, [values]) groups in the order they appear in the file.
+# Header line looks like: "l,0,16000000,ML-KEM Benchmark (libcrux_iot ...)".
+# Each such header marks the start of a new run (= one parameter set).
+SCHEME_HEADER = re.compile(r"l,\d+,\d+,(?P<scheme>[\w-]+)\s+Benchmark")
 
-    A group is a maximal run of consecutive benchmark lines (both run-markers
-    and data lines) that share one bench_ key. Run-marker lines keep the group
-    alive but contribute no value; only data lines contribute a value. A group
-    ends when the bench_ key changes or a non-benchmark line (a header, or
-    "Firmware exited successfully") interrupts the run.
+
+def parse(path):
+    """Return the file's runs, each as a list of (key, [values]) groups.
+
+    A new run begins at each "<scheme> Benchmark" header line, so the Nth run
+    corresponds to the Nth parameter set regardless of which operations each
+    run happens to contain -- a run missing an operation does not shift the
+    values of later runs into the wrong row.
+
+    Within a run, a group is a maximal span of consecutive benchmark lines
+    (both run-markers and data lines) that share one bench_ key. Run-marker
+    lines keep the group alive but contribute no value; only data lines
+    contribute a value. A group ends when the bench_ key changes or a
+    non-benchmark line (e.g. "Firmware exited successfully") interrupts it.
     """
-    groups = []
+    runs = []
+    cur_run = None
     cur_key = None
     cur_vals = None
 
+    def flush_group():
+        nonlocal cur_key, cur_vals
+        if cur_key is not None:
+            cur_run.append((cur_key, cur_vals))
+            cur_key, cur_vals = None, None
+
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
+            if SCHEME_HEADER.search(line):
+                # A benchmark header starts a new run.
+                flush_group()
+                cur_run = []
+                runs.append(cur_run)
+                continue
+
             key_m = BENCH_KEY.search(line)
             if not key_m:
-                # A non-benchmark line (header / separator) ends the run.
-                if cur_key is not None:
-                    groups.append((cur_key, cur_vals))
-                    cur_key, cur_vals = None, None
+                # A non-benchmark line (separator) ends the current group.
+                flush_group()
                 continue
+
+            if cur_run is None:
+                # Benchmark data before any header: start an implicit run.
+                cur_run = []
+                runs.append(cur_run)
 
             key = key_m.group("key")
             if key != cur_key:
-                if cur_key is not None:
-                    groups.append((cur_key, cur_vals))
+                flush_group()
                 cur_key, cur_vals = key, []
 
             val_m = DATA_VALUE.search(line)
             if val_m:
                 cur_vals.append(float(val_m.group("value")))
 
-    if cur_key is not None:
-        groups.append((cur_key, cur_vals))
-
-    return groups
+    flush_group()
+    return runs
 
 
 # The successive runs in the file correspond to a scheme's parameter sets,
@@ -97,9 +121,6 @@ OP_LABELS = {
     "bench_encaps": "Encapsulation",
     "bench_decaps": "Decapsulation",
 }
-
-# Header line looks like: "l,0,16000000,ML-KEM Benchmark (libcrux_iot ...)".
-SCHEME_HEADER = re.compile(r"l,\d+,\d+,(?P<scheme>[\w-]+)\s+Benchmark")
 
 
 def detect_scheme(path):
@@ -148,10 +169,7 @@ def main(argv=None):
     if args.clock_mhz is not None and args.clock_mhz <= 0:
         ap.error("--clock-mhz must be a positive number")
 
-    groups = parse(args.file)
-    if not groups:
-        print("No data lines found.", file=sys.stderr)
-        return 1
+    parsed_runs = parse(args.file)
 
     # Decide how to label each run. Priority: explicit --param-sets, then the
     # scheme detected from the file header, then a generic "Run N" fallback.
@@ -161,18 +179,25 @@ def main(argv=None):
         scheme = detect_scheme(args.file)
         param_labels = PARAM_SETS.get(scheme, [])
 
-    # Assign each group to a run: the Nth occurrence of a given key belongs to
-    # run N. This pivots the file's keygen/sign/verify sequence into one row
-    # per run (= per ML-DSA parameter set), with a column per operation.
-    seen = {}
+    # Pivot each run's keygen/sign/verify groups into one row per run (= per
+    # parameter set), with a column per operation. A group with no data values
+    # (e.g. a benchmark whose data lines were dropped or the firmware crashed
+    # mid-run) is skipped with a warning rather than averaged over nothing.
     runs = {}          # run index -> {key: average cycles}
     col_order = []     # operation keys, in first-seen order
-    for key, vals in groups:
-        run_idx = seen.get(key, 0)
-        seen[key] = run_idx + 1
-        runs.setdefault(run_idx, {})[key] = sum(vals) / len(vals)
-        if key not in col_order:
-            col_order.append(key)
+    for run_idx, run in enumerate(parsed_runs):
+        for key, vals in run:
+            if not vals:
+                print(f"warning: benchmark '{key}' in run {run_idx + 1} has no "
+                      f"data values; skipping", file=sys.stderr)
+                continue
+            runs.setdefault(run_idx, {})[key] = sum(vals) / len(vals)
+            if key not in col_order:
+                col_order.append(key)
+
+    if not runs:
+        print("No data lines found.", file=sys.stderr)
+        return 1
 
     clock_hz = args.clock_mhz * 1e6 if args.clock_mhz is not None else None
 
