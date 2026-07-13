@@ -1,0 +1,43 @@
+[package]
+authors.workspace = true
+description = "Libcrux-IoT AES-based AEAD implementations"
+edition.workspace = true
+exclude = []
+homepage.workspace = true
+license.workspace = true
+name = "libcrux-iot-aes"
+readme = "README.md"
+repository.workspace = true
+version = "0.0.8"
+
+[lib]
+bench = false # so libtest doesn't eat the arguments to criterion
+
+[dependencies]
+libcrux-traits.workspace = true
+libcrux-secrets.workspace = true
+
+[features]
+# Currently, the libcrux-secrets types are only used in the high-level libcrux-traits
+# implementations for the aes gcm types. Internally, this crate does not use secrets types.
+# We currently declassify at the boundary between libcrux-traits implementations and the
+# internal APIs.
+check-secret-independence = ["libcrux-secrets/check-secret-independence"]
+default = []
+std = []
+
+[[bench]]
+harness = false
+name = "aesgcm"
+
+[dev-dependencies]
+aes-gcm = "0.10.3"
+criterion = "0.8.0"
+hex = "0.4.3"
+pretty_env_logger = "0.5.0"
+rand = "0.10"
+wycheproof = "0.6.0"
+
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(hax)', 'cfg(eurydice)'] }
