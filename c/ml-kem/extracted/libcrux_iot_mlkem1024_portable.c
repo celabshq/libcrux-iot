@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: 5db7272c7ac7c1933d461a7c12ea5d00fdf450d2
+ * Libcrux: 95a43e554866d4eb2db411c066ca0fb528eddbfd
  */
 
 #include "libcrux_iot_mlkem1024_portable.h"
