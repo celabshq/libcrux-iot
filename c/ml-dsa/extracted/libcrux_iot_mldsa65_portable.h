@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: 5db7272c7ac7c1933d461a7c12ea5d00fdf450d2
+ * Libcrux: eeb10e030981128f3c8dce2ffcb86b40032b404f
  */
 
 #ifndef libcrux_iot_mldsa65_portable_H
@@ -380,7 +380,7 @@ This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof
 for libcrux_iot_ml_dsa::hash_functions::portable::Shake256Xof}
 */
 void libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 input);
 
 /**
@@ -388,14 +388,14 @@ This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof
 for libcrux_iot_ml_dsa::hash_functions::portable::Shake256Xof}
 */
 void libcrux_iot_ml_dsa_hash_functions_portable_absorb_final_88(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 input);
 
 /**
 This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof
 for libcrux_iot_ml_dsa::hash_functions::portable::Shake256Xof}
 */
-libcrux_iot_sha3_keccak_KeccakXofState_bd
+libcrux_iot_sha3_keccak_KeccakSpongeState_bd
 libcrux_iot_ml_dsa_hash_functions_portable_init_88(void);
 
 /**
@@ -403,7 +403,7 @@ This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof
 for libcrux_iot_ml_dsa::hash_functions::portable::Shake256Xof}
 */
 void libcrux_iot_ml_dsa_hash_functions_portable_squeeze_88(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_mut_borrow_slice_u8 out);
 
 /**

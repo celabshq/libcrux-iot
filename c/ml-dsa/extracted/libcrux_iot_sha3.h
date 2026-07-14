@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: 5db7272c7ac7c1933d461a7c12ea5d00fdf450d2
+ * Libcrux: eeb10e030981128f3c8dce2ffcb86b40032b404f
  */
 
 #ifndef libcrux_iot_sha3_H
@@ -54,18 +54,18 @@ typedef libcrux_iot_sha3_state_KeccakState
     libcrux_iot_sha3_incremental_UnbufferedXofState;
 
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.KeccakXofState
+A monomorphic instance of libcrux_iot_sha3.keccak.KeccakSpongeState
 with const generics
 - $136size_t
 */
-typedef struct libcrux_iot_sha3_keccak_KeccakXofState_bd_s {
+typedef struct libcrux_iot_sha3_keccak_KeccakSpongeState_bd_s {
   libcrux_iot_sha3_state_KeccakState inner;
   Eurydice_arr_ff buf;
   size_t buf_len;
   bool sponge;
-} libcrux_iot_sha3_keccak_KeccakXofState_bd;
+} libcrux_iot_sha3_keccak_KeccakSpongeState_bd;
 
-typedef libcrux_iot_sha3_keccak_KeccakXofState_bd
+typedef libcrux_iot_sha3_keccak_KeccakSpongeState_bd
     libcrux_iot_sha3_incremental_Shake256Xof;
 
 /**
@@ -144,7 +144,7 @@ Eurydice_arr_a2 libcrux_iot_sha3_sha224(Eurydice_borrow_slice_u8 payload);
  Preconditions:
  - `payload` is at most `u32::MAX` bytes long
 */
-Eurydice_arr_ec libcrux_iot_sha3_sha256(Eurydice_borrow_slice_u8 data);
+Eurydice_arr_ec libcrux_iot_sha3_sha256(Eurydice_borrow_slice_u8 payload);
 
 /**
  Returns SHA3-384 digest of input payload.
@@ -152,7 +152,7 @@ Eurydice_arr_ec libcrux_iot_sha3_sha256(Eurydice_borrow_slice_u8 data);
  Preconditions:
  - `payload` is at most `u32::MAX` bytes long
 */
-Eurydice_arr_65 libcrux_iot_sha3_sha384(Eurydice_borrow_slice_u8 data);
+Eurydice_arr_65 libcrux_iot_sha3_sha384(Eurydice_borrow_slice_u8 payload);
 
 /**
  Returns SHA3-512 digest of input payload.
@@ -160,7 +160,7 @@ Eurydice_arr_65 libcrux_iot_sha3_sha384(Eurydice_borrow_slice_u8 data);
  Preconditions:
  - `payload` is at most `u32::MAX` bytes long
 */
-Eurydice_arr_c7 libcrux_iot_sha3_sha512(Eurydice_borrow_slice_u8 data);
+Eurydice_arr_c7 libcrux_iot_sha3_sha512(Eurydice_borrow_slice_u8 payload);
 
 #if defined(__cplusplus)
 }

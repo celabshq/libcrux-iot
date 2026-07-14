@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: 5db7272c7ac7c1933d461a7c12ea5d00fdf450d2
+ * Libcrux: eeb10e030981128f3c8dce2ffcb86b40032b404f
  */
 
 #ifndef internal_libcrux_iot_sha3_H
@@ -48,10 +48,10 @@ libcrux_iot_sha3_state_KeccakState libcrux_iot_sha3_incremental_shake256_init(
     void);
 
 /**
-This function found in impl {libcrux_iot_sha3::state::KeccakState}
+This function found in impl {core::convert::From<[u32; 2usize]> for
+libcrux_iot_sha3::lane::Lane2U32}
 */
-Eurydice_arr_a0 libcrux_iot_sha3_state_get_lane_18(
-    const libcrux_iot_sha3_state_KeccakState *self, size_t i, size_t j);
+Eurydice_arr_a0 libcrux_iot_sha3_lane_from_29(Eurydice_arr_a0 value);
 
 /**
 This function found in impl {core::ops::index::Index<usize, u32> for
@@ -61,22 +61,22 @@ const uint32_t *libcrux_iot_sha3_lane_index_cc(const Eurydice_arr_a0 *self,
                                                size_t index);
 
 /**
+This function found in impl {libcrux_iot_sha3::lane::Lane2U32}
+*/
+Eurydice_arr_a0 libcrux_iot_sha3_lane_interleave_8d(Eurydice_arr_a0 self);
+
+/**
+This function found in impl {libcrux_iot_sha3::state::KeccakState}
+*/
+Eurydice_arr_a0 libcrux_iot_sha3_state_get_lane_18(
+    const libcrux_iot_sha3_state_KeccakState *self, size_t i, size_t j);
+
+/**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
 */
 void libcrux_iot_sha3_state_set_lane_18(
     libcrux_iot_sha3_state_KeccakState *self, size_t i, size_t j,
     Eurydice_arr_a0 lane);
-
-/**
-This function found in impl {core::convert::From<[u32; 2usize]> for
-libcrux_iot_sha3::lane::Lane2U32}
-*/
-Eurydice_arr_a0 libcrux_iot_sha3_lane_from_29(Eurydice_arr_a0 value);
-
-/**
-This function found in impl {libcrux_iot_sha3::lane::Lane2U32}
-*/
-Eurydice_arr_a0 libcrux_iot_sha3_lane_interleave_8d(Eurydice_arr_a0 self);
 
 /**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
@@ -209,6 +209,30 @@ void libcrux_iot_sha3_state_set_with_zeta_18(
           2147483784U, 32778U,      2147483785U, 1U,          32904U,      \
           129U,        136U,        2147516544U, 129U,        11U}}))
 
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y1_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y1_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y2_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y2_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y3_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y3_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y4_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y4_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
 void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_2(
     libcrux_iot_sha3_state_KeccakState *s);
 
@@ -246,6 +270,30 @@ void libcrux_iot_sha3_keccak_keccakf1600_round1_theta_d(
     libcrux_iot_sha3_state_KeccakState *s);
 
 void libcrux_iot_sha3_keccak_keccakf1600_round1_theta(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y1_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y1_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y2_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y2_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y3_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y3_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y4_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y4_zeta1(
     libcrux_iot_sha3_state_KeccakState *s);
 
 void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_2(
@@ -287,6 +335,30 @@ void libcrux_iot_sha3_keccak_keccakf1600_round2_theta_d(
 void libcrux_iot_sha3_keccak_keccakf1600_round2_theta(
     libcrux_iot_sha3_state_KeccakState *s);
 
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y1_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y1_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y2_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y2_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y3_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y3_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y4_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y4_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
 void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_2(
     libcrux_iot_sha3_state_KeccakState *s);
 
@@ -326,7 +398,49 @@ void libcrux_iot_sha3_keccak_keccakf1600_round3_theta_d(
 void libcrux_iot_sha3_keccak_keccakf1600_round3_theta(
     libcrux_iot_sha3_state_KeccakState *s);
 
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y1_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y1_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y2_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y2_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y3_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y3_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y4_zeta0(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y4_zeta1(
+    libcrux_iot_sha3_state_KeccakState *s);
+
 void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_2(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round0_pi_rho_chi_y0_zeta0 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y0_zeta0_56(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round0_pi_rho_chi_y0_zeta1 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_y0_zeta1_56(
     libcrux_iot_sha3_state_KeccakState *s);
 
 /**
@@ -339,6 +453,24 @@ void libcrux_iot_sha3_keccak_keccakf1600_round0_pi_rho_chi_1_56(
 
 /**
 A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round1_pi_rho_chi_y0_zeta0 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y0_zeta0_56(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round1_pi_rho_chi_y0_zeta1 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_y0_zeta1_56(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
 libcrux_iot_sha3.keccak.keccakf1600_round1_pi_rho_chi_1 with const generics
 - BASE_ROUND= 0
 */
@@ -347,10 +479,46 @@ void libcrux_iot_sha3_keccak_keccakf1600_round1_pi_rho_chi_1_56(
 
 /**
 A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round2_pi_rho_chi_y0_zeta0 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y0_zeta0_56(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round2_pi_rho_chi_y0_zeta1 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_y0_zeta1_56(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
 libcrux_iot_sha3.keccak.keccakf1600_round2_pi_rho_chi_1 with const generics
 - BASE_ROUND= 0
 */
 void libcrux_iot_sha3_keccak_keccakf1600_round2_pi_rho_chi_1_56(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round3_pi_rho_chi_y0_zeta0 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y0_zeta0_56(
+    libcrux_iot_sha3_state_KeccakState *s);
+
+/**
+A monomorphic instance of
+libcrux_iot_sha3.keccak.keccakf1600_round3_pi_rho_chi_y0_zeta1 with const
+generics
+- BASE_ROUND= 0
+*/
+void libcrux_iot_sha3_keccak_keccakf1600_round3_pi_rho_chi_y0_zeta1_56(
     libcrux_iot_sha3_state_KeccakState *s);
 
 /**
@@ -377,8 +545,8 @@ with const generics
 - RATE= 136
 */
 void libcrux_iot_sha3_state_load_block_2u32_b2(
-    libcrux_iot_sha3_state_KeccakState *state, Eurydice_borrow_slice_u8 blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    Eurydice_borrow_slice_u8 blocks, size_t start);
 
 /**
 A monomorphic instance of libcrux_iot_sha3.state.load_block_full_2u32
@@ -386,8 +554,8 @@ with const generics
 - RATE= 136
 */
 void libcrux_iot_sha3_state_load_block_full_2u32_b2(
-    libcrux_iot_sha3_state_KeccakState *state, const Eurydice_arr_5c *blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    const Eurydice_arr_5c *blocks, size_t start);
 
 /**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
@@ -428,8 +596,8 @@ with const generics
 - RATE= 168
 */
 void libcrux_iot_sha3_state_load_block_2u32_60(
-    libcrux_iot_sha3_state_KeccakState *state, Eurydice_borrow_slice_u8 blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    Eurydice_borrow_slice_u8 blocks, size_t start);
 
 /**
 A monomorphic instance of libcrux_iot_sha3.state.load_block_full_2u32
@@ -437,8 +605,8 @@ with const generics
 - RATE= 168
 */
 void libcrux_iot_sha3_state_load_block_full_2u32_60(
-    libcrux_iot_sha3_state_KeccakState *state, const Eurydice_arr_5c *blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    const Eurydice_arr_5c *blocks, size_t start);
 
 /**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
@@ -733,39 +901,39 @@ void libcrux_iot_sha3_incremental_shake256_squeeze_next_block(
     libcrux_iot_sha3_state_KeccakState *s, Eurydice_mut_borrow_slice_u8 out);
 
 /**
-This function found in impl {libcrux_iot_sha3::keccak::KeccakXofState<RATE>}
+This function found in impl {libcrux_iot_sha3::keccak::KeccakSpongeState<RATE>}
 */
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.fill_buffer_f0
+A monomorphic instance of libcrux_iot_sha3.keccak.fill_buffer_08
 with const generics
 - RATE= 136
 */
-size_t libcrux_iot_sha3_keccak_fill_buffer_f0_b2(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+size_t libcrux_iot_sha3_keccak_fill_buffer_08_b2(
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 inputs);
 
 /**
-This function found in impl {libcrux_iot_sha3::keccak::KeccakXofState<RATE>}
+This function found in impl {libcrux_iot_sha3::keccak::KeccakSpongeState<RATE>}
 */
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.absorb_full_f0
+A monomorphic instance of libcrux_iot_sha3.keccak.absorb_full_08
 with const generics
 - RATE= 136
 */
-size_t libcrux_iot_sha3_keccak_absorb_full_f0_b2(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+size_t libcrux_iot_sha3_keccak_absorb_full_08_b2(
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 inputs);
 
 /**
-This function found in impl {libcrux_iot_sha3::keccak::KeccakXofState<RATE>}
+This function found in impl {libcrux_iot_sha3::keccak::KeccakSpongeState<RATE>}
 */
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.absorb_f0
+A monomorphic instance of libcrux_iot_sha3.keccak.absorb_08
 with const generics
 - RATE= 136
 */
-void libcrux_iot_sha3_keccak_absorb_f0_b2(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+void libcrux_iot_sha3_keccak_absorb_08_b2(
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 inputs);
 
 /**
@@ -773,20 +941,20 @@ This function found in impl {libcrux_iot_sha3::incremental::Xof<136usize> for
 libcrux_iot_sha3::incremental::Shake256Xof}
 */
 void libcrux_iot_sha3_incremental_absorb_e2(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 input);
 
 /**
-This function found in impl {libcrux_iot_sha3::keccak::KeccakXofState<RATE>}
+This function found in impl {libcrux_iot_sha3::keccak::KeccakSpongeState<RATE>}
 */
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.absorb_final_f0
+A monomorphic instance of libcrux_iot_sha3.keccak.absorb_final_08
 with const generics
 - RATE= 136
 - DELIMITER= 31
 */
-void libcrux_iot_sha3_keccak_absorb_final_f0_22(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+void libcrux_iot_sha3_keccak_absorb_final_08_22(
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 inputs);
 
 /**
@@ -794,36 +962,36 @@ This function found in impl {libcrux_iot_sha3::incremental::Xof<136usize> for
 libcrux_iot_sha3::incremental::Shake256Xof}
 */
 void libcrux_iot_sha3_incremental_absorb_final_e2(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_borrow_slice_u8 input);
 
 /**
-This function found in impl {libcrux_iot_sha3::keccak::KeccakXofState<RATE>}
+This function found in impl {libcrux_iot_sha3::keccak::KeccakSpongeState<RATE>}
 */
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.zero_block_f0
+A monomorphic instance of libcrux_iot_sha3.keccak.zero_block_08
 with const generics
 - RATE= 136
 */
-Eurydice_arr_ff libcrux_iot_sha3_keccak_zero_block_f0_b2(void);
+Eurydice_arr_ff libcrux_iot_sha3_keccak_zero_block_08_b2(void);
 
 /**
-This function found in impl {libcrux_iot_sha3::keccak::KeccakXofState<RATE>}
+This function found in impl {libcrux_iot_sha3::keccak::KeccakSpongeState<RATE>}
 */
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.new_f0
+A monomorphic instance of libcrux_iot_sha3.keccak.new_08
 with const generics
 - RATE= 136
 */
-libcrux_iot_sha3_keccak_KeccakXofState_bd libcrux_iot_sha3_keccak_new_f0_b2(
+libcrux_iot_sha3_keccak_KeccakSpongeState_bd libcrux_iot_sha3_keccak_new_08_b2(
     void);
 
 /**
 This function found in impl {libcrux_iot_sha3::incremental::Xof<136usize> for
 libcrux_iot_sha3::incremental::Shake256Xof}
 */
-libcrux_iot_sha3_keccak_KeccakXofState_bd libcrux_iot_sha3_incremental_new_e2(
-    void);
+libcrux_iot_sha3_keccak_KeccakSpongeState_bd
+libcrux_iot_sha3_incremental_new_e2(void);
 
 /**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
@@ -837,15 +1005,24 @@ void libcrux_iot_sha3_state_store_18_b2(libcrux_iot_sha3_state_KeccakState self,
                                         Eurydice_mut_borrow_slice_u8 out);
 
 /**
-This function found in impl {libcrux_iot_sha3::keccak::KeccakXofState<RATE>}
-*/
-/**
-A monomorphic instance of libcrux_iot_sha3.keccak.squeeze_f0
+A monomorphic instance of libcrux_iot_sha3.keccak._squeeze
 with const generics
 - RATE= 136
 */
-void libcrux_iot_sha3_keccak_squeeze_f0_b2(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+void libcrux_iot_sha3_keccak__squeeze_b2(
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *keccak_state,
+    Eurydice_mut_borrow_slice_u8 out);
+
+/**
+This function found in impl {libcrux_iot_sha3::keccak::KeccakSpongeState<RATE>}
+*/
+/**
+A monomorphic instance of libcrux_iot_sha3.keccak.squeeze_08
+with const generics
+- RATE= 136
+*/
+void libcrux_iot_sha3_keccak_squeeze_08_b2(
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_mut_borrow_slice_u8 out);
 
 /**
@@ -856,7 +1033,7 @@ This function found in impl {libcrux_iot_sha3::incremental::Xof<136usize> for
 libcrux_iot_sha3::incremental::Shake256Xof}
 */
 void libcrux_iot_sha3_incremental_squeeze_e2(
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
     Eurydice_mut_borrow_slice_u8 out);
 
 #define libcrux_iot_sha3_Algorithm_Sha224 1
@@ -885,8 +1062,8 @@ with const generics
 - RATE= 144
 */
 void libcrux_iot_sha3_state_load_block_2u32_9e(
-    libcrux_iot_sha3_state_KeccakState *state, Eurydice_borrow_slice_u8 blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    Eurydice_borrow_slice_u8 blocks, size_t start);
 
 /**
 A monomorphic instance of libcrux_iot_sha3.state.load_block_full_2u32
@@ -894,8 +1071,8 @@ with const generics
 - RATE= 144
 */
 void libcrux_iot_sha3_state_load_block_full_2u32_9e(
-    libcrux_iot_sha3_state_KeccakState *state, const Eurydice_arr_5c *blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    const Eurydice_arr_5c *blocks, size_t start);
 
 /**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
@@ -1066,8 +1243,8 @@ with const generics
 - RATE= 104
 */
 void libcrux_iot_sha3_state_load_block_2u32_53(
-    libcrux_iot_sha3_state_KeccakState *state, Eurydice_borrow_slice_u8 blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    Eurydice_borrow_slice_u8 blocks, size_t start);
 
 /**
 A monomorphic instance of libcrux_iot_sha3.state.load_block_full_2u32
@@ -1075,8 +1252,8 @@ with const generics
 - RATE= 104
 */
 void libcrux_iot_sha3_state_load_block_full_2u32_53(
-    libcrux_iot_sha3_state_KeccakState *state, const Eurydice_arr_5c *blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    const Eurydice_arr_5c *blocks, size_t start);
 
 /**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
@@ -1219,8 +1396,8 @@ with const generics
 - RATE= 72
 */
 void libcrux_iot_sha3_state_load_block_2u32_c6(
-    libcrux_iot_sha3_state_KeccakState *state, Eurydice_borrow_slice_u8 blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    Eurydice_borrow_slice_u8 blocks, size_t start);
 
 /**
 A monomorphic instance of libcrux_iot_sha3.state.load_block_full_2u32
@@ -1228,8 +1405,8 @@ with const generics
 - RATE= 72
 */
 void libcrux_iot_sha3_state_load_block_full_2u32_c6(
-    libcrux_iot_sha3_state_KeccakState *state, const Eurydice_arr_5c *blocks,
-    size_t start);
+    libcrux_iot_sha3_state_KeccakState *keccak_state,
+    const Eurydice_arr_5c *blocks, size_t start);
 
 /**
 This function found in impl {libcrux_iot_sha3::state::KeccakState}
@@ -1367,18 +1544,18 @@ void libcrux_iot_sha3_keccakx1_dc0(Eurydice_borrow_slice_u8 data,
                                    Eurydice_mut_borrow_slice_u8 out);
 
 /**
-A monomorphic instance of libcrux_iot_sha3.keccak.KeccakXofState
+A monomorphic instance of libcrux_iot_sha3.keccak.KeccakSpongeState
 with const generics
 - $168size_t
 */
-typedef struct libcrux_iot_sha3_keccak_KeccakXofState_31_s {
+typedef struct libcrux_iot_sha3_keccak_KeccakSpongeState_31_s {
   libcrux_iot_sha3_state_KeccakState inner;
   Eurydice_arr_c5 buf;
   size_t buf_len;
   bool sponge;
-} libcrux_iot_sha3_keccak_KeccakXofState_31;
+} libcrux_iot_sha3_keccak_KeccakSpongeState_31;
 
-typedef libcrux_iot_sha3_keccak_KeccakXofState_31
+typedef libcrux_iot_sha3_keccak_KeccakSpongeState_31
     libcrux_iot_sha3_incremental_Shake128Xof;
 
 /**
