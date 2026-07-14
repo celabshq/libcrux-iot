@@ -70,6 +70,12 @@ inherits = "release"
 opt-level = "z"
 panic = "abort"
 
+[profile.measure-cycles]
+debug = 2
+inherits = "release"
+opt-level = "z"
+panic = "abort"
+
 [[bin]]
 name = "mlkem_stack_keygen"
 required-features = ["stack"]

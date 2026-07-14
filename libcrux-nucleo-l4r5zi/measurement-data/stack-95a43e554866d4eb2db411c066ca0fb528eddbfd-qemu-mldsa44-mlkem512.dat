@@ -1,0 +1,19 @@
+Repository at commit: 95a43e554866d4eb2db411c066ca0fb528eddbfd (qemu)
+l,0,0,ML-KEM 512 Key Generation
+b,r,stack,0
+b,d,stack,0,17120
+l,0,0,ML-KEM 512 Encapsulation
+b,r,stack,0
+b,d,stack,0,13512
+l,0,0,ML-KEM 512 Decapsulation
+b,r,stack,0
+b,d,stack,0,15272
+l,0,0,ML-DSA 44 Key Generation
+b,r,stack,0
+b,d,stack,0,45952
+l,0,0,ML-DSA 44 Signing
+b,r,stack,0
+b,d,stack,0,78896
+l,0,0,ML-DSA 44 Verification
+b,r,stack,0
+b,d,stack,0,9232
