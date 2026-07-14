@@ -8,8 +8,9 @@ use libcrux_secrets::{Classify, U8};
 use crate::state::KeccakState;
 
 /// The internal keccak state that can also buffer inputs to absorb.
-/// This is used in the general xof APIs.
-pub(crate) struct KeccakXofState<const RATE: usize> {
+/// This is used in the general xof APIs and the incremental hashers in [`crate::hasher`].
+#[derive(Clone)]
+pub(crate) struct KeccakSpongeState<const RATE: usize> {
     inner: KeccakState,
 
     // Buffer inputs on absorb.
@@ -23,7 +24,7 @@ pub(crate) struct KeccakXofState<const RATE: usize> {
 }
 
 #[hax_lib::attributes]
-impl<const RATE: usize> KeccakXofState<RATE> {
+impl<const RATE: usize> KeccakSpongeState<RATE> {
     /// An all zero block
     pub(crate) fn zero_block() -> [U8; RATE] {
         [0; RATE].classify()
@@ -198,7 +199,7 @@ impl<const RATE: usize> KeccakXofState<RATE> {
 #[inline(always)]
 #[hax_lib::requires(RATE == 168 || RATE == 144 || RATE == 136 || RATE == 104 || RATE == 72)]
 #[hax_lib::fstar::options("--z3rlimit 60")]
-fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakXofState<RATE>, out: &mut [U8]) {
+fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakSpongeState<RATE>, out: &mut [U8]) {
     if keccak_state.sponge {
         // If we called `squeeze` before, call f1600 first.
         // We do it this way around so that we don't call f1600 at the end
@@ -2610,7 +2611,7 @@ pub(crate) fn absorb_final<const RATE: usize, const DELIM: u8>(
     blocks[len] = DELIM.classify();
     blocks[RATE - 1] |= 0x80;
     s.load_block_full::<RATE>(&blocks, 0);
-    keccakf1600(s)
+    keccakf1600(s);
 }
 
 #[inline(always)]
@@ -2699,9 +2700,7 @@ pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut 
         squeeze_first_block::<RATE>(&s, out);
         let mut offset = RATE;
         for _i in 1..blocks {
-            hax_lib::loop_invariant!(|_i: usize| {
-                out.len() == outlen && offset == _i * RATE
-            });
+            hax_lib::loop_invariant!(|_i: usize| { out.len() == outlen && offset == _i * RATE });
             squeeze_next_block::<RATE>(&mut s, &mut out[offset..]);
             offset += RATE;
         }
