@@ -4,28 +4,34 @@
 
 use libcrux_secrets::U8;
 
+#[cfg(hax)]
+use crate::simd::traits::SIMD_UNITS_IN_RING_ELEMENT;
 use crate::{
     constants::RING_ELEMENT_OF_T0S_SIZE, helper::cloop, ntt::ntt,
     polynomial::PolynomialRingElement, simd::traits::Operations,
 };
 
-const OUTPUT_BYTES_PER_SIMD_UNIT: usize = 13;
+pub(crate) const OUTPUT_BYTES_PER_SIMD_UNIT: usize = 13;
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == OUTPUT_BYTES_PER_SIMD_UNIT * SIMD_UNITS_IN_RING_ELEMENT)]
+#[hax_lib::ensures(|_| future(serialized).len() == serialized.len())]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     re: &PolynomialRingElement<SIMDUnit>,
     serialized: &mut [U8], // RING_ELEMENT_OF_T0S_SIZE
 ) {
+    #[cfg(hax)]
+    let _serialized_len = serialized.len();
     cloop! {
         for (i, simd_unit) in re.simd_units.iter().enumerate() {
+            hax_lib::loop_invariant!(|i:usize| serialized.len() == _serialized_len);
             SIMDUnit::t0_serialize(simd_unit, &mut serialized[i * OUTPUT_BYTES_PER_SIMD_UNIT..(i + 1) * OUTPUT_BYTES_PER_SIMD_UNIT]);
         }
     }
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == OUTPUT_BYTES_PER_SIMD_UNIT * SIMD_UNITS_IN_RING_ELEMENT)]
 fn deserialize<SIMDUnit: Operations>(
     serialized: &[U8],
     result: &mut PolynomialRingElement<SIMDUnit>,
@@ -36,23 +42,25 @@ fn deserialize<SIMDUnit: Operations>(
             &mut result.simd_units[i],
         );
     }
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == OUTPUT_BYTES_PER_SIMD_UNIT * SIMD_UNITS_IN_RING_ELEMENT && ring_elements.len() == RING_ELEMENT_OF_T0S_SIZE)]
+#[hax_lib::ensures(|_| future(ring_elements).len() == ring_elements.len())]
 pub(crate) fn deserialize_to_vector_then_ntt<SIMDUnit: Operations>(
     serialized: &[U8],
     ring_elements: &mut [PolynomialRingElement<SIMDUnit>],
 ) {
+    #[cfg(hax)]
+    let _ring_elements_len = ring_elements.len();
+
     cloop! {
         for (i, bytes) in serialized.chunks_exact(RING_ELEMENT_OF_T0S_SIZE).enumerate() {
+            hax_lib::loop_invariant!(|i:usize| ring_elements.len() == _ring_elements_len);
             deserialize::<SIMDUnit>(bytes, &mut ring_elements[i]);
             ntt(&mut ring_elements[i]);
         }
     }
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[cfg(test)]
@@ -60,7 +68,6 @@ mod tests {
     use libcrux_secrets::{Classify as _, ClassifyRef as _, Declassify as _};
 
     use super::*;
-
     use crate::simd::{self, traits::Operations};
 
     fn test_serialize_generic<SIMDUnit: Operations>() {

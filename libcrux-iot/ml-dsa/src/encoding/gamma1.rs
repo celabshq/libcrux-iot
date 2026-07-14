@@ -1,15 +1,26 @@
 use libcrux_secrets::U8;
 
+#[cfg(hax)]
+use crate::simd::traits::SIMD_UNITS_IN_RING_ELEMENT;
 use crate::{helper::cloop, polynomial::PolynomialRingElement, simd::traits::Operations};
 
 #[inline(always)]
+#[hax_lib::requires(match gamma1_exponent {
+    17|19 => serialized.len() == SIMD_UNITS_IN_RING_ELEMENT * (gamma1_exponent + 1),
+    _ => false
+}
+)]
+#[hax_lib::ensures(|_| future(serialized).len() == serialized.len())]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     re: &PolynomialRingElement<SIMDUnit>,
     serialized: &mut [u8], // OUTPUT_BYTES
     gamma1_exponent: usize,
 ) {
+    #[cfg(hax)]
+    let _serialized_len = serialized.len();
     cloop! {
         for (i, simd_unit) in re.simd_units.iter().enumerate() {
+            hax_lib::loop_invariant!(|i:usize| serialized.len() == _serialized_len);
             SIMDUnit::gamma1_serialize(
                 simd_unit,
                 &mut serialized[i * (gamma1_exponent + 1)..(i + 1) * (gamma1_exponent + 1)],
@@ -17,10 +28,14 @@ pub(crate) fn serialize<SIMDUnit: Operations>(
             );
         }
     }
-    ()
 }
 
 #[inline(always)]
+#[hax_lib::requires(match gamma1_exponent {
+    17|19 => serialized.len() == SIMD_UNITS_IN_RING_ELEMENT * (gamma1_exponent + 1),
+    _ => false
+}
+)]
 pub(crate) fn deserialize<SIMDUnit: Operations>(
     gamma1_exponent: usize,
     serialized: &[U8],
@@ -33,7 +48,6 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
             gamma1_exponent,
         );
     }
-    ()
 }
 
 #[cfg(test)]
@@ -41,7 +55,6 @@ mod tests {
     use libcrux_secrets::ClassifyRef as _;
 
     use super::*;
-
     use crate::simd::{self, traits::Operations};
 
     fn test_serialize_generic<SIMDUnit: Operations>() {

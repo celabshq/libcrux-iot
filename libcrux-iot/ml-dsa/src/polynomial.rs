@@ -10,6 +10,7 @@ pub(crate) struct PolynomialRingElement<SIMDUnit: Operations> {
     pub(crate) simd_units: [SIMDUnit; SIMD_UNITS_IN_RING_ELEMENT],
 }
 
+#[hax_lib::attributes]
 impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     pub(crate) fn zero() -> Self {
         Self {
@@ -30,6 +31,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         result
     }
 
+    #[hax_lib::requires(array.len() == SIMD_UNITS_IN_RING_ELEMENT * COEFFICIENTS_IN_SIMD_UNIT)]
     pub(crate) fn from_i32_array(array: &[I32], result: &mut Self) {
         #[cfg(not(eurydice))]
         debug_assert!(array.len() >= 256);
@@ -39,8 +41,6 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
                 &mut result.simd_units[i],
             );
         }
-        // [hax] https://github.com/hacspec/hax/issues/720
-        ()
     }
 
     #[cfg(test)]
@@ -65,8 +65,6 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         for i in 0..self.simd_units.len() {
             SIMDUnit::add(&mut self.simd_units[i], &rhs.simd_units[i]);
         }
-        // [hax] https://github.com/hacspec/hax/issues/720
-        ()
     }
 
     #[inline(always)]
@@ -74,7 +72,5 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         for i in 0..self.simd_units.len() {
             SIMDUnit::subtract(&mut self.simd_units[i], &rhs.simd_units[i]);
         }
-        // [hax] https://github.com/hacspec/hax/issues/720
-        ()
     }
 }

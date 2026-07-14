@@ -1,3 +1,5 @@
+#[cfg(feature = "check-secret-independence")]
+use libcrux_secrets::IntOps as _;
 use libcrux_secrets::{CastOps as _, Classify as _, I32, U8};
 
 use crate::{constants::BITS_IN_LOWER_PART_OF_T, simd::portable::vector_type::Coefficients};
@@ -6,10 +8,14 @@ use crate::{constants::BITS_IN_LOWER_PART_OF_T, simd::portable::vector_type::Coe
 // vice versa.
 #[inline(always)]
 fn change_t0_interval(t0: I32) -> I32 {
-    (1 << (BITS_IN_LOWER_PART_OF_T - 1)).classify() - t0
+    (1i32 << (BITS_IN_LOWER_PART_OF_T - 1))
+        .classify()
+        .wrapping_sub(t0)
 }
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == 13)]
+#[hax_lib::ensures(|_| future(serialized).len() == serialized.len())]
 pub fn serialize(simd_unit: &Coefficients, serialized: &mut [U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(serialized.len() == 13);
@@ -58,6 +64,7 @@ pub fn serialize(simd_unit: &Coefficients, serialized: &mut [U8]) {
 }
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == 13)]
 pub fn deserialize(serialized: &[U8], simd_unit: &mut Coefficients) {
     #[cfg(not(eurydice))]
     debug_assert!(serialized.len() == 13);

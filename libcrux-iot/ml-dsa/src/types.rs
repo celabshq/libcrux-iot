@@ -76,6 +76,7 @@ impl<const SIZE: usize> MLDSASigningKey<SIZE> {
     }
 }
 
+#[cfg(not(hax))]
 macro_rules! impl_non_hax_types {
     ($name:ident) => {
         impl<const SIZE: usize> $name<SIZE> {
@@ -93,6 +94,7 @@ macro_rules! impl_non_hax_types {
 }
 
 // Hax can't handle these.
+#[cfg(not(hax))]
 mod non_hax_impls {
     use super::*;
     impl<const SIZE: usize> MLDSASigningKey<SIZE> {

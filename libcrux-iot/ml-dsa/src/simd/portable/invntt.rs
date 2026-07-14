@@ -1,4 +1,8 @@
+#[cfg(hax)]
+use hax_lib::ToInt;
 use libcrux_secrets::Classify as _;
+#[cfg(feature = "check-secret-independence")]
+use libcrux_secrets::IntOps as _;
 
 use super::{
     arithmetic::{self, montgomery_multiply_fe_by_fer},
@@ -7,6 +11,8 @@ use super::{
 use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, SIMD_UNITS_IN_RING_ELEMENT};
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 pub fn simd_unit_invert_ntt_at_layer_0(
     simd_unit: &mut Coefficients,
     zeta0: i32,
@@ -14,64 +20,72 @@ pub fn simd_unit_invert_ntt_at_layer_0(
     zeta2: i32,
     zeta3: i32,
 ) {
-    let a_minus_b = simd_unit.values[1] - simd_unit.values[0];
-    simd_unit.values[0] = simd_unit.values[0] + simd_unit.values[1];
+    let a_minus_b = simd_unit.values[1].wrapping_sub(simd_unit.values[0]);
+    simd_unit.values[0] = simd_unit.values[0].wrapping_add(simd_unit.values[1]);
     simd_unit.values[1] = montgomery_multiply_fe_by_fer(a_minus_b, zeta0.classify());
 
-    let a_minus_b = simd_unit.values[3] - simd_unit.values[2];
-    simd_unit.values[2] = simd_unit.values[2] + simd_unit.values[3];
+    let a_minus_b = simd_unit.values[3].wrapping_sub(simd_unit.values[2]);
+    simd_unit.values[2] = simd_unit.values[2].wrapping_add(simd_unit.values[3]);
     simd_unit.values[3] = montgomery_multiply_fe_by_fer(a_minus_b, zeta1.classify());
 
-    let a_minus_b = simd_unit.values[5] - simd_unit.values[4];
-    simd_unit.values[4] = simd_unit.values[4] + simd_unit.values[5];
+    let a_minus_b = simd_unit.values[5].wrapping_sub(simd_unit.values[4]);
+    simd_unit.values[4] = simd_unit.values[4].wrapping_add(simd_unit.values[5]);
     simd_unit.values[5] = montgomery_multiply_fe_by_fer(a_minus_b, zeta2.classify());
 
-    let a_minus_b = simd_unit.values[7] - simd_unit.values[6];
-    simd_unit.values[6] = simd_unit.values[6] + simd_unit.values[7];
+    let a_minus_b = simd_unit.values[7].wrapping_sub(simd_unit.values[6]);
+    simd_unit.values[6] = simd_unit.values[6].wrapping_add(simd_unit.values[7]);
     simd_unit.values[7] = montgomery_multiply_fe_by_fer(a_minus_b, zeta3.classify());
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 pub fn simd_unit_invert_ntt_at_layer_1(simd_unit: &mut Coefficients, zeta0: i32, zeta1: i32) {
-    let a_minus_b = simd_unit.values[2] - simd_unit.values[0];
-    simd_unit.values[0] = simd_unit.values[0] + simd_unit.values[2];
+    let a_minus_b = simd_unit.values[2].wrapping_sub(simd_unit.values[0]);
+    simd_unit.values[0] = simd_unit.values[0].wrapping_add(simd_unit.values[2]);
     simd_unit.values[2] = montgomery_multiply_fe_by_fer(a_minus_b, zeta0.classify());
 
-    let a_minus_b = simd_unit.values[3] - simd_unit.values[1];
-    simd_unit.values[1] = simd_unit.values[1] + simd_unit.values[3];
+    let a_minus_b = simd_unit.values[3].wrapping_sub(simd_unit.values[1]);
+    simd_unit.values[1] = simd_unit.values[1].wrapping_add(simd_unit.values[3]);
     simd_unit.values[3] = montgomery_multiply_fe_by_fer(a_minus_b, zeta0.classify());
 
-    let a_minus_b = simd_unit.values[6] - simd_unit.values[4];
-    simd_unit.values[4] = simd_unit.values[4] + simd_unit.values[6];
+    let a_minus_b = simd_unit.values[6].wrapping_sub(simd_unit.values[4]);
+    simd_unit.values[4] = simd_unit.values[4].wrapping_add(simd_unit.values[6]);
     simd_unit.values[6] = montgomery_multiply_fe_by_fer(a_minus_b, zeta1.classify());
 
-    let a_minus_b = simd_unit.values[7] - simd_unit.values[5];
-    simd_unit.values[5] = simd_unit.values[5] + simd_unit.values[7];
+    let a_minus_b = simd_unit.values[7].wrapping_sub(simd_unit.values[5]);
+    simd_unit.values[5] = simd_unit.values[5].wrapping_add(simd_unit.values[7]);
     simd_unit.values[7] = montgomery_multiply_fe_by_fer(a_minus_b, zeta1.classify());
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 pub fn simd_unit_invert_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) {
-    let a_minus_b = simd_unit.values[4] - simd_unit.values[0];
-    simd_unit.values[0] = simd_unit.values[0] + simd_unit.values[4];
+    let a_minus_b = simd_unit.values[4].wrapping_sub(simd_unit.values[0]);
+    simd_unit.values[0] = simd_unit.values[0].wrapping_add(simd_unit.values[4]);
     simd_unit.values[4] = montgomery_multiply_fe_by_fer(a_minus_b, zeta.classify());
 
-    let a_minus_b = simd_unit.values[5] - simd_unit.values[1];
-    simd_unit.values[1] = simd_unit.values[1] + simd_unit.values[5];
+    let a_minus_b = simd_unit.values[5].wrapping_sub(simd_unit.values[1]);
+    simd_unit.values[1] = simd_unit.values[1].wrapping_add(simd_unit.values[5]);
     simd_unit.values[5] = montgomery_multiply_fe_by_fer(a_minus_b, zeta.classify());
 
-    let a_minus_b = simd_unit.values[6] - simd_unit.values[2];
-    simd_unit.values[2] = simd_unit.values[2] + simd_unit.values[6];
+    let a_minus_b = simd_unit.values[6].wrapping_sub(simd_unit.values[2]);
+    simd_unit.values[2] = simd_unit.values[2].wrapping_add(simd_unit.values[6]);
     simd_unit.values[6] = montgomery_multiply_fe_by_fer(a_minus_b, zeta.classify());
 
-    let a_minus_b = simd_unit.values[7] - simd_unit.values[3];
-    simd_unit.values[3] = simd_unit.values[3] + simd_unit.values[7];
+    let a_minus_b = simd_unit.values[7].wrapping_sub(simd_unit.values[3]);
+    simd_unit.values[3] = simd_unit.values[3].wrapping_add(simd_unit.values[7]);
     simd_unit.values[7] = montgomery_multiply_fe_by_fer(a_minus_b, zeta.classify());
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[inline(always)]
+    #[hax_lib::requires(index < SIMD_UNITS_IN_RING_ELEMENT)]
+    #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
     fn round(
         re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
         index: usize,
@@ -118,8 +132,12 @@ fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[inline(always)]
+    #[hax_lib::requires(index < SIMD_UNITS_IN_RING_ELEMENT)]
+    #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
     fn round(
         re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
         index: usize,
@@ -164,7 +182,11 @@ fn invert_ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_2(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
+    #[hax_lib::requires(index < SIMD_UNITS_IN_RING_ELEMENT)]
+    #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
     fn round(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT], index: usize, zeta1: i32) {
         simd_unit_invert_ntt_at_layer_2(&mut re[index], zeta1);
     }
@@ -204,6 +226,9 @@ fn invert_ntt_at_layer_2(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
+#[hax_lib::requires(OFFSET.to_int() + 2.to_int() * STEP_BY.to_int() <= SIMD_UNITS_IN_RING_ELEMENT.to_int())]
 fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
     re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
 ) {
@@ -216,12 +241,11 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
         re[j + STEP_BY] = a_minus_b;
         arithmetic::montgomery_multiply_by_constant(&mut re[j + STEP_BY], ZETA.classify());
     }
-
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_3(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     const STEP: usize = 8; // 1 << LAYER;
     const STEP_BY: usize = 1; // step / COEFFICIENTS_IN_SIMD_UNIT;
@@ -245,6 +269,8 @@ fn invert_ntt_at_layer_3(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_4(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     const STEP: usize = 16; // 1 << LAYER;
     const STEP_BY: usize = 2; // step / COEFFICIENTS_IN_SIMD_UNIT;
@@ -260,6 +286,8 @@ fn invert_ntt_at_layer_4(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_5(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     const STEP: usize = 32; // 1 << LAYER;
     const STEP_BY: usize = 4; // step / COEFFICIENTS_IN_SIMD_UNIT;
@@ -271,6 +299,8 @@ fn invert_ntt_at_layer_5(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_6(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     const STEP: usize = 64; // 1 << LAYER;
     const STEP_BY: usize = 8; // step / COEFFICIENTS_IN_SIMD_UNIT;
@@ -280,6 +310,8 @@ fn invert_ntt_at_layer_6(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 fn invert_ntt_at_layer_7(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     const STEP: usize = 128; // 1 << LAYER;
     const STEP_BY: usize = 16; // step / COEFFICIENTS_IN_SIMD_UNIT;
@@ -287,6 +319,8 @@ fn invert_ntt_at_layer_7(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (0 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 25847>(re);
 }
 
+#[hax_lib::fstar::options("--z3rlimit 200 --split_queries always")]
+#[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 pub(crate) fn invert_ntt_montgomery(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     invert_ntt_at_layer_0(re);
     invert_ntt_at_layer_1(re);
@@ -305,9 +339,6 @@ pub(crate) fn invert_ntt_montgomery(re: &mut [Coefficients; SIMD_UNITS_IN_RING_E
         // - Convert the elements form montgomery domain to the standard domain.
         arithmetic::montgomery_multiply_by_constant(&mut re[i], 41_978.classify());
     }
-
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[cfg(test)]

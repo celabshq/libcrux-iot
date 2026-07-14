@@ -1,38 +1,39 @@
 use crate::{helper::cloop, polynomial::PolynomialRingElement, simd::traits::Operations};
 
-// Each coefficient takes up 10 bits.
+// Each coefficient takes up 10 bytes.
+pub(crate) const OUTPUT_BYTES_PER_SIMD_UNIT: usize = 10;
+#[cfg(hax)]
+use crate::simd::traits::SIMD_UNITS_IN_RING_ELEMENT;
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == OUTPUT_BYTES_PER_SIMD_UNIT * SIMD_UNITS_IN_RING_ELEMENT)]
+#[hax_lib::ensures(|_| future(serialized).len() == serialized.len())]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     re: &PolynomialRingElement<SIMDUnit>,
     serialized: &mut [u8], // len RING_ELEMENT_OF_T1S_SIZE
 ) {
-    const OUTPUT_BYTES_PER_SIMD_UNIT: usize = 10;
+    #[cfg(hax)]
+    let _serialized_len = serialized.len();
 
     cloop! {
         for (i, simd_unit) in re.simd_units.iter().enumerate() {
+            hax_lib::loop_invariant!(|i:usize| serialized.len() == _serialized_len);
             SIMDUnit::t1_serialize(simd_unit, &mut serialized[i * OUTPUT_BYTES_PER_SIMD_UNIT..(i + 1) * OUTPUT_BYTES_PER_SIMD_UNIT]);
         }
     }
-
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
+#[hax_lib::requires(serialized.len() == OUTPUT_BYTES_PER_SIMD_UNIT * SIMD_UNITS_IN_RING_ELEMENT)]
 pub(crate) fn deserialize<SIMDUnit: Operations>(
     serialized: &[u8],
     result: &mut PolynomialRingElement<SIMDUnit>,
 ) {
-    const WINDOW: usize = 10;
     for i in 0..result.simd_units.len() {
         SIMDUnit::t1_deserialize(
-            &serialized[i * WINDOW..(i + 1) * WINDOW],
+            &serialized[i * OUTPUT_BYTES_PER_SIMD_UNIT..(i + 1) * OUTPUT_BYTES_PER_SIMD_UNIT],
             &mut result.simd_units[i],
         );
     }
-
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[cfg(test)]
@@ -40,7 +41,6 @@ mod tests {
     use libcrux_secrets::ClassifyRef as _;
 
     use super::*;
-
     use crate::{
         constants::RING_ELEMENT_OF_T1S_SIZE,
         simd::{self, traits::Operations},

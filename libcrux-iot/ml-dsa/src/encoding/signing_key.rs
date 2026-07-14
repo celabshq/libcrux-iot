@@ -7,12 +7,25 @@ use crate::{
     },
     encoding,
     hash_functions::shake256,
-    helper::cloop,
     polynomial::PolynomialRingElement,
     simd::traits::Operations,
 };
 
 #[inline(always)]
+#[hax_lib::requires(
+    seed_matrix.len() == SEED_FOR_A_SIZE
+    && seed_signing.len() == SEED_FOR_SIGNING_SIZE
+    && error_ring_element_size == crate::encoding::error::chunk_size(eta) * crate::simd::traits::SIMD_UNITS_IN_RING_ELEMENT
+    && s1_2.len() <= 8 + 7
+    && t0.len() <= 8
+    && signing_key_serialized.len() ==
+    SEED_FOR_A_SIZE
+    + SEED_FOR_SIGNING_SIZE
+    + BYTES_FOR_VERIFICATION_KEY_HASH
+    + s1_2.len() * error_ring_element_size
+    + t0.len() * RING_ELEMENT_OF_T0S_SIZE
+)]
+#[hax_lib::ensures(|_| future(signing_key_serialized).len() == signing_key_serialized.len())]
 pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
     eta: Eta,
     error_ring_element_size: usize,
@@ -45,7 +58,17 @@ pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaX
         .copy_from_slice(&verification_key_hash);
     offset += BYTES_FOR_VERIFICATION_KEY_HASH;
 
+    #[cfg(hax)]
+    let _signing_key_serialized_len = signing_key_serialized.len();
+
     for i in 0..s1_2.len() {
+        hax_lib::loop_invariant!(|i: usize| signing_key_serialized.len()
+            == _signing_key_serialized_len
+            && offset
+                == SEED_FOR_A_SIZE
+                    + SEED_FOR_SIGNING_SIZE
+                    + BYTES_FOR_VERIFICATION_KEY_HASH
+                    + i * error_ring_element_size);
         encoding::error::serialize::<SIMDUnit>(
             eta,
             &s1_2[i],
@@ -54,16 +77,20 @@ pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaX
         offset += error_ring_element_size;
     }
 
-    cloop! {
-        for ring_element in t0.iter() {
-            encoding::t0::serialize::<SIMDUnit>(
-                ring_element,
-                &mut signing_key_serialized[offset..offset + RING_ELEMENT_OF_T0S_SIZE],
-            );
-            offset += RING_ELEMENT_OF_T0S_SIZE;
-        }
-    }
+    for i in 0..t0.len() {
+        hax_lib::loop_invariant!(|i: usize| signing_key_serialized.len()
+            == _signing_key_serialized_len
+            && offset
+                == SEED_FOR_A_SIZE
+                    + SEED_FOR_SIGNING_SIZE
+                    + BYTES_FOR_VERIFICATION_KEY_HASH
+                    + s1_2.len() * error_ring_element_size
+                    + i * RING_ELEMENT_OF_T0S_SIZE);
 
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
+        encoding::t0::serialize::<SIMDUnit>(
+            &t0[i],
+            &mut signing_key_serialized[offset..offset + RING_ELEMENT_OF_T0S_SIZE],
+        );
+        offset += RING_ELEMENT_OF_T0S_SIZE;
+    }
 }

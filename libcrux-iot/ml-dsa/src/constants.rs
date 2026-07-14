@@ -157,6 +157,10 @@ pub(crate) mod ml_dsa_87 {
     pub(crate) const COMMITMENT_HASH_SIZE: usize = 64;
 }
 
+#[hax_lib::requires(match ones_in_verifier_challenge {
+    39 | 49 | 60 => true,
+    _ => false
+})]
 pub(crate) const fn beta(ones_in_verifier_challenge: usize, eta: Eta) -> i32 {
     // [eurydice] can't handle conversion of enum into a usize
     let eta_val: usize = match eta {
@@ -166,18 +170,35 @@ pub(crate) const fn beta(ones_in_verifier_challenge: usize, eta: Eta) -> i32 {
     (ones_in_verifier_challenge * eta_val) as i32
 }
 
+#[hax_lib::requires(match bits_per_error_coefficient {
+    3 | 4 => true,
+    _ => false
+})]
 pub(crate) const fn error_ring_element_size(bits_per_error_coefficient: usize) -> usize {
     (bits_per_error_coefficient * COEFFICIENTS_IN_RING_ELEMENT) / 8
 }
 
+#[hax_lib::requires(match bits_per_gamma1_coefficient {
+    18 | 20 => true,
+    _ => false
+})]
 pub(crate) const fn gamma1_ring_element_size(bits_per_gamma1_coefficient: usize) -> usize {
     (bits_per_gamma1_coefficient * COEFFICIENTS_IN_RING_ELEMENT) / 8
 }
 
+#[hax_lib::requires(match bits_per_commitment_coefficient {
+    6 | 4 => true,
+    _ => false
+})]
 pub(crate) const fn commitment_ring_element_size(bits_per_commitment_coefficient: usize) -> usize {
     (bits_per_commitment_coefficient * COEFFICIENTS_IN_RING_ELEMENT) / 8
 }
 
+#[hax_lib::requires(match rows_in_a {
+    4 => bits_per_commitment_coefficient == 6,
+    6|8 => bits_per_commitment_coefficient == 4,
+    _ => false
+})]
 pub(crate) const fn commitment_vector_size(
     bits_per_commitment_coefficient: usize,
     rows_in_a: usize,
@@ -185,18 +206,28 @@ pub(crate) const fn commitment_vector_size(
     commitment_ring_element_size(bits_per_commitment_coefficient) * rows_in_a
 }
 
+#[hax_lib::requires(match rows_in_a {
+    4 => columns_in_a == 4 && error_ring_element_size_val == error_ring_element_size(3),
+    6 => columns_in_a == 5 && error_ring_element_size_val == error_ring_element_size(4),
+    8 => columns_in_a == 7 && error_ring_element_size_val == error_ring_element_size(3),
+    _ => false
+})]
 pub(crate) const fn signing_key_size(
     rows_in_a: usize,
     columns_in_a: usize,
-    error_ring_element_size: usize,
+    error_ring_element_size_val: usize,
 ) -> usize {
     SEED_FOR_A_SIZE
         + SEED_FOR_SIGNING_SIZE
         + BYTES_FOR_VERIFICATION_KEY_HASH
-        + (rows_in_a + columns_in_a) * error_ring_element_size
+        + (rows_in_a + columns_in_a) * error_ring_element_size_val
         + rows_in_a * RING_ELEMENT_OF_T0S_SIZE
 }
 
+#[hax_lib::requires(match rows_in_a {
+    4|6|8 => true,
+    _ => false
+})]
 pub(crate) const fn verification_key_size(rows_in_a: usize) -> usize {
     SEED_FOR_A_SIZE
         + (COEFFICIENTS_IN_RING_ELEMENT
@@ -204,6 +235,13 @@ pub(crate) const fn verification_key_size(rows_in_a: usize) -> usize {
             * (FIELD_MODULUS_MINUS_ONE_BIT_LENGTH - BITS_IN_LOWER_PART_OF_T))
             / 8
 }
+
+#[hax_lib::requires(match rows_in_a {
+    4 => columns_in_a == 4 && max_ones_in_hint == 80 && commitment_hash_size == 32 && bits_per_gamma1_coefficient == 18,
+    6 => columns_in_a == 5 && max_ones_in_hint == 55 && commitment_hash_size == 48 && bits_per_gamma1_coefficient == 20,
+    8 => columns_in_a == 7 && max_ones_in_hint == 75 && commitment_hash_size == 64 && bits_per_gamma1_coefficient == 20,
+    _ => false
+})]
 
 pub(crate) const fn signature_size(
     rows_in_a: usize,

@@ -5,6 +5,8 @@ use crate::{
 };
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == 10)]
+#[hax_lib::ensures(|_| future(serialized).len() == serialized.len())]
 pub fn serialize(simd_unit: &Coefficients, serialized: &mut [u8]) {
     #[cfg(not(eurydice))]
     debug_assert!(serialized.len() == 10);
@@ -12,6 +14,8 @@ pub fn serialize(simd_unit: &Coefficients, serialized: &mut [u8]) {
     cloop! {
         // Declassifications: Here, the value t1 is being serialized into the public key.
         for (i, coefficients) in simd_unit.values.chunks_exact(4).enumerate() {
+            hax_lib::loop_invariant!(|_i: usize| serialized.len() == 10);
+
             serialized[5 * i] = (coefficients[0].declassify() & 0xFF) as u8;
             serialized[5 * i + 1] =
                 ((coefficients[1].declassify() & 0x3F) as u8) << 2 | ((coefficients[0].declassify() >> 8) & 0x03) as u8;
@@ -22,12 +26,10 @@ pub fn serialize(simd_unit: &Coefficients, serialized: &mut [u8]) {
             serialized[5 * i + 4] = ((coefficients[3].declassify() >> 2) & 0xFF) as u8;
         }
     }
-
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == 10)]
 pub fn deserialize(serialized: &[u8], simd_unit: &mut Coefficients) {
     #[cfg(not(eurydice))]
     debug_assert!(serialized.len() == 10);
@@ -36,6 +38,8 @@ pub fn deserialize(serialized: &[u8], simd_unit: &mut Coefficients) {
 
     cloop! {
         for (i, bytes) in serialized.chunks_exact(5).enumerate() {
+            hax_lib::loop_invariant!(|_i: usize| serialized.len() == 10);
+
             let byte0 = bytes[0] as i32;
             let byte1 = bytes[1] as i32;
             let byte2 = bytes[2] as i32;
@@ -48,7 +52,4 @@ pub fn deserialize(serialized: &[u8], simd_unit: &mut Coefficients) {
             simd_unit.values[4 * i + 3] = (((byte3 >> 6) | (byte4 << 2)) & mask).classify();
         }
     }
-
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }

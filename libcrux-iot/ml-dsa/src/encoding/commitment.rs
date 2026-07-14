@@ -1,42 +1,58 @@
 use libcrux_secrets::U8;
 
+#[cfg(hax)]
+use crate::constants::commitment_ring_element_size;
 use crate::{helper::cloop, polynomial::PolynomialRingElement, simd::traits::Operations};
 
 #[inline(always)]
+#[hax_lib::requires(serialized.len() == 128 || serialized.len() == 192)]
+#[hax_lib::ensures(|out| future(serialized).len() == serialized.len())]
 pub(crate) fn serialize<SIMDUnit: Operations>(
     re: &PolynomialRingElement<SIMDUnit>, // precondition: should hold w'_1[i]
     serialized: &mut [U8],
 ) {
     let output_bytes_per_simd_unit = serialized.len() / (8 * 4);
+    #[cfg(hax)]
+    let _serialized_len = serialized.len();
 
     cloop! {
         for (i, simd_unit) in re.simd_units.iter().enumerate() {
+            hax_lib::loop_invariant!(|i:usize| serialized.len() == _serialized_len);
             SIMDUnit::commitment_serialize(
                 simd_unit,
                 &mut serialized[i * output_bytes_per_simd_unit..(i + 1) * output_bytes_per_simd_unit],
             );
         }
     }
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[inline(always)]
+#[hax_lib::requires(match ring_element_size {
+    128 => vector.len() == commitment_ring_element_size(4) && serialized.len() == vector.len() * ring_element_size,
+    192 => vector.len() == commitment_ring_element_size(6) && serialized.len() == vector.len() * ring_element_size,
+    _ => false
+})]
+#[hax_lib::ensures(|_| future(serialized).len() == serialized.len())]
 pub(crate) fn serialize_vector<SIMDUnit: Operations>(
     ring_element_size: usize,
     vector: &[PolynomialRingElement<SIMDUnit>],
     serialized: &mut [U8],
 ) {
     let mut offset: usize = 0;
+    #[cfg(hax)]
+    let _serialized_len = serialized.len();
 
-    cloop! {
-        for ring_element in vector.iter() {
-            serialize::<SIMDUnit>(ring_element, &mut serialized[offset..offset + ring_element_size]);
-            offset += ring_element_size;
-        }
+    for i in 0..vector.len() {
+        hax_lib::loop_invariant!(
+            |i: usize| serialized.len() == _serialized_len && offset == i * ring_element_size
+        );
+
+        serialize::<SIMDUnit>(
+            &vector[i],
+            &mut serialized[offset..offset + ring_element_size],
+        );
+        offset += ring_element_size;
     }
-    // [hax] https://github.com/hacspec/hax/issues/720
-    ()
 }
 
 #[cfg(test)]
@@ -44,7 +60,6 @@ mod tests {
     use libcrux_secrets::{Classify as _, ClassifyRef as _, Declassify as _};
 
     use super::*;
-
     use crate::{
         polynomial::PolynomialRingElement,
         simd::{self, traits::Operations},

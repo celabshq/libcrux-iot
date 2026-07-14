@@ -1,7 +1,13 @@
+#[cfg(hax)]
+use hax_lib::ToInt;
 use libcrux_secrets::Classify as _;
+#[cfg(feature = "check-secret-independence")]
+use libcrux_secrets::IntOps as _;
 
-use super::arithmetic::{self, montgomery_multiply_by_constant, montgomery_multiply_fe_by_fer};
-use super::vector_type::Coefficients;
+use super::{
+    arithmetic::{self, montgomery_multiply_by_constant, montgomery_multiply_fe_by_fer},
+    vector_type::Coefficients,
+};
 use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, SIMD_UNITS_IN_RING_ELEMENT};
 
 #[inline(always)]
@@ -13,63 +19,64 @@ pub fn simd_unit_ntt_at_layer_0(
     zeta3: i32,
 ) {
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[1], zeta0.classify());
-    simd_unit.values[1] = simd_unit.values[0] - t;
-    simd_unit.values[0] = simd_unit.values[0] + t;
+    simd_unit.values[1] = simd_unit.values[0].wrapping_sub(t);
+    simd_unit.values[0] = simd_unit.values[0].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[3], zeta1.classify());
-    simd_unit.values[3] = simd_unit.values[2] - t;
-    simd_unit.values[2] = simd_unit.values[2] + t;
+    simd_unit.values[3] = simd_unit.values[2].wrapping_sub(t);
+    simd_unit.values[2] = simd_unit.values[2].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[5], zeta2.classify());
-    simd_unit.values[5] = simd_unit.values[4] - t;
-    simd_unit.values[4] = simd_unit.values[4] + t;
+    simd_unit.values[5] = simd_unit.values[4].wrapping_sub(t);
+    simd_unit.values[4] = simd_unit.values[4].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[7], zeta3.classify());
-    simd_unit.values[7] = simd_unit.values[6] - t;
-    simd_unit.values[6] = simd_unit.values[6] + t;
+    simd_unit.values[7] = simd_unit.values[6].wrapping_sub(t);
+    simd_unit.values[6] = simd_unit.values[6].wrapping_add(t);
 }
 
 #[inline(always)]
 pub fn simd_unit_ntt_at_layer_1(simd_unit: &mut Coefficients, zeta1: i32, zeta2: i32) {
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[2], zeta1.classify());
-    simd_unit.values[2] = simd_unit.values[0] - t;
-    simd_unit.values[0] = simd_unit.values[0] + t;
+    simd_unit.values[2] = simd_unit.values[0].wrapping_sub(t);
+    simd_unit.values[0] = simd_unit.values[0].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[3], zeta1.classify());
-    simd_unit.values[3] = simd_unit.values[1] - t;
-    simd_unit.values[1] = simd_unit.values[1] + t;
+    simd_unit.values[3] = simd_unit.values[1].wrapping_sub(t);
+    simd_unit.values[1] = simd_unit.values[1].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[6], zeta2.classify());
-    simd_unit.values[6] = simd_unit.values[4] - t;
-    simd_unit.values[4] = simd_unit.values[4] + t;
+    simd_unit.values[6] = simd_unit.values[4].wrapping_sub(t);
+    simd_unit.values[4] = simd_unit.values[4].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[7], zeta2.classify());
-    simd_unit.values[7] = simd_unit.values[5] - t;
-    simd_unit.values[5] = simd_unit.values[5] + t;
+    simd_unit.values[7] = simd_unit.values[5].wrapping_sub(t);
+    simd_unit.values[5] = simd_unit.values[5].wrapping_add(t);
 }
 
 #[inline(always)]
 pub fn simd_unit_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) {
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[4], zeta.classify());
-    simd_unit.values[4] = simd_unit.values[0] - t;
-    simd_unit.values[0] = simd_unit.values[0] + t;
+    simd_unit.values[4] = simd_unit.values[0].wrapping_sub(t);
+    simd_unit.values[0] = simd_unit.values[0].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[5], zeta.classify());
-    simd_unit.values[5] = simd_unit.values[1] - t;
-    simd_unit.values[1] = simd_unit.values[1] + t;
+    simd_unit.values[5] = simd_unit.values[1].wrapping_sub(t);
+    simd_unit.values[1] = simd_unit.values[1].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[6], zeta.classify());
-    simd_unit.values[6] = simd_unit.values[2] - t;
-    simd_unit.values[2] = simd_unit.values[2] + t;
+    simd_unit.values[6] = simd_unit.values[2].wrapping_sub(t);
+    simd_unit.values[2] = simd_unit.values[2].wrapping_add(t);
 
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[7], zeta.classify());
-    simd_unit.values[7] = simd_unit.values[3] - t;
-    simd_unit.values[3] = simd_unit.values[3] + t;
+    simd_unit.values[7] = simd_unit.values[3].wrapping_sub(t);
+    simd_unit.values[3] = simd_unit.values[3].wrapping_add(t);
 }
 
 #[inline(always)]
 fn ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[inline(always)]
+    #[hax_lib::requires(index < SIMD_UNITS_IN_RING_ELEMENT)]
     fn round(
         re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
         index: usize,
@@ -118,6 +125,7 @@ fn ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 #[inline(always)]
 fn ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[inline(always)]
+    #[hax_lib::requires(index < SIMD_UNITS_IN_RING_ELEMENT)]
     fn round(
         re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
         index: usize,
@@ -164,6 +172,7 @@ fn ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 #[inline(always)]
 fn ntt_at_layer_2(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[inline(always)]
+    #[hax_lib::requires(index < SIMD_UNITS_IN_RING_ELEMENT)]
     fn round(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT], index: usize, zeta: i32) {
         simd_unit_ntt_at_layer_2(&mut re[index], zeta);
     }
@@ -203,6 +212,7 @@ fn ntt_at_layer_2(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
 }
 
 #[inline(always)]
+#[hax_lib::requires(OFFSET.to_int() + 2.to_int() * STEP_BY.to_int() <= SIMD_UNITS_IN_RING_ELEMENT.to_int())]
 fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
     re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
 ) {
@@ -214,7 +224,6 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
         arithmetic::subtract(&mut re[j + STEP_BY], &tmp);
         arithmetic::add(&mut re[j], &tmp);
     }
-    () // Needed because of https://github.com/hacspec/hax/issues/720
 }
 
 #[inline(always)]

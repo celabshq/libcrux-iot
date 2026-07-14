@@ -8,6 +8,8 @@ benches/boringssl/build
 proofs/fstar/extraction/.depend
 proofs/fstar/extraction/#*#
 proofs/fstar/extraction/.#*
+proofs/fstar/**/*.fst
+proofs/fstar/**/*.fsti
 fuzz/corpus
 fuzz/artifacts
 proofs/fstar/extraction/.cache
@@ -23,3 +25,5 @@ kyber-crate/
 /c/combined/generated/build/
 !flake.lock
 /libcrux-iot/sha3/proofs/fstar/extraction/.depend
+/libcrux-iot/ml-dsa/proofs/fstar/extraction/.depend
+/libcrux-iot/ml-dsa/proofs/fstar/secrets/
