@@ -1,12 +1,8 @@
 #[cfg(hax)]
 use hax_lib::ToInt;
-#[cfg(feature = "check-secret-independence")]
-use libcrux_secrets::{Classify, Declassify};
 use libcrux_secrets::{U32, U8};
 
 use crate::lane::Lane2U32;
-#[cfg(feature = "check-secret-independence")]
-use crate::{FromLeBytes, ToLeBytes};
 
 #[derive(Clone, Copy)]
 #[cfg_attr(not(any(eurydice, hax_backend_lean)), derive(Debug))]
@@ -178,20 +174,6 @@ fn store_block_full_2u32<const RATE: usize>(s: &KeccakState, out: &mut [U8; 200]
     store_block_2u32::<RATE>(s, &mut out[..]);
     #[cfg(not(hax))]
     store_block_2u32::<RATE>(s, out);
-}
-
-#[cfg(feature = "check-secret-independence")]
-impl ToLeBytes<4> for U32 {
-    fn to_le_bytes(self) -> [U8; 4] {
-        self.declassify().to_le_bytes().classify()
-    }
-}
-
-#[cfg(feature = "check-secret-independence")]
-impl FromLeBytes<4> for U32 {
-    fn from_le_bytes(bytes: [U8; 4]) -> Self {
-        u32::from_le_bytes(bytes.declassify()).classify()
-    }
 }
 
 /// Helpers used by cross-specification tests against `hacspec_sha3`.

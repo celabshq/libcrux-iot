@@ -40,7 +40,7 @@ defmt-test = "0.3"
 
 [patch.crates-io]
 # patch until libcrux-secrets 0.0.6 is released
-libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "c4253d211a605f4a284c595fc6ca28ae18dd07ba" }
+libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "ff50cd1f5e20e88dcba911469ba32ba87733006c" }
 
 [features]
 default = ["mldsa87", "mlkem1024", "board"] # We want to benchmark the most expensive variants by default
