@@ -30,6 +30,10 @@ set_option mvcgen.warning false
 
 open libcrux_iot_sha3.Foundation libcrux_iot_sha3.Composition
 
+-- The new mvcgen / bv normal forms make several of these loop-invariant and
+-- bit-vector helper proofs heavier; raise the heartbeat ceiling file-wide.
+set_option maxHeartbeats 1000000
+
 set_option allowUnsafeReducibility true in
 attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 
@@ -270,6 +274,9 @@ theorem state.load_block_2u32_loop0_spec
       expose_names
       refine ⟨hk_lt, hiter1_end, hiter1_start, ?_⟩
       apply pure_prop_holds
+      -- The new mvcgen no longer binds the post-`set` array to a name; re-bind
+      -- it as `r_13` so the case analysis below reads as before.
+      set r_13 := acc.set k r_12 with h_13
       -- Goal: ∀ j < iter1.start, ((r_13[j]!)[0]!.bv, (r_13[j]!)[1]!.bv) =
       --         interleave_bv ((Lane2U32_from_4byte_LE_pairs ... j)[0]!.bv)
       --                       ((Lane2U32_from_4byte_LE_pairs ... j)[1]!.bv)
@@ -561,6 +568,10 @@ theorem state.load_block_2u32_loop1_spec
       -- where `r_11.val = 5*(k%5) + k/5`. Other than that one cell, the
       -- array agrees with `acc.st`.
       expose_names
+      -- The new mvcgen no longer binds the post-`set` state array; re-bind it
+      -- as `r_12` so the case analysis below reads as before.
+      set r_12 := acc.st.set r_11 (Array.make 2#usize [r_5 ^^^ r_7, r_8 ^^^ r_9] (by simp))
+        with h_12
       -- Auxiliary scalar identities for the set index.
       have hr_idx : r_11.val = 5 * (k.val % 5) + k.val / 5 := by
         scalar_tac
@@ -1053,16 +1064,21 @@ theorem state.store_block_2u32_loop_spec
       --              gives RHS = 4.
       --   `vc17`:    strong-invariant preservation VC.
       -- All other VCs are scalar bounds, dispatched by `scalar_tac`.
-      case vc14.h1 =>
-        expose_names
-        rw [h_8.2.2 r_11, List.length_setSlice!]
-        scalar_tac
-      case vc16.h =>
-        expose_names
-        rw [h_14.2.1]
-        simp only [Aeneas.Std.Array.to_slice, Aeneas.Std.Array.length_eq]
-        scalar_tac
-      case vc17 =>
+      -- The new mvcgen surfaces more VCs and renumbers them, so dispatch by
+      -- tactic instead of by (now-stale) `case` tag. Each hard-VC body
+      -- self-selects (fails cleanly on the others); the trailing
+      -- `all_goals scalar_tac` mops up the bounds / `h_fail` side-conditions.
+      all_goals try
+        (expose_names
+         rw [h_8.2.2 r_11, List.length_setSlice!]
+         scalar_tac)
+      all_goals try
+        (expose_names
+         rw [h_14.2.1]
+         simp only [Aeneas.Std.Array.to_slice, Aeneas.Std.Array.length_eq]
+         scalar_tac)
+      all_goals try scalar_tac
+      all_goals (
         expose_names
         refine ⟨hk_lt, hiter1_end, hiter1_start, ?_⟩
         apply pure_prop_holds
@@ -1092,7 +1108,9 @@ theorem state.store_block_2u32_loop_spec
         have h_r14_val :
             (r_14.2 r_17).val
               = ((acc.val.setSlice! r_6.val r_11.val)).setSlice! r_12.val r_17.val := by
-          rw [h_14.2.2 r_17, h_8.2.2 r_11]
+          -- the write-back equations now carry a `length = end - start` side
+          -- condition (see the mut-index spec); discharge both via `omega`.
+          rw [h_14.2.2 r_17 (by omega), h_8.2.2 r_11 (by omega)]
         -- Length is preserved.
         have h_outer_len : (r_14.2 r_17).val.length = out.val.length := by
           rw [h_r14_val, List.length_setSlice!, List.length_setSlice!]
@@ -1248,7 +1266,7 @@ theorem state.store_block_2u32_loop_spec
           -- Suffix of both setSlice!s.
           rw [List.getElem!_setSlice!_same _ _ _ _ (Or.inr (by rw [h_r12, h_r17_len]; omega))]
           rw [List.getElem!_setSlice!_same _ _ _ _ (Or.inr (by rw [h_r6, h_r11_len]; omega))]
-          exact h_acc_undone b (by omega) hb_25
+          exact h_acc_undone b (by omega) hb_25)
       all_goals scalar_tac
 
 end libcrux_iot_sha3.Sponge
