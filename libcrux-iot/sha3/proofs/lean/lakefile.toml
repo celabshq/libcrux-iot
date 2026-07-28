@@ -11,7 +11,8 @@ name = "Hax"
 git = "https://github.com/cryspen/hax-lean"
 rev = "v0.2.0"
 
+# TODO: point back at a pushed cryspen/libcrux rev (subDir specs/sha3/proofs/lean)
+# once the spec migration lands; local worktree path for now.
 [[require]]
 name = "HacspecSha3"
-git = { url = "https://github.com/cryspen/libcrux", subDir = "specs/sha3/proofs/aeneas-lean" }
-rev = "a4cfb1ebf26431b2ee81f0dc19383158aaf397b7"
+path = "/workspace/libcrux/proofs-update/specs/sha3/proofs/lean"
