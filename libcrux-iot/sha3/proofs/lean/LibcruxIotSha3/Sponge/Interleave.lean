@@ -214,7 +214,8 @@ theorem lane.Lane2U32.interleave_spec (self : lane.Lane2U32) :
   all_goals
     first
     | scalar_tac
-    | (simp only [interleave_bv, Std.UScalar.cast,
+    | (casesm* ∃ _, _
+       simp only [interleave_bv, Std.UScalar.cast,
                   Std.Array.make,
                   List.getElem!_cons_zero, List.getElem!_cons_succ,
                   Std.U32.bv, Std.U64.bv,
@@ -249,7 +250,8 @@ theorem lane.Lane2U32.deinterleave_spec (self : lane.Lane2U32) :
   all_goals
     first
     | scalar_tac
-    | (simp only [deinterleave_bv, Std.Array.make,
+    | (casesm* ∃ _, _
+       simp only [deinterleave_bv, Std.Array.make,
                   List.getElem!_cons_zero, List.getElem!_cons_succ,
                   Std.U32.bv,
                   Std.UScalarTy.U32_numBits_eq,
