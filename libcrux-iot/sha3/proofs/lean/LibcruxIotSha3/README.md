@@ -6,7 +6,7 @@ the same function as the hacspec-style FIPS-202 specification in
 the `hacspec_sha3` crate (from
 [`cryspen/libcrux`](https://github.com/cryspen/libcrux)). Both sides are
 extracted from Rust into Lean
-via the `cargo hax into aeneas-lean` pipeline. Most of the verification
+via the `cargo hax into lean` pipeline. Most of the verification
 code is AI-generated.
 
 ## Main theorems
@@ -177,32 +177,32 @@ The specification and the implementation are extracted separately,
 using the python scripts [`libcrux-iot/sha3/hax_aeneas.py`](../../../../sha3/hax_aeneas.py) and
 the corresponding `specs/sha3/hax_aeneas.py` in the
 [`cryspen/libcrux`](https://github.com/cryspen/libcrux) repo. Internally, these scripts
-call `cargo hax into aeneas-lean` and apply small fixes to the output.
+call `cargo hax into lean` and apply small fixes to the output.
 The resulting Lean files are:
 * `specs/sha3/proofs/aeneas-lean/HacspecSha3/Extraction/Funs.lean` (in `cryspen/libcrux`)
-* [`libcrux-iot/sha3/proofs/aeneas-lean/LibcruxIotSha3/Extraction/Funs.lean`](Extraction/Funs.lean)
+* [`libcrux-iot/sha3/proofs/lean/LibcruxIotSha3/Extraction/Funs.lean`](Extraction/Funs.lean)
 
 ## Reproduction
 
 ### Prerequisites
 
 - For running the proofs:
-  - Lean 4 toolchain `leanprover/lean4:v4.30.0-rc2` (pinned in `lean-toolchain`).
+  - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
+  - The Hax Lean proof library `cryspen/hax-lean` at `v0.2.0` (pulled in as a
+    `lake` dependency via `lakefile.toml`).
   - Hacspec-style implementation from https://github.com/cryspen/libcrux at commit `a4cfb1ebf26431b2ee81f0dc19383158aaf397b7`
 - For extraction:
-  - Hax at commit `ffdf432705d409b62ec025d253a340234b59766f`
-    (not publicly available yet, https://github.com/cryspen/hax-evit)
-    with the corresponding charon/aeneas versions:
-    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.06.02
-    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.06.04
-      — note: the `aeneas-pin` file in hax-evit at this commit names tag
-      `nightly-2026.06.03`, but commit `8d2077c` (the SHA the binary
-      must report) actually ships in `nightly-2026.06.04`. Use the
-      `06.04` release.
+  - Hax at commit `2fedcb2b196f5adea55975d0a023596ec6383ff2`
+    (mainline https://github.com/cryspen/hax) providing the `lean` backend,
+    with the charon/aeneas binaries it pins in `pins.toml`:
+    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.07.16
+    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.07.21-52fd438
+    These are fetched automatically by the `install-aeneas` helper inside the
+    `nix develop .#lean` shell.
 
 ### Building
 
-From `libcrux-iot/sha3/proofs/aeneas-lean/`:
+From `libcrux-iot/sha3/proofs/lean/`:
 
 ```bash
 lake exe cache get        # downloading the Mathlib cache

@@ -78,12 +78,12 @@ impl Lane2U32 {
     }
 }
 
-#[hax_lib::attributes]
+#[cfg_attr(hax, hax_lib::attributes)]
 impl Index<usize> for Lane2U32 {
     type Output = U32;
 
     #[inline(always)]
-    #[hax_lib::requires(index < 2)]
+    #[cfg_attr(hax, hax_lib::requires(index < 2))]
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }

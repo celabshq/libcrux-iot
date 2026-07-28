@@ -1,8 +1,20 @@
+-- External function definitions for `libcrux-iot-sha3` (hand-written).
+-- Ported from the former `Missing.lean`: helpers the `-core-models-lib`
+-- extraction references but that aeneas cannot generate on its own.
 import Aeneas
 import CoreModels
 import HacspecSha3
-
-open Aeneas Aeneas.Std Result
+import LibcruxIotSha3.Extraction.Types
+open CoreModels Aeneas
+open Aeneas.Std hiding namespace core alloc
+open Result ControlFlow Error
+open Std.Do
+set_option linter.dupNamespace false
+set_option linter.hashCommand false
+set_option linter.unusedVariables false
+set_option maxHeartbeats 1000000
+set_option maxRecDepth 2048
+open libcrux_iot_sha3
 
 noncomputable section
 

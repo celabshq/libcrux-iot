@@ -24,7 +24,7 @@ pub(crate) struct KeccakXofState<const RATE: usize> {
     sponge: bool,
 }
 
-#[hax_lib::attributes]
+#[cfg_attr(hax, hax_lib::attributes)]
 impl<const RATE: usize> KeccakXofState<RATE> {
     /// An all zero block
     pub(crate) fn zero_block() -> [U8; RATE] {
@@ -51,13 +51,13 @@ impl<const RATE: usize> KeccakXofState<RATE> {
     ///
     /// This works best with relatively small `inputs`.
     #[inline(always)]
-    #[hax_lib::requires(
+    #[cfg_attr(hax, hax_lib::requires(
         RATE > 0 &&
         RATE % 8 == 0 &&
         RATE <= 168 &&
         self.buf_len < RATE &&
         inputs.len().to_int() + self.buf_len.to_int() <= usize::MAX.to_int()
-    )]
+    ))]
     pub(crate) fn absorb(&mut self, inputs: &[U8]) {
         let input_remainder_len = self.absorb_full(inputs);
 
@@ -76,19 +76,19 @@ impl<const RATE: usize> KeccakXofState<RATE> {
         }
     }
 
-    #[hax_lib::requires(
+    #[cfg_attr(hax, hax_lib::requires(
         RATE > 0 &&
         RATE % 8 == 0 &&
         RATE <= 168 &&
         self.buf_len < RATE &&
         inputs.len().to_int() + self.buf_len.to_int() <= usize::MAX.to_int()
-    )]
-    #[hax_lib::ensures(|remainder|
+    ))]
+    #[cfg_attr(hax, hax_lib::ensures(|remainder|
         remainder < RATE
         && remainder <= inputs.len()
         && future(self).buf_len <= RATE
         && future(self).buf_len.to_int() + remainder.to_int() < usize::MAX.to_int()
-    )]
+    ))]
     fn absorb_full(&mut self, inputs: &[U8]) -> usize {
         #[cfg(not(eurydice))]
         debug_assert!(self.buf_len < RATE);
@@ -114,6 +114,7 @@ impl<const RATE: usize> KeccakXofState<RATE> {
         #[cfg(hax)]
         let _buf_len = self.buf_len;
         for i in 0..num_blocks {
+            #[cfg(hax)]
             hax_lib::loop_invariant!(|_i: usize| self.buf_len == _buf_len);
 
             // We only get in here if `input_len / RATE > 0`.
@@ -132,15 +133,15 @@ impl<const RATE: usize> KeccakXofState<RATE> {
     /// content to consume, and `0` otherwise.
     /// If `consumed > 0` is returned, `self.buf` contains a full block to be
     /// loaded.
-    #[hax_lib::requires(
+    #[cfg_attr(hax, hax_lib::requires(
         self.buf_len <= RATE &&
         inputs.len().to_int() + self.buf_len.to_int() <= usize::MAX.to_int()
-    )]
-    #[hax_lib::ensures(|res|
+    ))]
+    #[cfg_attr(hax, hax_lib::ensures(|res|
         (res <= RATE).to_prop()
         & (future(self).buf_len <= RATE).to_prop()
         & hax_lib::implies(res > 0, future(self).buf_len == RATE)
-    )]
+    ))]
     fn fill_buffer(&mut self, inputs: &[U8]) -> usize {
         let input_len = inputs.len();
         let mut consumed = 0;
@@ -162,13 +163,13 @@ impl<const RATE: usize> KeccakXofState<RATE> {
     /// The `inputs` block may be empty. Everything in the `inputs` block beyond
     /// `RATE` bytes is ignored.
     #[inline(always)]
-    #[hax_lib::requires(
+    #[cfg_attr(hax, hax_lib::requires(
         RATE > 0 &&
         RATE % 8 == 0 &&
         RATE <= 168 &&
         self.buf_len < RATE &&
         inputs.len().to_int() + self.buf_len.to_int() <= usize::MAX.to_int()
-    )]
+    ))]
     pub(crate) fn absorb_final<const DELIMITER: u8>(&mut self, inputs: &[U8]) {
         let input_remainder_len = self.absorb_full(inputs);
 
@@ -192,7 +193,7 @@ impl<const RATE: usize> KeccakXofState<RATE> {
 
     /// Squeeze `N` x `LEN` bytes.
     #[inline(always)]
-    #[hax_lib::requires(RATE == 168 || RATE == 144 || RATE == 136 || RATE == 104 || RATE == 72)]
+    #[cfg_attr(hax, hax_lib::requires(RATE == 168 || RATE == 144 || RATE == 136 || RATE == 104 || RATE == 72))]
     // The code verifies with the z3rlimit specified below, but we
     // can't use the `options` attribute in the impl block because of
     // a hax issue. Therefore we pull out the function and put it
@@ -204,8 +205,8 @@ impl<const RATE: usize> KeccakXofState<RATE> {
 }
 
 #[inline(always)]
-#[hax_lib::requires(RATE == 168 || RATE == 144 || RATE == 136 || RATE == 104 || RATE == 72)]
-#[hax_lib::fstar::options("--z3rlimit 60")]
+#[cfg_attr(hax, hax_lib::requires(RATE == 168 || RATE == 144 || RATE == 136 || RATE == 104 || RATE == 72))]
+#[cfg_attr(hax, hax_lib::fstar::options("--z3rlimit 60"))]
 fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakXofState<RATE>, out: &mut [U8]) {
     if keccak_state.sponge {
         // If we called `squeeze` before, call f1600 first.
@@ -228,6 +229,7 @@ fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakXofState<RATE>, out: &mu
     // If we got asked for more than one block, squeeze out more.
     let mut offset = mid;
     for _k in 1..blocks {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|_k: usize| {
             out.len() == out_len && offset.to_int() == _k.to_int() * RATE.to_int()
         });
@@ -2585,23 +2587,23 @@ pub(crate) fn keccakf1600(s: &mut KeccakState) {
 }
 
 #[inline(always)]
-#[hax_lib::requires(
+#[cfg_attr(hax, hax_lib::requires(
     RATE % 8 == 0
     && RATE <= 168
     && start.to_int() + RATE.to_int() <= blocks.len().to_int()
-)]
+))]
 pub(crate) fn absorb_block<const RATE: usize>(s: &mut KeccakState, blocks: &[U8], start: usize) {
     s.load_block::<RATE>(blocks, start);
     keccakf1600(s)
 }
 
 #[inline(always)]
-#[hax_lib::requires(
+#[cfg_attr(hax, hax_lib::requires(
     RATE > 0
     && RATE % 8 == 0
     && RATE <= 168
     && len < RATE
-    && start.to_int() + len.to_int() <= last.len().to_int())]
+    && start.to_int() + len.to_int() <= last.len().to_int()))]
 pub(crate) fn absorb_final<const RATE: usize, const DELIM: u8>(
     s: &mut KeccakState,
     last: &[U8],
@@ -2622,15 +2624,15 @@ pub(crate) fn absorb_final<const RATE: usize, const DELIM: u8>(
 }
 
 #[inline(always)]
-#[hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && RATE <= out.len())]
-#[hax_lib::ensures(|_| future(out).len() == out.len())]
+#[cfg_attr(hax, hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && RATE <= out.len()))]
+#[cfg_attr(hax, hax_lib::ensures(|_| future(out).len() == out.len()))]
 pub(crate) fn squeeze_first_block<const RATE: usize>(s: &KeccakState, out: &mut [U8]) {
     s.store_block::<RATE>(out)
 }
 
 #[inline(always)]
-#[hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && RATE <= out.len())]
-#[hax_lib::ensures(|_| future(out).len() == out.len())]
+#[cfg_attr(hax, hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && RATE <= out.len()))]
+#[cfg_attr(hax, hax_lib::ensures(|_| future(out).len() == out.len()))]
 pub(crate) fn squeeze_next_block<const RATE: usize>(s: &mut KeccakState, out: &mut [U8]) {
     keccakf1600(s);
     s.store_block::<RATE>(out)
@@ -2638,7 +2640,7 @@ pub(crate) fn squeeze_next_block<const RATE: usize>(s: &mut KeccakState, out: &m
 
 #[inline(always)]
 #[cfg(feature = "unbuffered-xof")]
-#[hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && 3 * RATE <= out.len())]
+#[cfg_attr(hax, hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && 3 * RATE <= out.len()))]
 pub(crate) fn squeeze_first_three_blocks<const RATE: usize>(s: &mut KeccakState, out: &mut [U8]) {
     squeeze_first_block::<RATE>(s, out);
     squeeze_next_block::<RATE>(s, &mut out[RATE..]);
@@ -2647,7 +2649,7 @@ pub(crate) fn squeeze_first_three_blocks<const RATE: usize>(s: &mut KeccakState,
 
 #[inline(always)]
 #[cfg(feature = "unbuffered-xof")]
-#[hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && 5 * RATE <= out.len())]
+#[cfg_attr(hax, hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && 5 * RATE <= out.len()))]
 pub(crate) fn squeeze_first_five_blocks<const RATE: usize>(s: &mut KeccakState, out: &mut [U8]) {
     squeeze_first_block::<RATE>(s, out);
     squeeze_next_block::<RATE>(s, &mut out[RATE..]);
@@ -2657,7 +2659,7 @@ pub(crate) fn squeeze_first_five_blocks<const RATE: usize>(s: &mut KeccakState, 
 }
 
 #[inline(always)]
-#[hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && out.len() <= 200)]
+#[cfg_attr(hax, hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && out.len() <= 200))]
 pub(crate) fn squeeze_last<const RATE: usize>(mut s: KeccakState, out: &mut [U8]) {
     keccakf1600(&mut s);
     let mut b = [0u8; 200].classify();
@@ -2666,7 +2668,7 @@ pub(crate) fn squeeze_last<const RATE: usize>(mut s: KeccakState, out: &mut [U8]
 }
 
 #[inline(always)]
-#[hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && out.len() <= 200)]
+#[cfg_attr(hax, hax_lib::requires(RATE % 8 == 0 && RATE <= 168 && out.len() <= 200))]
 pub(crate) fn squeeze_first_and_last<const RATE: usize>(s: &KeccakState, out: &mut [U8]) {
     let mut b = [0u8; 200].classify();
     s.store_block_full::<RATE>(&mut b);
@@ -2677,10 +2679,10 @@ pub(crate) fn squeeze_first_and_last<const RATE: usize>(s: &KeccakState, out: &m
 const WIDTH: usize = 200;
 
 #[inline(always)]
-#[hax_lib::requires(
+#[cfg_attr(hax, hax_lib::requires(
     RATE > 0 && RATE % 8 == 0 && RATE <= 168
-)]
-#[hax_lib::ensures(|_| future(out).len() == out.len())]
+))]
+#[cfg_attr(hax, hax_lib::ensures(|_| future(out).len() == out.len()))]
 pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut [U8]) {
     let n = data.len() / RATE;
     let rem = data.len() % RATE;
@@ -2693,6 +2695,7 @@ pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut 
 
     let mut start = 0;
     for _i in 0..n {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|_i: usize| { start.to_int() == _i.to_int() * RATE.to_int() });
 
         absorb_block::<RATE>(&mut s, &data, start);
@@ -2707,6 +2710,7 @@ pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut 
         squeeze_first_block::<RATE>(&s, out);
         let mut offset = RATE;
         for _i in 1..blocks {
+            #[cfg(hax)]
             hax_lib::loop_invariant!(|_i: usize| {
                 out.len() == outlen && offset.to_int() == _i.to_int() * RATE.to_int()
             });

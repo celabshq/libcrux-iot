@@ -8,8 +8,8 @@ globs = ["LibcruxIotSha3", "LibcruxIotSha3.+"]
 
 [[require]]
 name = "Hax"
-git = { url = "ssh://git@github.com/cryspen/hax-evit", subDir = "hax-lib/proof-libs/aeneas-lean" }
-rev = "ffdf432705d409b62ec025d253a340234b59766f"
+git = "https://github.com/cryspen/hax-lean"
+rev = "v0.2.0"
 
 [[require]]
 name = "HacspecSha3"

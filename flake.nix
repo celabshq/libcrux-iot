@@ -15,19 +15,18 @@
     hax.url = "github:hacspec/hax/87ba96831ecfeb7dbb54efcf97036fbc5f25bc71";
     fstar-pinned.url = "github:FStarLang/FStar/v2025.10.06";
 
-    # --- Aeneas/Lean SHA-3 proof toolchain ---------------------------------
-    # Used only by the `aeneas-lean` devShell. Keep these revisions in sync
-    # with `libcrux-iot/sha3/proofs/aeneas-lean/{lean-toolchain,lakefile.toml}`
-    # and `libcrux-iot/sha3/hax_aeneas.py`.
+    # --- Lean SHA-3 proof toolchain ----------------------------------------
+    # Used only by the `lean` devShell. The Lean backend now lives in mainline
+    # hax (the old `aeneas-lean` backend was renamed to `lean`), so we build
+    # `cargo hax` from cryspen/hax main instead of the private `hax-evit` fork
+    # (no more SSH access required to evaluate the shell).
     #
-    # `hax-evit` is the private fork the Lean extraction requires. It is fetched
-    # over SSH, so the calling user needs read access (and an SSH key/agent
-    # configured) for `nix develop .#aeneas-lean` to evaluate.
-    hax-evit.url = "git+ssh://git@github.com/cryspen/hax-evit?ref=refs/heads/main&rev=1f85fc13b9967080cc657863e2000ba5d4aa8647";
-    # cryspen/aeneas@nightly-2026.06.04 == 8d2077c (matches AENEAS_VERSION in
-    # hax_aeneas.py). Its flake.lock pins the matching Charon nightly-2026.06.02,
-    # and its default package bundles a `charon` binary alongside `aeneas`.
-    aeneas.url = "github:cryspen/aeneas/nightly-2026.06.04";
+    # aeneas + charon are consumed as the prebuilt binaries pinned by hax in its
+    # `pins.toml`; run `install-aeneas` inside `nix develop .#lean` to fetch them
+    # (see the devShell below). Keep this revision in sync with
+    # `libcrux-iot/sha3/hax_aeneas.py` and the Lean project's
+    # `{lean-toolchain,lakefile.toml}`.
+    hax-main.url = "github:cryspen/hax/2fedcb2b196f5adea55975d0a023596ec6383ff2";
   };
 
   outputs =
@@ -39,7 +38,6 @@
       eurydice,
       hax,
       fstar-pinned,
-      aeneas,
       ...
     }@inputs:
     flake-utils.lib.eachDefaultSystem (
@@ -78,58 +76,44 @@
           ];
         };
 
-        # --- Aeneas/Lean toolchain (used by devShells.aeneas-lean) ----------
-        # `hax` and `aeneas` bake their version/commit into the binary at build
-        # time (hax via `env!("HAX_GIT_COMMIT_HASH")`, aeneas via a dune rule
-        # running `git describe`). Built from a Nix source tree (no `.git`),
-        # both report "unknown", so the version checks in `hax_aeneas.py` fail.
-        #
-        # We wrap each binary so the version query reports the flake-locked rev
-        # — the exact source Nix built — and pass every other invocation
-        # straight through. The reported value is taken from the lock, so it
-        # cannot drift from what is actually built.
-        haxEvitPkg = inputs.hax-evit.packages.${system}.default;
-        haxEvitRev = inputs.hax-evit.rev;
+        # --- Lean toolchain (used by devShells.lean) ------------------------
+        # `cargo hax` bakes its commit into the binary at build time (via
+        # `env!("HAX_GIT_COMMIT_HASH")`). Built from a Nix source tree (no
+        # `.git`) it reports "unknown", so the version check in `hax_aeneas.py`
+        # would fail. We wrap it so `cargo hax --version` reports the
+        # flake-locked rev — the exact source Nix built — and pass every other
+        # invocation straight through. The reported value is taken from the
+        # lock, so it cannot drift from what is actually built.
+        haxMainPkg = inputs.hax-main.packages.${system}.default;
+        haxMainRev = inputs.hax-main.rev;
         # `cargo hax --version` (clap long-version) is what the script greps for
         # `commit=<rev>`; everything else passes through to the real binary.
         haxVersionScript = pkgs.writeShellScript "cargo-hax" ''
           case " $* " in
             *" --version "*)
               echo "hax"
-              echo "commit=${haxEvitRev}"
+              echo "commit=${haxMainRev}"
               exit 0
               ;;
           esac
-          exec ${haxEvitPkg}/bin/cargo-hax "$@"
+          exec ${haxMainPkg}/bin/cargo-hax "$@"
         '';
-        haxEvit = pkgs.symlinkJoin {
-          name = "hax-evit-version-wrapped";
-          paths = [ haxEvitPkg ];
+        haxMain = pkgs.symlinkJoin {
+          name = "hax-main-version-wrapped";
+          paths = [ haxMainPkg ];
           postBuild = ''
             rm -f $out/bin/cargo-hax
             install -m555 ${haxVersionScript} $out/bin/cargo-hax
           '';
         };
 
-        aeneasPkg = aeneas.packages.${system}.default;
-        aeneasRev = aeneas.rev;
-        aeneasVersionScript = pkgs.writeShellScript "aeneas" ''
-          case " $* " in
-            *" -version "*)
-              echo "aeneas ${aeneasRev}"
-              exit 0
-              ;;
-          esac
-          exec ${aeneasPkg}/bin/aeneas "$@"
+        # `install-aeneas` fetches the prebuilt aeneas + charon binaries pinned
+        # by hax (in its `pins.toml`) into ~/.cargo/bin. It is a thin wrapper
+        # around the script shipped in the hax source tree, so the aeneas/charon
+        # pins stay in lock-step with the `cargo hax` built above.
+        installAeneas = pkgs.writeShellScriptBin "install-aeneas" ''
+          exec ${inputs.hax-main}/install-aeneas.sh "$@"
         '';
-        aeneasWrapped = pkgs.symlinkJoin {
-          name = "aeneas-version-wrapped";
-          paths = [ aeneasPkg ];
-          postBuild = ''
-            rm -f $out/bin/aeneas
-            install -m555 ${aeneasVersionScript} $out/bin/aeneas
-          '';
-        };
       in
       {
         devShells.default = pkgs.mkShell (
@@ -157,39 +141,55 @@
           }
         );
 
-        # Toolchain for the SHA-3 Aeneas/Lean proof. Reproduces the
-        # "Reproduction" section of
-        # libcrux-iot/sha3/proofs/aeneas-lean/LibcruxIotSha3/README.md.
+        # Toolchain for the SHA-3 Lean proof. Reproduces the "Reproduction"
+        # section of
+        # libcrux-iot/sha3/proofs/lean/LibcruxIotSha3/README.md.
         #
-        #   nix develop .#aeneas-lean
+        #   nix develop .#lean
         #
         # Extraction (Rust -> Lean):
-        #   cd libcrux-iot/sha3 && ./hax_aeneas.py
+        #   cd libcrux-iot/sha3
+        #   install-aeneas          # once: fetch pinned aeneas + charon
+        #   ./hax_aeneas.py
         # Proving:
-        #   cd libcrux-iot/sha3/proofs/aeneas-lean
+        #   cd libcrux-iot/sha3/proofs/lean
         #   lake exe cache get && lake build
-        devShells.aeneas-lean = pkgs.mkShell {
+        devShells.lean = pkgs.mkShell {
           packages = [
-            # Extraction: `cargo hax into aeneas-lean` + Aeneas.
-            # Both are version-wrapped (see the `let` block) so the version
-            # checks in hax_aeneas.py pass against the flake-locked revs.
-            haxEvit # cargo-hax (+ bundled charon-driver)
-            aeneasWrapped # aeneas (+ bundled charon)
-            rustToolchain
+            # Extraction: `cargo hax into lean` drives charon + aeneas.
+            # cargo-hax is version-wrapped (see the `let` block) so the version
+            # check in hax_aeneas.py passes against the flake-locked rev; aeneas
+            # and charon are fetched as prebuilt binaries by `install-aeneas`.
+            haxMain # cargo-hax (with the lean backend)
+            installAeneas # fetches pinned aeneas + charon into ~/.cargo/bin
+            rustToolchain # `cargo` launcher for `cargo hax` + rust-src
+            # charon (the prebuilt binary fetched by `install-aeneas`) drives a
+            # pinned rustc via rustup: with rustup on PATH it auto-installs its
+            # baked toolchain (currently nightly-2026-06-01 + rustc-dev, ...)
+            # and runs charon-driver under it. Without rustup charon aborts.
+            pkgs.rustup
             pkgs.python3 # runs hax_aeneas.py
 
             # Proving: elan provisions the pinned Lean toolchain (from the
             # lean-toolchain file) and provides `lake`.
             pkgs.elan
 
-            # Common build deps for lake / native crates.
+            # Common build deps for lake / native crates, and for the
+            # `install-aeneas` download + extract step.
             pkgs.git
             pkgs.curl
+            pkgs.gnutar
+            pkgs.gzip
             pkgs.cmake
             pkgs.gmp
             pkgs.pkg-config
           ];
           RUST_SRC_PATH = "${rustToolchain.outPath}/lib/rustlib/src/rust/library";
+          # `install-aeneas` drops aeneas/charon in ~/.cargo/bin; make sure
+          # `cargo hax into lean` can find them on PATH.
+          shellHook = ''
+            export PATH="''${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+          '';
         };
       }
     );

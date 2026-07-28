@@ -6,8 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-HAX_VERSION = "ffdf432705d409b62ec025d253a340234b59766f"
-AENEAS_VERSION = "8d2077c"
+HAX_VERSION = "2fedcb2b196f5adea55975d0a023596ec6383ff2"
+AENEAS_VERSION = "52fd438"
 
 
 def check_version(cmd: list[str], name: str, expected: str) -> None:
@@ -24,8 +24,11 @@ def check_version(cmd: list[str], name: str, expected: str) -> None:
 check_version(["cargo", "hax", "--version"], "hax", HAX_VERSION)
 check_version(["aeneas", "-version"], "aeneas", AENEAS_VERSION)
 
+# The `aeneas-lean` backend was renamed to `lean` in mainline hax, and
+# `-core-models-lib` is now the default for it, so neither needs to be passed
+# explicitly anymore.
 result = subprocess.run(
-    ["cargo", "hax", "into", "aeneas-lean", '--aeneas-args="-core-models-lib"'],
+    ["cargo", "hax", "into", "lean"],
     env={**os.environ, "RUSTFLAGS": "--cfg hax_backend_lean"},
 )
 
@@ -38,16 +41,12 @@ if result.returncode != 0:
           f"continuing with post-processing (axiom remains inline).",
           file=sys.stderr)
 
-funs_lean = Path("proofs/aeneas-lean/LibcruxIotSha3/Extraction/Funs.lean")
+funs_lean = Path("proofs/lean/LibcruxIotSha3/Extraction/Funs.lean")
 content = funs_lean.read_text()
 
-content = re.sub(
-    r"(^import Aeneas\b)",
-    r"\1\nimport LibcruxIotSha3.Extraction.Missing",
-    content,
-    count=1,
-    flags=re.MULTILINE,
-)
+# The `lean` backend already imports `FunsExternal`/`Types` from the generated
+# Funs.lean, so (unlike the old `aeneas-lean` backend) there is no `import
+# Missing` line to inject here anymore.
 
 # Wrong signature of `core_models.fmt.rt.Argument.new_display`
 panic_block = (
