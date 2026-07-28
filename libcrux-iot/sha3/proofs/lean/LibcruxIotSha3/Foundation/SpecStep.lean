@@ -19,9 +19,16 @@ namespace libcrux_iot_sha3.Foundation
     derive the underlying Result equation `C = .ok X`. -/
 theorem holds_chain_eq_ok {α : Type} {C : Aeneas.Std.Result α} {X : α}
     (h : (do let r ← C; pure (r = X)).holds) : C = .ok X := by
-  cases C
-  all_goals simp_all [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp, PredTrans.apply, Functor.map,
-                      Std.Do.SPred.down_pure]
+  cases C with
+  | ok v =>
+    simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h
+    exact congrArg _ (h trivial)
+  | fail e =>
+    simp_all [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
+              Functor.map, Std.Do.SPred.down_pure]
+  | div =>
+    simp_all [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
+              Functor.map, Std.Do.SPred.down_pure]
 
 /-! ## Spec-side one-round step (theta + rho + pi + chi + iota)
 

@@ -191,6 +191,7 @@ theorem theta_closure_1_call_mut_spec
   all_goals (first | scalar_tac | (simp; scalar_tac)
                    | (congr 1; rw [h4_eq, h1_eq];
                       apply Std.U64.bv_eq_imp_eq;
+                      casesm* ∃ _, _;
                       simp_all [Std.UScalar.bv_xor, Std.UScalar.rotate_left]))
 
 /-- `f`-side of theta's third closure (25 final state values).
@@ -221,6 +222,7 @@ theorem theta_closure_2_call_mut_spec
   all_goals (first | scalar_tac | (simp; scalar_tac)
                    | (congr 1; rw [h25_eq, h5_eq];
                       apply Std.U64.bv_eq_imp_eq;
+                      casesm* ∃ _, _;
                       simp_all [Std.UScalar.bv_xor]))
 
 /-- `f`-side of `rho`'s closure (25 lane-rotations). -/
@@ -463,6 +465,7 @@ private theorem get_with_zeta_spec
     try intros
     apply hpost
     rw [h_eq]
+    casesm* ∃ _, _
     simp_all)
 
 /-- `CoreModels.core.num.U32.rotate_left` returns the bit-rotated value. (Local
