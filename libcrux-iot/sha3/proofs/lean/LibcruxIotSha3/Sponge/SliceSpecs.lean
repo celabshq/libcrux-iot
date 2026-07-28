@@ -52,7 +52,8 @@ theorem core_models_slice_Slice_len_spec {T : Type} (s : Slice T) :
     CoreModels.core.slice.Slice.len s
     ⦃ ⇓ r => ⌜ r.val = s.val.length ⌝ ⦄ := by
   unfold CoreModels.core.slice.Slice.len
-  simp [Triple, WP.wp, PredTrans.apply]
+  simp [Triple, WP.wp, PredTrans.apply, pure, Pure.pure, Aeneas.Std.Slice.len_val,
+        Aeneas.Std.Slice.length]
 
 /-! ### `Aeneas.Std.massert` -/
 
@@ -115,9 +116,13 @@ theorem core_models_num_U64_to_le_bytes_spec (x : Std.U64) :
     in bounds, returning the sub-`Slice` whose `val` is the contiguous
     slice `s.val[start..end]`. -/
 @[spec]
+-- AENEAS-SUBSLICE-STRICT: the range is `start < end` (strict) because the new
+-- CoreModels `Range` slice-index routes through aeneas `Slice.subslice`, which
+-- `fail`s on empty ranges (`start = end`). Relax back to `≤` once aeneas allows
+-- empty subslices. See also the mutable/array variants tagged the same way.
 theorem core_models_Slice_Insts_index_RangeUsize_spec
     {T : Type} (s : Slice T) (r : CoreModels.core.ops.range.Range Std.Usize)
-    (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length) :
+    (h0 : r.start.val < r.end.val) (h1 : r.end.val ≤ s.val.length) :
     ⦃ ⌜ True ⌝ ⦄
     CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
       (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s r
@@ -125,17 +130,12 @@ theorem core_models_Slice_Insts_index_RangeUsize_spec
                 r'.val.length = r.end.val - r.start.val ⌝ ⦄ := by
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
          CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-         core.slice.index.Slice.index
-         core.slice.index.SliceIndexRangeUsizeSlice.index
-  simp only []
-  have h0' : (⟨r.start, r.end⟩ : core.ops.range.Range Std.Usize).start
-              ≤ (⟨r.start, r.end⟩ : core.ops.range.Range Std.Usize).end := by
-    simpa [UScalar.le_equiv] using h0
-  have h1' : (⟨r.start, r.end⟩ : core.ops.range.Range Std.Usize).end.val ≤ (Slice.length s) := by
-    simpa [Slice.length] using h1
-  simp only [Triple, WP.wp, PredTrans.apply]
-  simp [h0', h1', Slice.length]
-  simp [List.slice, List.length_drop, List.length_take]
+         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
+         CoreModels.rust_primitives.slice.slice_slice
+         CoreModels.rust_primitives.slice.slice_length
+  simp only [Triple, WP.wp, PredTrans.apply, Aeneas.Std.Slice.subslice,
+             Aeneas.Std.Slice.len, Aeneas.Std.Slice.length]
+  simp [h0, h1, le_of_lt h0, List.slice, List.length_drop, List.length_take]
   omega
 
 /-! ### `CoreModels.core.result.Result.unwrap`
@@ -178,30 +178,35 @@ mutable sub-slice and a write-back closure. -/
     sub-slice (same `val` as the non-mut `index`) and a write-back
     closure that overwrites `s.val[r.start.val..]` with the argument's
     `val`. -/
+-- AENEAS-SUBSLICE-STRICT: the range is `start < end` (strict) AND the write-back
+-- is only `setSlice!` for a same-sized slice (`s'.length = end - start`), both
+-- because the CoreModels mutable `Range` index routes through aeneas
+-- `Slice.update_subslice`, which fails on empty ranges / mismatched lengths.
+-- Relax once aeneas allows empty subslices / an unconditional write-back.
 @[spec]
 theorem core_models_Slice_Insts_index_mut_RangeUsize_spec
     {T : Type} (s : Slice T) (r : CoreModels.core.ops.range.Range Std.Usize)
-    (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length) :
+    (h0 : r.start.val < r.end.val) (h1 : r.end.val ≤ s.val.length) :
     ⦃ ⌜ True ⌝ ⦄
     CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
       (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s r
     ⦃ ⇓ p => ⌜ p.1.val = s.val.slice r.start.val r.end.val ∧
                 p.1.val.length = r.end.val - r.start.val ∧
-                ∀ s', (p.2 s').val = s.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
+                ∀ s', s'.val.length = r.end.val - r.start.val →
+                      (p.2 s').val = s.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-         core.slice.index.Slice.index_mut
-         core.slice.index.SliceIndexRangeUsizeSlice.index_mut
-  simp only []
-  have h0' : (⟨r.start, r.end⟩ : core.ops.range.Range Std.Usize).start
-              ≤ (⟨r.start, r.end⟩ : core.ops.range.Range Std.Usize).end := by
-    simpa [UScalar.le_equiv] using h0
-  have h1' : (⟨r.start, r.end⟩ : core.ops.range.Range Std.Usize).end.val ≤ (Slice.length s) := by
-    simpa [Slice.length] using h1
+  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
+             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+             CoreModels.rust_primitives.slice.slice_slice, HaxToRange.toRange,
+             Aeneas.Std.Slice.subslice, Aeneas.Std.Slice.update_subslice, Aeneas.Std.Slice.length]
   simp only [Triple, WP.wp, PredTrans.apply]
-  simp [h0', h1', Slice.length]
-  simp [List.slice, List.length_drop, List.length_take]
-  omega
+  simp only [h0, h1, and_true, true_and, and_self, if_true, bind_tc_ok,
+             Std.Do.SPred.pure, Std.Do.SPred.entails]
+  intro _
+  refine ⟨?_, ?_⟩
+  · rw [List.slice_length]; omega
+  · intro s' hs'
+    simp only [hs', ↓reduceDIte]
 
 /-! ### `CoreModels.core.slice.Slice.copy_from_slice` -/
 
@@ -386,8 +391,8 @@ theorem core_models_array_try_from_slice_spec
                     (Std.Array.make N s.val (by simp [hlen])) ⌝ ⦄ := by
   -- Unfold try_from and reduce the `do` chain step-by-step.
   unfold CoreModels.core.Array.Insts.CoreConvertTryFromShared0SliceTryFromSliceError.try_from
-  -- `CoreModels.core.slice.Slice.len x` is `pure (Slice.len x)`, returns `.ok (Slice.len s)`.
-  unfold CoreModels.core.slice.Slice.len
+  -- `CoreModels.rust_primitives.slice.slice_length x` is `ok (Slice.len x)`.
+  unfold CoreModels.rust_primitives.slice.slice_length
   -- The if-decision: `Slice.len s = N` reduces to `s.val.length = N.val`.
   have hi_eq : (Std.Slice.len s) = N := by
     apply Std.UScalar.eq_of_val_eq
@@ -443,9 +448,10 @@ theorem index_usize_bang_spec {α : Type _} [Inhabited α] {n : Std.Usize}
   have h_idx : i.val < v.val.length := hbound
   have hbang : v.val[i.val]! = v.val[i.val]'h_idx := by
     rw [List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h_idx]; rfl
-  obtain ⟨x, hxok, hxval⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Std.Array.index_usize_spec v i hbound)
-  have hpost : x = v.val[i.val]! := by rw [hxval, hbang]
-  simp [Triple, WP.wp, PredTrans.apply, hxok, hpost]
+  have hidx : v.index_usize i = ok (v.val[i.val]'h_idx) := by
+    simp only [Std.Array.index_usize, Std.Array.getElem?_Usize_eq,
+               List.getElem?_eq_getElem h_idx]
+  rw [hidx]
+  simp [Triple, WP.wp, PredTrans.apply, hbang]
 
 end libcrux_iot_sha3.Sponge
