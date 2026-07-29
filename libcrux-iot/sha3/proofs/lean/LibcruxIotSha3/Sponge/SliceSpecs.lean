@@ -65,6 +65,27 @@ axiom Slice.update_subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
     ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.update_subslice s r ss = .ok ns ∧
       ns.val = s.val.setSlice! r.start.val ss.val
 
+/-! ### Bounded array `index_usize` / `update` (existential form).
+
+Aeneas's `Array.index_usize_spec` / `Array.update_spec` are now `partialSpec`s
+(no bound argument), so the old `spec_imp_exists (… v i h)` idiom no longer
+type-checks. These give the previous bounded `∃`-results directly. -/
+
+theorem Array.index_usize_exists {α : Type} [Inhabited α] {n : Aeneas.Std.Usize}
+    (v : Aeneas.Std.Array α n) (i : Aeneas.Std.Usize) (h : i.val < v.val.length) :
+    ∃ x, Aeneas.Std.Array.index_usize v i = .ok x ∧ x = v.val[i.val]'h :=
+  ⟨v.val[i.val]'h, by
+    simp only [Aeneas.Std.Array.index_usize, Aeneas.Std.Array.getElem?_Usize_eq,
+               List.getElem?_eq_getElem h], rfl⟩
+
+theorem Array.update_exists {α : Type} {n : Aeneas.Std.Usize}
+    (v : Aeneas.Std.Array α n) (i : Aeneas.Std.Usize) (x : α) (h : i.val < v.val.length) :
+    ∃ nv, Aeneas.Std.Array.update v i x = .ok nv ∧ nv = v.set i x := by
+  refine ⟨v.set i x, ?_, rfl⟩
+  simp only [Aeneas.Std.Array.update, Aeneas.Std.Array.getElem?_Usize_eq,
+             List.getElem?_eq_getElem h]
+  rfl
+
 /-! ### `CoreModels.core.slice.Slice.len` -/
 
 /-- The hax `CoreModels.core.slice.Slice.len` is a thin `pure`-wrapper around
