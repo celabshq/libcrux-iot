@@ -295,11 +295,10 @@ theorem xor_block_into_state_closure_call_mut_spec
         (Std.UScalar.add_bv_spec (x := i3) (y := (8#usize : Std.Usize)) h_i4_bnd)
     have h_i4_val : i4.val = 8 * k.val + 8 := by rw [h_i4_val_raw, h_i3_val]; rfl
     -- Slice index over Range<usize>.
-    -- strict `<` for the now-strict slice spec (AENEAS-SUBSLICE-STRICT).
-    have h_range_lt : i3.val < i4.val := by omega
+    have h_range_le : i3.val ≤ i4.val := by omega
     have h_range_in_blk : i4.val ≤ block.val.length := by rw [h_blk_len, h_i4_val]; omega
     have h_slice_triple := core_models_Slice_Insts_index_RangeUsize_spec
-      (T := Std.U8) block ⟨i3, i4⟩ h_range_lt h_range_in_blk
+      (T := Std.U8) block ⟨i3, i4⟩ h_range_le h_range_in_blk
     have h_slice_exists := triple_exists_ok_xbs h_slice_triple
     obtain ⟨s1, h_s1_eq, h_s1_val_eq, h_s1_len⟩ := h_slice_exists
     have h_s1_val_len : s1.val.length = (8#usize : Std.Usize).val := by

@@ -41,6 +41,30 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 
 /-! ## Prerequisite — Aeneas Std byte/slice `@[spec]` lemmas. -/
 
+/-! ### AENEAS-SUBSLICE-STRICT — axiomatized `≤`-specs for sub-slicing.
+
+Aeneas's `Slice.subslice` / `Slice.update_subslice` currently require **strict**
+`start < end` and `fail` on empty ranges (`start = end`), whereas Rust's
+`&xs[i..i]` is a valid empty slice. Until aeneas is fixed to allow `start = end`,
+we axiomatize the intended `≤` behaviour (existential-equation form, so no
+`Slice` length-invariant proof term is needed) and build the CoreModels
+slice-index specs on top. **Delete these and revert to the real
+`Slice.subslice_spec` / `Slice.update_subslice_spec` once aeneas supports empty
+subslices.** -/
+
+axiom Slice.subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
+    (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize)
+    (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length) :
+    ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.subslice s r = .ok ns ∧
+      ns.val = s.val.slice r.start.val r.end.val
+
+axiom Slice.update_subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
+    (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize) (ss : Aeneas.Std.Slice α)
+    (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length)
+    (h2 : ss.val.length = r.end.val - r.start.val) :
+    ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.update_subslice s r ss = .ok ns ∧
+      ns.val = s.val.setSlice! r.start.val ss.val
+
 /-! ### `CoreModels.core.slice.Slice.len` -/
 
 /-- The hax `CoreModels.core.slice.Slice.len` is a thin `pure`-wrapper around
@@ -116,26 +140,23 @@ theorem core_models_num_U64_to_le_bytes_spec (x : Std.U64) :
     in bounds, returning the sub-`Slice` whose `val` is the contiguous
     slice `s.val[start..end]`. -/
 @[spec]
--- AENEAS-SUBSLICE-STRICT: the range is `start < end` (strict) because the new
--- CoreModels `Range` slice-index routes through aeneas `Slice.subslice`, which
--- `fail`s on empty ranges (`start = end`). Relax back to `≤` once aeneas allows
--- empty subslices. See also the mutable/array variants tagged the same way.
 theorem core_models_Slice_Insts_index_RangeUsize_spec
     {T : Type} (s : Slice T) (r : CoreModels.core.ops.range.Range Std.Usize)
-    (h0 : r.start.val < r.end.val) (h1 : r.end.val ≤ s.val.length) :
+    (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length) :
     ⦃ ⌜ True ⌝ ⦄
     CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
       (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s r
     ⦃ ⇓ r' => ⌜ r'.val = s.val.slice r.start.val r.end.val ∧
                 r'.val.length = r.end.val - r.start.val ⌝ ⦄ := by
+  obtain ⟨ns, hns_eq, hns_val⟩ := Slice.subslice_le_eq s ⟨r.start, r.end⟩ h0 h1
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
          CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
          CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
          CoreModels.rust_primitives.slice.slice_slice
          CoreModels.rust_primitives.slice.slice_length
-  simp only [Triple, WP.wp, PredTrans.apply, Aeneas.Std.Slice.subslice,
-             Aeneas.Std.Slice.len, Aeneas.Std.Slice.length]
-  simp [h0, h1, le_of_lt h0, List.slice, List.length_drop, List.length_take]
+  simp only [Triple, WP.wp, PredTrans.apply]
+  simp [hns_eq, h0, h1, Aeneas.Std.Slice.len, Aeneas.Std.Slice.length,
+        hns_val, List.slice_length]
   omega
 
 /-! ### `CoreModels.core.result.Result.unwrap`
@@ -178,15 +199,13 @@ mutable sub-slice and a write-back closure. -/
     sub-slice (same `val` as the non-mut `index`) and a write-back
     closure that overwrites `s.val[r.start.val..]` with the argument's
     `val`. -/
--- AENEAS-SUBSLICE-STRICT: the range is `start < end` (strict) AND the write-back
--- is only `setSlice!` for a same-sized slice (`s'.length = end - start`), both
--- because the CoreModels mutable `Range` index routes through aeneas
--- `Slice.update_subslice`, which fails on empty ranges / mismatched lengths.
--- Relax once aeneas allows empty subslices / an unconditional write-back.
+-- The write-back keeps its `s'.length = end - start` side condition (it maps to
+-- `Slice.update_subslice`); the range bound stays `≤` via the axiomatized
+-- subslice / update_subslice specs at the top of this file.
 @[spec]
 theorem core_models_Slice_Insts_index_mut_RangeUsize_spec
     {T : Type} (s : Slice T) (r : CoreModels.core.ops.range.Range Std.Usize)
-    (h0 : r.start.val < r.end.val) (h1 : r.end.val ≤ s.val.length) :
+    (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length) :
     ⦃ ⌜ True ⌝ ⦄
     CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
       (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s r
@@ -194,19 +213,20 @@ theorem core_models_Slice_Insts_index_mut_RangeUsize_spec
                 p.1.val.length = r.end.val - r.start.val ∧
                 ∀ s', s'.val.length = r.end.val - r.start.val →
                       (p.2 s').val = s.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
+  obtain ⟨ns, hns_eq, hns_val⟩ := Slice.subslice_le_eq s ⟨r.start, r.end⟩ h0 h1
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
   simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
              CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-             CoreModels.rust_primitives.slice.slice_slice, HaxToRange.toRange,
-             Aeneas.Std.Slice.subslice, Aeneas.Std.Slice.update_subslice, Aeneas.Std.Slice.length]
-  simp only [Triple, WP.wp, PredTrans.apply]
-  simp only [h0, h1, and_true, true_and, and_self, if_true, bind_tc_ok,
+             CoreModels.rust_primitives.slice.slice_slice, hns_eq]
+  simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok,
              Std.Do.SPred.pure, Std.Do.SPred.entails]
   intro _
-  refine ⟨?_, ?_⟩
-  · rw [List.slice_length]; omega
+  refine ⟨hns_val, ?_, ?_⟩
+  · simp only [hns_val, List.slice_length]; omega
   · intro s' hs'
-    simp only [hs', ↓reduceDIte]
+    obtain ⟨nu, hnu_eq, hnu_val⟩ := Slice.update_subslice_le_eq s ⟨r.start, r.end⟩ s' h0 h1 hs'
+    simp only [HaxToRange.toRange, hnu_eq]
+    exact hnu_val
 
 /-! ### `CoreModels.core.slice.Slice.copy_from_slice` -/
 

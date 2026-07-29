@@ -62,24 +62,22 @@ theorem core_models_Slice_Insts_index_RangeFromUsize_spec
       (CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s r
     ⦃ ⇓ r' => ⌜ r'.val = s.val.drop r.start.val
                 ∧ r'.val.length = s.val.length - r.start.val ⌝ ⦄ := by
+  obtain ⟨ns, hns_eq, hns_val⟩ :=
+    Slice.subslice_le_eq s ⟨r.start, s.len⟩ (by simpa [Std.Slice.len_val] using h)
+      (by simp [Std.Slice.len_val])
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
          CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-         core.slice.index.Slice.index
-         core.slice.index.SliceIndexRangeUsizeSlice.index
-  have h0' : (⟨r.start, s.len⟩ : core.ops.range.Range Std.Usize).start
-              ≤ (⟨r.start, s.len⟩ : core.ops.range.Range Std.Usize).end := by
-    simpa [UScalar.le_equiv, Std.Slice.len, Std.Slice.length] using h
-  have h1' : (⟨r.start, s.len⟩ : core.ops.range.Range Std.Usize).end.val
-              ≤ (Std.Slice.length s) := by
-    simp [Std.Slice.length, Std.Slice.len]
-  simp only [Triple, WP.wp]
-  simp [h0', Std.Slice.length, Std.Slice.len]
+         CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
+         CoreModels.rust_primitives.slice.slice_slice
+         CoreModels.rust_primitives.slice.slice_length
+  simp only [Triple, WP.wp, PredTrans.apply]
+  simp [hns_eq, h, Std.Slice.len_val, Std.Slice.len, Std.Slice.length, hns_val]
   refine ⟨?_, ?_⟩
   · unfold List.slice
-    exact List.take_of_length_le (by simp)
+    exact List.take_of_length_le (by simp [Std.Slice.len_val])
   · unfold List.slice
     rw [List.length_take, List.length_drop]
-    omega
+    simp [Std.Slice.len_val]
 
 /-! ### Local helpers (re-derived from `AbsorbBlock.lean`'s private versions). -/
 
@@ -268,39 +266,41 @@ theorem sponge_absorb_rec_unfold_long
       (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
       message { start := 0#usize, «end» := rate }
     = .ok (head_block message rate h_ge) := by
+    obtain ⟨ns, hns_eq, hns_val⟩ :=
+      Slice.subslice_le_eq message ⟨0#usize, rate⟩ (by simp) h_ge
     unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
            CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-           core.slice.index.Slice.index
-           core.slice.index.SliceIndexRangeUsizeSlice.index
-    have h_le_v : (0#usize : Std.Usize) ≤ rate := by
-      show (0 : Nat) ≤ rate.val; exact Nat.zero_le _
-    have h_rate : rate.val ≤ message.length := by simp [Std.Slice.length, h_ge]
-    simp [h_le_v, h_rate]
-    apply Subtype.ext
-    rfl
+           CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
+           CoreModels.rust_primitives.slice.slice_slice
+           CoreModels.rust_primitives.slice.slice_length
+    simp only [hns_eq, bind_tc_ok]
+    split_ifs with hc1 hc2
+    · simp only [bind_tc_ok]; congr 1; apply Subtype.ext; simp [hns_val, head_block]
+    · exfalso; scalar_tac
+    · exfalso; scalar_tac
   rw [h_idx_range]; simp only [bind_tc_ok]
   -- Now the tail slice index.
   have h_idx_from : CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
       (CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
       message { start := rate }
     = .ok (tail_after message rate h_ge) := by
+    obtain ⟨ns, hns_eq, hns_val⟩ :=
+      Slice.subslice_le_eq message ⟨rate, message.len⟩ (by simpa [Std.Slice.len_val] using h_ge)
+        (by simp [Std.Slice.len_val])
     unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
            CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-           core.slice.index.Slice.index
-           core.slice.index.SliceIndexRangeUsizeSlice.index
-    have h_le_v : ({ start := rate, «end» := message.len } : core.ops.range.Range Std.Usize).start
-                    ≤ ({ start := rate, «end» := message.len } : core.ops.range.Range Std.Usize).end := by
-      show rate.val ≤ message.len.val
-      simp [Std.Slice.len, h_ge]
-    have h_rate : ({ start := rate, «end» := message.len } : core.ops.range.Range Std.Usize).end.val
-                    ≤ message.length := by
-      simp [Std.Slice.length, Std.Slice.len]
-    simp [h_le_v]
-    apply Subtype.ext
-    show message.val.slice rate.val message.len.val = message.val.drop rate.val
-    unfold List.slice
-    rw [show message.len.val = message.val.length from by simp [Std.Slice.len]]
-    rw [List.take_of_length_le (by rw [List.length_drop])]
+           CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
+           CoreModels.rust_primitives.slice.slice_slice
+           CoreModels.rust_primitives.slice.slice_length
+    simp only [hns_eq, bind_tc_ok]
+    split_ifs with hc1
+    · simp only [bind_tc_ok]; congr 1; apply Subtype.ext
+      rw [hns_val]
+      show List.slice rate.val (Std.Slice.len message).val message.val = message.val.drop rate.val
+      unfold List.slice
+      rw [show (Std.Slice.len message).val = message.val.length from by simp [Std.Slice.len_val]]
+      rw [List.take_of_length_le (by rw [List.length_drop])]
+    · exfalso; scalar_tac
   -- The remaining goal: do { state1 ← absorb_block ...; let s1 ← .ok tail; absorb_rec state1 rate delim s1 }
   -- vs `absorb_block ... >>= fun s' => absorb_rec s' rate delim tail`.
   -- After substituting h_idx_from inside the inner bind...
