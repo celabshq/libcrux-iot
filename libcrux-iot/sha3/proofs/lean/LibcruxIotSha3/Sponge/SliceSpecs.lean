@@ -65,6 +65,13 @@ axiom Slice.update_subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
     ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.update_subslice s r ss = .ok ns ∧
       ns.val = s.val.setSlice! r.start.val ss.val
 
+axiom Array.update_subslice_le_eq {α : Type} {n : Aeneas.Std.Usize} (a : Aeneas.Std.Array α n)
+    (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize) (ss : Aeneas.Std.Slice α)
+    (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ a.val.length)
+    (h2 : ss.val.length = r.end.val - r.start.val) :
+    ∃ na : Aeneas.Std.Array α n, Aeneas.Std.Array.update_subslice a r ss = .ok na ∧
+      na.val = a.val.setSlice! r.start.val ss.val
+
 /-! ### Bounded array `index_usize` / `update` (existential form).
 
 Aeneas's `Array.index_usize_spec` / `Array.update_spec` are now `partialSpec`s

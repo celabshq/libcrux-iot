@@ -76,49 +76,31 @@ theorem core_models_Array_Insts_index_mut_RangeUsize_spec
                 p.1.val.length = r.end.val - r.start.val ∧
                 ∀ s' : Slice T, s'.val.length = r.end.val - r.start.val →
                   (p.2 s').val = arr.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
+  -- The new `Array.Insts.CoreOpsIndexIndexMut.index_mut` reads via `subslice`
+  -- (on `to_slice arr`) and writes back via `Array.update_subslice arr`, so use
+  -- the ≤-axioms directly (see SliceSpecs) rather than the old
+  -- `to_slice_mut + Slice.index_mut` routing.
   unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-  have h_to_slice_mut : Std.Array.to_slice_mut arr
-      = (Std.Array.to_slice arr, Std.Array.from_slice arr) := rfl
-  have h_val_to_slice : (Std.Array.to_slice arr).val = arr.val := Std.Array.val_to_slice arr
   have h_len_to_slice : (Std.Array.to_slice arr).val.length = N.val := by
-    rw [h_val_to_slice]; exact arr.property
+    rw [Std.Array.val_to_slice]; exact arr.property
   have h1' : r.end.val ≤ (Std.Array.to_slice arr).val.length := by rw [h_len_to_slice]; exact h1
-  have h_slice :=
-    core_models_Slice_Insts_index_mut_RangeUsize_spec (Std.Array.to_slice arr) r h0 h1'
-  obtain ⟨p_slice, hp_eq, hp_val, hp_len, hp_back⟩ := triple_exists_ok_af h_slice
-  have h_slice_eq_core :
-      (core.slice.index.Slice.index_mut
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T)
-        (Std.Array.to_slice arr) r) = .ok p_slice := by
-    have := hp_eq
-    unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut at this
-    exact this
-  set out_val := p_slice.1
-  set to_slice_back := p_slice.2
-  refine triple_of_ok_af (v := (out_val, fun o => Std.Array.from_slice arr (to_slice_back o))) ?_ ?_
-  · show (do
-      let (s, to_arr) := Std.Array.to_slice_mut arr
-      let (out, ts) ← core.slice.index.Slice.index_mut
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T)
-        s r
-      ok (out, fun o => to_arr (ts o))) = .ok _
-    rw [h_to_slice_mut]
-    simp only
-    rw [h_slice_eq_core]; simp only [bind_tc_ok]
-    rfl
-  · refine ⟨?_, ?_, ?_⟩
-    · show p_slice.1.val = arr.val.slice r.start.val r.end.val
-      rw [hp_val, h_val_to_slice]
-    · show p_slice.1.val.length = r.end.val - r.start.val
-      exact hp_len
-    · intro s' h_s'_len
-      show (Std.Array.from_slice arr (to_slice_back s')).val = arr.val.setSlice! r.start.val s'.val
-      have h_back_len : (to_slice_back s').val.length = N.val := by
-        rw [hp_back s']
-        rw [List.length_setSlice!]; exact h_len_to_slice
-      rw [Std.Array.from_slice_val _ _ h_back_len]
-      rw [hp_back s']
-      rw [h_val_to_slice]
+  obtain ⟨ns, hns_eq, hns_val⟩ :=
+    Slice.subslice_le_eq (Std.Array.to_slice arr) ⟨r.start, r.end⟩ h0 h1'
+  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
+             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+             CoreModels.rust_primitives.slice.slice_slice, hns_eq]
+  simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok,
+             Std.Do.SPred.pure, Std.Do.SPred.entails]
+  intro _
+  refine ⟨?_, ?_, ?_⟩
+  · rw [hns_val, Std.Array.val_to_slice]
+  · rw [hns_val, Std.Array.val_to_slice]; simp only [List.slice_length]
+    have := arr.property; omega
+  · intro s' hs'
+    obtain ⟨na, hna_eq, hna_val⟩ :=
+      Array.update_subslice_le_eq arr ⟨r.start, r.end⟩ s' h0 (Std.Array.val_to_slice arr ▸ h1') hs'
+    simp only [HaxToRange.toRange, hna_eq]
+    exact hna_val
 
 /-! ### `padded_buf` — the shared 4-step buffer value.
 
@@ -233,18 +215,17 @@ theorem keccak.absorb_final_spec
     have : buf1.val.length = 200 := h_buf1_val_len
     omega
   obtain ⟨buf2, h_buf2_eq, h_buf2_set⟩ :=
-    Std.WP.spec_imp_exists (Std.Array.update_spec buf1 len DELIM h_len_lt_buf1)
+    Array.update_exists buf1 len DELIM h_len_lt_buf1
   -- index_usize buf2 i_r1 = .ok delim_byte.
   have h_i_r1_lt_buf2 : i_r1.val < buf2.val.length := by
     have hlen : buf2.val.length = (200#usize : Std.Usize).val := buf2.property
     show i_r1.val < buf2.val.length
     rw [hlen]; show i_r1.val < 200; omega
   obtain ⟨delim_byte, h_idx_eq, h_idx_val⟩ :=
-    Std.WP.spec_imp_exists (Std.Array.index_usize_spec buf2 i_r1 h_i_r1_lt_buf2)
+    Array.index_usize_exists buf2 i_r1 h_i_r1_lt_buf2
   -- update buf2 i_r1 (delim_byte ||| 0x80) = .ok buf3.
   obtain ⟨buf3, h_buf3_eq, h_buf3_set⟩ :=
-    Std.WP.spec_imp_exists
-      (Std.Array.update_spec buf2 i_r1 (delim_byte ||| 128#u8) h_i_r1_lt_buf2)
+    Array.update_exists buf2 i_r1 (delim_byte ||| 128#u8) h_i_r1_lt_buf2
   -- absorb_block_spec on (to_slice buf3, 0).
   have h_blk : (0#usize : Std.Usize).val + RATE.val ≤ (Std.Array.to_slice buf3).val.length := by
     have hlen : (Std.Array.to_slice buf3).val.length = 200 := by
@@ -520,14 +501,8 @@ theorem keccak.absorb_final_spec
         = .ok (block_of_blocks (Std.Array.to_slice buf3) 0#usize RATE h_blk) := by
     -- Unfold Array index → slice index over to_slice.
     unfold CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
-    -- The body is `core.slice.index.Slice.index inst (to_slice buf3) r`.
-    -- This is the same as `CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index`
-    -- after the wrapper is collapsed.
-    have h_wrap_eq :
-        CoreModels.core.Slice.Insts.CoreOpsIndexIndex
-          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-        = CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8 := rfl
-    rw [h_wrap_eq]
+    -- Array index routes through `as_slice` to the slice non-mut index, which
+    -- the (now-`≤`) slice spec discharges via the subslice axiom.
     have h0' : ((0#usize : Std.Usize).val) ≤ RATE.val := by show 0 ≤ RATE.val; omega
     have h1' : RATE.val ≤ (Std.Array.to_slice buf3).val.length := by
       have hlen : (Std.Array.to_slice buf3).val.length = 200 := by
@@ -537,14 +512,9 @@ theorem keccak.absorb_final_spec
       triple_exists_ok_af
         (core_models_Slice_Insts_index_RangeUsize_spec
           (Std.Array.to_slice buf3) { start := 0#usize, «end» := RATE } h0' h1')
-    have h_slice_eq :
-        core.slice.index.Slice.index
-          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-          (Std.Array.to_slice buf3) { start := 0#usize, «end» := RATE } = .ok q := by
-      have := hq_eq
-      unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index at this
-      exact this
-    rw [h_slice_eq]
+    simp only [CoreModels.core.array.Array.as_slice,
+               CoreModels.rust_primitives.slice.array_as_slice,
+               CoreModels.core.Slice.Insts.CoreOpsIndexIndex, bind_tc_ok, hq_eq]
     apply congrArg
     apply Subtype.ext
     show q.val = (block_of_blocks (Std.Array.to_slice buf3) 0#usize RATE h_blk).val
