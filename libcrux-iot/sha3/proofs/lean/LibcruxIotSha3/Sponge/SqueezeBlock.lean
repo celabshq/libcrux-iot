@@ -239,34 +239,23 @@ theorem core_models_Array_Insts_index_RangeUsize_spec
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ N.val) :
     ⦃ ⌜ True ⌝ ⦄
     CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
-      (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) arr r
+      (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T)) arr r
     ⦃ ⇓ r' => ⌜ r'.val = arr.val.slice r.start.val r.end.val ∧
                 r'.val.length = r.end.val - r.start.val ⌝ ⦄ := by
-  -- Reduce to the slice version via `Array.to_slice`.
+  -- Array index routes through `array_as_slice` to the (now-`≤`) slice spec.
   unfold CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
-  -- Body: `core.slice.index.Slice.index inst (Array.to_slice arr) i`.
   have h1' : r.end.val ≤ (Std.Array.to_slice arr).val.length := by
-    rw [Std.Array.val_to_slice]
-    have : arr.val.length = N.val := arr.property
-    omega
-  have h_slice_val : (Std.Array.to_slice arr).val = arr.val :=
-    Std.Array.val_to_slice arr
-  -- Use the existing slice spec.
-  have h_slice :=
-    core_models_Slice_Insts_index_RangeUsize_spec (Std.Array.to_slice arr) r h0 h1'
-  -- The slice version uses `CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index`,
-  -- which unfolds to the same `core.slice.index.Slice.index` we need here.
-  -- Convert the slice spec's post (in terms of `arr.to_slice.val`) into one
-  -- in terms of `arr.val`.
-  obtain ⟨v, hv_eq, hv_val, hv_len⟩ := triple_exists_ok_sb h_slice
+    rw [Std.Array.val_to_slice]; have : arr.val.length = N.val := arr.property; omega
+  have h_slice_val : (Std.Array.to_slice arr).val = arr.val := Std.Array.val_to_slice arr
+  obtain ⟨v, hv_eq, hv_val, hv_len⟩ :=
+    triple_exists_ok_sb
+      (core_models_Slice_Insts_index_RangeUsize_spec (Std.Array.to_slice arr) r h0 h1')
   refine triple_of_ok_sb (v := v) ?_ ?_
-  · -- Equality: `core.slice.index.Slice.index inst (Array.to_slice arr) r = .ok v`.
-    have := hv_eq
-    unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index at this
-    exact this
-  · refine ⟨?_, ?_⟩
-    · rw [hv_val, h_slice_val]
-    · rw [hv_len]
+  · simp only [CoreModels.core.array.Array.as_slice,
+               CoreModels.rust_primitives.slice.array_as_slice,
+               CoreModels.core.Slice.Insts.CoreOpsIndexIndex, bind_tc_ok, hv_eq]
+  · exact ⟨by rw [hv_val, h_slice_val], hv_len⟩
 
 /-! ### Triple 3: `keccak.squeeze_last`. -/
 
@@ -355,14 +344,8 @@ theorem keccak.squeeze_last_spec
       apply Std.UScalar.eq_of_val_eq
       simp [Std.Slice.len, h_s2_len']
     simp [h_len_eq]
-  -- Wrapper-identity: `Slice.Insts.CoreOpsIndexIndex inst = inst`.
-  have h_wrap_eq :
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndex
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-      = CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8 := by
-    unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex
-    rfl
-  -- Step 6: assemble impl-side equality.
+  -- Step 6: assemble impl-side equality. (The wrapped Array index spec already
+  -- matches the extracted `Array…index (Slice.Insts.CoreOpsIndexIndex …)` call.)
   have h_impl_eq :
       keccak.squeeze_last RATE s out = .ok s2 := by
     unfold keccak.squeeze_last
@@ -370,7 +353,6 @@ theorem keccak.squeeze_last_spec
     rw [h_classify]; simp only [bind_tc_ok]
     rw [h_b1_eq]; simp only [bind_tc_ok]
     rw [h_len]; simp only [bind_tc_ok]
-    rw [h_wrap_eq]
     rw [h_s2_eq]; simp only [bind_tc_ok]
     exact h_copy
   -- Step 7: build the per-byte post.
@@ -451,14 +433,8 @@ theorem keccak.squeeze_first_and_last_spec
       apply Std.UScalar.eq_of_val_eq
       simp [Std.Slice.len, h_s2_len']
     simp [h_len_eq]
-  -- Wrapper-identity: `Slice.Insts.CoreOpsIndexIndex inst = inst`.
-  have h_wrap_eq :
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndex
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-      = CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8 := by
-    unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex
-    rfl
-  -- Step 5: assemble impl-side equality.
+  -- Step 5: assemble impl-side equality. (The wrapped Array index spec already
+  -- matches the extracted `Array…index (Slice.Insts.CoreOpsIndexIndex …)` call.)
   have h_impl_eq :
       keccak.squeeze_first_and_last RATE s out = .ok s2 := by
     unfold keccak.squeeze_first_and_last
@@ -476,7 +452,6 @@ theorem keccak.squeeze_first_and_last_spec
     rw [h_classify]; simp only [bind_tc_ok]
     rw [h_b1_eq]; simp only [bind_tc_ok]
     rw [h_len]; simp only [bind_tc_ok]
-    rw [h_wrap_eq]
     rw [h_s2_eq]; simp only [bind_tc_ok]
     exact h_copy
   -- Step 6: build the per-byte post.
