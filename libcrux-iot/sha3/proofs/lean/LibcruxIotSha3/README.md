@@ -52,17 +52,37 @@ The incremental API is not part of this verification.
 
 ### Axiom hygiene
 
-All of the top-level theorems report only standard Lean axioms (`propext`,
-`Classical.choice`, `Quot.sound`) plus `bv_decide`.
+Each of the six top-level digest specs currently reports 47 axioms, in three
+groups:
 
-This is enforced on every build by [`AxiomCheck.lean`](AxiomCheck.lean): it
-runs an `#assert_no_sorry` command on each of the six digest specs that fails
-the build if any of them comes to depend on `sorryAx` (an admitted `sorry`
-anywhere in the proof tree, including the hand-written Aeneas stdlib models).
-It checks only the soundness-critical `sorry` property, not the full axiom set
-(which contains hygienically-named `bv_decide` axioms that are not stable
-enough to pin exactly). To inspect the axioms of any declaration manually, use
-`#print axioms <name>`.
+- **Standard Lean (3):** `propext`, `Classical.choice`, `Quot.sound` — the
+  usual classical-logic foundation shared by all Mathlib-based proofs.
+- **`bv_decide` certificates (41):** hygienically-named `…._native.bv_decide.ax_*`
+  axioms, one per `bv_decide` invocation (the θ/χ/ι bit-op lemmas, the 25 ρ
+  rotation constants, and the interleave/deinterleave lane-encoding facts). Each
+  is backed by an externally-checked LRAT proof, so it is sound in the same
+  sense as a verified SAT result.
+- **Sub-slice `≤`-specs (3):** `Slice.subslice_le_eq`,
+  `Slice.update_subslice_le_eq`, `Array.update_subslice_le_eq`, declared in
+  [`Sponge/SliceSpecs.lean`](Sponge/SliceSpecs.lean). These are the **only
+  hand-introduced, domain-specific assumptions.** Aeneas's `Slice.subslice` /
+  `update_subslice` currently require a *strict* `start < end` and `fail` on an
+  empty range (`start = end`), whereas Rust's `&xs[i..i]` is a valid empty
+  slice that the extracted code produces. Until Aeneas allows empty subslices,
+  we axiomatize the intended `≤` behaviour (in existential-equation form) about
+  the raw Aeneas primitives and prove the CoreModels slice-index specs on top,
+  so the assumption stays confined to one place. They are all fenced with an
+  `AENEAS-SUBSLICE-STRICT` comment and are to be **deleted in favour of the real
+  `Slice.subslice_spec` / `update_subslice_spec` once Aeneas is fixed.**
+
+Absence of `sorry` is enforced on every build by
+[`AxiomCheck.lean`](AxiomCheck.lean): it runs an `#assert_no_sorry` command on
+each of the six digest specs that fails the build if any of them comes to
+depend on `sorryAx` (an admitted `sorry` anywhere in the proof tree, including
+the hand-written Aeneas stdlib models). It checks only the soundness-critical
+`sorry` property, not the full axiom set (whose `bv_decide` axioms have
+hygienic names that are not stable enough to pin exactly). To inspect the
+axioms of any declaration manually, use `#print axioms <name>`.
 
 
 ## Proof architecture
@@ -179,7 +199,7 @@ the corresponding `specs/sha3/hax_aeneas.py` in the
 [`cryspen/libcrux`](https://github.com/cryspen/libcrux) repo. Internally, these scripts
 call `cargo hax into lean` and apply small fixes to the output.
 The resulting Lean files are:
-* `specs/sha3/proofs/aeneas-lean/HacspecSha3/Extraction/Funs.lean` (in `cryspen/libcrux`)
+* `specs/sha3/proofs/lean/HacspecSha3/Extraction/Funs.lean` (in `cryspen/libcrux`)
 * [`libcrux-iot/sha3/proofs/lean/LibcruxIotSha3/Extraction/Funs.lean`](Extraction/Funs.lean)
 
 ## Reproduction
