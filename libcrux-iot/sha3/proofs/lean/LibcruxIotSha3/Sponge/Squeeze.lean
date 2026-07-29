@@ -190,22 +190,29 @@ theorem core_models_Slice_Insts_index_mut_RangeFromUsize_spec
       (CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s r
     ⦃ ⇓ p => ⌜ p.1.val = s.val.drop r.start.val ∧
                 p.1.val.length = s.val.length - r.start.val ∧
-                ∀ s', (p.2 s').val = s.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
+                ∀ s', s'.val.length = s.val.length - r.start.val →
+                  (p.2 s').val = s.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
+  obtain ⟨ns, hns_eq, hns_val⟩ :=
+    Slice.subslice_le_eq s ⟨r.start, s.len⟩ (by simpa [Std.Slice.len_val] using h)
+      (by simp [Std.Slice.len_val])
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-         CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-         core.slice.index.Slice.index_mut
-         core.slice.index.SliceIndexRangeUsizeSlice.index_mut
-  have h0' : (⟨r.start, s.len⟩ : core.ops.range.Range Std.Usize).start
-              ≤ (⟨r.start, s.len⟩ : core.ops.range.Range Std.Usize).end := by
-    simpa [UScalar.le_equiv, Std.Slice.len, Std.Slice.length] using h
-  simp only [Triple, WP.wp]
-  simp [h0', Std.Slice.length, Std.Slice.len]
-  refine ⟨?_, ?_⟩
-  · unfold List.slice
-    exact List.take_of_length_le (by simp)
-  · unfold List.slice
-    rw [List.length_take, List.length_drop]
-    exact ⟨by omega, fun s' => rfl⟩
+  simp only [CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
+             CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+             CoreModels.rust_primitives.slice.slice_slice,
+             CoreModels.rust_primitives.slice.slice_length, bind_tc_ok, hns_eq]
+  simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok, hns_eq,
+             Std.Do.SPred.pure, Std.Do.SPred.entails]
+  intro _
+  have hns_drop : (↑ns : List T) = (↑s : List T).drop r.start.val := by
+    rw [hns_val]; unfold List.slice; exact List.take_of_length_le (by simp [Std.Slice.len_val])
+  refine ⟨hns_drop, ?_, ?_⟩
+  · rw [hns_drop, List.length_drop]
+  · intro s' hs'
+    obtain ⟨nu, hnu_eq, hnu_val⟩ :=
+      Slice.update_subslice_le_eq s ⟨r.start, s.len⟩ s' (by simpa [Std.Slice.len_val] using h)
+        (by simp [Std.Slice.len_val]) (by rw [hs']; simp [Std.Slice.len_val])
+    simp only [HaxToRange.toRange, hnu_eq]
+    exact hnu_val
 
 /-! ### Theorem 3: `keccak.keccak_loop1_invariant`.
 
@@ -389,7 +396,7 @@ theorem keccak.keccak_loop1_invariant
         rw [h_snb_lift]
       refine ⟨?_, h_snb_i, ?_, ?_, ?_, ?_⟩
       · -- Length: `(back snb_out).val.length = out.val.length`.
-        rw [h_back]
+        rw [h_back r_1.2 (h_snb_len.trans h_idx_len)]
         rw [List.length_setSlice!]
         exact h_acc_len
       · -- offset_new.val = offset.val + (iter1.start.val - 1) * RATE.val.
@@ -412,7 +419,7 @@ theorem keccak.keccak_loop1_invariant
         have h_kp1m1 : (k.val + 1) - 1 = k.val := by omega
         rw [h_kp1m1] at hj
         -- hj : j < k.val * RATE.val. Split on j < (k.val - 1) * RATE.val.
-        rw [h_back]
+        rw [h_back r_1.2 (h_snb_len.trans h_idx_len)]
         by_cases h_j_old : j < (k.val - 1) * RATE.val
         · -- Preserved from previous invariant: j is in the prefix.
           obtain ⟨s_bj, h_fold_bj, h_byte_bj⟩ := h_acc_bytes j h_j_old
@@ -510,7 +517,7 @@ theorem keccak.keccak_loop1_invariant
       · -- Prefix preservation: for j < offset.val, out_acc.val[j]! is unchanged
         -- by the setSlice! at offset_acc.val ≥ offset.val.
         intro j hj
-        rw [h_back]
+        rw [h_back r_1.2 (h_snb_len.trans h_idx_len)]
         have hk_ge_1 : 1 ≤ k.val := h_ge
         have h_off_ge_offset : offset.val ≤ offset_acc.val := by
           rw [h_acc_offset]; omega
@@ -620,7 +627,7 @@ private theorem squeeze_closure_call_eq
   have h_i2_lt_sb' : i2.val < s_b.length := by
     show i2.val < s_b.val.length; exact h_i2_lt_sb
   obtain ⟨i4, h_i4_eq, h_i4_val_eq⟩ :=
-    Std.WP.spec_imp_exists (Std.Array.index_usize_spec s_b i2 h_i2_lt_sb')
+    Array.index_usize_exists s_b i2 h_i2_lt_sb'
   -- Step 8: a1 = U64.to_le_bytes i4
   have h_a1_eq :
       CoreModels.core.num.U64.to_le_bytes i4
@@ -640,7 +647,7 @@ private theorem squeeze_closure_call_eq
     have h_len : a1.val.length = 8 := a1.property
     rw [h_len]; exact h_i5_lt
   obtain ⟨v_final, h_v_final_eq, h_v_final_val⟩ :=
-    Std.WP.spec_imp_exists (Std.Array.index_usize_spec a1 i5 h_i5_lt_a1)
+    Array.index_usize_exists a1 i5 h_i5_lt_a1
   -- Compute v_final's actual byte value.
   set u : Std.U64 := s_b.val[i2.val]! with hu_def
   have h_i4_eq_u : i4 = u := by
