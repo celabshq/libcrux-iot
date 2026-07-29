@@ -63,8 +63,10 @@ fn sample_from_uniform_distribution_next<Vector: Operations, const K: usize, con
 ) -> bool {
     // Would be great to trigger auto-vectorization or at least loop unrolling here
     for i in 0..K {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|_: usize| sampled_coefficients.len() == K && out.len() == K);
         for r in 0..N / 24 {
+            #[cfg(hax)]
             hax_lib::loop_invariant!(|_: usize| sampled_coefficients.len() == K && out.len() == K);
             if sampled_coefficients[i] < COEFFICIENTS_IN_RING_ELEMENT {
                 #[cfg(eurydice)]
@@ -94,6 +96,7 @@ fn sample_from_uniform_distribution_next<Vector: Operations, const K: usize, con
     }
     let mut done = true;
     for i in 0..K {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|_: usize| sampled_coefficients.len() == K);
         if sampled_coefficients[i] >= COEFFICIENTS_IN_RING_ELEMENT {
             sampled_coefficients[i] = COEFFICIENTS_IN_RING_ELEMENT;
@@ -132,6 +135,7 @@ pub(super) fn sample_from_xof<const K: usize, Vector: Operations, Hasher: Hash>(
     // To avoid failing here, we squeeze more blocks out of the state until
     // we have enough.
     while !done {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|_: usize| randomness_blocksize.len() == K
             && sampled_coefficients.len() == K
             && out.len() == K);

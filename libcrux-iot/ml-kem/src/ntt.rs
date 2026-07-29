@@ -12,6 +12,7 @@ pub(crate) fn ntt_at_layer_1<Vector: Operations>(
     _initial_coefficient_bound: usize, // This can be used for specifying the range of values allowed in re
 ) {
     for round in 0..16 {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| *zeta_i == 63 + i * 4);
         *zeta_i += 1;
         Vector::ntt_layer_1_step(
@@ -33,6 +34,7 @@ pub(crate) fn ntt_at_layer_2<Vector: Operations>(
     _initial_coefficient_bound: usize, // This can be used for specifying the range of values allowed in re
 ) {
     for round in 0..16 {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| *zeta_i == 31 + i * 2);
         *zeta_i += 1;
         Vector::ntt_layer_2_step(
@@ -52,6 +54,7 @@ pub(crate) fn ntt_at_layer_3<Vector: Operations>(
     _initial_coefficient_bound: usize, // This can be used for specifying the range of values allowed in re
 ) {
     for round in 0..16 {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| *zeta_i == 15 + i);
         *zeta_i += 1;
         Vector::ntt_layer_3_step(&mut re.coefficients[round], zeta(*zeta_i));
@@ -89,12 +92,14 @@ pub(crate) fn ntt_at_layer_4_plus<Vector: Operations>(
     let step_vec = step / 16; //FIELD_ELEMENTS_IN_VECTOR;
 
     for round in 0..(128 >> layer) {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|round: usize| *zeta_i == (1 << (7 - layer)) - 1 + round);
         *zeta_i += 1;
 
         let a_offset = round * 2 * step_vec;
         let b_offset = a_offset + step_vec;
         for j in 0..step_vec {
+            #[cfg(hax)]
             hax_lib::loop_invariant!(|_: usize| *zeta_i == (1 << (7 - layer)) + round);
             ntt_layer_int_vec_step(
                 &mut re.coefficients,

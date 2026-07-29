@@ -29,6 +29,7 @@ pub(crate) fn prf_input_inc<const K: usize>(
     let _prf_inputs_init = prf_inputs.clone();
 
     for i in 0..K {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| domain_separator == _domain_separator_init + i as u8);
         prf_inputs[i][32] = domain_separator.classify();
         domain_separator += 1;

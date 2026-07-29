@@ -12,6 +12,7 @@ pub(crate) fn invert_ntt_at_layer_1<Vector: Operations>(
     re: &mut PolynomialRingElement<Vector>,
 ) {
     for round in 0..16 {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| *zeta_i == 128 - i * 4);
         *zeta_i -= 1;
 
@@ -34,6 +35,7 @@ pub(crate) fn invert_ntt_at_layer_2<Vector: Operations>(
     re: &mut PolynomialRingElement<Vector>,
 ) {
     for round in 0..16 {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| *zeta_i == 64 - i * 2);
 
         *zeta_i -= 1;
@@ -55,6 +57,7 @@ pub(crate) fn invert_ntt_at_layer_3<Vector: Operations>(
     re: &mut PolynomialRingElement<Vector>,
 ) {
     for round in 0..16 {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| *zeta_i == 32 - i);
 
         *zeta_i -= 1;
@@ -97,6 +100,7 @@ pub(crate) fn invert_ntt_at_layer_4_plus<Vector: Operations>(
     let step_vec = step / FIELD_ELEMENTS_IN_VECTOR;
 
     for round in 0..(128 >> layer) {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|round: usize| *zeta_i == (1 << (8 - layer)) - round);
         *zeta_i -= 1;
 
@@ -104,6 +108,7 @@ pub(crate) fn invert_ntt_at_layer_4_plus<Vector: Operations>(
         let b_offset = a_offset + step_vec;
 
         for j in 0..step_vec {
+            #[cfg(hax)]
             hax_lib::loop_invariant!(|_: usize| *zeta_i == (1 << (8 - layer)) - round - 1);
             inv_ntt_layer_int_vec_step_reduce(
                 &mut re.coefficients,

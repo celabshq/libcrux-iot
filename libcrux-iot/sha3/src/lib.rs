@@ -50,9 +50,15 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 // The `register_tool` feature is enabled by charon itself when it drives the
-// lean extraction, so we must not enable it a second time here (that trips
-// `deny(duplicate_features)`). We still register the `charon` tool namespace so
-// the `#[charon::exclude]` attributes below are recognised.
+// lean extraction (charon sets `--cfg hax_compilation` in that case), so we must
+// not enable it a second time then (it trips `deny(duplicate_features)`). But
+// when this crate is compiled as a plain-rustc dependency of another extraction
+// target — e.g. libcrux-iot ml-kem, which keeps sha3 opaque — charon does not
+// drive it, so we must enable the feature ourselves. Gate on
+// `not(hax_compilation)` to cover exactly that plain-rustc case.
+#![cfg_attr(all(hax_backend_lean, not(hax_compilation)), feature(register_tool))]
+// Register the `charon` tool namespace so the `#[charon::exclude]` attributes
+// below are recognised.
 #![cfg_attr(hax_backend_lean, register_tool(charon))]
 
 use libcrux_secrets::{Classify, U8};

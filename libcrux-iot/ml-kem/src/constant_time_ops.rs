@@ -52,6 +52,7 @@ fn is_non_zero(value: U8) -> U8 {
 fn compare(lhs: &[U8], rhs: &[U8]) -> U8 {
     let mut r: U8 = 0.classify();
     for i in 0..lhs.len() {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| {
             fstar!(
                 r#"v $i <= Seq.length $lhs /\
@@ -132,6 +133,7 @@ fn select_ct(lhs: &[U8], rhs: &[U8], selector: U8, out: &mut [U8]) {
     );
 
     for i in 0..lhs.len() {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| {
             fstar!(
                 r#"v $i <= v (${lhs.len()}) /\
