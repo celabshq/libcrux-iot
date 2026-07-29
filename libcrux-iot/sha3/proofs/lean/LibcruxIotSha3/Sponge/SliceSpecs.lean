@@ -93,6 +93,29 @@ theorem Array.update_exists {α : Type} {n : Aeneas.Std.Usize}
              List.getElem?_eq_getElem h]
   rfl
 
+/-- Equation form of the `Range<usize>` slice index (for `≤` in-bounds ranges):
+    `Slice.Insts.CoreOpsIndexIndex.index (RangeUsize …) s ⟨a,b⟩ = .ok ns` with
+    `ns.val = s.val[a..b]`. Convenience wrapper over `subslice_le_eq` used by the
+    various concrete `index … = .ok _` computations. -/
+theorem Slice.index_RangeUsize_eq {T : Type} (s : Slice T) (a b : Std.Usize)
+    (h0 : a.val ≤ b.val) (h1 : b.val ≤ s.val.length) :
+    ∃ ns : Slice T,
+      CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
+        ⟨a, b⟩ = .ok ns ∧ ns.val = s.val.slice a.val b.val := by
+  obtain ⟨ns, hns_eq, hns_val⟩ := Slice.subslice_le_eq s ⟨a, b⟩ h0 h1
+  refine ⟨ns, ?_, hns_val⟩
+  unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
+         CoreModels.rust_primitives.slice.slice_slice
+         CoreModels.rust_primitives.slice.slice_length
+  simp only [hns_eq, bind_tc_ok]
+  split_ifs with hc1 hc2
+  · rfl
+  · exfalso; scalar_tac
+  · exfalso; scalar_tac
+
 /-! ### `CoreModels.core.slice.Slice.len` -/
 
 /-- The hax `CoreModels.core.slice.Slice.len` is a thin `pure`-wrapper around

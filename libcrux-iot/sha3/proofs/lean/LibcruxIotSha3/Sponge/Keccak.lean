@@ -392,17 +392,10 @@ theorem keccak.keccak_keccak_spec_blocks_zero
               (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
               tail { start := 0#usize, «end» := rem_us }
             = .ok tail := by
-          unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                 CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                 core.slice.index.Slice.index
-                 core.slice.index.SliceIndexRangeUsizeSlice.index
-          have h0 : (0#usize : Std.Usize) ≤ rem_us := by
-            show (0 : Nat) ≤ rem_us.val; omega
-          have h1' : (⟨0#usize, rem_us⟩ : core.ops.range.Range Std.Usize).end.val ≤ tail.length := by
-            show rem_us.val ≤ tail.val.length
-            rw [h_tail_len, h_rem_us_val]
-          simp [h0, h1']
-          apply Subtype.ext
+          have h0 : (0#usize : Std.Usize).val ≤ rem_us.val := Nat.zero_le _
+          have h1' : rem_us.val ≤ tail.val.length := by rw [h_tail_len, h_rem_us_val]
+          obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq tail 0#usize rem_us h0 h1'
+          rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
           show tail.val.slice ((0#usize : Std.Usize).val) rem_us.val = tail.val
           rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, h_rem_us_val]
           unfold List.slice
@@ -413,17 +406,10 @@ theorem keccak.keccak_keccak_spec_blocks_zero
               (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
               data { start := i3_us, «end» := i_us }
             = .ok tail := by
-          unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                 CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                 core.slice.index.Slice.index
-                 core.slice.index.SliceIndexRangeUsizeSlice.index
-          have h0 : i3_us ≤ i_us := by
-            show i3_us.val ≤ i_us.val; rw [h_i3_us_val, h_i_us_val]; omega
-          have h1' : (⟨i3_us, i_us⟩ : core.ops.range.Range Std.Usize).end.val ≤ data.length := by
-            show i_us.val ≤ data.length
-            rw [h_i_us_val]
-          simp [h0, h1']
-          apply Subtype.ext
+          have h0 : i3_us.val ≤ i_us.val := by rw [h_i3_us_val, h_i_us_val]; omega
+          have h1' : i_us.val ≤ data.val.length := by rw [h_i_us_val]
+          obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq data i3_us i_us h0 h1'
+          rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
           show data.val.slice i3_us.val i_us.val = tail.val
           rw [h_i3_us_val, h_i_us_val]
           show data.val.slice (n_nat * RATE.val) data.val.length = data.val.drop (n_nat * RATE.val)
@@ -787,18 +773,10 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
                   Std.U8)
                 tail { start := 0#usize, «end» := rem_us }
               = .ok tail := by
-            unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                   CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                   core.slice.index.Slice.index
-                   core.slice.index.SliceIndexRangeUsizeSlice.index
-            have h0 : (0#usize : Std.Usize) ≤ rem_us := by
-              show (0 : Nat) ≤ rem_us.val; omega
-            have h1' : (⟨0#usize, rem_us⟩ : core.ops.range.Range Std.Usize).end.val
-                        ≤ tail.length := by
-              show rem_us.val ≤ tail.val.length
-              rw [h_tail_len, h_rem_us_val]
-            simp [h0, h1']
-            apply Subtype.ext
+            have h0 : (0#usize : Std.Usize).val ≤ rem_us.val := Nat.zero_le _
+            have h1' : rem_us.val ≤ tail.val.length := by rw [h_tail_len, h_rem_us_val]
+            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq tail 0#usize rem_us h0 h1'
+            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
             show tail.val.slice ((0#usize : Std.Usize).val) rem_us.val = tail.val
             rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, h_rem_us_val]
             unfold List.slice
@@ -810,17 +788,10 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
                   Std.U8)
                 data { start := i3_us, «end» := i_us }
               = .ok tail := by
-            unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                   CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                   core.slice.index.Slice.index
-                   core.slice.index.SliceIndexRangeUsizeSlice.index
-            have h0 : i3_us ≤ i_us := by
-              show i3_us.val ≤ i_us.val; rw [h_i3_us_val, h_i_us_val]; omega
-            have h1' : (⟨i3_us, i_us⟩ : core.ops.range.Range Std.Usize).end.val ≤ data.length := by
-              show i_us.val ≤ data.length
-              rw [h_i_us_val]
-            simp [h0, h1']
-            apply Subtype.ext
+            have h0 : i3_us.val ≤ i_us.val := by rw [h_i3_us_val, h_i_us_val]; omega
+            have h1' : i_us.val ≤ data.val.length := by rw [h_i_us_val]
+            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq data i3_us i_us h0 h1'
+            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
             show data.val.slice i3_us.val i_us.val = tail.val
             rw [h_i3_us_val, h_i_us_val]
             show data.val.slice (n_nat * RATE.val) data.val.length = data.val.drop (n_nat * RATE.val)
@@ -996,13 +967,13 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
     -- Step 23: assemble post.
     apply triple_of_ok_kk (v := index_mut_back s5) h_impl_eq
     have h_final_len : (index_mut_back s5).val.length = out.val.length := by
-      rw [h_s4_back s5, List.length_setSlice!, h_out2_len_out]
+      rw [h_s4_back s5 (by omega), List.length_setSlice!, h_out2_len_out]
     refine ⟨spec_out, h_spec_full_eq, h_final_len, ?_⟩
     intro k hk
     have h_spec_byte := h_spec_bytes k (by rw [h_outlen_us_val]; exact hk)
     rw [h_spec_byte]
     -- LHS: (index_mut_back s5).val[k]! = (out2.val.setSlice! offset.val s5.val)[k]!
-    rw [h_s4_back s5]
+    rw [h_s4_back s5 (by omega)]
     -- Split into 3 regions for the byte equation.
     by_cases hk_RATE : k < RATE.val
     · -- Region 1: k < RATE ≤ last = offset, so squeeze_last's setSlice at offset preserves k.
@@ -1191,18 +1162,10 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
                   Std.U8)
                 tail { start := 0#usize, «end» := rem_us }
               = .ok tail := by
-            unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                   CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                   core.slice.index.Slice.index
-                   core.slice.index.SliceIndexRangeUsizeSlice.index
-            have h0 : (0#usize : Std.Usize) ≤ rem_us := by
-              show (0 : Nat) ≤ rem_us.val; omega
-            have h1' : (⟨0#usize, rem_us⟩ : core.ops.range.Range Std.Usize).end.val
-                        ≤ tail.length := by
-              show rem_us.val ≤ tail.val.length
-              rw [h_tail_len, h_rem_us_val]
-            simp [h0, h1']
-            apply Subtype.ext
+            have h0 : (0#usize : Std.Usize).val ≤ rem_us.val := Nat.zero_le _
+            have h1' : rem_us.val ≤ tail.val.length := by rw [h_tail_len, h_rem_us_val]
+            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq tail 0#usize rem_us h0 h1'
+            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
             show tail.val.slice ((0#usize : Std.Usize).val) rem_us.val = tail.val
             rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, h_rem_us_val]
             unfold List.slice
@@ -1214,17 +1177,10 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
                   Std.U8)
                 data { start := i3_us, «end» := i_us }
               = .ok tail := by
-            unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                   CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                   core.slice.index.Slice.index
-                   core.slice.index.SliceIndexRangeUsizeSlice.index
-            have h0 : i3_us ≤ i_us := by
-              show i3_us.val ≤ i_us.val; rw [h_i3_us_val, h_i_us_val]; omega
-            have h1' : (⟨i3_us, i_us⟩ : core.ops.range.Range Std.Usize).end.val ≤ data.length := by
-              show i_us.val ≤ data.length
-              rw [h_i_us_val]
-            simp [h0, h1']
-            apply Subtype.ext
+            have h0 : i3_us.val ≤ i_us.val := by rw [h_i3_us_val, h_i_us_val]; omega
+            have h1' : i_us.val ≤ data.val.length := by rw [h_i_us_val]
+            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq data i3_us i_us h0 h1'
+            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
             show data.val.slice i3_us.val i_us.val = tail.val
             rw [h_i3_us_val, h_i_us_val]
             show data.val.slice (n_nat * RATE.val) data.val.length
