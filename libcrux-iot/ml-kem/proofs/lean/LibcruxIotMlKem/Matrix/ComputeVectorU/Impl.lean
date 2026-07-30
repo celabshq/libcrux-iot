@@ -297,7 +297,7 @@ private theorem compute_vector_u_loop0_step_lemma_fc
   have h_acc_init_len : acc_init.length = 256 := Std.Array.length_eq acc_init
   -- Destructure the 4-conjunct invariant (the first is the ∃-witness pack).
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_acc_bnd, h_inv_cache_done, h_inv_cache_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
   by_cases h_lt : k.val < K.val
   · -- `Some k` branch.
@@ -407,7 +407,7 @@ private theorem compute_vector_u_loop0_step_lemma_fc
       simp only [Aeneas.Std.bind_tc_ok]
       show ((do
               let matrix_entry1 ←
-                libcrux_iot_ml_kem.matrix.sample_matrix_entry portable_ops_inst
+                matrix.sample_matrix_entry portable_ops_inst
                   hash_functionsHashInst matrix_entry seed 0#usize k
               let pre ← Aeneas.Std.Slice.index_usize r_as_ntt k
               let (pre1, index_mut_back) ← Aeneas.Std.Slice.index_mut_usize cache k
@@ -600,7 +600,7 @@ private theorem compute_vector_u_loop0_step_lemma_fc
         have hc_ge_k : k.val ≤ c := by omega
         exact h_inv_cache_undone c hc_ge_k hc_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ K, done.
     have hk_ge : k.val ≥ K.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = K.val := by omega
@@ -687,7 +687,7 @@ private theorem compute_vector_u_loop0_step_lemma_fc
       · intro c hc
         exact h_inv_cache_done c (by rw [hk_eq]; exact hc)
       · intro c hc_ge hc_lt; omega
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- L7.2 Stage 1 — `matrix.compute_vector_u_loop0`: the row-0 SAMPLED column
     loop of `compute_vector_u`. Iterates over `j ∈ [0, K)`; each step SAMPLES
@@ -798,7 +798,7 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
     rw [hinv2_def] at hh
     have h_pair : (Row0FillFC.row0_inv lm0 r_arr cache accumulator K r.2.2 r.2.1).holds
                     ∧ r.2.1.length = K.val := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hh
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hh
     show (Row0FillFC.row0_inv lm0 r_arr cache accumulator K r.2.2 r.2.1).holds
     exact h_pair.1
   · -- Step entailment.
@@ -806,7 +806,7 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
     rw [hinv2_def] at hinv
     have hinv_pair : (Row0FillFC.row0_inv lm0 r_arr cache accumulator k p.2.2 p.2.1).holds
                       ∧ p.2.1.length = K.val := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hinv
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
     obtain ⟨hinv_row0, hinv_clen⟩ := hinv_pair
     have h_step := compute_vector_u_loop0_step_lemma_fc
       hash_functionsHashInst matrix_entry seed r_as_ntt cache r_arr accumulator
@@ -828,7 +828,7 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
       exact (by
         show (pure ((Row0FillFC.row0_inv lm0 r_arr cache accumulator iter'.start acc' cache').holds
                       ∧ cache'.length = K.val) : Result Prop).holds
-        simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using
+        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
           (⟨h_inv', h_clen'⟩ :
             (Row0FillFC.row0_inv lm0 r_arr cache accumulator iter'.start acc' cache').holds
               ∧ cache'.length = K.val))
@@ -842,7 +842,7 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
       rw [hinv2_def]
       show (pure ((Row0FillFC.row0_inv lm0 r_arr cache accumulator K y.2.2 y.2.1).holds
                     ∧ y.2.1.length = K.val) : Result Prop).holds
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
         (⟨h_done_inv, h_done_clen⟩ :
           (Row0FillFC.row0_inv lm0 r_arr cache accumulator K y.2.2 y.2.1).holds
             ∧ y.2.1.length = K.val)
@@ -935,13 +935,13 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
     rw [hinv2_def] at hh
     have h_pair : (Row0FillFC.row0_inv lm0 r_arr cache accumulator K r.2.2 r.2.1).holds
                     ∧ r.2.1.length = K.val := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hh
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hh
     exact h_pair.2
   · intro p k _h_ge h_le hinv
     rw [hinv2_def] at hinv
     have hinv_pair : (Row0FillFC.row0_inv lm0 r_arr cache accumulator k p.2.2 p.2.1).holds
                       ∧ p.2.1.length = K.val := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hinv
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
     obtain ⟨hinv_row0, hinv_clen⟩ := hinv_pair
     have h_step := compute_vector_u_loop0_step_lemma_fc
       hash_functionsHashInst matrix_entry seed r_as_ntt cache r_arr accumulator
@@ -961,7 +961,7 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
       rw [hinv2_def]
       show (pure ((Row0FillFC.row0_inv lm0 r_arr cache accumulator iter'.start acc' cache').holds
                     ∧ cache'.length = K.val) : Result Prop).holds
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
         (⟨h_inv', h_clen'⟩ :
           (Row0FillFC.row0_inv lm0 r_arr cache accumulator iter'.start acc' cache').holds
             ∧ cache'.length = K.val)
@@ -974,7 +974,7 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
       rw [hinv2_def]
       show (pure ((Row0FillFC.row0_inv lm0 r_arr cache accumulator K y.2.2 y.2.1).holds
                     ∧ y.2.1.length = K.val) : Result Prop).holds
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
         (⟨h_done_inv, h_done_clen⟩ :
           (Row0FillFC.row0_inv lm0 r_arr cache accumulator K y.2.2 y.2.1).holds
             ∧ y.2.1.length = K.val)
@@ -1072,7 +1072,7 @@ theorem compute_vector_u_row0_acc_bridge {K : Std.Usize}
   set lm0 : Std.Array FEPoly K := (lift_matrix_from_seed seed K).val[0]! with hlm0_def
   -- Destructure `row0_inv`'s 4 conjuncts; the first is the ∃-witness pack.
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_bnd, _h_cache_done, _h_cache_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_row0
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_row0
   -- `h_inv_acc` (mont foldl) and `h_inv_bnd` (bound) are exactly
   -- `S1LoopFC.loop_inv mp r_arr acc_init K acc2`'s two conjuncts.
   have h_char : (S1LoopFC.loop_inv mp r_arr acc_init K acc2).holds := by
@@ -1093,7 +1093,7 @@ theorem compute_vector_u_row0_acc_bridge {K : Std.Usize}
           ∧ (∀ n : Nat, n < 256 →
               (acc2.val[n]!).val.natAbs ≤ (acc_init.val[n]!).val.natAbs + K.val * 2^25))
         : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
       (⟨h_inv_acc, h_inv_bnd⟩ : _ ∧ _)
   -- secret-side bounds from the ∃-witness `mp`'s per-lane bound (conjunct 1.2).
   have h_secret_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
@@ -1265,7 +1265,7 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
   have h_acc_init_len : acc_init.length = 256 := Std.Array.length_eq acc_init
   -- Destructure the 2-conjunct invariant (the first is the ∃-witness pack).
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
   by_cases h_lt : k.val < K.val
   · -- `Some k` branch.
@@ -1353,7 +1353,7 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
       simp only [Aeneas.Std.bind_tc_ok]
       show ((do
               let matrix_entry1 ←
-                libcrux_iot_ml_kem.matrix.sample_matrix_entry portable_ops_inst
+                matrix.sample_matrix_entry portable_ops_inst
                   hash_functionsHashInst matrix_entry seed i k
               let pre ← Aeneas.Std.Slice.index_usize r_as_ntt k
               let pre1 ← Aeneas.Std.Slice.index_usize cache k
@@ -1514,7 +1514,7 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
         rw [h_arith]
         linarith [h_acc1_bnd_n, h_inv_n]
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ K, done.
     have hk_ge : k.val ≥ K.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = K.val := by omega
@@ -1591,7 +1591,7 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
         have h_arith : k.val * 2^25 = K.val * 2^25 := by rw [hk_eq]
         rw [h_arith] at h_b
         exact h_b
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- L7.2 Stage 2 — `matrix.compute_vector_u_loop1_loop0`: the row-i (i ≥ 1)
     SAMPLED column loop of `compute_vector_u` (USE-CACHE variant). Iterates over
@@ -1693,14 +1693,14 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
     intro r hh
     rw [hinv2_def] at hh
     have h_inv_holds : (RowIFillFC.row_i_inv lm_i r_arr accumulator K r.2).holds := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hh
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hh
     show (RowIFillFC.row_i_inv lm_i r_arr accumulator K r.2).holds
     exact h_inv_holds
   · -- Step entailment.
     intro p k _h_ge h_le hinv
     rw [hinv2_def] at hinv
     have hinv_row : (RowIFillFC.row_i_inv lm_i r_arr accumulator k p.2).holds := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hinv
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
     have h_step := compute_vector_u_loop1_loop0_step_lemma_fc
       hash_functionsHashInst seed r_as_ntt cache r_arr accumulator i h_i
       h_seed_len h_r_len h_r_arr h_r_bnd h_acc_bnd h_cache p.1 p.2 k h_le h_cache_len
@@ -1720,7 +1720,7 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
       rw [hinv2_def]
       show (pure ((RowIFillFC.row_i_inv lm_i r_arr accumulator iter'.start acc').holds)
               : Result Prop).holds
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv'
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv'
     · have hP : RowIFillFC.row_i_step_post lm_i r_arr accumulator k
                   (.done (y.1, y.2)) := by
         rw [hlm_i_def]
@@ -1731,7 +1731,7 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
       rw [hinv2_def]
       show (pure ((RowIFillFC.row_i_inv lm_i r_arr accumulator K y.2).holds)
               : Result Prop).holds
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_done_inv
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_done_inv
 
 end L7_2b_irreducible
 
@@ -1857,7 +1857,7 @@ theorem compute_vector_u_rowi_acc_bridge {K : Std.Usize}
   set lm_i : Std.Array FEPoly K := (lift_matrix_from_seed seed K).val[i.val]! with hlm_i_def
   -- Destructure `row_i_inv`'s 2 conjuncts; the first is the ∃-witness pack.
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_rowi
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_rowi
   -- `h_inv_acc` (mont foldl) and `h_inv_bnd` (bound) are exactly
   -- `S1LoopFC.loop_inv mp r_arr acc_init K acc2`'s two conjuncts.
   have h_char : (S1LoopFC.loop_inv mp r_arr acc_init K acc2).holds := by
@@ -1878,7 +1878,7 @@ theorem compute_vector_u_rowi_acc_bridge {K : Std.Usize}
           ∧ (∀ n : Nat, n < 256 →
               (acc2.val[n]!).val.natAbs ≤ (acc_init.val[n]!).val.natAbs + K.val * 2^25))
         : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
       (⟨h_inv_acc, h_inv_bnd⟩ : _ ∧ _)
   -- secret-side bounds from the ∃-witness `mp`'s per-lane bound (conjunct 1.2).
   have h_secret_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
@@ -2434,7 +2434,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
         have hr_ne : r ≠ k.val := by omega
         rw [h_rnew_ne r hr_ne]
         exact h_inv_undone r hr_lt_K (by omega)
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch (k = K): loop ends, done.
     have hk_eq : k.val = K.val := le_antisymm h_le (Nat.not_lt.mp h_lt)
     have h_iter_none :
@@ -2490,7 +2490,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
           rcases hr_cond with h | h
           · exact Or.inl h
           · exact Or.inr (by rw [hk_eq]; exact h))
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 set_option maxHeartbeats 1600000 in
 /-- **L7.2 Stage 3 — outer rows loop FC** (`compute_vector_u_loop1`). Mirrors
