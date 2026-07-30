@@ -18,6 +18,61 @@ set_option mvcgen.warning false
 set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
+section MmbcAtPort
+open CoreModels Aeneas Aeneas.Std Std.Do Result ControlFlow
+/-! The spec inlined the standalone `matrix.multiply_matrix_by_column_at` into the
+    `multiply_matrix_by_column` `createi` closure (a loop over rows). Re-introduce it as
+    a LOCAL def (identical to the pre-hax-2fedcb2b extraction) so the loop-induction
+    proof below is unchanged; `multiply_matrix_by_column_closure_call_mut_eq` bridges the
+    closure back to it. -/
+namespace hacspec_ml_kem.matrix
+
+@[rust_loop_body]
+def multiply_matrix_by_column_at_loop.body
+    {RANK : Std.Usize}
+    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
+    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
+    (i : Std.Usize) (iter : CoreModels.core.ops.range.Range Std.Usize)
+    (result : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) ×
+      (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize))
+      (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)) := do
+  let (o, iter1) ←
+    CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      CoreModels.core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | CoreModels.core.option.Option.None => ok (ControlFlow.done result)
+  | CoreModels.core.option.Option.Some j =>
+    let a ← Std.Array.index_usize m j
+    let a1 ← Std.Array.index_usize a i
+    let a2 ← Std.Array.index_usize vector j
+    let product ← hacspec_ml_kem.ntt.multiply_ntts a1 a2
+    let result1 ← hacspec_ml_kem.matrix.add_polynomials result product
+    ok (ControlFlow.cont (iter1, result1))
+
+@[rust_loop]
+def multiply_matrix_by_column_at_loop
+    {RANK : Std.Usize} (iter : CoreModels.core.ops.range.Range Std.Usize)
+    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
+    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
+    (i : Std.Usize) (result : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    Result (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) := do
+  loop
+    (fun (iter1, result1) => multiply_matrix_by_column_at_loop.body m vector i iter1 result1)
+    (iter, result)
+
+def multiply_matrix_by_column_at
+    {RANK : Std.Usize}
+    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
+    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
+    (i : Std.Usize) : Result (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) := do
+  let fe ← hacspec_ml_kem.parameters.FieldElement.new 0#u16
+  let result := Std.Array.repeat 256#usize fe
+  multiply_matrix_by_column_at_loop { start := 0#usize, «end» := RANK } m vector i result
+
+end hacspec_ml_kem.matrix
+end MmbcAtPort
+
 namespace libcrux_iot_ml_kem.Matrix.ComputeAsPlusE
 open libcrux_iot_ml_kem.InvertNtt libcrux_iot_ml_kem.Matrix.Common libcrux_iot_ml_kem.Ntt libcrux_iot_ml_kem.Polynomial.NttMultiply libcrux_iot_ml_kem.Polynomial.PolyOpsFc libcrux_iot_ml_kem.Polynomial.PolyOpsFcBarrett libcrux_iot_ml_kem.Spec.Lift libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement libcrux_iot_ml_kem.Vector.Portable.Ntt
 open CoreModels Aeneas Aeneas.Std Std.Do
@@ -3232,58 +3287,6 @@ theorem col_loop_lane_at_step_K_eq_canonical
   apply congrArg
   simp only [L2_8c.zmodOfFE_mul_pure]
   ring
-
-/-! The spec inlined the standalone `matrix.multiply_matrix_by_column_at` into the
-    `multiply_matrix_by_column` `createi` closure (a loop over rows). Re-introduce it as
-    a LOCAL def (identical to the pre-hax-2fedcb2b extraction) so the loop-induction
-    proof below is unchanged; `multiply_matrix_by_column_closure_call_mut_eq` bridges the
-    closure back to it. -/
-namespace hacspec_ml_kem.matrix
-
-@[rust_loop_body]
-def multiply_matrix_by_column_at_loop.body
-    {RANK : Std.Usize}
-    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
-    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
-    (i : Std.Usize) (iter : CoreModels.core.ops.range.Range Std.Usize)
-    (result : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
-    Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) ×
-      (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize))
-      (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)) := do
-  let (o, iter1) ←
-    CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      CoreModels.core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | CoreModels.core.option.Option.None => ok (ControlFlow.done result)
-  | CoreModels.core.option.Option.Some j =>
-    let a ← Std.Array.index_usize m j
-    let a1 ← Std.Array.index_usize a i
-    let a2 ← Std.Array.index_usize vector j
-    let product ← hacspec_ml_kem.ntt.multiply_ntts a1 a2
-    let result1 ← hacspec_ml_kem.matrix.add_polynomials result product
-    ok (ControlFlow.cont (iter1, result1))
-
-@[rust_loop]
-def multiply_matrix_by_column_at_loop
-    {RANK : Std.Usize} (iter : CoreModels.core.ops.range.Range Std.Usize)
-    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
-    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
-    (i : Std.Usize) (result : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
-    Result (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) := do
-  loop
-    (fun (iter1, result1) => multiply_matrix_by_column_at_loop.body m vector i iter1 result1)
-    (iter, result)
-
-def multiply_matrix_by_column_at
-    {RANK : Std.Usize}
-    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
-    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
-    (i : Std.Usize) : Result (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) := do
-  let fe ← hacspec_ml_kem.parameters.FieldElement.new 0#u16
-  let result := Std.Array.repeat 256#usize fe
-  multiply_matrix_by_column_at_loop { start := 0#usize, «end» := RANK } m vector i result
-
-end hacspec_ml_kem.matrix
 
 set_option maxHeartbeats 16000000 in
 set_option maxRecDepth 1000 in
