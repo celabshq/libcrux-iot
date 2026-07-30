@@ -44,19 +44,19 @@ def cmRangeUsizeToAeneas (r : ops.range.Range Aeneas.Std.Usize) :
 
 end CoreModels.core
 
-namespace CoreModels.core.slice.iter.ChunksExact.Insts
-
 -- `CoreIterTraitsIteratorIteratorSharedASlice` (the Iterator instance) is now
--- provided natively by CoreModels (hax-lean v0.2.0), so it is dropped here.
+-- provided natively by CoreModels (hax-lean v0.2.0). `enumerate` is now modeled
+-- as a generic `Iterator::enumerate` default method, so provide that instead of
+-- the ChunksExact-specific one.
+namespace CoreModels.core.iter.traits.iterator
 
-def CoreIterTraitsIteratorIteratorSharedASlice.enumerate
-    {T : Type} (it : CoreModels.core.slice.iter.ChunksExact T) :
-    Aeneas.Std.Result
-      (CoreModels.core.iter.adapters.enumerate.Enumerate
-        (CoreModels.core.slice.iter.ChunksExact T)) :=
-  Aeneas.Std.Result.ok { iter := it, count := 0#usize }
+/-- `Iterator::enumerate` default method: wrap `self` in an `Enumerate` at count 0. -/
+def Iterator.enumerate.default {Self Item : Type}
+    (_inst : Iterator Self Item) (self : Self) :
+    Aeneas.Std.Result (CoreModels.core.iter.adapters.enumerate.Enumerate Self) :=
+  Aeneas.Std.Result.ok { iter := self, count := 0#usize }
 
-end CoreModels.core.slice.iter.ChunksExact.Insts
+end CoreModels.core.iter.traits.iterator
 
 /-! ## `libcrux_secrets.*` integer-cast + classify/declassify stubs.
     `libcrux_secrets`-functions are not part of the extraction; we map

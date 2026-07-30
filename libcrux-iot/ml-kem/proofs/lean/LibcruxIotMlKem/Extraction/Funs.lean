@@ -1146,7 +1146,7 @@ def matrix.compute_vector_u_loop0.body
   | core.option.Option.None => ok (done (matrix_entry, cache, accumulator))
   | core.option.Option.Some j =>
     let matrix_entry1 ←
-      matrix.sample_matrix_entry vectortraitsOperationsInst matrix_entry seed
+      matrix.sample_matrix_entry vectortraitsOperationsInst hash_functionsHashInst matrix_entry seed
         0#usize j
     let pre ← Slice.index_usize r_as_ntt j
     let (pre1, index_mut_back) ← Slice.index_mut_usize cache j
@@ -1173,7 +1173,7 @@ def matrix.compute_vector_u_loop0
   := do
   loop
     (fun (iter1, matrix_entry1, cache1, accumulator1) =>
-      matrix.compute_vector_u_loop0.body vectortraitsOperationsInst seed
+      matrix.compute_vector_u_loop0.body vectortraitsOperationsInst hash_functionsHashInst seed
       r_as_ntt iter1 matrix_entry1 cache1 accumulator1)
     (iter, matrix_entry, cache, accumulator)
 
@@ -1200,7 +1200,7 @@ def matrix.compute_vector_u_loop1_loop0.body
   | core.option.Option.None => ok (done (matrix_entry, accumulator))
   | core.option.Option.Some j =>
     let matrix_entry1 ←
-      matrix.sample_matrix_entry vectortraitsOperationsInst matrix_entry seed i
+      matrix.sample_matrix_entry vectortraitsOperationsInst hash_functionsHashInst matrix_entry seed i
         j
     let pre ← Slice.index_usize r_as_ntt j
     let pre1 ← Slice.index_usize cache j
@@ -1226,7 +1226,7 @@ def matrix.compute_vector_u_loop1_loop0
   := do
   loop
     (fun (iter1, matrix_entry1, accumulator1) =>
-      matrix.compute_vector_u_loop1_loop0.body vectortraitsOperationsInst seed
+      matrix.compute_vector_u_loop1_loop0.body vectortraitsOperationsInst hash_functionsHashInst seed
       r_as_ntt cache i iter1 matrix_entry1 accumulator1)
     (iter, matrix_entry, accumulator)
 
@@ -1260,7 +1260,7 @@ def matrix.compute_vector_u_loop1.body
   | core.option.Option.Some i1 =>
     let accumulator1 := Array.repeat 256#usize i
     let (matrix_entry1, accumulator2) ←
-      matrix.compute_vector_u_loop1_loop0 vectortraitsOperationsInst
+      matrix.compute_vector_u_loop1_loop0 vectortraitsOperationsInst hash_functionsHashInst
         { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache
         accumulator1 i1
     let s ← lift (Array.to_slice accumulator2)
@@ -1303,7 +1303,7 @@ def matrix.compute_vector_u_loop1
   := do
   loop
     (fun (iter1, matrix_entry1, result1, scratch1, accumulator1) =>
-      matrix.compute_vector_u_loop1.body K vectortraitsOperationsInst i seed
+      matrix.compute_vector_u_loop1.body K vectortraitsOperationsInst hash_functionsHashInst i seed
       r_as_ntt error_1 cache iter1 matrix_entry1 result1 scratch1 accumulator1)
     (iter, matrix_entry, result, scratch, accumulator)
 
@@ -1331,7 +1331,7 @@ def matrix.compute_vector_u
   let i2 ← libcrux_secrets.traits.Classify.Blanket.classify 0#i32
   let accumulator1 := Array.repeat 256#usize i2
   let (matrix_entry1, cache1, accumulator2) ←
-    matrix.compute_vector_u_loop0 vectortraitsOperationsInst
+    matrix.compute_vector_u_loop0 vectortraitsOperationsInst hash_functionsHashInst
       { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache
       accumulator1
   let s ← lift (Array.to_slice accumulator2)
@@ -1351,7 +1351,7 @@ def matrix.compute_vector_u
       vectortraitsOperationsInst pre4 pre5
   let s1 := index_mut_back2 pre6
   let (matrix_entry2, result3, scratch2, accumulator3) ←
-    matrix.compute_vector_u_loop1 K vectortraitsOperationsInst i2
+    matrix.compute_vector_u_loop1 K vectortraitsOperationsInst hash_functionsHashInst i2
       { start := 1#usize, «end» := K } matrix_entry1 seed r_as_ntt error_1 s1
       scratch1 cache1 accumulator2
   ok (matrix_entry2, result3, scratch2, cache1, accumulator3)

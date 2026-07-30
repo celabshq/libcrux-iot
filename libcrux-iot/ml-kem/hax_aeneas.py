@@ -90,4 +90,27 @@ content = funs_lean.read_text()
 # Tracked upstream: https://github.com/AeneasVerif/aeneas/issues/1130
 content = re.sub(r"^axiom ", "opaque ", content, flags=re.MULTILINE)
 
+# Aeneas drops the second trait clause
+# (`hash_functionsHashInst : hash_functions.Hash Hasher`) at call sites that
+# reach `sample_matrix_entry` through nested loops. The DEFINITIONS still carry
+# both trait clauses, so we only patch the CALL sites by inserting
+# `hash_functionsHashInst` right after `vectortraitsOperationsInst`.
+_AFFECTED_FNS = [
+    "compute_vector_u_loop1_loop0.body",
+    "compute_vector_u_loop1_loop0",
+    "compute_vector_u_loop1.body",
+    "compute_vector_u_loop1",
+    "compute_vector_u_loop0.body",
+    "compute_vector_u_loop0",
+    "sample_matrix_entry",
+]
+for _fn in _AFFECTED_FNS:
+    _pat = re.compile(
+        r"matrix\." + re.escape(_fn) + r" (K )?vectortraitsOperationsInst(?!\s*hash_functionsHashInst)"
+    )
+    content = _pat.sub(
+        lambda m: f"matrix.{_fn} " + (m.group(1) or "") + "vectortraitsOperationsInst hash_functionsHashInst",
+        content,
+    )
+
 funs_lean.write_text(content)
