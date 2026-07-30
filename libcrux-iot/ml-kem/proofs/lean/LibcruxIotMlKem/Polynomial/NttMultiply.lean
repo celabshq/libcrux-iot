@@ -7999,7 +7999,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 0 (by decide) (by decide) (by decide)]
         rw [h_r7_at_lane]
         have h_fe := h_r0_fe_e
-        simp only [] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[0]!
             = Spec.mont_reduce_pure (lift_fe_int (out.val[0]!).val) := by
@@ -8078,7 +8077,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 1 (by decide) (by decide) (by decide)]
         rw [h_r7_at_lane]
         have h_fe := h_r0_fe_o
-        simp only [] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[1]!
             = Spec.mont_reduce_pure (lift_fe_int (out.val[1]!).val) := by
@@ -8158,7 +8156,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
         have h_src_at_odd : r0.val[3]! = out.val[3]! := by
           rw [h_r0_unc' 3 (by decide) (by decide) (by decide)]
         have h_fe := h_r1_fe_e
-        simp only [] at h_fe
         rw [h_src_at_even] at h_fe
         rw [h_n0_fe] at h_fe
         rw [h_fe]
@@ -8242,7 +8239,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
         have h_src_at_odd : r0.val[3]! = out.val[3]! := by
           rw [h_r0_unc' 3 (by decide) (by decide) (by decide)]
         have h_fe := h_r1_fe_o
-        simp only [] at h_fe
         rw [h_src_at_odd] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[3]!
@@ -8324,7 +8320,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 5 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 5 (by decide) (by decide) (by decide)]
         have h_fe := h_r2_fe_e
-        simp only [] at h_fe
         rw [h_src_at_even] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[4]!
@@ -8408,7 +8403,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 5 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 5 (by decide) (by decide) (by decide)]
         have h_fe := h_r2_fe_o
-        simp only [] at h_fe
         rw [h_src_at_odd] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[5]!
@@ -8491,7 +8485,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 7 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 7 (by decide) (by decide) (by decide)]
         have h_fe := h_r3_fe_e
-        simp only [] at h_fe
         rw [h_src_at_even] at h_fe
         rw [h_n1_fe] at h_fe
         rw [h_fe]
@@ -8577,7 +8570,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 7 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 7 (by decide) (by decide) (by decide)]
         have h_fe := h_r3_fe_o
-        simp only [] at h_fe
         rw [h_src_at_odd] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[7]!
@@ -8661,7 +8653,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 9 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 9 (by decide) (by decide) (by decide)]
         have h_fe := h_r4_fe_e
-        simp only [] at h_fe
         rw [h_src_at_even] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[8]!
@@ -8747,7 +8738,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 9 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 9 (by decide) (by decide) (by decide)]
         have h_fe := h_r4_fe_o
-        simp only [] at h_fe
         rw [h_src_at_odd] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[9]!
@@ -8832,7 +8822,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 11 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 11 (by decide) (by decide) (by decide)]
         have h_fe := h_r5_fe_e
-        simp only [] at h_fe
         rw [h_src_at_even] at h_fe
         rw [h_n2_fe] at h_fe
         rw [h_fe]
@@ -8920,7 +8909,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 11 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 11 (by decide) (by decide) (by decide)]
         have h_fe := h_r5_fe_o
-        simp only [] at h_fe
         rw [h_src_at_odd] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[11]!
@@ -9006,7 +8994,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 13 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 13 (by decide) (by decide) (by decide)]
         have h_fe := h_r6_fe_e
-        simp only [] at h_fe
         rw [h_src_at_even] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[12]!
@@ -9094,7 +9081,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 13 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 13 (by decide) (by decide) (by decide)]
         have h_fe := h_r6_fe_o
-        simp only [] at h_fe
         rw [h_src_at_odd] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[13]!
@@ -9179,7 +9165,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 15 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 15 (by decide) (by decide) (by decide)]
         have h_fe := h_r7_fe_e
-        simp only [] at h_fe
         rw [h_src_at_even] at h_fe
         rw [h_n3_fe] at h_fe
         rw [h_fe]
@@ -9267,7 +9252,6 @@ theorem accumulating_ntt_multiply_use_cache_fc
           rw [h_r1_unc' 15 (by decide) (by decide) (by decide)]
           rw [h_r0_unc' 15 (by decide) (by decide) (by decide)]
         have h_fe := h_r7_fe_o
-        simp only [] at h_fe
         rw [h_src_at_odd] at h_fe
         rw [h_fe]
         have h_red_out : (Spec.chunk_reducing_from_i32_array_pure out).val[15]!
@@ -9991,7 +9975,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
           rw [h_acc1_eq_acc]
           exact h_acc_bnd_rel n hn
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -10041,7 +10025,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt ℓ hℓ; rw [hk_eq]; exact hj_ge
       · intro n hn; exact h_acc_bnd_rel n hn
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 4000000 in
 /-- L6.3 — `polynomial.PolynomialRingElement.accumulating_ntt_multiply`:
@@ -10138,8 +10122,11 @@ theorem accumulating_ntt_multiply_poly_fc
             r.val[16 * j + ℓ]! = accumulator.val[16 * j + ℓ]!)
         ∧ (∀ n : Nat, n < 256 →
             (r.val[n]!).val.natAbs ≤ (accumulator.val[n]!).val.natAbs + 2^25) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             UseCacheFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, UseCacheFC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
     refine ⟨?_, ?_⟩
     · intro n; exact h_bnd n.val n.isLt
@@ -10800,7 +10787,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
         rw [h_cache1_ne j hj_ne]
         exact h_cache_undone j (by omega) hj_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -10866,7 +10853,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_cache_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 /-- L6.3c — `polynomial.PolynomialRingElement.accumulating_ntt_multiply_fill_cache`:
     polynomial wrapper of `accumulating_ntt_multiply_fill_cache_fc`. Loops
@@ -11386,7 +11373,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
           rw [h_acc1_eq_acc]
           exact h_acc_bnd_rel n hn
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -11436,7 +11423,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt ℓ hℓ; rw [hk_eq]; exact hj_ge
       · intro n hn; exact h_acc_bnd_rel n hn
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 /-- L6.3c — `polynomial.PolynomialRingElement.accumulating_ntt_multiply_use_cache`:
     polynomial wrapper of `accumulating_ntt_multiply_use_cache_fc`. The cache
