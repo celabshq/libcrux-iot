@@ -114,3 +114,12 @@ for _fn in _AFFECTED_FNS:
     )
 
 funs_lean.write_text(content)
+
+# The lean backend also emits per-function Specs.lean + ProofObligations.lean
+# (proof-obligation scaffolding). They are not imported by the hand-written
+# proofs and currently have codegen quirks (e.g. a swapped tuple order in
+# `rej_sample.post`: `Usize × Slice I16` vs `Slice I16 × Usize`), so drop them.
+for _f in ("Specs.lean", "ProofObligations.lean"):
+    _p = Path("proofs/lean/LibcruxIotMlKem/Extraction") / _f
+    if _p.exists():
+        _p.unlink()
