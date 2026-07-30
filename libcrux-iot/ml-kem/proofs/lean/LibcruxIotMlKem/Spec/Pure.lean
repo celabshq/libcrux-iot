@@ -421,7 +421,7 @@ theorem Canonical_add_pure (a b : parameters.FieldElement) :
     show (Std.UScalar.cast .U16 w).val < parameters.FIELD_MODULUS.val
     unfold parameters.FIELD_MODULUS
     simp
-    rw [hwcast]; exact hwbnd
+    omega
   | fail e =>
     rw [hxy] at hae; simp [Std.UScalar.inBounds] at hae
     rw [hxval, hyval] at hae; omega
@@ -475,7 +475,7 @@ theorem Canonical_mul_pure (a b : parameters.FieldElement) :
     show (Std.UScalar.cast .U16 w).val < parameters.FIELD_MODULUS.val
     unfold parameters.FIELD_MODULUS
     simp
-    rw [hwcast]; exact hwbnd
+    omega
   | fail e =>
     rw [heqmul] at hxy; rw [hxy] at hae
     simp only [Std.UScalar.max, Std.UScalarTy.numBits] at hae
@@ -544,7 +544,7 @@ theorem Canonical_sub_pure (a b : parameters.FieldElement)
       show (Std.UScalar.cast .U16 w).val < parameters.FIELD_MODULUS.val
       unfold parameters.FIELD_MODULUS
       simp
-      rw [hwcast]; exact hwbnd
+      omega
     | fail e =>
       rw [hsy] at hae2; simp at hae2
       rw [hsval, hxval, hqval, hyval] at hae2
@@ -696,23 +696,24 @@ theorem polynomial.add_to_ring_element_eq_ok
     -- The outer wrapper has shape `do let fe ← (let (a, a1) := (lhs, rhs); inner_call); ok (fe, ...)`.
     -- Reduce the destructuring `let (a, a1) := (lhs, rhs)` to `a := lhs, a1 := rhs`.
     change (do
-      let fe ← (do
-        let fe ← Std.Array.index_usize lhs ⟨BitVec.ofNat _ k⟩
+        let fe ← lhs.index_usize ⟨BitVec.ofNat _ k⟩
         let i ← lift (Std.UScalar.cast .U32 fe.val)
-        let fe1 ← Std.Array.index_usize rhs ⟨BitVec.ofNat _ k⟩
+        let fe1 ← rhs.index_usize ⟨BitVec.ofNat _ k⟩
         let i1 ← lift (Std.UScalar.cast .U32 fe1.val)
         let i2 ← i + i1
         let i3 ← lift (Std.UScalar.cast .U32 parameters.FIELD_MODULUS)
         let i4 ← i2 % i3
         let i5 ← lift (Std.UScalar.cast .U16 i4)
-        parameters.FieldElement.new i5)
-      Result.ok (fe, lhs, rhs)) = Result.ok (f k, lhs, rhs)
-    -- Now rewrite the two `index_usize`s and use `add_eq_ok` to collapse the rest.
+        let fe2 ← parameters.FieldElement.new i5
+        Result.ok (fe2, lhs, rhs)) = Result.ok (f k, lhs, rhs)
     rw [h_lhs_idx]; simp only [bind_tc_ok]
     rw [h_rhs_idx]; simp only [bind_tc_ok]
+    -- The remaining flat body is `FieldElement.add lhs[k]! rhs[k]!` continued by
+    -- `fun fe2 => ok (fe2, lhs, rhs)`; apply `h_add` under that continuation.
     unfold parameters.FieldElement.add at h_add
-    rw [h_add]
-    simp only [bind_tc_ok, hf_def]
+    have hchain := congrArg (· >>= (fun fe2 => Result.ok (fe2, lhs, rhs))) h_add
+    simp only [bind_assoc, bind_tc_ok] at hchain
+    rw [hchain]
   -- Step 3: chain through `from_fn_pure_eq` to get the wrapper equation.
   have h_from_fn :=
     libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
@@ -799,11 +800,10 @@ theorem polynomial.poly_barrett_reduce_eq_ok
       rw [array_index_usize_ok p _ hp_len, hk_us]
     -- Close the closure body: index, then rem, then new (returned inline).
     change (do
-      let fe ← (do
-        let fe ← Std.Array.index_usize p ⟨BitVec.ofNat _ k⟩
+        let fe ← p.index_usize ⟨BitVec.ofNat _ k⟩
         let i ← (fe.val % parameters.FIELD_MODULUS : Result Std.U16)
-        parameters.FieldElement.new i)
-      Result.ok (fe, p)) = Result.ok (f k, p)
+        let fe2 ← parameters.FieldElement.new i
+        Result.ok (fe2, p)) = Result.ok (f k, p)
     rw [h_p_idx]; simp only [bind_tc_ok]
     rw [rem_q_U16_eq]; simp only [bind_tc_ok]
     unfold parameters.FieldElement.new
@@ -870,11 +870,10 @@ theorem polynomial.poly_barrett_reduce_pure_id_of_canonical
           = .ok (p.val[k]!) := by
       rw [array_index_usize_ok p _ hp_len, hk_us]
     change (do
-      let fe ← (do
-        let fe ← Std.Array.index_usize p ⟨BitVec.ofNat _ k⟩
+        let fe ← p.index_usize ⟨BitVec.ofNat _ k⟩
         let i ← (fe.val % parameters.FIELD_MODULUS : Result Std.U16)
-        parameters.FieldElement.new i)
-      Result.ok (fe, p)) = Result.ok (f k, p)
+        let fe2 ← parameters.FieldElement.new i
+        Result.ok (fe2, p)) = Result.ok (f k, p)
     rw [h_p_idx]; simp only [bind_tc_ok]
     rw [rem_q_U16_eq]; simp only [bind_tc_ok]
     unfold parameters.FieldElement.new
@@ -1010,26 +1009,25 @@ theorem polynomial.subtract_reduce_eq_ok
     -- The outer wrapper has shape `do let fe ← (let (x, y) := (a, b); inner_call); ok (fe, ...)`.
     -- Reduce the destructuring `let (x, y) := (a, b)`.
     change (do
-      let fe ← (do
-        let fe ← Std.Array.index_usize a ⟨BitVec.ofNat _ k⟩
+        let fe ← a.index_usize ⟨BitVec.ofNat _ k⟩
         let i ← lift (Std.UScalar.cast .U32 fe.val)
         let i1 ← lift (Std.UScalar.cast .U32 parameters.FIELD_MODULUS)
         let i2 ← i + i1
-        let fe1 ← Std.Array.index_usize b ⟨BitVec.ofNat _ k⟩
+        let fe1 ← b.index_usize ⟨BitVec.ofNat _ k⟩
         let i3 ← lift (Std.UScalar.cast .U32 fe1.val)
         let i4 ← i2 - i3
         let i5 ← lift (Std.UScalar.cast .U32 parameters.FIELD_MODULUS)
         let i6 ← i4 % i5
         let i7 ← lift (Std.UScalar.cast .U16 i6)
-        parameters.FieldElement.new i7)
-      Result.ok (fe, a, b)) = Result.ok (f k, a, b)
+        let fe2 ← parameters.FieldElement.new i7
+        Result.ok (fe2, a, b)) = Result.ok (f k, a, b)
     rw [h_a_idx]; simp only [bind_tc_ok]
     rw [h_b_idx]; simp only [bind_tc_ok]
-    -- The inner block is now exactly the body of
-    -- `parameters.FieldElement.sub (a.val[k]!) (b.val[k]!)` (with `b` re-ordered),
-    -- which equals `.ok (sub_pure …)` by `h_sub`.
-    rw [h_sub]
-    simp only [bind_tc_ok, hf_def]
+    -- The remaining flat body is `FieldElement.sub a[k]! b[k]!` continued by
+    -- `fun fe2 => ok (fe2, a, b)`; apply `h_sub` under that continuation.
+    have hchain := congrArg (· >>= (fun fe2 => Result.ok (fe2, a, b))) h_sub
+    simp only [bind_assoc, bind_tc_ok] at hchain
+    rw [hchain]
   -- Step 3: apply from_fn_pure_eq.
   have h_from_fn :=
     libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
