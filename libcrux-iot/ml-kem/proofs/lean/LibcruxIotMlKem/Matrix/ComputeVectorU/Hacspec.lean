@@ -408,10 +408,10 @@ private theorem multiply_vectors_eq_mcol {K : Std.Usize}
       intro r hh
       have h_eq : (pure (r = mcol_result_at_step col vec K.val) : Result Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_eq
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = mcol_result_at_step col vec k.val := by
-        simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hinv
+        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_vectors_loop.body
       by_cases h_lt : k.val < K.val
@@ -588,10 +588,10 @@ private theorem multiply_matrix_by_column_at_eq_mcol {K : Std.Usize}
       have h_eq : (pure (r = mcol_result_at_step (extractCol m i) vec K.val)
                   : Result Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_eq
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = mcol_result_at_step (extractCol m i) vec k.val := by
-        simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hinv
+        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_matrix_by_column_at_loop.body
       by_cases h_lt : k.val < K.val
