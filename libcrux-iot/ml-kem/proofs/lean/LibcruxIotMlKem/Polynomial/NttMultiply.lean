@@ -245,6 +245,35 @@ noncomputable def multiply_ntts_lane_pure
     Spec.Pure.FieldElement.add_pure (Spec.Pure.FieldElement.mul_pure a0 b1)
       (Spec.Pure.FieldElement.mul_pure a1 b0)
 
+/-- Per-lane body of the spec's `ntt.ntt_multiply_n` `createi` closure (the
+    hacspec spec no longer exposes a standalone `ntt_multiply_n_at`; the logic is
+    inlined into the closure over captured state `(zetas, p1, p2)`). This local
+    copy returns just the `FieldElement`; the closure `call_mut` wraps it as
+    `.ok (·, (s, p1, p2))` — see `ntt_multiply_n_closure_call_mut_eq` below. -/
+def ntt_multiply_n_at
+    (p1 p2 : Aeneas.Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (s : Aeneas.Std.Slice hacspec_ml_kem.parameters.FieldElement) (i : Std.Usize) :
+    Result hacspec_ml_kem.parameters.FieldElement := do
+  let group ← i / 4#usize
+  let i1 ← i % 4#usize
+  let zeta ← if i1 < 2#usize then Aeneas.Std.Slice.index_usize s group
+             else do let fe ← Aeneas.Std.Slice.index_usize s group
+                     hacspec_ml_kem.parameters.FieldElement.neg fe
+  let i2 ← i % 2#usize
+  if i2 = 0#usize
+  then do let fe ← Aeneas.Std.Array.index_usize p1 i
+          let i3 ← i + 1#usize
+          let fe1 ← Aeneas.Std.Array.index_usize p1 i3
+          let fe2 ← Aeneas.Std.Array.index_usize p2 i
+          let fe3 ← Aeneas.Std.Array.index_usize p2 i3
+          hacspec_ml_kem.ntt.base_case_multiply_even fe fe1 fe2 fe3 zeta
+  else do let i3 ← i - 1#usize
+          let fe ← Aeneas.Std.Array.index_usize p1 i3
+          let fe1 ← Aeneas.Std.Array.index_usize p1 i
+          let fe2 ← Aeneas.Std.Array.index_usize p2 i3
+          let fe3 ← Aeneas.Std.Array.index_usize p2 i
+          hacspec_ml_kem.ntt.base_case_multiply_odd fe fe1 fe2 fe3
+
 set_option maxHeartbeats 16000000 in
 /-- **Per-lane reduction of `ntt.ntt_multiply_n_at`.**
 
@@ -258,9 +287,9 @@ theorem ntt_multiply_n_at_eq_pure
     (h_slen : s.val.length = 64)
     (h_zeta_eq : ∀ k : Nat, k < 64 → s.val[k]! = Spec.zeta_at (64 + k))
     (i : Std.Usize) (hi : i.val < 256) :
-    hacspec_ml_kem.ntt.ntt_multiply_n_at p1 p2 s i
+    ntt_multiply_n_at p1 p2 s i
       = .ok (multiply_ntts_lane_pure p1 p2 i.val) := by
-  unfold hacspec_ml_kem.ntt.ntt_multiply_n_at
+  unfold ntt_multiply_n_at
   -- Step 1: group ← i / 4#usize.
   obtain ⟨group, h_g_eq, h_g_v, _⟩ :=
     Std.UScalar.div_bv_spec i (show ((4#usize : Std.Usize)).val ≠ 0 by decide)
@@ -424,21 +453,20 @@ lemma slice_zetas_succeeds
     = .ok (⟨List.slice 64 128 zs.val, by
             rw [slice_length_64]; scalar_tac⟩ :
            Aeneas.Std.Slice hacspec_ml_kem.parameters.FieldElement) := by
-  unfold core.Array.Insts.CoreOpsIndexIndex.index
-         core.slice.index.Slice.index
-         core.Slice.Insts.CoreOpsIndexIndex
-         core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-  show core.slice.index.SliceIndexRangeUsizeSlice.index
-      (core.cmRangeUsizeToAeneas _) zs.to_slice = _
-  unfold core.slice.index.SliceIndexRangeUsizeSlice.index
-         core.cmRangeUsizeToAeneas
+  -- The Array-level index reduces to `as_slice zs >>= (RangeUsize slice index)`;
+  -- the slice-level range index is the migrated `Slice.index_RangeUsize_eq`.
   have h_alen : zs.val.length = 128 := zs.property
-  have h_cond : (64#usize : Std.Usize) ≤ (128#usize : Std.Usize) ∧
-      (128#usize : Std.Usize).val ≤ zs.to_slice.val.length := by
-    refine ⟨by show (64 : Nat) ≤ 128; decide, by
-      show 128 ≤ zs.to_slice.val.length
-      show 128 ≤ zs.val.length; omega⟩
-  rw [if_pos h_cond]
+  obtain ⟨ns, hns_eq, hns_val⟩ :=
+    libcrux_iot_ml_kem.Util.SliceSpecs.Slice.index_RangeUsize_eq
+      (Aeneas.Std.Array.to_slice zs) 64#usize 128#usize (by decide)
+      (by rw [Aeneas.Std.Array.val_to_slice]; scalar_tac)
+  unfold core.Array.Insts.CoreOpsIndexIndex.index CoreModels.core.array.Array.as_slice
+         CoreModels.rust_primitives.slice.array_as_slice core.Slice.Insts.CoreOpsIndexIndex
+  simp only [bind_tc_ok]
+  rw [hns_eq]
+  apply congrArg
+  apply Subtype.ext
+  rw [hns_val, Aeneas.Std.Array.val_to_slice]
   rfl
 
 /-- `List.slice a b l [k]! = l[a + k]!` when `a ≤ b`, `b ≤ l.length`,
@@ -510,26 +538,36 @@ theorem multiply_ntts_eq_pure_array
   set f : Nat → hacspec_ml_kem.parameters.FieldElement :=
     multiply_ntts_lane_pure p1 p2 with h_f_def
   have h_call_mut_eq : ∀ k : Nat, k < (256#usize : Std.Usize).val →
-      ((hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement
-          256#usize).FnMutInst).call_mut (p1, p2, s) ⟨BitVec.ofNat _ k⟩
-      = .ok (f k, (p1, p2, s)) := by
+      (hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+          256#usize).call_mut (s, p1, p2) ⟨BitVec.ofNat _ k⟩
+      = .ok (f k, (s, p1, p2)) := by
     intro k hk
     have hk' : k < 256 := hk
     have h_k_val : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k :=
       usize_ofNat_val_eq_self_of_lt_256 k hk'
-    show (do let fe ← hacspec_ml_kem.ntt.ntt_multiply_n_at p1 p2 s
-              (⟨BitVec.ofNat _ k⟩ : Std.Usize);
-             .ok (fe, (p1, p2, s))) = _
     have h_lane := ntt_multiply_n_at_eq_pure p1 p2 s h_slen h_zeta_eq_slice
                      (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [h_k_val]; exact hk')
-    rw [h_lane]; simp only [bind_tc_ok]
-    rw [h_k_val]
+    -- The closure body is the inlined per-lane (`ntt_multiply_n_at`) wrapped as
+    -- `· >>= fun fe => ok (fe, (s, p1, p2))`; connect via bind-assoc, then fold `h_lane`.
+    have hconn :
+        (hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+            256#usize).call_mut (s, p1, p2) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+        = (ntt_multiply_n_at p1 p2 s (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+            >>= fun fe => Result.ok (fe, (s, p1, p2))) := by
+      simp [hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement,
+            hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut,
+            ntt_multiply_n_at, bind_assoc, apply_ite, ite_apply]
+      try rfl
+    rw [hconn]
+    have hchain := congrArg (· >>= (fun fe => Result.ok (fe, (s, p1, p2)))) h_lane
+    simp only [bind_tc_ok] at hchain
+    rw [hchain, h_k_val]
     rfl
   -- Apply from_fn_pure_eq.
   have h_from_fn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq 256#usize
-    (hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement
-        256#usize).FnMutInst
-    (p1, p2, s) f h_call_mut_eq
+    (hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        256#usize)
+    (s, p1, p2) f h_call_mut_eq
   exact h_from_fn
 
 /-! ### §L6.3b — .4: chunked assembly + final theorem. -/
@@ -9430,45 +9468,37 @@ theorem array_index_mut_range_ok_eq_fc
       ∧ s.val.length = r.end.val - r.start.val
       ∧ (∀ s' : Slice T, s'.val.length = r.end.val - r.start.val →
           (back s').val = a.val.setSlice! r.start.val s'.val) := by
-  -- Unfold the Array-level index_mut to the to_slice_mut + slice index_mut composition.
-  set a_slice : Slice T := Aeneas.Std.Array.to_slice a with ha_slice_def
-  have h_a_slice_val : a_slice.val = a.val :=
-    Aeneas.Std.Array.val_to_slice a
-  have h_a_slice_len : a_slice.val.length = a.val.length := by rw [h_a_slice_val]
-  have h1' : r.end.val ≤ a_slice.val.length := by rw [h_a_slice_len]; exact h1
-  -- Slice-level index_mut over the same range.
-  have hT := libcrux_iot_ml_kem.Util.SliceSpecs.core_models_Slice_Insts_index_mut_RangeUsize_spec
-              (T := T) a_slice
-              ({ start := r.start, «end» := r.end } : CoreModels.core.ops.range.Range Std.Usize)
-              h0 h1'
-  obtain ⟨p, h_p_eq, h_p_post⟩ := triple_exists_ok_fc hT
-  obtain ⟨h_p_val, h_p_len, h_p_back⟩ := h_p_post
-  -- The Array-level closure: fun o => Array.from_slice a (slice_back o).
-  refine ⟨p.1, fun o => Aeneas.Std.Array.from_slice a (p.2 o), ?_, ?_, ?_, ?_⟩
-  · -- The Array index_mut reduces to `do let (s, back) ← Slice.index_mut ...; ok (s, ...)`.
+  -- New model: `Array.index_mut inst a i` unfolds to
+  --   `do let sub ← inst.index i a.to_slice
+  --       ok (sub, fun sub' => (a.update_subslice (HaxToRange.toRange i a.to_slice.len) sub').getD a)`,
+  -- where the SliceIndexMut instance is the identity on the `RangeUsize` `SliceIndex`,
+  -- so `inst.index i s = slice_slice s i.start i.end = Slice.subslice s ⟨i.start, i.end⟩`.
+  have h_ts_val : (Aeneas.Std.Array.to_slice a).val = a.val := Aeneas.Std.Array.val_to_slice a
+  have h1' : r.end.val ≤ (Aeneas.Std.Array.to_slice a).val.length := by rw [h_ts_val]; exact h1
+  obtain ⟨ns, hns_eq, hns_val⟩ :=
+    libcrux_iot_ml_kem.Util.SliceSpecs.Slice.subslice_le_eq
+      (Aeneas.Std.Array.to_slice a) ⟨r.start, r.end⟩ h0 h1'
+  refine ⟨ns,
+    fun sub' => (match Aeneas.Std.Array.update_subslice a
+        (HaxToRange.toRange ({ start := r.start, «end» := r.end } :
+          CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Array.to_slice a).len) sub' with
+      | .ok x => x | _ => a), ?_, ?_, ?_, ?_⟩
+  · -- The index_mut equation: `.index` over the `RangeUsize` instance is `Slice.subslice`.
     unfold core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-    -- to_slice_mut := (to_slice a, from_slice a).
-    show (do
-            let p ← core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-              (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T)
-              a_slice { start := r.start, «end» := r.end }
-            .ok (p.1, fun o => Aeneas.Std.Array.from_slice a (p.2 o)))
-          = .ok (p.1, fun o => Aeneas.Std.Array.from_slice a (p.2 o))
-    rw [h_p_eq]; rfl
+           core.Slice.Insts.CoreOpsIndexIndexMut
+    simp only [core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+               rust_primitives.slice.slice_slice, hns_eq, bind_tc_ok]
+    rfl
   · -- Sub-slice val.
-    rw [h_p_val]; rw [h_a_slice_val]
+    rw [hns_val, h_ts_val]
   · -- Sub-slice length.
-    exact h_p_len
-  · -- Write-back: `(from_slice a (slice_back s')).val = a.val.setSlice! r.start.val s'.val`.
+    rw [hns_val, h_ts_val]; simp only [List.slice_length]; omega
+  · -- Write-back via `Array.update_subslice`.
     intro s' hs'_len
-    have h_back_val : (p.2 s').val = a_slice.val.setSlice! r.start.val s'.val := h_p_back s'
-    have h_back_len : (p.2 s').val.length = N.val := by
-      rw [h_back_val, h_a_slice_val, List.length_setSlice!]
-      exact Std.Array.length_eq a
-    have h_from_slice_val :
-        (Aeneas.Std.Array.from_slice a (p.2 s')).val = (p.2 s').val :=
-      Aeneas.Std.Array.from_slice_val a (p.2 s') h_back_len
-    rw [h_from_slice_val, h_back_val, h_a_slice_val]
+    obtain ⟨na, hna_eq, hna_val⟩ :=
+      libcrux_iot_ml_kem.Util.SliceSpecs.Array.update_subslice_le_eq a ⟨r.start, r.end⟩ s' h0 h1 hs'_len
+    simp only [HaxToRange.toRange, hna_eq]
+    exact hna_val
 
 set_option maxHeartbeats 16000000 in
 /-- Per-iteration FC step lemma for
