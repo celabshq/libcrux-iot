@@ -46,7 +46,7 @@ instance : Inhabited libcrux_iot_ml_kem.vector.portable.vector_type.PortableVect
   ⟨{ elements := Std.Array.make 16#usize (List.replicate 16 (0#i16 : Std.I16))
         (by simp) }⟩
 
-instance {Vector : Type} [Inhabited Vector] {K : Std.Usize} :
+instance {Vector : Type} [Inhabited Vector] :
     Inhabited (libcrux_iot_ml_kem.polynomial.PolynomialRingElement Vector) :=
   ⟨{ coefficients := Std.Array.make 16#usize (List.replicate 16 default) (by simp) }⟩
 
@@ -77,7 +77,7 @@ private theorem of_pure_prop_holds_l3 {P : Prop}
 private theorem usize_add_ok_eq (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   -- hT : x + y ⦃ z => (↑z : Nat) = ↑x + ↑y ⦄ — this is `WP.spec`, not Triple.
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   refine ⟨z, h_eq, ?_⟩
@@ -2400,9 +2400,9 @@ private theorem ntt_at_layer_7_step_lemma
           have h1' : (a1.set i t4).val[j]! = a1.val[j]! := by
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h1
           have h2' : a1.val[j]! = a.val[j]! := by
-            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
+            rw [ha1_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
           have h3' : a.val[j]! = acc.1.coefficients.val[j]! := by
-            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
+            rw [ha_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
           rw [h1', h2', h3']
         rw [h_chain]
         exact h_done_lo j hj_lt_k ℓ hℓ
@@ -2441,9 +2441,9 @@ private theorem ntt_at_layer_7_step_lemma
           have h1' : (a1.set i t4).val[j]! = a1.val[j]! := by
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h1
           have h2' : a1.val[j]! = a.val[j]! := by
-            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
+            rw [ha1_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
           have h3' : a.val[j]! = acc.1.coefficients.val[j]! := by
-            simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
+            rw [ha_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
           rw [h1', h2', h3']
         rw [h_chain]
         exact h_done_hi j hj_lo hj_lt_ki ℓ hℓ
@@ -2475,9 +2475,9 @@ private theorem ntt_at_layer_7_step_lemma
         have h1' : (a1.set i t4).val[j]! = a1.val[j]! := by
           simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h1
         have h2' : a1.val[j]! = a.val[j]! := by
-          simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
+          rw [ha1_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
         have h3' : a.val[j]! = acc.1.coefficients.val[j]! := by
-          simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
+          rw [ha_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
         rw [h1', h2', h3']
       rw [h_chain]
       have h_undone_j : k.val ≤ j := by omega
@@ -2500,9 +2500,9 @@ private theorem ntt_at_layer_7_step_lemma
         have h1' : (a1.set i t4).val[j]! = a1.val[j]! := by
           simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h1
         have h2' : a1.val[j]! = a.val[j]! := by
-          simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
+          rw [ha1_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h2
         have h3' : a.val[j]! = acc.1.coefficients.val[j]! := by
-          simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
+          rw [ha_def]; simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h3
         rw [h1', h2', h3']
       rw [h_chain]
       have h_undone_j : 8 + k.val ≤ j := by omega
@@ -3318,7 +3318,7 @@ layer ∈ {4, 5, 6}).
 private theorem usize_mul_ok_eq (x y : Std.Usize)
     (h_max : x.val * y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
-  have hT := Std.Usize.mul_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   refine ⟨z, h_eq, ?_⟩
   show z.val = x.val * y.val
