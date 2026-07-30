@@ -234,7 +234,9 @@ theorem compute_ring_element_v_fc
     -- 256 * 12 = 3072.
     have hm_max : (256#usize : Std.Usize).val * (12#usize : Std.Usize).val ≤ Std.Usize.max := by
       scalar_tac
-    obtain ⟨m, hm_eq, hm_v⟩ := Std.WP.spec_imp_exists (Std.Usize.mul_spec hm_max)
+    obtain ⟨m, hm_eq, hm_v⟩ := Std.WP.spec_imp_exists
+      (Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec 256#usize 12#usize)
+        (fun e => by cases e <;> scalar_tac) (by simp))
     have hm : m = (3072#usize : Std.Usize) := by
       apply Aeneas.Std.UScalar.eq_of_val_eq
       show m.val = (3072#usize : Std.Usize).val; rw [hm_v]; decide
@@ -259,7 +261,8 @@ theorem compute_ring_element_v_fc
     rw [show (CoreModels.core.slice.Slice.chunks_exact public_key (384#usize : Std.Usize))
           = .ok { cs := 384#usize, elements := public_key } from rfl]
     simp only [Aeneas.Std.bind_tc_ok]
-    rw [show (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice.enumerate
+    rw [show (CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
+              (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
               { cs := (384#usize : Std.Usize), elements := public_key })
           = .ok iter0 from rfl]
     simp only [Aeneas.Std.bind_tc_ok]
@@ -323,7 +326,9 @@ theorem compute_ring_element_v_fc
 info: 'libcrux_iot_ml_kem.Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc' depends on axioms: [propext,
  Classical.choice,
  Quot.sound,
- deserialize_to_reduced_ring_element_fc]-/
+ deserialize_to_reduced_ring_element_fc,
+ Util.SliceSpecs.Array.update_subslice_le_eq,
+ Util.SliceSpecs.Slice.subslice_le_eq]-/
 #guard_msgs in
 #print axioms compute_ring_element_v_fc
 
