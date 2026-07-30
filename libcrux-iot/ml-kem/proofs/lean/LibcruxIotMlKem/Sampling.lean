@@ -42,7 +42,7 @@ axiom sample_matrix_entry_fc
     (h_seed_len : seed.length = 32)
     (h_i : i.val < K.val) (h_j : j.val < K.val) :
     ⦃ ⌜ True ⌝ ⦄
-    libcrux_iot_ml_kem.matrix.sample_matrix_entry
+    matrix.sample_matrix_entry
       (vectortraitsOperationsInst := portable_ops_inst)
       hash_functionsHashInst out seed i j
     ⦃ ⇓ p => ⌜ lift_poly p = (lift_matrix_from_seed seed K).val[i.val]!.val[j.val]!
