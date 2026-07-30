@@ -81,8 +81,8 @@ theorem enumerate_chunks_next_cont
   have hsa := core.slice.Slice.split_at.spec rest cs (by simpa using h_le)
   obtain ⟨⟨s0, s1⟩, hsa_eq, hs0len, hs1len, hs0val, hs1val⟩ := WP.spec_imp_exists hsa
   -- `cnt + 1#usize` succeeds.
-  have hadd := Std.Usize.add_spec (x := cnt) (y := 1#usize)
-    (by have : (1#usize : Std.Usize).val = 1 := rfl; omega)
+  have hadd := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec cnt 1#usize)
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨cnt', hcnt'_eq, hcnt'_post⟩ := WP.spec_imp_exists hadd
   have hcnt'_val : cnt'.val = cnt.val + 1 := by
     have h1 : (1#usize : Std.Usize).val = 1 := rfl
@@ -92,9 +92,15 @@ theorem enumerate_chunks_next_cont
     simp only [enumCENext,
       CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next,
       CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice.next]
-    have h_le' : cs.val ≤ rest.val.length := by simpa [Slice.length] using h_le
+    unfold rust_primitives.slice.slice_length
+    simp only [bind_tc_ok]
+    have h_nlt : ¬ (Std.Slice.len rest < cs) := by
+      have h : cs.val ≤ (Std.Slice.len rest).val := by simpa [Slice.length] using h_le
+      simp only [not_lt]; scalar_tac
+    rw [if_neg h_nlt]
+    unfold rust_primitives.slice.slice_split_at
     rw [hsa_eq]
-    simp only [h_le', ↓reduceIte, bind_assoc]
+    simp only [bind_assoc, bind_tc_ok]
     rw [hcnt'_eq]
     rfl
   · -- the element relation
@@ -111,9 +117,12 @@ theorem enumerate_chunks_next_done
   simp only [enumCENext,
     CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next,
     CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice.next]
-  have hng : ¬ (cs.val ≤ rest.val.length) := by
-    simp only [Slice.length] at h_lt; omega
-  simp only [hng, ↓reduceIte]
+  unfold rust_primitives.slice.slice_length
+  simp only [bind_tc_ok]
+  have hlt : (Std.Slice.len rest < cs) := by
+    have h : (Std.Slice.len rest).val < cs.val := by simpa [Slice.length] using h_lt
+    scalar_tac
+  rw [if_pos hlt]
   rfl
 
 /-! ## Deliverable 2 — the loop Hoare spec keystone
@@ -255,8 +264,8 @@ theorem enumerate_chunks_next_cont_drop
       ∧ (∀ ℓ : Nat, drop.val[ℓ]! = rest.val[cs.val + ℓ]!) := by
   have hsa := core.slice.Slice.split_at.spec rest cs (by simpa using h_le)
   obtain ⟨⟨s0, s1⟩, hsa_eq, hs0len, hs1len, hs0val, hs1val⟩ := WP.spec_imp_exists hsa
-  have hadd := Std.Usize.add_spec (x := cnt) (y := 1#usize)
-    (by have : (1#usize : Std.Usize).val = 1 := rfl; omega)
+  have hadd := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec cnt 1#usize)
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨cnt', hcnt'_eq, hcnt'_post⟩ := WP.spec_imp_exists hadd
   have hcnt'_val : cnt'.val = cnt.val + 1 := by
     have h1 : (1#usize : Std.Usize).val = 1 := rfl
@@ -265,9 +274,15 @@ theorem enumerate_chunks_next_cont_drop
   · simp only [enumCENext,
       CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next,
       CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice.next]
-    have h_le' : cs.val ≤ rest.val.length := by simpa [Slice.length] using h_le
+    unfold rust_primitives.slice.slice_length
+    simp only [bind_tc_ok]
+    have h_nlt : ¬ (Std.Slice.len rest < cs) := by
+      have h : cs.val ≤ (Std.Slice.len rest).val := by simpa [Slice.length] using h_le
+      simp only [not_lt]; scalar_tac
+    rw [if_neg h_nlt]
+    unfold rust_primitives.slice.slice_split_at
     rw [hsa_eq]
-    simp only [h_le', ↓reduceIte, bind_assoc]
+    simp only [bind_assoc, bind_tc_ok]
     rw [hcnt'_eq]
     rfl
   · intro ℓ hℓ
@@ -507,7 +522,7 @@ private theorem compute_ring_element_v_loop_step_lemma_fc
   have h_acc_init_len : acc_init.length = 256 := Std.Array.length_eq acc_init
   -- Destructure the 2-conjunct invariant (`.2` of the carried pair reduces to `acc`).
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   dsimp only at h_inv_acc h_inv_acc_bnd
   unfold matrix.compute_ring_element_v_loop.body
   by_cases h_lt : k < K.val
@@ -754,7 +769,7 @@ private theorem compute_ring_element_v_loop_step_lemma_fc
           rw [h_arith]
           linarith [h_acc1_bnd_n', h_inv_n]
       show (pure _ : Result Prop).holds
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: rest.length < 384, k = K, done.
     have hk_ge : ¬ k < K.val := h_lt
     have hk_eq : k = K.val := by omega
@@ -813,7 +828,7 @@ private theorem compute_ring_element_v_loop_step_lemma_fc
         rw [show k * 2^25 = K.val * 2^25 by rw [hk_eq]] at h_b
         exact h_b
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 set_option maxHeartbeats 4000000 in
 /-- **L7.3 loop FC.** `matrix.compute_ring_element_v_loop`: the chunks-exact
@@ -1021,7 +1036,7 @@ theorem compute_ring_element_v_acc_bridge {K : Std.Usize} (hK : K.val ≤ 4)
   set trows : Std.Array FEPoly K := lift_t_as_ntt_from_public_key public_key K with htrows_def
   -- Destructure `loop_inv`'s 2 conjuncts; the first is the ∃-witness pack.
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_char
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_char
   dsimp only at h_inv_acc h_inv_bnd
   -- `h_inv_acc` (mont foldl) and `h_inv_bnd` (bound) are exactly
   -- `S1LoopFC.loop_inv mp r_arr acc_init K acc2`'s two conjuncts.
@@ -1043,7 +1058,7 @@ theorem compute_ring_element_v_acc_bridge {K : Std.Usize} (hK : K.val ≤ 4)
           ∧ (∀ n : Nat, n < 256 →
               (acc2.val[n]!).val.natAbs ≤ (acc_init.val[n]!).val.natAbs + K.val * 2^25))
         : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
       (⟨h_inv_acc, h_inv_bnd⟩ : _ ∧ _)
   -- t-side bounds from the ∃-witness `mp`'s per-lane bound (conjunct 1.2).
   have h_secret_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
