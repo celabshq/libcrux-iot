@@ -153,6 +153,7 @@ theorem subtract_reduce_step_lemma_fc
     -- (4) `index_mut_usize a k` → `(t2, set_back2) = (a[k], a.set k)`.
     have h_a_len : a.length = 16 := by simp [ha_def, h_coef_len]
     have h_a_k : a.val[k.val]! = t1 := by
+      rw [ha_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq acc.coefficients k k.val t1
           ⟨rfl, by rw [h_coef_len]; exact hk_16⟩
@@ -207,6 +208,7 @@ theorem subtract_reduce_step_lemma_fc
       a.set k t4 with ha1_def
     have h_a1_len : a1.length = 16 := by simp [ha1_def, h_a_len]
     have h_a1_k : a1.val[k.val]! = t4 := by
+      rw [ha1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq a k k.val t4
           ⟨rfl, by rw [h_a_len]; exact hk_16⟩
@@ -283,6 +285,7 @@ theorem subtract_reduce_step_lemma_fc
       a1.set k t6 with ha2_def
     have h_a2_len : a2.length = 16 := by simp [ha2_def, h_a1_len]
     have h_a2_k : a2.val[k.val]! = t6 := by
+      rw [ha2_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq a1 k k.val t6
           ⟨rfl, by rw [h_a1_len]; exact hk_16⟩
@@ -576,7 +579,7 @@ theorem subtract_reduce_step_lemma_fc
         rw [h_set1, h_set2, h_set3, h_set4]
         exact h_acc_undone j h_ge' hj_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -617,7 +620,7 @@ theorem subtract_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.2 — `subtract_reduce`: per-chunk `negate(mont_mul(b, 1441) - self)`
@@ -689,8 +692,11 @@ theorem subtract_reduce_fc
                   (lift_chunk (b.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = b.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             ReducingFromI32ArrayFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, ReducingFromI32ArrayFC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done, _h_undone⟩ := h_inv
     -- Build chunks_arr matching the Spec definition, then apply
     -- flatten_chunks_eq_lift_poly_fc.
@@ -872,6 +878,7 @@ theorem add_error_reduce_step_lemma_fc
     -- (4) `index_mut_usize a k` → `(t2, set_back2) = (a[k], a.set k) = (t1, a.set k)`.
     have h_a_len : a.length = 16 := by simp [ha_def, h_coef_len]
     have h_a_k : a.val[k.val]! = t1 := by
+      rw [ha_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq acc.coefficients k k.val t1
           ⟨rfl, by rw [h_coef_len]; exact hk_16⟩
@@ -926,6 +933,7 @@ theorem add_error_reduce_step_lemma_fc
       a.set k t4 with ha1_def
     have h_a1_len : a1.length = 16 := by simp [ha1_def, h_a_len]
     have h_a1_k : a1.val[k.val]! = t4 := by
+      rw [ha1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq a k k.val t4
           ⟨rfl, by rw [h_a_len]; exact hk_16⟩
@@ -1162,7 +1170,7 @@ theorem add_error_reduce_step_lemma_fc
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -1203,7 +1211,7 @@ theorem add_error_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.4 — `add_error_reduce`: `self · (R/128) + error` then barrett.
@@ -1268,8 +1276,11 @@ theorem add_error_reduce_fc
                   (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             AddErrorReduceFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, AddErrorReduceFC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done, _h_undone⟩ := h_inv
     -- Build chunks_arr matching the Spec definition, then apply
     -- flatten_chunks_eq_lift_poly_fc.
@@ -1443,6 +1454,7 @@ theorem add_standard_error_reduce_step_lemma_fc
     -- (4) `index_mut_usize a k` → `(t2, set_back2) = (a[k], a.set k) = (t1, a.set k)`.
     have h_a_len : a.length = 16 := by simp [ha_def, h_coef_len]
     have h_a_k : a.val[k.val]! = t1 := by
+      rw [ha_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq acc.coefficients k k.val t1
           ⟨rfl, by rw [h_coef_len]; exact hk_16⟩
@@ -1497,6 +1509,7 @@ theorem add_standard_error_reduce_step_lemma_fc
       a.set k t4 with ha1_def
     have h_a1_len : a1.length = 16 := by simp [ha1_def, h_a_len]
     have h_a1_k : a1.val[k.val]! = t4 := by
+      rw [ha1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq a k k.val t4
           ⟨rfl, by rw [h_a_len]; exact hk_16⟩
@@ -1734,7 +1747,7 @@ theorem add_standard_error_reduce_step_lemma_fc
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -1775,7 +1788,7 @@ theorem add_standard_error_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.5 — `add_standard_error_reduce`: `self · R² + error` then barrett.
@@ -1841,8 +1854,11 @@ theorem add_standard_error_reduce_fc
                   (lift_chunk (error.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             AddStandardErrorReduceFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, AddStandardErrorReduceFC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done, _h_undone⟩ := h_inv
     -- Build chunks_arr matching the Spec definition, then apply
     -- flatten_chunks_eq_lift_poly_fc.
@@ -2074,6 +2090,7 @@ theorem add_message_error_reduce_step_lemma_fc
       acc.1.coefficients.set k t1 with ha_def
     have h_a_len : a.length = 16 := by simp [ha_def, h_coef_len]
     have h_a_k : a.val[k.val]! = t1 := by
+      rw [ha_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq acc.1.coefficients k k.val t1
           ⟨rfl, by rw [h_coef_len]; exact hk_16⟩
@@ -2120,6 +2137,7 @@ theorem add_message_error_reduce_step_lemma_fc
       a.set k t4 with ha1_def
     have h_a1_len : a1.length = 16 := by simp [ha1_def, h_a_len]
     have h_a1_k : a1.val[k.val]! = t4 := by
+      rw [ha1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq a k k.val t4
           ⟨rfl, by rw [h_a_len]; exact hk_16⟩
@@ -2398,7 +2416,7 @@ theorem add_message_error_reduce_step_lemma_fc
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -2440,7 +2458,7 @@ theorem add_message_error_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.6 — `add_message_error_reduce`: combines `self · (R/128)` with
@@ -2512,8 +2530,11 @@ theorem add_message_error_reduce_fc
                   (lift_chunk (result.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.1.coefficients.val[j]! = result.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             AddMessageErrorReduceFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, AddMessageErrorReduceFC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done, _h_undone⟩ := h_inv
     unfold Spec.add_message_error_reduce_pure
     set chunks_arr : Std.Array
@@ -2743,6 +2764,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
       acc.coefficients.set k t1 with ha1_def
     have h_a1_len : a1.length = 16 := by simp [ha1_def, h_coef_len]
     have h_a1_k : a1.val[k.val]! = t1 := by
+      rw [ha1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq acc.coefficients k k.val t1
           ⟨rfl, by rw [h_coef_len]; exact hk_16⟩
@@ -2917,7 +2939,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
           rw [h_set_eq]
           exact h_t1_bnd ℓ hℓ
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -2960,7 +2982,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
       · intro j hj ℓ hℓ; rw [h16] at hj
         apply h_acc_bnd j _ ℓ hℓ; rw [hk_eq]; exact hj
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.7 — poly-level `reducing_from_i32_array`. Returns a fresh poly
@@ -3025,8 +3047,11 @@ theorem poly_reducing_from_i32_array_fc
             r.coefficients.val[j]! = out.coefficients.val[j]!)
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ ℓ : Nat, ℓ < 16 →
             ((r.coefficients.val[j]!).elements.val[ℓ]!).val.natAbs ≤ 4993) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             SubtractReduceFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, SubtractReduceFC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done, _h_undone, h_bnd⟩ := h_inv
     refine ⟨?_, ?_⟩
     · -- Goal: `lift_poly_mont r = Spec.poly_reducing_from_i32_array_pure a`.
