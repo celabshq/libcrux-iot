@@ -1171,7 +1171,7 @@ private theorem shift_right_per_elem_spec
   have h_hcast_val : (IScalar.hcast .U32 SHIFT_BY : Std.U32).val = SHIFT_BY.val.toNat := by
     have h_inj : ((IScalar.hcast .U32 SHIFT_BY : Std.U32).val : Int).toNat
                   = SHIFT_BY.val.toNat := by rw [h_eq_int]
-    simpa using h_inj
+    exact_mod_cast h_inj
   -- Now invoke `IScalar.shiftRight_UScalar_bv_eq`.
   have h_lt_numBits : (IScalar.hcast .U32 SHIFT_BY : Std.U32).val
                         < Aeneas.Std.IScalarTy.I16.numBits := by
