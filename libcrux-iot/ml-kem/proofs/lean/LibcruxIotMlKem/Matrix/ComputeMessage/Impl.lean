@@ -173,7 +173,7 @@ private theorem compute_message_loop_step_lemma_fc
   have h_acc_init_len : acc_init.length = 256 := Std.Array.length_eq acc_init
   -- Destructure the 2-conjunct invariant.
   obtain ⟨h_inv_acc, h_inv_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_kem.matrix.compute_message_loop.body
   by_cases h_lt : k.val < K.val
   · -- `Some k` branch.
@@ -342,7 +342,7 @@ private theorem compute_message_loop_step_lemma_fc
         rw [h_arith]
         linarith [h_acc1_bnd_n', h_inv_n]
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ K, done.
     have hk_ge : k.val ≥ K.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = K.val := by omega
@@ -410,7 +410,7 @@ private theorem compute_message_loop_step_lemma_fc
         have h_arith : k.val * 2^25 = K.val * 2^25 := by rw [hk_eq]
         rw [h_arith] at h_b
         exact h_b
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- L7.4 S1 — `matrix.compute_message_loop`: the message-accumulation loop.
     Iterates over `i ∈ [0, K)`, accumulating column-i's contribution
@@ -697,11 +697,11 @@ private theorem multiply_vectors_eq {K : Std.Usize}
       have h_eq : (pure (r = vec_loop_result_at_step secret_as_ntt u_as_ntt K.val)
                   : Result Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_eq
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · -- Step.
       intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = vec_loop_result_at_step secret_as_ntt u_as_ntt k.val := by
-        simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hinv
+        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_vectors_loop.body
       by_cases h_lt : k.val < K.val
@@ -1185,7 +1185,7 @@ theorem compute_message_acc_bridge {K : Std.Usize}
   rw [multiply_vectors_eq secret_as_ntt u_as_ntt]
   -- Destructure `h_char`'s conjunct (1): the per-lane `no_acc` foldl characterization.
   obtain ⟨h_inv_acc, _⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_char
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_char
   -- Abbreviations.
   set P : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
     Impl.mont_strip_pure
