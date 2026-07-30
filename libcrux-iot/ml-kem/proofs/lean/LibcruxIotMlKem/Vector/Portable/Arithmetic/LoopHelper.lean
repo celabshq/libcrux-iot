@@ -134,18 +134,16 @@ theorem array_index_usize_ok_eq
     {α : Type u} {n : Std.Usize} [Inhabited α]
     (v : Std.Array α n) (i : Std.Usize) (h_bd : i.val < v.length) :
     Aeneas.Std.Array.index_usize v i = .ok (v.val[i.val]!) := by
-  have hT := Aeneas.Std.Array.index_usize_spec v i h_bd
-  have h_ex := Aeneas.Std.WP.spec_imp_exists hT
-  obtain ⟨v', hveq, hPv'⟩ := h_ex
-  rw [hveq, hPv', getElem!_pos]
+  have h' : i.val < v.val.length := h_bd
+  obtain ⟨v', hveq, hPv'⟩ := libcrux_iot_ml_kem.Util.SliceSpecs.Array.index_usize_exists v i h'
+  rw [hveq, hPv']
+  exact congrArg _ (getElem!_pos v.val i.val h').symm
 
 theorem array_update_ok_eq
     {α : Type u} {n : Std.Usize}
     (v : Std.Array α n) (i : Std.Usize) (x : α) (h_bd : i.val < v.length) :
     Aeneas.Std.Array.update v i x = .ok (v.set i x) := by
-  have hT := Aeneas.Std.Array.update_spec v i x h_bd
-  have h_ex := Aeneas.Std.WP.spec_imp_exists hT
-  obtain ⟨v', hveq, hPv'⟩ := h_ex
+  obtain ⟨v', hveq, hPv'⟩ := libcrux_iot_ml_kem.Util.SliceSpecs.Array.update_exists v i x h_bd
   rw [hveq, hPv']
 
 /-! ## Unary loop invariant -/
