@@ -85,7 +85,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_add_ok_eq (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 
@@ -352,7 +352,7 @@ theorem ntt_at_layer_1_step_lemma_fc
         exact h_acc_undone j h_ge' hj_lt
     -- inv .. = pure (P)  with .holds reducing to P.
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -400,7 +400,7 @@ theorem ntt_at_layer_1_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3.1' — `ntt_at_layer_1` PortableVector-specialised FC equation.
@@ -472,8 +472,11 @@ theorem ntt_at_layer_1_portable_fc
                   (Spec.zeta_at (zeta_i.val + 4 * j + 4)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.2.coefficients.val[j]! = re.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             Layer1FC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, Layer1FC.inv] at hh
+      exact hh trivial
     obtain ⟨_h_zeta_eq, h_done, _h_undone⟩ := h_inv
     have h16 : (16#usize : Std.Usize).val = 16 := rfl
     -- `Spec.ntt_layer_1_pure (lift_poly re) zeta_i` unfolds to
@@ -547,7 +550,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_add_ok_eq (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 
@@ -771,7 +774,7 @@ theorem ntt_at_layer_2_step_lemma_fc
         exact h_acc_undone j h_ge' hj_lt
     -- inv .. = pure (P)  with .holds reducing to P.
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -817,7 +820,7 @@ theorem ntt_at_layer_2_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3.2 — `ntt_at_layer_2` PortableVector-specialised FC equation.
@@ -886,8 +889,11 @@ theorem ntt_at_layer_2_portable_fc
                   (Spec.zeta_at (zeta_i.val + 2 * j + 2)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.2.coefficients.val[j]! = re.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             Layer2FC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, Layer2FC.inv] at hh
+      exact hh trivial
     obtain ⟨_h_zeta_eq, h_done, _h_undone⟩ := h_inv
     have h16 : (16#usize : Std.Usize).val = 16 := rfl
     unfold Spec.ntt_layer_2_pure
@@ -950,7 +956,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_add_ok_eq (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 
@@ -1155,7 +1161,7 @@ theorem ntt_at_layer_3_step_lemma_fc
         exact h_acc_undone j h_ge' hj_lt
     -- inv .. = pure (P)  with .holds reducing to P.
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -1200,7 +1206,7 @@ theorem ntt_at_layer_3_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3.3' — `ntt_at_layer_3` PortableVector-specialised FC equation.
@@ -1266,8 +1272,11 @@ theorem ntt_at_layer_3_portable_fc
                   (Spec.zeta_at (zeta_i.val + j + 1)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.2.coefficients.val[j]! = re.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             Layer3FC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, Layer3FC.inv] at hh
+      exact hh trivial
     obtain ⟨_h_zeta_eq, h_done, _h_undone⟩ := h_inv
     have h16 : (16#usize : Std.Usize).val = 16 := rfl
     unfold Spec.ntt_layer_3_pure
@@ -1332,7 +1341,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_add_ok_eq (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 
@@ -1566,6 +1575,7 @@ theorem ntt_at_layer_7_step_lemma_fc
     -- Need to know a.val[k.val]! = acc.1.coefficients.val[k.val]! = t (k ≠ i.val).
     have hki_ne : k.val ≠ i_idx.val := by rw [h_i_val_arith]; omega
     have h_a_k : a.val[k.val]! = acc.1.coefficients.val[k.val]! := by
+      rw [ha_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients i_idx k.val t
           (fun h => hki_ne h.symm)
@@ -1620,9 +1630,11 @@ theorem ntt_at_layer_7_step_lemma_fc
     have h_a1_i : a1.val[i_idx.val]! = t := by
       have h_ne : k.val ≠ i_idx.val := hki_ne
       have h_step1 : a1.val[i_idx.val]! = a.val[i_idx.val]! := by
+        rw [ha1_def]
         simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
           Aeneas.Std.Array.getElem!_Nat_set_ne a k i_idx.val t2 h_ne
       have h_step2 : a.val[i_idx.val]! = t := by
+        rw [ha_def]
         simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
           Aeneas.Std.Array.getElem!_Nat_set_eq acc.1.coefficients i_idx i_idx.val t
             ⟨rfl, by rw [h_coef_len, h_i_val_arith]; exact hk8_lt_16⟩
@@ -1763,9 +1775,11 @@ theorem ntt_at_layer_7_step_lemma_fc
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne a1 i_idx j t4 h_ne_i
           have h_step2 : a1.val[j]! = a.val[j]! := by
+            rw [ha1_def]
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne a k j t2 h_ne_k
           have h_step3 : a.val[j]! = acc.1.coefficients.val[j]! := by
+            rw [ha_def]
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients i_idx j t
                 (by rw [h_i_val_arith]; omega)
@@ -1778,6 +1792,7 @@ theorem ntt_at_layer_7_step_lemma_fc
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne a1 i_idx k.val t4 h_ne_i
           have h_step2 : a1.val[k.val]! = t2 := by
+            rw [ha1_def]
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_eq a k k.val t2
                 ⟨rfl, by rw [h_a_len]; exact hk_lt_16⟩
@@ -1842,10 +1857,12 @@ theorem ntt_at_layer_7_step_lemma_fc
               Aeneas.Std.Array.getElem!_Nat_set_ne a1 i_idx (j + 8) t4
                 (fun h => h_jp8_ne_i h.symm)
           have h_step2 : a1.val[j + 8]! = a.val[j + 8]! := by
+            rw [ha1_def]
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne a k (j + 8) t2
                 (fun h => h_jp8_ne_k h.symm)
           have h_step3 : a.val[j + 8]! = acc.1.coefficients.val[j + 8]! := by
+            rw [ha_def]
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients i_idx (j + 8) t
                 (by rw [h_i_val_arith]; omega)
@@ -1912,9 +1929,11 @@ theorem ntt_at_layer_7_step_lemma_fc
           simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
             Aeneas.Std.Array.getElem!_Nat_set_ne a1 i_idx j t4 h_j_ne_i
         have h_step2 : a1.val[j]! = a.val[j]! := by
+          rw [ha1_def]
           simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
             Aeneas.Std.Array.getElem!_Nat_set_ne a k j t2 h_j_ne_k
         have h_step3 : a.val[j]! = acc.1.coefficients.val[j]! := by
+          rw [ha_def]
           simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients i_idx j t
               (by rw [h_i_val_arith]; omega)
@@ -1932,10 +1951,12 @@ theorem ntt_at_layer_7_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne a1 i_idx (j + 8) t4
               (fun h => h_jp8_ne_i h.symm)
         have h_step2 : a1.val[j + 8]! = a.val[j + 8]! := by
+          rw [ha1_def]
           simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
             Aeneas.Std.Array.getElem!_Nat_set_ne a k (j + 8) t2
               (fun h => h_jp8_ne_k h.symm)
         have h_step3 : a.val[j + 8]! = acc.1.coefficients.val[j + 8]! := by
+          rw [ha_def]
           simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients i_idx (j + 8) t
               (by rw [h_i_val_arith]; omega)
@@ -1943,7 +1964,7 @@ theorem ntt_at_layer_7_step_lemma_fc
         have hk_le_j : k.val ≤ j := by omega
         exact h_acc_undone_b j hk_le_j hj_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 8, done.
     have hk_ge : k.val ≥ (8#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 8 := by rw [h8] at hk_ge; omega
@@ -2000,7 +2021,7 @@ theorem ntt_at_layer_7_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h8] at hj_ge
         apply h_acc_undone_b j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3.7' — `ntt_at_layer_7` PortableVector-specialised FC equation.
@@ -2095,8 +2116,11 @@ theorem ntt_at_layer_7_portable_fc
             r.1.coefficients.val[j]! = re.coefficients.val[j]!)
         ∧ (∀ j : Nat, (8#usize : Std.Usize).val ≤ j → j < 8 →
             r.1.coefficients.val[j + 8]! = re.coefficients.val[j + 8]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             Layer7FC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, Layer7FC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done_a, h_done_b, _h_undone_a, _h_undone_b⟩ := h_inv
     have h8 : (8#usize : Std.Usize).val = 8 := rfl
     unfold Spec.ntt_at_layer_7_pure
@@ -2200,7 +2224,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_add_ok_eq (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 
@@ -2208,7 +2232,7 @@ theorem usize_add_ok_eq (x y : Std.Usize)
 theorem usize_mul_ok_eq (x y : Std.Usize)
     (h_max : x.val * y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
-  have hT := Std.Usize.mul_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 
@@ -3013,7 +3037,7 @@ theorem ntt_at_layer_4_plus_inner_step_lemma_fc
         have h_at_j' : j' < s.val := by rw [hs_val]; omega
         exact h_not_touched j' h_at_j'
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- None branch: k ≥ step_vec, done.
     have hk_ge : k.val ≥ step_vec.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = step_vec.val := by omega
@@ -3069,7 +3093,7 @@ theorem ntt_at_layer_4_plus_inner_step_lemma_fc
         intro j' hj'
         have h_at_j' : j' < step_vec.val := by rw [← hk_eq]; exact hj'
         exact h_not_touched j' h_at_j'
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 /-! ### L3.4_plus' — Outer loop scaffolding. -/
 
@@ -3302,8 +3326,11 @@ theorem ntt_at_layer_4_plus_inner_loop_fc
         ∧ (∀ k' : Nat, k' < 16 →
             (∀ j' : Nat, j' < step_vec.val → k' ≠ a_offset.val + j' ∧ k' ≠ b_offset.val + j') →
             r.1.coefficients.val[k']! = re0.coefficients.val[k']!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             Layer4PlusInnerFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, Layer4PlusInnerFC.inv] at hh
+      exact hh trivial
     exact h_inv
   · -- Step lemma dispatch.
     intro acc k _h_ge h_le hinv
@@ -3638,7 +3665,7 @@ theorem ntt_at_layer_4_plus_outer_step_lemma_fc
         have h_at_r : round' < s.val := by rw [hs_val]; omega
         exact h_not_touched round' h_at_r j' hj'
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- None branch: k ≥ i_end, done.
     have hk_ge : k.val ≥ i_end.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = i_end.val := by omega
@@ -3698,7 +3725,7 @@ theorem ntt_at_layer_4_plus_outer_step_lemma_fc
         intro round' hround' j' hj'
         have : round' < i_end.val := by rw [← hk_eq]; exact hround'
         exact h_nt round' this j' hj'
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3.4_plus' — `ntt_at_layer_4_plus` PortableVector-specialised FC equation,
@@ -3886,8 +3913,11 @@ theorem ntt_at_layer_4_plus_portable_fc
                 c ≠ 2 * round' * step_vec.val + j'
                 ∧ c ≠ 2 * round' * step_vec.val + step_vec.val + j') →
             r.2.1.coefficients.val[c]! = re.coefficients.val[c]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             Layer4PlusOuterFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails, Layer4PlusOuterFC.inv] at hh
+      exact hh trivial
     obtain ⟨_h_zeta_done, h_done_a, h_done_b, _h_done_undone⟩ := h_inv
     -- Build chunks_arr matching the Spec layout.
     unfold Spec.ntt_at_layer_4_plus_pure
