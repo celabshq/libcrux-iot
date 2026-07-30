@@ -567,9 +567,9 @@ private theorem mont_reduce_core
   -- Standard bmod bounds for power-of-two:
   --   |bmod x (2^16)| ≤ 2^15, more precisely `-2^15 ≤ x ≤ 2^15 - 1`.
   have h_v16_lb : -(2^15 : Int) ≤ Int.bmod v (2^16) := by
-    have := (Arith.Int.bmod_pow2_bounds 16 v).1; simpa using this
+    exact (Arith.Int.bmod_pow2_bounds 16 v).1
   have h_v16_ub : Int.bmod v (2^16) < (2^15 : Int) := by
-    have := (Arith.Int.bmod_pow2_bounds 16 v).2; simpa using this
+    exact (Arith.Int.bmod_pow2_bounds 16 v).2
   have h_k16_lb : -(2^15 : Int) ≤ Int.bmod (Int.bmod v (2^16) * 62209) (2^16) := by
     have := (Arith.Int.bmod_pow2_bounds 16 (Int.bmod v (2^16) * 62209)).1
     simpa using this
@@ -786,8 +786,8 @@ private theorem mont_reduce_impl_value_val
   -- v16 bounds
   have h_v16_bounds : -(2^15 : Int) ≤ v16 ∧ v16 < (2^15 : Int) := by
     refine ⟨?_, ?_⟩
-    · have := (Arith.Int.bmod_pow2_bounds 16 v).1; simpa using this
-    · have := (Arith.Int.bmod_pow2_bounds 16 v).2; simpa using this
+    · exact (Arith.Int.bmod_pow2_bounds 16 v).1
+    · exact (Arith.Int.bmod_pow2_bounds 16 v).2
   -- (cast .I32 (cast .I16 value)).val = v16 since |v16| < 2^15 < 2^31
   have h_v16_in_i32 : (Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32
                         (Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I16 value)).val = v16 := by
@@ -858,8 +858,8 @@ private theorem mont_reduce_impl_value_val
     rw [Aeneas.Std.IScalar.cast_val_eq, h_k_val]; rfl
   have h_k16_bounds : -(2^15 : Int) ≤ k16 ∧ k16 < (2^15 : Int) := by
     refine ⟨?_, ?_⟩
-    · have := (Arith.Int.bmod_pow2_bounds 16 (v16 * 62209)).1; simpa using this
-    · have := (Arith.Int.bmod_pow2_bounds 16 (v16 * 62209)).2; simpa using this
+    · exact (Arith.Int.bmod_pow2_bounds 16 (v16 * 62209)).1
+    · exact (Arith.Int.bmod_pow2_bounds 16 (v16 * 62209)).2
   -- (cast .I32 (cast .I16 k)).val = k16
   have h_k16_in_i32 : (Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32
                         (Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I16 k)).val = k16 := by
@@ -1417,16 +1417,18 @@ theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
 theorem usize_add_ok_eq_fc (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
-  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
+  have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y)
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
   exact ⟨z, h_eq, h_v⟩
 
 /-- `.val`-preserving `Std.Usize` mul helper. -/
 theorem usize_mul_ok_eq_fc (x y : Std.Usize)
     (h_max : x.val * y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
-  have hT := Std.Usize.mul_spec h_max
-  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
+  have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y)
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
   exact ⟨z, h_eq, h_v⟩
 
 /-! ### L0.1 — `get_n_least_significant_bits`.
