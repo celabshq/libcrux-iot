@@ -227,7 +227,7 @@ theorem poly_barrett_reduce_step_lemma_fc
         rw [h_set]
         exact h_acc_undone j h_ge' hj_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -267,7 +267,7 @@ theorem poly_barrett_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.1 — `poly_barrett_reduce`: 16-chunk loop applying `barrett_reduce`
@@ -342,8 +342,11 @@ theorem poly_barrett_reduce_fc
                   (lift_chunk (self.coefficients.val[j]!)))
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!) := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
-             BarrettReduceFC.inv] using h_inv_holds
+      have hh := h_inv_holds
+      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+                 Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+                 Std.Do.SPred.pure, Std.Do.SPred.entails, BarrettReduceFC.inv] at hh
+      exact hh trivial
     obtain ⟨h_done, _h_undone⟩ := h_inv
     -- Build chunks_arr matching `chunk_barrett_reduce_pure (chunk_at (lift_poly self) k)`,
     -- then apply `flatten_chunks_eq_lift_poly_fc` to get `flatten_chunks chunks_arr = lift_poly r`.
