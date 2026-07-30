@@ -9,7 +9,7 @@
 
   - `createi_pure_eq` + `createi_pure_spec`
     (`LibcruxIotSha3/Equivalence/HacspecBridge.lean:627,663`) —
-    the `Fn`-wrapped variant. `createi N inst c` (where `inst` is a
+    the `Fn`-wrapped variant. `createi N inst.FnMutInst c` (where `inst` is a
     `core.ops.function.Fn` instance) is the hax extraction of
     `core::array::from_fn` over a *shared* closure.
 
@@ -56,7 +56,7 @@ open libcrux_iot_ml_kem.Util.SliceSpecs
 set_option mvcgen.warning false
 set_option linter.unusedVariables false
 
-/-! ## `Fn`-wrapped variant: `createi N inst c` -/
+/-! ## `Fn`-wrapped variant: `createi N inst.FnMutInst c` -/
 
 /-- Per-element foldlM evaluation for pure closures. The closure state `c`
     is invariant; the result list is `acc ++ l.map f`. -/
@@ -92,7 +92,7 @@ theorem createi_pure_eq
     (inst : CoreModels.core.ops.function.Fn F Std.Usize T) (c : F) (f : Nat → T)
     (hpure : ∀ k : Nat, k < N.val →
       inst.FnMutInst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c)) :
-    createi N inst c =
+    createi N inst.FnMutInst c =
       .ok ⟨(List.range N.val).map f,
            by simp [List.length_map, List.length_range]⟩ := by
   have hf : ∀ k ∈ List.range N.val,
@@ -117,7 +117,7 @@ theorem createi_pure_eq
 /-- **Generic pure-closure `[spec]` for `createi`.**
 
 For any closure whose `call_mut` is pure (doesn't mutate captured state),
-`createi N inst c` succeeds and its `i`-th cell is `f i`. The hypothesis
+`createi N inst.FnMutInst c` succeeds and its `i`-th cell is `f i`. The hypothesis
 `hpure` is a Triple over each call_mut so `hax_mvcgen` can recurse into
 it via per-closure `@[spec]` lemmas.
 
@@ -131,7 +131,7 @@ theorem createi_pure_spec
       inst.FnMutInst.call_mut c ⟨BitVec.ofNat _ k⟩
       ⦃ ⇓ r => ⌜ r = (f k, c) ⌝ ⦄) :
     ⦃ ⌜ True ⌝ ⦄
-    createi N inst c
+    createi N inst.FnMutInst c
     ⦃ ⇓ a => ⌜ ∀ i : Nat, i < N.val → a.val[i]! = f i ⌝ ⦄ := by
   have hpure_eq : ∀ k : Nat, k < N.val →
       inst.FnMutInst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
