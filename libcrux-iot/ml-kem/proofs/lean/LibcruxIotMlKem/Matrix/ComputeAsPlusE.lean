@@ -392,12 +392,14 @@ theorem compute_As_plus_e_loop0_step_lemma_fc
                               libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K :=
       cache.set k cache_chunk1 with hcache1_def
     have h_cache1_at : cache1.val[k.val]! = cache_chunk1 := by
+      rw [hcache1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq cache k k.val cache_chunk1
           ⟨rfl, by rw [h_cache_len]; exact h_lt⟩
     have h_cache1_ne : ∀ j : Nat, j ≠ k.val →
         cache1.val[j]! = cache.val[j]! := by
       intro j hj
+      rw [hcache1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_ne cache k j cache_chunk1
           (fun h => hj h.symm)
@@ -576,7 +578,8 @@ theorem compute_As_plus_e_loop0_step_lemma_fc
         have hc_ge_k : k.val ≤ c := by omega
         exact h_inv_cache_undone c hc_ge_k hc_lt
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp,
+           Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ K, done.
     have hk_ge : k.val ≥ K.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = K.val := by omega
@@ -653,7 +656,8 @@ theorem compute_As_plus_e_loop0_step_lemma_fc
       · intro c hc
         exact h_inv_cache_done c (by rw [hk_eq]; exact hc)
       · intro c hc_ge hc_lt; omega
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp,
+           Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- L7.1 Stage 1 — `matrix.compute_As_plus_e_loop0`: the row-0 column loop.
     Iterates over `j ∈ [0, K)`, accumulating column-j's contribution to the
@@ -1096,7 +1100,8 @@ theorem compute_As_plus_e_loop1_loop0_step_lemma_fc
         rw [h_arith]
         linarith [h_acc1_bnd_n', h_inv_n]
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp,
+           Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ K, done.
     have hk_ge : k.val ≥ K.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = K.val := by omega
@@ -1164,7 +1169,8 @@ theorem compute_As_plus_e_loop1_loop0_step_lemma_fc
         have h_arith : k.val * 2^25 = K.val * 2^25 := by rw [hk_eq]
         rw [h_arith] at h_b
         exact h_b
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp,
+           Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- L7.1 Stage 2 — `matrix.compute_As_plus_e_loop1_loop0`: the row-i
     (i ≥ 1) column loop. Iterates over `j ∈ [0, K)`, accumulating
@@ -1783,12 +1789,14 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
     -- (8) t_as_ntt1 := set t_as_ntt k t1.
     set t_as_ntt1 : Stage3MontStripFC.TVec K := t_as_ntt.set k t1 with h_t_as_ntt1_def
     have h_t_as_ntt1_at : t_as_ntt1.val[k.val]! = t1 := by
+      rw [h_t_as_ntt1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq t_as_ntt k k.val t1
           ⟨rfl, by rw [h_t_as_ntt_len]; exact h_lt⟩
     have h_t_as_ntt1_ne : ∀ j : Nat, j ≠ k.val →
         t_as_ntt1.val[j]! = t_as_ntt.val[j]! := by
       intro j hj
+      rw [h_t_as_ntt1_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_ne t_as_ntt k j t1 (fun h => hj h.symm)
     have h_t_as_ntt1_len : t_as_ntt1.length = K.val := Std.Array.length_eq t_as_ntt1
@@ -1827,6 +1835,7 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
     -- (12) t_as_ntt_new := set t_as_ntt1 k pre4.
     set t_as_ntt_new : Stage3MontStripFC.TVec K := t_as_ntt1.set k pre4 with h_t_as_ntt_new_def
     have h_t_as_ntt_new_at : t_as_ntt_new.val[k.val]! = pre4 := by
+      rw [h_t_as_ntt_new_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
         Aeneas.Std.Array.getElem!_Nat_set_eq t_as_ntt1 k k.val pre4
           ⟨rfl, by rw [h_t_as_ntt1_len]; exact h_lt⟩
@@ -1834,6 +1843,7 @@ theorem compute_As_plus_e_loop1_step_lemma_fc
         t_as_ntt_new.val[j]! = t_as_ntt.val[j]! := by
       intro j hj
       have h1 : t_as_ntt_new.val[j]! = t_as_ntt1.val[j]! := by
+        rw [h_t_as_ntt_new_def]
         simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
           Aeneas.Std.Array.getElem!_Nat_set_ne t_as_ntt1 k j pre4 (fun h => hj h.symm)
       rw [h1]
@@ -2474,6 +2484,7 @@ theorem compute_As_plus_e_row0_finalize_fc
   set t_as_ntt1 : Stage3MontStripFC.TVec K := t_as_ntt.set (0#usize : Std.Usize) t1
     with h_t_as_ntt1_def
   have h_t_as_ntt1_at : t_as_ntt1.val[(0#usize : Std.Usize).val]! = t1 := by
+    rw [h_t_as_ntt1_def]
     simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
       Aeneas.Std.Array.getElem!_Nat_set_eq t_as_ntt (0#usize : Std.Usize)
         (0#usize : Std.Usize).val t1
@@ -2481,6 +2492,7 @@ theorem compute_As_plus_e_row0_finalize_fc
   have h_t_as_ntt1_ne : ∀ j : Nat, j ≠ (0#usize : Std.Usize).val →
       t_as_ntt1.val[j]! = t_as_ntt.val[j]! := by
     intro j hj
+    rw [h_t_as_ntt1_def]
     simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
       Aeneas.Std.Array.getElem!_Nat_set_ne t_as_ntt (0#usize : Std.Usize) j t1
         (fun h => hj h.symm)
@@ -2521,6 +2533,7 @@ theorem compute_As_plus_e_row0_finalize_fc
   have h_t_as_ntt_new_at : t_as_ntt_new.val[0]! = pre4 := by
     have h := Aeneas.Std.Array.getElem!_Nat_set_eq t_as_ntt1 (0#usize : Std.Usize)
                 0 pre4 ⟨rfl, by rw [h_t_as_ntt1_len]; exact hK_pos⟩
+    rw [h_t_as_ntt_new_def]
     simpa [Aeneas.Std.Array.getElem!_Nat_eq] using h
   have h_t_as_ntt_new_ne : ∀ j : Nat, j ≠ 0 →
       t_as_ntt_new.val[j]! = t_as_ntt.val[j]! := by
@@ -2528,6 +2541,7 @@ theorem compute_As_plus_e_row0_finalize_fc
     have h1 : t_as_ntt_new.val[j]! = t_as_ntt1.val[j]! := by
       have := Aeneas.Std.Array.getElem!_Nat_set_ne t_as_ntt1 (0#usize : Std.Usize) j pre4
         (fun h => hj (by rw [← h_zero_val]; exact h.symm))
+      rw [h_t_as_ntt_new_def]
       simpa [Aeneas.Std.Array.getElem!_Nat_eq] using this
     rw [h1]
     exact h_t_as_ntt1_ne j (by rw [h_zero_val]; exact hj)
@@ -2814,8 +2828,7 @@ theorem matrix_add_polynomials_eq_ok
     fun k => libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure
               (lhs.val[k]!) (rhs.val[k]!) with hf_def
   have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
-      (hacspec_ml_kem.matrix.add_polynomials.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
+      (hacspec_ml_kem.matrix.add_polynomials.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement).call_mut
             (lhs, rhs) ⟨BitVec.ofNat _ k⟩
         = .ok (f k, (lhs, rhs)) := by
     intro k hk
@@ -2823,7 +2836,6 @@ theorem matrix_add_polynomials_eq_ok
     show hacspec_ml_kem.matrix.add_polynomials.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
         (lhs, rhs) ⟨BitVec.ofNat _ k⟩ = .ok (f k, (lhs, rhs))
     unfold hacspec_ml_kem.matrix.add_polynomials.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
-    unfold hacspec_ml_kem.matrix.add_polynomials.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement.call
     have hk_us : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
       show (BitVec.ofNat _ k).toNat = k
       apply Nat.mod_eq_of_lt
@@ -2856,22 +2868,24 @@ theorem matrix_add_polynomials_eq_ok
     have h_add :=
       libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_eq_ok (lhs.val[k]!) (rhs.val[k]!)
     change (do
-      let fe ← (do
-        let fe ← Std.Array.index_usize lhs ⟨BitVec.ofNat _ k⟩
-        let i ← lift (Std.UScalar.cast .U32 fe.val)
-        let fe1 ← Std.Array.index_usize rhs ⟨BitVec.ofNat _ k⟩
-        let i1 ← lift (Std.UScalar.cast .U32 fe1.val)
-        let i2 ← i + i1
-        let i3 ← lift (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS)
-        let i4 ← i2 % i3
-        let i5 ← lift (Std.UScalar.cast .U16 i4)
-        hacspec_ml_kem.parameters.FieldElement.new i5)
-      Result.ok (fe, lhs, rhs)) = Result.ok (f k, lhs, rhs)
+      let fe ← Std.Array.index_usize lhs ⟨BitVec.ofNat _ k⟩
+      let i ← lift (Std.UScalar.cast .U32 fe.val)
+      let fe1 ← Std.Array.index_usize rhs ⟨BitVec.ofNat _ k⟩
+      let i1 ← lift (Std.UScalar.cast .U32 fe1.val)
+      let i2 ← i + i1
+      let i3 ← lift (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS)
+      let i4 ← i2 % i3
+      let i5 ← lift (Std.UScalar.cast .U16 i4)
+      let fe2 ← hacspec_ml_kem.parameters.FieldElement.new i5
+      Result.ok (fe2, lhs, rhs)) = Result.ok (f k, lhs, rhs)
     rw [h_lhs_idx]; simp only [bind_tc_ok]
     rw [h_rhs_idx]; simp only [bind_tc_ok]
+    -- The closure inlines `FieldElement.add`'s body ending in `new i5`; fold it via
+    -- `congrArg (· >>= wrap)` (bind-assoc is not defeq on the stuck do-block).
     unfold hacspec_ml_kem.parameters.FieldElement.add at h_add
-    rw [h_add]
-    simp only [bind_tc_ok, hf_def]
+    have hchain := congrArg (· >>= fun fe2 => Result.ok (fe2, lhs, rhs)) h_add
+    simp only [bind_assoc, bind_tc_ok] at hchain
+    rw [hchain, hf_def]
   have h_from_fn :=
     libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
       (T := hacspec_ml_kem.parameters.FieldElement)
@@ -3219,6 +3233,58 @@ theorem col_loop_lane_at_step_K_eq_canonical
   simp only [L2_8c.zmodOfFE_mul_pure]
   ring
 
+/-! The spec inlined the standalone `matrix.multiply_matrix_by_column_at` into the
+    `multiply_matrix_by_column` `createi` closure (a loop over rows). Re-introduce it as
+    a LOCAL def (identical to the pre-hax-2fedcb2b extraction) so the loop-induction
+    proof below is unchanged; `multiply_matrix_by_column_closure_call_mut_eq` bridges the
+    closure back to it. -/
+namespace hacspec_ml_kem.matrix
+
+@[rust_loop_body]
+def multiply_matrix_by_column_at_loop.body
+    {RANK : Std.Usize}
+    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
+    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
+    (i : Std.Usize) (iter : CoreModels.core.ops.range.Range Std.Usize)
+    (result : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) ×
+      (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize))
+      (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)) := do
+  let (o, iter1) ←
+    CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      CoreModels.core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | CoreModels.core.option.Option.None => ok (ControlFlow.done result)
+  | CoreModels.core.option.Option.Some j =>
+    let a ← Std.Array.index_usize m j
+    let a1 ← Std.Array.index_usize a i
+    let a2 ← Std.Array.index_usize vector j
+    let product ← hacspec_ml_kem.ntt.multiply_ntts a1 a2
+    let result1 ← hacspec_ml_kem.matrix.add_polynomials result product
+    ok (ControlFlow.cont (iter1, result1))
+
+@[rust_loop]
+def multiply_matrix_by_column_at_loop
+    {RANK : Std.Usize} (iter : CoreModels.core.ops.range.Range Std.Usize)
+    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
+    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
+    (i : Std.Usize) (result : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    Result (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) := do
+  loop
+    (fun (iter1, result1) => multiply_matrix_by_column_at_loop.body m vector i iter1 result1)
+    (iter, result)
+
+def multiply_matrix_by_column_at
+    {RANK : Std.Usize}
+    (m : Std.Array (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK) RANK)
+    (vector : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) RANK)
+    (i : Std.Usize) : Result (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) := do
+  let fe ← hacspec_ml_kem.parameters.FieldElement.new 0#u16
+  let result := Std.Array.repeat 256#usize fe
+  multiply_matrix_by_column_at_loop { start := 0#usize, «end» := RANK } m vector i result
+
+end hacspec_ml_kem.matrix
+
 set_option maxHeartbeats 16000000 in
 set_option maxRecDepth 1000 in
 theorem multiply_matrix_by_column_at_eq
@@ -3309,11 +3375,11 @@ theorem multiply_matrix_by_column_at_eq
       have h_eq : (pure (r = col_loop_result_at_step matrix_A s_as_ntt i.val K.val)
                   : Result Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_eq
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · -- Step.
       intro acc k h_ge h_le hinv
       have h_acc_eq : acc = col_loop_result_at_step matrix_A s_as_ntt i.val k.val := by
-        simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using hinv
+        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       -- Body: Range.next; if Some j (j < K), then index_usize + multiply_ntts + add_polynomials.
       unfold hacspec_ml_kem.matrix.multiply_matrix_by_column_at_loop.body
@@ -3534,7 +3600,7 @@ theorem multiply_matrix_by_column_at_eq
         h_triple with
   | .ok r, h =>
     have hr : r = col_loop_result_at_step matrix_A s_as_ntt i.val K.val := by
-      simpa [Std.Do.Triple, Std.Do.WP.wp] using h
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h
     rw [hr]
   | .fail _, h => exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div, h => exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow, PredTrans.apply])
@@ -3569,17 +3635,11 @@ theorem multiply_matrix_by_column_eq
                   (lift_fe_mont (1353#i16 : Std.I16))),
               by simp [List.length_map, List.length_range]⟩ with hf_def
   have hpure : ∀ k : Nat, k < K.val →
-      (hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnTupleUsizeArrayFieldElement256
-        K).FnMutInst.call_mut
+      (hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+        K).call_mut
         (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt) ⟨BitVec.ofNat _ k⟩
         = .ok (f k, (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt)) := by
     intro k hk
-    show hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
-        (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt) ⟨BitVec.ofNat _ k⟩
-        = .ok (f k, (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt))
-    unfold hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
-    unfold hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnTupleUsizeArrayFieldElement256.call
-    -- Reduce to: multiply_matrix_by_column_at lift_M lift_S ⟨k⟩.
     have hk_val : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
       show (BitVec.ofNat _ k).toNat = k
       apply Nat.mod_eq_of_lt
@@ -3588,17 +3648,28 @@ theorem multiply_matrix_by_column_eq
         simp [] at h
         omega
       exact Nat.lt_of_lt_of_le hk (Nat.le_of_lt hK_lt)
-    -- Need: multiply_matrix_by_column_at lift_M lift_S ⟨k⟩ = .ok (f k).
     have hk_lt : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val < K.val := by
       rw [hk_val]; exact hk
     have h_mmbc_at := multiply_matrix_by_column_at_eq matrix_A s_as_ntt hAlen
       (⟨BitVec.ofNat _ k⟩ : Std.Usize) hk_lt
-    show (do let a ← hacspec_ml_kem.matrix.multiply_matrix_by_column_at
-              (lift_matrix_from_slice matrix_A K) (lift_vec s_as_ntt)
-              (⟨BitVec.ofNat _ k⟩ : Std.Usize)
-             .ok (a, (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt))) =
-         .ok (f k, _)
-    rw [h_mmbc_at]; simp only [bind_tc_ok]
+    -- The closure inlines the per-column loop (= the local `multiply_matrix_by_column_at`,
+    -- which reuses the identical loop body); connect via bind-assoc, then fold `h_mmbc_at`.
+    have hconn :
+        (hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256 K).call_mut
+          (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+        = (do let a ← hacspec_ml_kem.matrix.multiply_matrix_by_column_at
+                (lift_matrix_from_slice matrix_A K) (lift_vec s_as_ntt) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+              Result.ok (a, (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt))) := by
+      simp [hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256,
+            hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut,
+            hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut_loop,
+            hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut_loop.body,
+            hacspec_ml_kem.matrix.multiply_matrix_by_column_at,
+            hacspec_ml_kem.matrix.multiply_matrix_by_column_at_loop,
+            hacspec_ml_kem.matrix.multiply_matrix_by_column_at_loop.body, bind_assoc]
+      try rfl
+      try (intro v _; rfl)
+    rw [hconn, h_mmbc_at]; simp only [bind_tc_ok]
     rw [hk_val]
   unfold hacspec_ml_kem.matrix.multiply_matrix_by_column
   unfold hacspec_ml_kem.parameters.createi
@@ -3606,7 +3677,7 @@ theorem multiply_matrix_by_column_eq
     (T := Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (F := hacspec_ml_kem.matrix.multiply_matrix_by_column.closure K)
     (N := K)
-    (inst := (hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnTupleUsizeArrayFieldElement256 K).FnMutInst)
+    (inst := (hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256 K))
     (c := (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt))
     (f := f)
     hpure
@@ -3688,7 +3759,7 @@ theorem hacspec_compute_As_plus_e_eq_of_lane_eq
     fun r => (lift_vec t_as_ntt_final).val[r]! with hf_def
   -- Per-call_mut equation.
   have hpure : ∀ r : Nat, r < K.val →
-      (hacspec_ml_kem.matrix.add_vectors.closure.Insts.CoreOpsFunctionFnTupleUsizeArrayFieldElement256 K).FnMutInst.call_mut
+      (hacspec_ml_kem.matrix.add_vectors.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256 K).call_mut
         (P_arr, lift_vec error_as_ntt) ⟨BitVec.ofNat _ r⟩
         = .ok (f_out r, (P_arr, lift_vec error_as_ntt)) := by
     intro r hr
@@ -3696,7 +3767,6 @@ theorem hacspec_compute_As_plus_e_eq_of_lane_eq
             (P_arr, lift_vec error_as_ntt) ⟨BitVec.ofNat _ r⟩
         = .ok (f_out r, (P_arr, lift_vec error_as_ntt))
     unfold hacspec_ml_kem.matrix.add_vectors.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
-    unfold hacspec_ml_kem.matrix.add_vectors.closure.Insts.CoreOpsFunctionFnTupleUsizeArrayFieldElement256.call
     have hr_val : (⟨BitVec.ofNat _ r⟩ : Std.Usize).val = r := by
       show (BitVec.ofNat _ r).toNat = r
       apply Nat.mod_eq_of_lt
@@ -3732,11 +3802,11 @@ theorem hacspec_compute_As_plus_e_eq_of_lane_eq
       (P_arr.val[r]!) ((lift_vec error_as_ntt).val[r]!)
     -- Reduce: the closure destructures (a, a1) := (P_arr, lift_vec error_as_ntt).
     -- Use `show` to expose the destructure outcome (a → P_arr, a1 → lift_vec error_as_ntt).
-    show (do let fe ← (do
-                let a2 ← Std.Array.index_usize P_arr (⟨BitVec.ofNat _ r⟩ : Std.Usize)
-                let a3 ← Std.Array.index_usize (lift_vec error_as_ntt) (⟨BitVec.ofNat _ r⟩ : Std.Usize)
-                hacspec_ml_kem.matrix.add_polynomials a2 a3)
-             .ok (fe, P_arr, lift_vec error_as_ntt)) = _
+    show (do
+             let a2 ← Std.Array.index_usize P_arr (⟨BitVec.ofNat _ r⟩ : Std.Usize)
+             let a3 ← Std.Array.index_usize (lift_vec error_as_ntt) (⟨BitVec.ofNat _ r⟩ : Std.Usize)
+             let a4 ← hacspec_ml_kem.matrix.add_polynomials a2 a3
+             .ok (a4, P_arr, lift_vec error_as_ntt)) = _
     rw [h_idx_P]; simp only [bind_tc_ok]
     rw [h_idx_E]; simp only [bind_tc_ok]
     rw [h_add]; simp only [bind_tc_ok]
@@ -3800,7 +3870,7 @@ theorem hacspec_compute_As_plus_e_eq_of_lane_eq
     (T := Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (F := hacspec_ml_kem.matrix.add_vectors.closure K)
     (N := K)
-    (inst := (hacspec_ml_kem.matrix.add_vectors.closure.Insts.CoreOpsFunctionFnTupleUsizeArrayFieldElement256 K).FnMutInst)
+    (inst := (hacspec_ml_kem.matrix.add_vectors.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256 K))
     (c := (P_arr, lift_vec error_as_ntt))
     (f := f_out)
     hpure
@@ -4040,7 +4110,9 @@ theorem compute_As_plus_e_fc
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on axioms: [propext,
  Classical.choice,
- Quot.sound]
+ Quot.sound,
+ Util.SliceSpecs.Array.update_subslice_le_eq,
+ Util.SliceSpecs.Slice.subslice_le_eq]
 -/
 #guard_msgs in
 #print axioms compute_As_plus_e_fc
