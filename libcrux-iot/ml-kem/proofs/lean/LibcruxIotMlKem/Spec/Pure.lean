@@ -631,10 +631,12 @@ private theorem array_index_usize_ok
     {α : Type u} {n : Std.Usize} [Inhabited α]
     (v : Std.Array α n) (i : Std.Usize) (h_bd : i.val < v.length) :
     Aeneas.Std.Array.index_usize v i = .ok (v.val[i.val]!) := by
-  have hT := Aeneas.Std.Array.index_usize_spec v i h_bd
-  have h_ex := Aeneas.Std.WP.spec_imp_exists hT
-  obtain ⟨v', hveq, hPv'⟩ := h_ex
-  rw [hveq, hPv', getElem!_pos]
+  have h' : i.val < v.val.length := h_bd
+  have hidx : Aeneas.Std.Array.index_usize v i = .ok (v.val[i.val]'h') := by
+    simp only [Aeneas.Std.Array.index_usize, Aeneas.Std.Array.getElem?_Usize_eq,
+               List.getElem?_eq_getElem h']
+  rw [hidx]
+  exact congrArg _ (getElem!_pos v.val i.val h').symm
 
 /-- Pure-projection side lemma for `polynomial.add_to_ring_element` —
     unconditional over ALL inputs.
@@ -652,8 +654,8 @@ theorem polynomial.add_to_ring_element_eq_ok
     fun k => FieldElement.add_pure (lhs.val[k]!) (rhs.val[k]!) with hf_def
   -- Step 2: pointwise closure obligation.
   have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
-      (hacspec_ml_kem.polynomial.add_to_ring_element.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
+      (hacspec_ml_kem.polynomial.add_to_ring_element.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        : CoreModels.core.ops.function.FnMut _ _ _).call_mut
             (lhs, rhs) ⟨BitVec.ofNat _ k⟩
         = .ok (f k, (lhs, rhs)) := by
     intro k hk
@@ -661,7 +663,6 @@ theorem polynomial.add_to_ring_element_eq_ok
     show polynomial.add_to_ring_element.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
         (lhs, rhs) ⟨BitVec.ofNat _ k⟩ = .ok (f k, (lhs, rhs))
     unfold polynomial.add_to_ring_element.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
-    unfold polynomial.add_to_ring_element.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement.call
     -- Index-usize obligations.
     have hk_us : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
       show (BitVec.ofNat _ k).toNat = k
@@ -768,15 +769,14 @@ theorem polynomial.poly_barrett_reduce_eq_ok
     with hf_def
   -- Step 2: pointwise closure obligation.
   have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
-      (hacspec_ml_kem.polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
+      (hacspec_ml_kem.polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        : CoreModels.core.ops.function.FnMut _ _ _).call_mut
             p ⟨BitVec.ofNat _ k⟩
         = .ok (f k, p) := by
     intro k hk
     show polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
         p ⟨BitVec.ofNat _ k⟩ = .ok (f k, p)
     unfold polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
-    unfold polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement.call
     -- Index-usize obligation.
     have hk' : k < 256 := hk
     have hk_us : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
@@ -842,15 +842,14 @@ theorem polynomial.poly_barrett_reduce_pure_id_of_canonical
   -- Re-derive `h_wrap` with f := fun k => p.val[k]! (canonical identity).
   set f : Nat → parameters.FieldElement := fun k => p.val[k]! with hf_def
   have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
-      (hacspec_ml_kem.polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
+      (hacspec_ml_kem.polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        : CoreModels.core.ops.function.FnMut _ _ _).call_mut
             p ⟨BitVec.ofNat _ k⟩
         = .ok (f k, p) := by
     intro k hk
     show polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
         p ⟨BitVec.ofNat _ k⟩ = .ok (f k, p)
     unfold polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
-    unfold polynomial.poly_barrett_reduce.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement.call
     have hk' : k < 256 := hk
     have hk_us : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
       show (BitVec.ofNat _ k).toNat = k
@@ -969,8 +968,8 @@ theorem polynomial.subtract_reduce_eq_ok
     fun k => FieldElement.sub_pure (a.val[k]!) (b.val[k]!) with hf_def
   -- Step 2: pointwise closure obligation.
   have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
-      (hacspec_ml_kem.polynomial.subtract_reduce.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
+      (hacspec_ml_kem.polynomial.subtract_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        : CoreModels.core.ops.function.FnMut _ _ _).call_mut
             (a, b) ⟨BitVec.ofNat _ k⟩
         = .ok (f k, (a, b)) := by
     intro k hk
@@ -978,7 +977,6 @@ theorem polynomial.subtract_reduce_eq_ok
     show polynomial.subtract_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
         (a, b) ⟨BitVec.ofNat _ k⟩ = .ok (f k, (a, b))
     unfold polynomial.subtract_reduce.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
-    unfold polynomial.subtract_reduce.closure.Insts.CoreOpsFunctionFnTupleUsizeFieldElement.call
     -- Index-usize obligations.
     have hk_us : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
       show (BitVec.ofNat _ k).toNat = k
