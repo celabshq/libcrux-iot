@@ -711,7 +711,7 @@ theorem lemma_intt_mont_form_post
   -- ⇒ b.val = b_real_val * 128 * 169                         (since 2285·169=1)
   have hb2 : (b.val : ZMod 3329) = b_real_val * 128 * 169 := by
     have := congrArg (· * (169 : ZMod 3329)) hb
-    simp only at this
+    -- (beta now automatic; simp-only removed)
     -- this : (b.val * 2285) * 169 = (b_real_val * 128) * 169
     have h1 : (b.val : ZMod 3329) * 2285 * 169
             = (b.val : ZMod 3329) * (2285 * 169) := by ring

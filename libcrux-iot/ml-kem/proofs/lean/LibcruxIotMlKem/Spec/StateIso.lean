@@ -102,7 +102,7 @@ theorem to_spec_poly_mont_extended
       have hi : i.val < 16 := i.isLt
       have hj : j.val < 16 := j.isLt
       omega)) h_eq
-  simp only at h_at
+  -- (beta now automatic; simp-only removed)
   rw [lemma_to_spec_poly_mont_unfold, lemma_to_spec_poly_mont_unfold] at h_at
   exact h_at
 
