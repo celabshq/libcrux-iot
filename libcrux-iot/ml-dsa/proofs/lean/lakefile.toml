@@ -1,0 +1,20 @@
+name = "LibcruxIotMlDsa"
+version = "0.1.0"
+defaultTargets = ["LibcruxIotMlDsa"]
+
+[[lean_lib]]
+name = "LibcruxIotMlDsa"
+globs = ["LibcruxIotMlDsa", "LibcruxIotMlDsa.+"]
+
+[[require]]
+name = "Hax"
+git = "https://github.com/cryspen/hax-lean"
+rev = "v0.2.0"
+
+# The machine-extracted clean-Z_q ML-DSA hacspec (crate `hacspec_ml_dsa`,
+# specs/ml-dsa in cryspen/libcrux). The poly-layer spec-bridge lemmas reference
+# `hacspec_ml_dsa.*`. Local worktree path for now (transitively brings in
+# HacspecSha3); TODO: repoint at a pushed cryspen/libcrux rev.
+[[require]]
+name = "HacspecMlDsa"
+path = "/workspace/libcrux/proofs-update/specs/ml-dsa/proofs/lean"

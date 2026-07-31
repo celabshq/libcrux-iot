@@ -186,6 +186,7 @@ pub(super) fn compute_hint(
     // them in `Coefficients` structs which treat their elements as
     // secret by default.
     for i in 0..hint.values.len() {
+        #[cfg(hax)]
         hax_lib::loop_invariant!(|i: usize| one_hints_count <= i);
         hint.values[i] = compute_one_hint(
             low.values[i].declassify(),

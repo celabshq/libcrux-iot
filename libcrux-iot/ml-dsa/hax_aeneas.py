@@ -4,21 +4,18 @@
 Mirrors `libcrux-iot/ml-kem/hax_aeneas.py`. Three responsibilities:
 
 1. Pin/check the hax + aeneas toolchain versions.
-2. Run `cargo hax into aeneas-lean` with a Charon `--start-from` list chosen
+2. Run `cargo hax into lean` with a Charon `--start-from` list chosen
    to bound the extraction to the NTT / arithmetic / matrix core.
-3. Patch the generated `LibcruxIotMlDsa/Extraction/Funs.lean` in-place.
+3. Patch the generated `proofs/lean/LibcruxIotMlDsa/Extraction/Funs.lean`.
 
-TOOLCHAIN NOTE (Phase-0 gate): the versions below match the Hax *Lean library*
-pinned in `proofs/aeneas-lean/lakefile.toml` (hax-evit `ffdf432...`). The
-aeneas *binary* that produces output compatible with that library is
-`8d2077c`. If `cargo hax`/`aeneas` on PATH report different revs (e.g. the
-SHA-3-era `b5c45e84` aeneas), extraction may produce a `Funs.lean` that does
-not type-check against the pinned Hax library. Build the matching aeneas from
-source (see ml-kem `README.md` §Reproduction) before relying on this driver,
-or use `SKIP_VERSION_CHECK=1` to experiment (real escape hatch — downstream
-build may fail).
+TOOLCHAIN NOTE: migrated to mainline hax `2fedcb2b` (= cargo-hax-v0.3.7-288) +
+hax-lean v0.2.0 / CoreModels, aeneas `nightly-2026.07.21` (`52fd438`). Run inside
+`nix develop .#lean` from the repo root (provides the version-wrapped `cargo hax`
++ aeneas). The `lean` backend writes to `proofs/lean/` and uses the CoreModels
+library by default (the old `--aeneas-args=-core-models-lib` is implicit now).
 
-The ML-DSA impl carries NO `#[hax_lib::*]` annotations and uses const generics
+The ML-DSA impl carries one `#[hax_lib::loop_invariant!]` (gated `#[cfg(hax)]`
+so the dummy-mode lean compile skips it; F* still sees it) and uses const generics
 (`outer_3_plus<OFFSET, STEP_BY, ZETA>`, `shift_left_then_reduce<SHIFT_BY>`).
 Extraction does not *require* annotations, but confirm aeneas monomorphizes the
 const-generic layer steps into usable `Funs.lean` defs (ML-KEM's parametric
@@ -32,8 +29,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-HAX_VERSION = "ffdf432705d409b62ec025d253a340234b59766f"
-AENEAS_VERSION = "8d2077c"
+HAX_VERSION = "2fedcb2b196f5adea55975d0a023596ec6383ff2"
+AENEAS_VERSION = "52fd438"
 
 # Charon translation roots. Anything not reachable from these is dropped from
 # `Funs.lean`. The NTT/arithmetic core lives in the portable SIMD module; the
@@ -129,25 +126,17 @@ charon_args = " ".join(
 )
 
 result = subprocess.run(
-    ["cargo", "hax", "into", "aeneas-lean",
-     "--aeneas-args=-core-models-lib",
+    ["cargo", "hax", "into", "lean",
      f"--charon-args={charon_args}"],
     env={**os.environ, "RUSTFLAGS": "--cfg hax_backend_lean"},
 )
 if result.returncode != 0:
     sys.exit(result.returncode)
 
-funs_lean = Path("proofs/aeneas-lean/LibcruxIotMlDsa/Extraction/Funs.lean")
+# The `lean` backend writes to `proofs/lean/` and emits the `Types` / `FunsExternal`
+# imports itself (no manual `import Missing` patch needed — FunsExternal supersedes it).
+funs_lean = Path("proofs/lean/LibcruxIotMlDsa/Extraction/Funs.lean")
 content = funs_lean.read_text()
-
-# Import the hand-written `Missing.lean` (libcrux_secrets I32 classify/declassify
-# stubs etc.), mirroring the ml-kem patch.
-content = content.replace(
-    "import CoreModels",
-    "import CoreModels\n"
-    "import LibcruxIotMlDsa.Extraction.Missing",
-    1,
-)
 
 # Convert `axiom` declarations emitted for `--opaque` items to `opaque`
 # (`axiom` shows up in `#print axioms`; `opaque` does not).
@@ -160,3 +149,11 @@ content = re.sub(r"^axiom ", "opaque ", content, flags=re.MULTILINE)
 
 funs_lean.write_text(content)
 print("Patched", funs_lean)
+
+# The lean backend also emits per-function Specs.lean + ProofObligations.lean
+# (proof-obligation scaffolding). They are not imported by the hand-written
+# proofs and carry codegen quirks, so drop them (mirrors the ml-kem driver).
+for _f in ("Specs.lean", "ProofObligations.lean"):
+    _p = Path("proofs/lean/LibcruxIotMlDsa/Extraction") / _f
+    if _p.exists():
+        _p.unlink()
