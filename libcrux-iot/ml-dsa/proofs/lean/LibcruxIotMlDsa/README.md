@@ -2,10 +2,14 @@
 
 This directory contains the Lean 4 proof that the Rust implementation of
 ML-DSA's **polynomial API** in `libcrux-iot/ml-dsa/src/` computes the same functions
-as the ML-DSA specification in `https://github.com/celabshq/libcrux/tree/main/specs`. Both sides are machine-extracted to Lean by the `cargo hax into aeneas-lean` pipeline.
+as the ML-DSA specification in `https://github.com/cryspen/libcrux/tree/main/specs`. Both sides are machine-extracted to Lean by the `cargo hax into lean` pipeline.
 
-Every theorem below depends only on Lean's three
-standard axioms (`propext`, `Classical.choice`, `Quot.sound`).
+Almost every theorem below depends only on Lean's three standard axioms
+(`propext`, `Classical.choice`, `Quot.sound`). The two exceptions are the
+array-conversion theorems `to_i32_array_fc` / `from_i32_array_fc`, which
+additionally use the two **subslice** axioms (a temporary Aeneas empty-range
+workaround — see [Axioms](#axioms)). ML-DSA's polynomial API involves no
+sampling/XOF, so there are **no deferred leaf axioms**.
 
 ## Top-level theorems — the `PolynomialRingElement` API
 
@@ -76,6 +80,51 @@ These compose the per-layer butterfly drivers
 | `infinity_norm_exceeds_unit_spec` ([`Vector/Portable/Arithmetic.lean`](Vector/Portable/Arithmetic.lean)) | `arithmetic.infinity_norm_exceeds` (the bug-fixed sign-mask) |
 | `power2round_spec` / `decompose_spec` / `use_hint_spec` / `compute_hint_spec` ([`Vector/Portable/Rounding.lean`](Vector/Portable/Rounding.lean)) | FIPS-204 §7.4 rounding |
 
+## Axioms
+
+### Standard Lean axioms
+
+Every theorem depends on Lean's three standard axioms: `propext`,
+`Classical.choice`, `Quot.sound`. Each top-level `*_fc` theorem carries a
+`#print axioms` guard (`#guard_msgs`) that fails the build if its axiom set
+drifts, so the table below is machine-checked.
+
+### Per-theorem axiom status
+
+| Theorem | Standard | Subslice (A1/A2) |
+|---------|----------|------------------|
+| `ntt_hacspec_fc`, `intt_hacspec_fc`, `poly_add_hacspec_fc`, `poly_sub_hacspec_fc`, `poly_pointwise_mul_hacspec_fc`, `infinity_norm_exceeds_hacspec_fc`, `reduce_fc`, `zero_fc` | ✓ | — |
+| `from_i32_array_fc` | ✓ | **A1** |
+| `to_i32_array_fc`   | ✓ | **A1 + A2** |
+
+There are **no deferred leaf axioms** — unlike ML-KEM's matrix layer, the
+polynomial API involves no sampling/XOF/deserialization, so nothing is stated
+as an opaque leaf. Every theorem is proven down to the standard axioms plus (for
+the two array-conversion theorems only) the subslice axioms below.
+
+### The two subslice axioms (A1 / A2)
+
+Introduced by the migration to mainline hax / the CoreModels v0.2 library
+(see [Reproduction](#reproduction)): the Aeneas `Slice.subslice` /
+`Array.update_subslice` primitives require a **strict** `start < end` range and
+fail on empty ranges. We localize this to two `≤`-range specs, tagged
+`AENEAS-SUBSLICE-STRICT` in [`Util/SliceSpecs.lean`](Util/SliceSpecs.lean), to
+be discharged once the aeneas primitive is fixed:
+
+- **A1** `libcrux_iot_ml_dsa.Util.SliceSpecs.Slice.subslice_le_eq` — reading a
+  sub-slice `s[a..b]` for `a ≤ b ≤ s.length` returns `s.val.slice a b`.
+- **A2** `libcrux_iot_ml_dsa.Util.SliceSpecs.Array.update_subslice_le_eq` —
+  writing back a sub-slice over `a ≤ b ≤ length` yields the expected
+  `setSlice!`. (The slice-level `Slice.update_subslice_le_eq` is subsumed.)
+
+Only `to_i32_array` / `from_i32_array` use range-slice reads/writes (packing the
+32×8 SIMD lanes into a flat 256-array and back), so only those two theorems
+depend on A1/A2. The remaining ML-DSA opaque functions in
+[`Extraction/FunsExternal.lean`](Extraction/FunsExternal.lean) (the
+encoding/sample/decompose entry points outside the polynomial API's scope) are
+`opaque` **definitions**, not axioms, so they do not appear in any theorem's
+axiom set.
+
 ## Proof architecture
 
 The proof is built around a **Lean reference spec** that sits between the two
@@ -135,28 +184,37 @@ trusted extracted spec, not an independently trusted artifact.
 ### Prerequisites
 
 - For running the proofs:
-  - Lean 4 toolchain `leanprover/lean4:v4.30.0-rc2` (pinned in `lean-toolchain`).
+  - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
+  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.2.0` (provides the
+    `CoreModels` library; pulled in by the lakefile).
 - For extraction:
-  - Hax at commit `ffdf432705d409b62ec025d253a340234b59766f`
-    (not publicly available yet, https://github.com/cryspen/hax-evit)
-    with the corresponding charon/aeneas versions:
-    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.06.02
-    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.06.04
-      — note: the `aeneas-pin` file in hax-evit at this commit names tag
-      `nightly-2026.06.03`, but commit `8d2077c` (the SHA the binary
-      must report) actually ships in `nightly-2026.06.04`. Use the
-      `06.04` release.
+  - Mainline Hax at rev `2fedcb2b` (= `cargo-hax-v0.3.7-288`; the Lean/Aeneas
+    backend now lives in `cryspen/hax` main and the old `aeneas-lean` backend
+    was renamed to `lean`), with the matching **prebuilt** charon/aeneas
+    binaries:
+    - Charon `nightly-2026.07.16`
+    - Aeneas `nightly-2026.07.21` (commit `52fd438`)
+  - Easiest via the flake: `nix develop .#lean` from the repo root provides a
+    version-wrapped `cargo hax` @ `2fedcb2b` + aeneas + cargo.
 
 ### Verifying the Lean proof
 
-From `libcrux-iot/ml-dsa/proofs/aeneas-lean/`:
+From `libcrux-iot/ml-dsa/proofs/lean/`:
 
 ```bash
-lake exe cache get
+lake exe cache get   # fetch the mathlib build cache
 lake build
 ```
 
+A clean build reports 1766 jobs and no errors. Each top-level `*_fc` theorem
+carries a `#print axioms` guard (`#guard_msgs`) that fails the build if the
+axiom set drifts from the one documented under [Axioms](#axioms).
+
 ### Extraction from Rust into Lean
+
+Both `hax_aeneas.py` scripts run `cargo hax into lean` (+ the charon
+`--start-from`/`--opaque` bounding and a few post-processing passes); run them
+inside the `nix develop .#lean` environment described above:
 
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
