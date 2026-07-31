@@ -145,18 +145,16 @@ theorem array_index_usize_ok_eq
     {α : Type u} {n : Std.Usize} [Inhabited α]
     (v : Std.Array α n) (i : Std.Usize) (h_bd : i.val < v.length) :
     Aeneas.Std.Array.index_usize v i = .ok (v.val[i.val]!) := by
-  have hT := Aeneas.Std.Array.index_usize_spec v i h_bd
-  have h_ex := Aeneas.Std.WP.spec_imp_exists hT
-  obtain ⟨v', hveq, hPv'⟩ := h_ex
-  rw [hveq, hPv', getElem!_pos]
+  have h' : i.val < v.val.length := h_bd
+  obtain ⟨v', hveq, hPv'⟩ := libcrux_iot_ml_dsa.Util.SliceSpecs.Array.index_usize_exists v i h'
+  rw [hveq, hPv']
+  exact congrArg _ (getElem!_pos v.val i.val h').symm
 
 theorem array_update_ok_eq
     {α : Type u} {n : Std.Usize}
     (v : Std.Array α n) (i : Std.Usize) (x : α) (h_bd : i.val < v.length) :
     Aeneas.Std.Array.update v i x = .ok (v.set i x) := by
-  have hT := Aeneas.Std.Array.update_spec v i x h_bd
-  have h_ex := Aeneas.Std.WP.spec_imp_exists hT
-  obtain ⟨v', hveq, hPv'⟩ := h_ex
+  obtain ⟨v', hveq, hPv'⟩ := libcrux_iot_ml_dsa.Util.SliceSpecs.Array.update_exists v i x h_bd
   rw [hveq, hPv']
 
 /-! ## Unary loop body (canonical shape from Funs.lean).
@@ -1785,7 +1783,8 @@ theorem elementwise_two_src_count_output_step
       omega
     obtain ⟨count1, h_add_eq, h_count1_val⟩ :=
       Aeneas.Std.WP.spec_imp_exists
-        (Std.UScalar.add_spec (x := count) (y := rc) h_count_bound_nat)
+        (Std.WP.spec_of_partialSpec (@Std.UScalar.add_spec _ count rc)
+          (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp))
     have h_body :
         (do
           let (o, iter1) ←
