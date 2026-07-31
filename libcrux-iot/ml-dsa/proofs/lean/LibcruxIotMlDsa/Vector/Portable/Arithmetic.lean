@@ -1200,12 +1200,14 @@ theorem power2round_element_eq_ok (t : Std.I32) :
         (libcrux_iot_ml_dsa.constants.BITS_IN_LOWER_PART_OF_T - (1#usize : Std.Usize)
           : Result Std.Usize) = .ok i3' ∧ i3'.val = 12 := by
     rw [h_d]
-    have hs := Aeneas.Std.Usize.sub_spec
-      (x := (13#usize : Std.Usize)) (y := (1#usize : Std.Usize)) (by decide)
+    have hs := Aeneas.Std.WP.spec_of_partialSpec
+      (@Std.Usize.sub_spec (13#usize : Std.Usize) (1#usize : Std.Usize))
+      (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
     obtain ⟨v', hveq, hPv'⟩ := Aeneas.Std.WP.spec_imp_exists hs
     refine ⟨v', hveq, ?_⟩
+    have hPv'1 := hPv'.1
     rw [show (13#usize : Std.Usize).val = 13 from rfl,
-        show (1#usize : Std.Usize).val = 1 from rfl] at hPv'
+        show (1#usize : Std.Usize).val = 1 from rfl] at hPv'1
     omega
   -- `1#i32 <<< i3'`.
   have h_shl_i3 : ((1#i32 : Std.I32) <<< i3')
