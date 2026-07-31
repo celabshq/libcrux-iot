@@ -4,7 +4,7 @@ This directory contains the Lean 4 proof that the Rust implementation of
 ML-KEM's **matrix-arithmetic core** in `libcrux-iot/ml-kem/src/`
 computes the same functions as the hacspec-style specification in
 `https://github.com/cryspen/libcrux`. Both sides are auto-extracted via the
-`cargo hax into aeneas-lean` pipeline; this directory then proves their
+`cargo hax into lean` pipeline; this directory then proves their
 functional-correctness (FC) equivalence.
 
 The four top-level results are the arithmetic heart of ML-KEM
@@ -154,12 +154,16 @@ Every theorem depends on Lean's three standard axioms: `propext`,
 
 ### Per-theorem axiom status
 
-| Theorem | Standard | Leaf axiom |
-|---------|----------|------------|
-| L7.1 `Matrix.ComputeAsPlusE.compute_As_plus_e_fc`        | ✓ | — (fully clean) |
-| L7.2 `Matrix.ComputeVectorU.FC.compute_vector_u_fc`      | ✓ | **A1** `Sampling.sample_matrix_entry_fc` |
-| L7.3 `Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc` | ✓ | **A2** `Serialize.deserialize_to_reduced_ring_element_fc` |
-| L7.4 `Matrix.ComputeMessage.FC.compute_message_fc`       | ✓ | — (fully clean) |
+Every theorem additionally depends on the two **subslice** axioms **A3/A4**
+below (introduced by the hax-mainline re-extraction — see note); they are
+listed once here rather than repeated per row.
+
+| Theorem | Standard | Subslice (A3/A4) | Deferred leaf axiom |
+|---------|----------|------------------|---------------------|
+| L7.1 `Matrix.ComputeAsPlusE.compute_As_plus_e_fc`        | ✓ | ✓ | — |
+| L7.2 `Matrix.ComputeVectorU.FC.compute_vector_u_fc`      | ✓ | ✓ | **A1** `Sampling.sample_matrix_entry_fc` (+ the opaque `matrix.sample_matrix_entry`) |
+| L7.3 `Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc` | ✓ | ✓ | **A2** `Serialize.deserialize_to_reduced_ring_element_fc` |
+| L7.4 `Matrix.ComputeMessage.FC.compute_message_fc`       | ✓ | ✓ | — |
 
 ### The two deferred-leaf axioms (A1 / A2)
 
@@ -167,7 +171,9 @@ Every theorem depends on Lean's three standard axioms: `propext`,
   [`Sampling.lean`](Sampling.lean)) — characterizes one on-the-fly matrix
   entry: running the impl's XOF + rejection-sampling chain on `(seed, i, j)`
   produces the `(i, j)` entry of `lift_matrix_from_seed seed K` (row-major),
-  with every coefficient in `[0, 3328]`.
+  with every coefficient in `[0, 3328]`. The impl entry-point
+  `matrix.sample_matrix_entry` is itself an **opaque** function (the XOF/PRF
+  internals are outside the extraction), so it also appears as an axiom.
 
 - **A2** `libcrux_iot_ml_kem.Serialize.deserialize_to_reduced_ring_element_fc`
   (stated in [`Serialize.lean`](Serialize.lean)) — characterizes one
@@ -178,6 +184,24 @@ Every theorem depends on Lean's three standard axioms: `propext`,
   
 These are largly orthogonal to the matrix arithmetic,
 which is why we omitted its verification.
+
+### The two subslice axioms (A3 / A4)
+
+Introduced by the migration to mainline hax / the CoreModels v0.2 library
+(see [Reproduction](#reproduction)): the Aeneas `Slice.subslice` /
+`Array.update_subslice` primitives require a **strict** `start < end` range
+and fail on empty ranges. We localize this to two `≤`-range specs, tagged
+`AENEAS-SUBSLICE-STRICT` in [`Util/SliceSpecs.lean`](Util/SliceSpecs.lean),
+to be discharged once the aeneas primitive is fixed:
+
+- **A3** `libcrux_iot_ml_kem.Util.SliceSpecs.Slice.subslice_le_eq` — reading a
+  sub-slice `s[a..b]` for `a ≤ b ≤ s.length` returns `s.val.slice a b`.
+- **A4** `libcrux_iot_ml_kem.Util.SliceSpecs.Array.update_subslice_le_eq` —
+  writing back a sub-slice over `a ≤ b ≤ length` yields the expected
+  `setSlice!`. (The slice-level `Slice.update_subslice_le_eq` is subsumed.)
+
+All four matrix theorems route their range-slice reads/writes through these,
+so all four depend on A3/A4.
 
 ## Proof architecture
 
@@ -210,26 +234,30 @@ The proof is structured into layers L0 to L7:
 ### Prerequisites
 
 - For running the proofs:
-  - Lean 4 toolchain `leanprover/lean4:v4.30.0-rc2` (pinned in `lean-toolchain`).
+  - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
+  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.2.0` (provides the
+    `CoreModels` library; pulled in by the lakefile).
 - For extraction:
-  - Hax at commit `ffdf432705d409b62ec025d253a340234b59766f`
-    (not publicly available yet, https://github.com/cryspen/hax-evit)
-    with the corresponding charon/aeneas versions:
-    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.06.02
-    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.06.04
-      — note: the `aeneas-pin` file in hax-evit at this commit names tag
-      `nightly-2026.06.03`, but commit `8d2077c` (the SHA the binary
-      must report) actually ships in `nightly-2026.06.04`. Use the
-      `06.04` release.
+  - Mainline Hax at rev `2fedcb2b` (= `cargo-hax-v0.3.7-288`, the Lean/Aeneas
+    backend now lives in `cryspen/hax` main; the old `aeneas-lean` backend was
+    renamed to `lean`), with the matching **prebuilt** charon/aeneas binaries:
+    - Charon `nightly-2026.07.16`
+    - Aeneas `nightly-2026.07.21` (commit `52fd438`)
+  - Easiest via the flake: `nix develop .#lean` from the repo root provides a
+    version-wrapped `cargo hax` @ `2fedcb2b` + aeneas + cargo.
 
 ### Verifying the Lean proof
 
-From `libcrux-iot/ml-kem/proofs/aeneas-lean/`:
+From `libcrux-iot/ml-kem/proofs/lean/`:
 
 ```bash
-lake exe cache get
+lake exe cache get   # fetch the mathlib build cache
 lake build
 ```
+
+A clean build reports ~1783 jobs and no errors. Each top-level `*_fc`
+theorem carries a `#print axioms` guard (`#guard_msgs`) that fails the build
+if the axiom set drifts from the one documented above.
 
 ### Cross-spec regression (Rust)
 
@@ -243,6 +271,10 @@ cargo test --tests cross_spec
 This catches mismatches at the Rust level before they propagate into Lean proof failures.
 
 ### Extraction from Rust into Lean
+
+Both `hax_aeneas.py` scripts run `cargo hax into lean` (+ the charon
+`--start-from`/`--opaque` bounding and a few post-processing passes); run
+them inside the `nix develop .#lean` environment described above:
 
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
