@@ -90,7 +90,7 @@ instance (a : UnitArr) (bound : Std.I32) (u : Nat) : Decidable (unit_exceeds a b
   unfold unit_exceeds; infer_instance
 
 /-- The poly loop body (the `infinity_norm_exceeds_loop.body … portable_ops_inst` shape). -/
-def poly_inf_body (a : UnitArr) (bound : Std.I32)
+noncomputable def poly_inf_body (a : UnitArr) (bound : Std.I32)
     (iter : CoreModels.core.ops.range.Range Std.Usize) (result : Bool) :
     Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool) := do
   let (o, iter1) ←
