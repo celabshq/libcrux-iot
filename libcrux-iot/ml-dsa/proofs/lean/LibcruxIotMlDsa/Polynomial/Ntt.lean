@@ -26,7 +26,7 @@ open libcrux_iot_ml_dsa.Spec.Lift libcrux_iot_ml_dsa.Spec.Montgomery
 
 /-- The concrete portable `Operations Coefficients` instance emitted by aeneas.
     Generic poly-layer fns are applied at this instance. -/
-abbrev portable_ops_inst :
+noncomputable abbrev portable_ops_inst :
     simd.traits.Operations simd.portable.vector_type.Coefficients :=
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations
 
