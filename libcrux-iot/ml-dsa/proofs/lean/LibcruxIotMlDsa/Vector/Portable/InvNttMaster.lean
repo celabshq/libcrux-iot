@@ -118,7 +118,7 @@ theorem finalize_step_lemma
     ⦃ ⇓ r => ⌜ finStepPost re8 e k r ⌝ ⦄ := by
   have h_acc_len : acc.length = 32 := Std.Array.length_eq _
   obtain ⟨h_swept, h_unswept⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_dsa.simd.portable.invntt.invert_ntt_montgomery_loop.body
   by_cases h_lt : k.val < e.val
   · -- `Some k` branch.
@@ -217,7 +217,7 @@ theorem finalize_step_lemma
         rw [h_a_u]
         exact h_unswept u (by omega)
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ e, done.
     have hk_ge : k.val ≥ e.val := Nat.not_lt.mp h_lt
     have h_iter_none := iter_next_none_eq k e hk_ge
@@ -253,7 +253,7 @@ theorem finalize_step_lemma
       · intro u hu l hl; rw [← hk_eq] at hu; exact h_swept u hu l hl
       · intro u hu; rw [← hk_eq] at hu; exact h_unswept u hu
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- `Slice.len (Array.to_slice re8) = 32#usize` for the finalize length plumbing. -/
 private theorem fin_slice_len_eq (re8 : FinAcc) :
@@ -298,7 +298,7 @@ theorem finalize_loop_fc (re8 : FinAcc) :
             have : (0#usize : Std.Usize).val = 0 := by decide
             rw [this] at hu; exact absurd hu (Nat.not_lt_zero u)
           · intro u _; rfl
-        simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_init_pure)
+        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_init_pure)
       ?_)
   · -- Post-entailment: inv at k = 32 yields the per-unit post.
     rw [PostCond.entails_noThrow]
@@ -306,7 +306,7 @@ theorem finalize_loop_fc (re8 : FinAcc) :
     have h_inv_holds : (finInv re8 (32#usize) r).holds := by
       simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
     obtain ⟨h_swept, _h_unswept⟩ := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_holds
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_holds
     intro u hu l hl
     exact h_swept u (by simpa using hu) l hl
   · -- Step lemma dispatch.

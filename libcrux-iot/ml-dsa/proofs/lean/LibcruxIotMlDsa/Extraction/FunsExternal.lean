@@ -25,7 +25,7 @@ open libcrux_iot_ml_dsa
 
 /-- [libcrux_iot_ml_dsa::arithmetic::power2round_vector]:
     Source: 'ml-dsa/src/arithmetic.rs', lines 38:0-49:1 -/
-axiom arithmetic.power2round_vector
+opaque arithmetic.power2round_vector
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) :
   Slice (polynomial.PolynomialRingElement SIMDUnit) → Slice
@@ -35,7 +35,7 @@ axiom arithmetic.power2round_vector
 
 /-- [libcrux_iot_ml_dsa::arithmetic::decompose_vector]:
     Source: 'ml-dsa/src/arithmetic.rs', lines 52:0-71:1 -/
-axiom arithmetic.decompose_vector
+opaque arithmetic.decompose_vector
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) :
   Std.Usize → Std.I32 → Slice (polynomial.PolynomialRingElement SIMDUnit)
@@ -46,7 +46,7 @@ axiom arithmetic.decompose_vector
 
 /-- [libcrux_iot_ml_dsa::matrix::compute_as1_plus_s2]:
     Source: 'ml-dsa/src/matrix.rs', lines 14:0-39:1 -/
-axiom matrix.compute_as1_plus_s2
+opaque matrix.compute_as1_plus_s2
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) :
   Std.Usize → Std.Usize → Slice (polynomial.PolynomialRingElement SIMDUnit)
@@ -57,7 +57,7 @@ axiom matrix.compute_as1_plus_s2
 
 /-- [libcrux_iot_ml_dsa::matrix::compute_matrix_x_mask]:
     Source: 'ml-dsa/src/matrix.rs', lines 43:0-63:1 -/
-axiom matrix.compute_matrix_x_mask
+opaque matrix.compute_matrix_x_mask
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) :
   Std.Usize → Std.Usize → Slice (polynomial.PolynomialRingElement SIMDUnit)
@@ -68,35 +68,35 @@ axiom matrix.compute_matrix_x_mask
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::commitment::serialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/commitment.rs', lines 6:0-42:1
     Visibility: public -/
-axiom simd.portable.encoding.commitment.serialize
+opaque simd.portable.encoding.commitment.serialize
   :
   simd.portable.vector_type.Coefficients → Slice Std.U8 → Result (Slice
     Std.U8)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::error::serialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/error.rs', lines 45:0-51:1 -/
-axiom simd.portable.encoding.error.serialize
+opaque simd.portable.encoding.error.serialize
   :
   constants.Eta → simd.portable.vector_type.Coefficients → Slice Std.U8 →
     Result (Slice Std.U8)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::error::deserialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/error.rs', lines 92:0-99:1 -/
-axiom simd.portable.encoding.error.deserialize
+opaque simd.portable.encoding.error.deserialize
   :
   constants.Eta → Slice Std.U8 → simd.portable.vector_type.Coefficients →
     Result simd.portable.vector_type.Coefficients
 
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::gamma1::serialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/gamma1.rs', lines 68:0-74:1 -/
-axiom simd.portable.encoding.gamma1.serialize
+opaque simd.portable.encoding.gamma1.serialize
   :
   simd.portable.vector_type.Coefficients → Slice Std.U8 → Std.Usize →
     Result (Slice Std.U8)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::gamma1::deserialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/gamma1.rs', lines 150:0-156:1 -/
-axiom simd.portable.encoding.gamma1.deserialize
+opaque simd.portable.encoding.gamma1.deserialize
   :
   Slice Std.U8 → simd.portable.vector_type.Coefficients → Std.Usize →
     Result simd.portable.vector_type.Coefficients
@@ -104,7 +104,7 @@ axiom simd.portable.encoding.gamma1.deserialize
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::t0::serialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/t0.rs', lines 13:0-58:1
     Visibility: public -/
-axiom simd.portable.encoding.t0.serialize
+opaque simd.portable.encoding.t0.serialize
   :
   simd.portable.vector_type.Coefficients → Slice Std.U8 → Result (Slice
     Std.U8)
@@ -112,7 +112,7 @@ axiom simd.portable.encoding.t0.serialize
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::t0::deserialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/t0.rs', lines 61:0-125:1
     Visibility: public -/
-axiom simd.portable.encoding.t0.deserialize
+opaque simd.portable.encoding.t0.deserialize
   :
   Slice Std.U8 → simd.portable.vector_type.Coefficients → Result
     simd.portable.vector_type.Coefficients
@@ -120,7 +120,7 @@ axiom simd.portable.encoding.t0.deserialize
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::t1::serialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/t1.rs', lines 8:0-28:1
     Visibility: public -/
-axiom simd.portable.encoding.t1.serialize
+opaque simd.portable.encoding.t1.serialize
   :
   simd.portable.vector_type.Coefficients → Slice Std.U8 → Result (Slice
     Std.U8)
@@ -128,7 +128,7 @@ axiom simd.portable.encoding.t1.serialize
 /-- [libcrux_iot_ml_dsa::simd::portable::encoding::t1::deserialize]:
     Source: 'ml-dsa/src/simd/portable/encoding/t1.rs', lines 31:0-54:1
     Visibility: public -/
-axiom simd.portable.encoding.t1.deserialize
+opaque simd.portable.encoding.t1.deserialize
   :
   Slice Std.U8 → simd.portable.vector_type.Coefficients → Result
     simd.portable.vector_type.Coefficients
@@ -136,19 +136,19 @@ axiom simd.portable.encoding.t1.deserialize
 /-- [libcrux_iot_ml_dsa::simd::portable::sample::rejection_sample_less_than_field_modulus]:
     Source: 'ml-dsa/src/simd/portable/sample.rs', lines 6:0-25:1
     Visibility: public -/
-axiom simd.portable.sample.rejection_sample_less_than_field_modulus
+opaque simd.portable.sample.rejection_sample_less_than_field_modulus
   : Slice Std.U8 → Slice Std.I32 → Result (Std.Usize × (Slice Std.I32))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::sample::rejection_sample_less_than_eta_equals_2]:
     Source: 'ml-dsa/src/simd/portable/sample.rs', lines 28:0-66:1
     Visibility: public -/
-axiom simd.portable.sample.rejection_sample_less_than_eta_equals_2
+opaque simd.portable.sample.rejection_sample_less_than_eta_equals_2
   : Slice Std.U8 → Slice Std.I32 → Result (Std.Usize × (Slice Std.I32))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::sample::rejection_sample_less_than_eta_equals_4]:
     Source: 'ml-dsa/src/simd/portable/sample.rs', lines 69:0-98:1
     Visibility: public -/
-axiom simd.portable.sample.rejection_sample_less_than_eta_equals_4
+opaque simd.portable.sample.rejection_sample_less_than_eta_equals_4
   : Slice Std.U8 → Slice Std.I32 → Result (Std.Usize × (Slice Std.I32))
 
 

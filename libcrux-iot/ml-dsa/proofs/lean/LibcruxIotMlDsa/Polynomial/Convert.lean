@@ -66,12 +66,16 @@ private theorem of_pure_prop_holds_cv {P : Prop}
 /-- `.val`-preserving `Std.Usize` mul helper. -/
 private theorem usize_mul_ok_eq (x y : Std.Usize) (h : x.val * y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
-  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists (Std.Usize.mul_spec h); exact ⟨z, h_eq, h_v⟩
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y)
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT; exact ⟨z, h_eq, h_v⟩
 
 /-- `.val`-preserving `Std.Usize` add helper. -/
 private theorem usize_add_ok_eq (x y : Std.Usize) (h : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists (Std.Usize.add_spec h); exact ⟨z, h_eq, h_v⟩
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y)
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+  obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT; exact ⟨z, h_eq, h_v⟩
 
 /-- Sub-slice extraction `.ok`-form, from `core_models_Slice_Insts_index_RangeUsize_spec`. -/
 private theorem slice_index_range_ok_eq
@@ -165,7 +169,7 @@ value equation `acc[j].values[ℓ] = array[8*j + ℓ]` and the unit-array length
 section FromI32
 
 /-- The loop body (matching `from_i32_array_loop.body … portable_ops_inst array`). -/
-def from_body (array : Slice Std.I32)
+noncomputable def from_body (array : Slice Std.I32)
     (iter : CoreModels.core.ops.range.Range Std.Usize) (result : PRE) :
     Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × PRE) PRE) := do
   let (o, iter1) ←
@@ -487,7 +491,10 @@ theorem from_i32_array_fc
   rw [show 8 * (k / 8) + k % 8 = k from by omega]
 
 /--
-info: 'libcrux_iot_ml_dsa.Polynomial.Convert.from_i32_array_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'libcrux_iot_ml_dsa.Polynomial.Convert.from_i32_array_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ Util.SliceSpecs.Slice.subslice_le_eq]
 -/
 #guard_msgs in
 #print axioms from_i32_array_fc
@@ -616,41 +623,32 @@ private theorem arr_index_mut (result : Arr256) (i1 i3 : Std.Usize)
       ∧ s.val = result.val.slice i1.val i3.val
       ∧ (∀ s' : Slice Std.I32, s'.val.length = 8 →
           (back s').val = result.val.setSlice! i1.val s'.val) := by
-  have hslen : i3.val ≤ (Aeneas.Std.Array.to_slice_mut result).1.val.length := by
-    rw [show (Aeneas.Std.Array.to_slice_mut result).1.val = result.val from rfl,
-        show result.val.length = 256 from result.property]; exact h1
-  obtain ⟨⟨sout, sback⟩, hslice_eq, hsout_val, hsout_len, hsback⟩ :=
-    triple_exists_ok_cv (Util.SliceSpecs.core_models_Slice_Insts_index_mut_RangeUsize_spec
-      (Aeneas.Std.Array.to_slice_mut result).1 { start := i1, «end» := i3 } h0 hslen)
-  have hinner : Aeneas.Std.core.slice.index.Slice.index_mut
-      (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.I32)
-      (Aeneas.Std.Array.to_slice_mut result).1 { start := i1, «end» := i3 }
-      = .ok (sout, sback) := hslice_eq
+  -- New model: `Array.index_mut inst a i` unfolds to `inst.index i a.to_slice`
+  -- plus a write-back via `Array.update_subslice`; the `RangeUsize` `SliceIndex`
+  -- reduces the `.index` to `Slice.subslice`.
+  have h_ts_val : (Aeneas.Std.Array.to_slice result).val = result.val :=
+    Aeneas.Std.Array.val_to_slice result
+  have h1' : i3.val ≤ (Aeneas.Std.Array.to_slice result).val.length := by
+    rw [h_ts_val, show result.val.length = 256 from result.property]; exact h1
+  obtain ⟨ns, hns_eq, hns_val⟩ :=
+    libcrux_iot_ml_dsa.Util.SliceSpecs.Slice.subslice_le_eq
+      (Aeneas.Std.Array.to_slice result) ⟨i1, i3⟩ h0 h1'
+  -- Reduce `index_mut` to `.ok (ns, <model write-back closure>)`, then let the
+  -- back closure be *inferred* from the model by `rfl` (hand-writing it produces
+  -- a defeq-but-distinct `match` aux-def that `rfl` rejects).
   unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-  -- Surface the inner `Slice.index_mut` with `.1`/`.2` explicit (the `CoreOpsIndexIndexMut`
-  -- instance reduces to the `RangeUsize` one).
-  show ∃ s back, (do
-      let (out, to_slice) ← Aeneas.Std.core.slice.index.Slice.index_mut
-          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.I32)
-          (Aeneas.Std.Array.to_slice_mut result).1 { start := i1, «end» := i3 }
-      Result.ok (out, fun o => (Aeneas.Std.Array.to_slice_mut result).2 (to_slice o)))
-      = .ok (s, back) ∧ _ ∧ _
-  rw [hinner]
-  simp only [Aeneas.Std.bind_tc_ok]
-  refine ⟨sout, _, rfl, ?_, ?_⟩
-  · rw [hsout_val]; rfl
+         CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut
+  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+             rust_primitives.slice.slice_slice, hns_eq, bind_tc_ok]
+  refine ⟨ns, _, rfl, ?_, ?_⟩
+  · rw [hns_val, h_ts_val]
   · intro s' hs'_len
-    show ((Aeneas.Std.Array.to_slice_mut result).2 (sback s')).val = _
-    rw [show (Aeneas.Std.Array.to_slice_mut result).2 = result.from_slice from rfl]
-    have hsback_val : (sback s').val = result.val.setSlice! i1.val s'.val := by
-      rw [hsback s']; rfl
-    have hlen256 : (sback s').val.length = 256 := by
-      rw [hsback_val, List.setSlice!]
-      have hrl : result.val.length = 256 := result.property
-      simp only [List.length_append, List.length_take, List.length_drop, hrl]
-      omega
-    rw [Aeneas.Std.Array.from_slice_val result (sback s') (by rw [hlen256]; rfl)]
-    exact hsback_val
+    obtain ⟨na, hna_eq, hna_val⟩ :=
+      libcrux_iot_ml_dsa.Util.SliceSpecs.Array.update_subslice_le_eq result ⟨i1, i3⟩ s' h0
+        (by rw [show result.val.length = 256 from result.property]; exact h1)
+        (by rw [hs'_len]; exact hwin.symm)
+    simp only [HaxToRange.toRange, hna_eq]
+    exact hna_val
 
 /-- `to_coefficient_array value out` (at the instance) reduces to the declassified
     `to_slice value.values` (when `out` has length 8). -/
@@ -676,7 +674,7 @@ private theorem to_coefficient_array_eq (value : SU) (out : Slice Std.I32)
 /-- The body — defined as the extracted `to_i32_array_loop.body` at the instance,
     so the top-level FC needs no body bridge. The `to_body_{some,none}` lemmas
     `unfold` it to the do-block. -/
-def to_body (iter : EnumIter) (result : Arr256) :
+noncomputable def to_body (iter : EnumIter) (result : Arr256) :
     Result (ControlFlow (EnumIter × Arr256) Arr256) :=
   polynomial.PolynomialRingElement.to_i32_array_loop.body portable_ops_inst iter result
 
@@ -857,8 +855,10 @@ theorem to_i32_array_fc (self : PRE) :
   rw [show CoreModels.core.slice.Slice.iter (Aeneas.Std.Array.to_slice self.simd_units)
         = .ok (Aeneas.Std.Array.to_slice self.simd_units) from rfl]
   simp only [Aeneas.Std.bind_tc_ok]
-  -- `enumerate i = .ok { iter := i, count := 0 }`.
-  rw [show CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.enumerate
+  -- `enumerate i = .ok { iter := i, count := 0 }` (generic `Iterator::enumerate`
+  -- default method in hax-lean v0.2.0, applied at the `Slice` iterator instance).
+  rw [show CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
+            (CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT SU)
             (Aeneas.Std.Array.to_slice self.simd_units)
         = .ok { iter := Aeneas.Std.Array.to_slice self.simd_units, count := 0#usize } from rfl]
   simp only [Aeneas.Std.bind_tc_ok]
@@ -885,7 +885,11 @@ theorem to_i32_array_fc (self : PRE) :
   · intro j hj; exact absurd hj (Nat.not_lt_zero j)
 
 /--
-info: 'libcrux_iot_ml_dsa.Polynomial.Convert.to_i32_array_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'libcrux_iot_ml_dsa.Polynomial.Convert.to_i32_array_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ Util.SliceSpecs.Array.update_subslice_le_eq,
+ Util.SliceSpecs.Slice.subslice_le_eq]
 -/
 #guard_msgs in
 #print axioms to_i32_array_fc

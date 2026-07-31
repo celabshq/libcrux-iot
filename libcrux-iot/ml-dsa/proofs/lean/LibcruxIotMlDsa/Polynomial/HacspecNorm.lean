@@ -102,7 +102,8 @@ theorem coeff_norm_bridge (a : Std.I32) :
     simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
       IScalarTy.I64_numBits_eq, hq_val]; omega
   obtain ⟨i4, hi4_eq, hi4_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.add_spec (x := i2) (y := qI64) hi4_min hi4_max)
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ i2 qI64)
+      (fun e => by cases e <;> simp_all <;> omega) (by simp))
   rw [show (i2 + qI64 : Result Std.I64) = .ok i4 from hi4_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hq_val] at hi4_val
@@ -179,8 +180,9 @@ theorem coeff_norm_bridge (a : Std.I32) :
       rw [ha_mod_v]; obtain ⟨hlo, _⟩ := hi6_bnd; rw [← ha_mod_v, ha_mod_val]; omega
     obtain ⟨r, hr_eq, hr_val⟩ :=
       Aeneas.Std.WP.spec_imp_exists
-        (Aeneas.Std.IScalar.sub_spec (x := hacspec_ml_dsa.parameters.Q) (y := a_mod)
-          hsub_min hsub_max)
+        (Aeneas.Std.WP.spec_of_partialSpec
+          (@Std.IScalar.sub_spec _ hacspec_ml_dsa.parameters.Q a_mod)
+          (fun e => by cases e <;> simp_all <;> omega) (by simp))
     refine ⟨r, hr_eq, ?_, ?_, ?_⟩
     · rw [hr_val, hQ_i32_val, ha_mod_v, hcn, if_pos hm_gt]
     · rw [hr_val, hQ_i32_val, ha_mod_v]

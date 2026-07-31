@@ -118,14 +118,18 @@ theorem usize_add (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b
   have hmax : x.val + y.val ≤ UScalar.max .Usize := by
     rw [hx, hy, UScalar.max_USize_eq, Usize.max, Usize.numBits]
     have := usize_pow16_le; omega
-  obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.UScalar.add_spec hmax)
+  obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists
+    (Std.WP.spec_of_partialSpec (@Std.UScalar.add_spec _ x y)
+      (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp))
   exact ⟨z, hz_eq, by rw [hz_val, hx, hy]⟩
 
 /-- `x - y` as a `usize` (`y.val ≤ x.val`). -/
 theorem usize_sub (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b) (hba : b ≤ a) :
     ∃ z : Std.Usize, (x - y : Result Std.Usize) = .ok z ∧ z.val = a - b := by
   have hle : y.val ≤ x.val := by rw [hx, hy]; exact hba
-  obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.UScalar.sub_spec hle)
+  obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists
+    (Std.WP.spec_of_partialSpec (@Std.UScalar.sub_spec _ x y)
+      (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp))
   exact ⟨z, hz_eq, by rw [hz_val.1, hx, hy]⟩
 
 /-! ## (0c) Per-lane helpers (private copies of the `HacspecBridge` privates). -/
@@ -136,8 +140,8 @@ private theorem idx_ok (a : Aeneas.Std.Array Std.I32 256#usize) (k : Nat) (hk : 
   have hk_us : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := usize_val k (by omega)
   have hlen : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val < a.length := by
     rw [hk_us]; show k < a.val.length; rw [a.property]; exact hk
-  have hT := Aeneas.Std.Array.index_usize_spec a (⟨BitVec.ofNat _ k⟩ : Std.Usize) hlen
-  obtain ⟨v', hveq, hPv'⟩ := Aeneas.Std.WP.spec_imp_exists hT
+  obtain ⟨v', hveq, hPv'⟩ :=
+    libcrux_iot_ml_dsa.Util.SliceSpecs.Array.index_usize_exists a (⟨BitVec.ofNat _ k⟩ : Std.Usize) hlen
   rw [hveq, hPv']
   simp only [hk_us]
   rw [getElem!_pos (a.val) k (by rw [a.property]; exact hk)]
@@ -228,7 +232,8 @@ private theorem i64_add_canon_ok (a b : Std.I64) (za : Std.I32)
     simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.add_spec (x := a) (y := b) hmin hmax)
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ a b)
+      (fun e => by cases e <;> simp_all <;> omega) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The difference of an i64 holding an i32 value and an i64 holding a `[0,Q)` value fits. -/
@@ -245,7 +250,8 @@ private theorem i64_sub_canon_ok (a b : Std.I64) (za : Std.I32)
     simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.sub_spec (x := a) (y := b) hmin hmax)
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ a b)
+      (fun e => by cases e <;> simp_all <;> omega) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The sum of two i64s, each holding a `[0,Q)` value, fits in i64. -/
@@ -261,7 +267,8 @@ private theorem i64_add_two_canon_ok (a b : Std.I64)
     simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.add_spec (x := a) (y := b) hmin hmax)
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ a b)
+      (fun e => by cases e <;> simp_all <;> omega) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The sum of two i64s, each holding an i32 value, fits in i64. -/
@@ -277,7 +284,8 @@ private theorem i64_add_i32_ok (a b : Std.I64) (za zb : Std.I32)
     simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.add_spec (x := a) (y := b) hmin hmax)
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ a b)
+      (fun e => by cases e <;> simp_all <;> omega) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The difference of two i64s, each holding an i32 value, fits in i64. -/
@@ -293,7 +301,8 @@ private theorem i64_sub_i32_ok (a b : Std.I64) (za zb : Std.I32)
     simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.sub_spec (x := a) (y := b) hmin hmax)
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ a b)
+      (fun e => by cases e <;> simp_all <;> omega) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- `parameters.Q` as an `i32` has value `8380417`. -/
@@ -379,9 +388,8 @@ theorem ntt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat) 
     fun i => canonI32 ((Pure.ntt_layer (lift_res p) layer)[i]!) with hf_def
   -- The per-call obligation.
   have hpure : ∀ i : Nat, i < (256#usize : Std.Usize).val →
-      (hacspec_ml_dsa.ntt.ntt_layer.closure.Insts.CoreOpsFunctionFnTupleUsizeI32
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
-          (p, len_z, k_z) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (p, len_z, k_z)) := by
+      hacspec_ml_dsa.ntt.ntt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+          (len_z, k_z, p) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (len_z, k_z, p)) := by
     intro i hi
     have hi' : i < 256 := hi
     -- The pure spec cell.
@@ -432,13 +440,43 @@ theorem ntt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat) 
       rw [Aeneas.Std.UScalar.lt_equiv, hidx_val, hlen_val]
     -- Reduce the closure to `ntt_layer_coeff` and thread the do-block.
     show hacspec_ml_dsa.ntt.ntt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-        (p, len_z, k_z) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (p, len_z, k_z))
+        (len_z, k_z, p) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (len_z, k_z, p))
     unfold hacspec_ml_dsa.ntt.ntt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-    unfold hacspec_ml_dsa.ntt.ntt_layer.closure.Insts.CoreOpsFunctionFnTupleUsizeI32.call
+    -- The closure body is now inlined (the old extraction factored it through
+    -- `ntt_layer_coeff`); restate the reduced do-block (defeq resolves the
+    -- `let (len, k, p) := (len_z, k_z, p)` capture destructure).
     change (do
-        let v ← hacspec_ml_dsa.ntt.ntt_layer_coeff p len_z k_z ⟨BitVec.ofNat _ i⟩
-        Result.ok (v, (p, len_z, k_z))) = .ok (f i, (p, len_z, k_z))
-    unfold hacspec_ml_dsa.ntt.ntt_layer_coeff
+        let i2 ← 2#usize * len_z
+        let round ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) / i2
+        let idx ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) % i2
+        let i3 ← round + k_z
+        let i4 ← Aeneas.Std.Array.index_usize hacspec_ml_dsa.ntt.ZETAS i3
+        let z ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i4)
+        if idx < len_z then
+          let i5 ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) + len_z
+          let i6 ← Aeneas.Std.Array.index_usize p i5
+          let i7 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i6)
+          let i8 ← z * i7
+          let t ← hacspec_ml_dsa.arithmetic.mod_q i8
+          let i9 ← Aeneas.Std.Array.index_usize p ⟨BitVec.ofNat _ i⟩
+          let i10 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i9)
+          let i11 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 t)
+          let i12 ← i10 + i11
+          let i13 ← hacspec_ml_dsa.arithmetic.mod_q i12
+          Result.ok (i13, (len_z, k_z, p))
+        else
+          let i5 ← Aeneas.Std.Array.index_usize p ⟨BitVec.ofNat _ i⟩
+          let i6 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i5)
+          let i7 ← z * i6
+          let t ← hacspec_ml_dsa.arithmetic.mod_q i7
+          let i8 ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) - len_z
+          let i9 ← Aeneas.Std.Array.index_usize p i8
+          let i10 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i9)
+          let i11 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 t)
+          let i12 ← i10 - i11
+          let i13 ← hacspec_ml_dsa.arithmetic.mod_q i12
+          Result.ok (i13, (len_z, k_z, p)))
+      = .ok (f i, (len_z, k_z, p))
     rw [htl_eq]; simp only [bind_tc_ok]
     rw [hround_eq]; simp only [bind_tc_ok]
     rw [hidx_eq]; simp only [bind_tc_ok]
@@ -555,8 +593,8 @@ theorem ntt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat) 
   have heq := createi_pure_eq (T := Std.I32)
     (F := hacspec_ml_dsa.ntt.ntt_layer.closure)
     256#usize
-    hacspec_ml_dsa.ntt.ntt_layer.closure.Insts.CoreOpsFunctionFnTupleUsizeI32
-    (p, len_z, k_z) f hpure
+    hacspec_ml_dsa.ntt.ntt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
+    (len_z, k_z, p) f hpure
   have heq' : hacspec_ml_dsa.ntt.ntt_layer p ⟨BitVec.ofNat _ layer⟩
       = .ok ⟨(List.range (256#usize : Std.Usize).val).map f,
              by simp [List.length_map, List.length_range]⟩ := by
@@ -611,9 +649,8 @@ theorem intt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat)
   set f : Nat → Std.I32 :=
     fun i => canonI32 ((Pure.intt_layer (lift_res p) layer)[i]!) with hf_def
   have hpure : ∀ i : Nat, i < (256#usize : Std.Usize).val →
-      (hacspec_ml_dsa.ntt.intt_layer.closure.Insts.CoreOpsFunctionFnTupleUsizeI32
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
-          (p, len_z, k_z) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (p, len_z, k_z)) := by
+      hacspec_ml_dsa.ntt.intt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+          (len_z, p, k_z) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (len_z, p, k_z)) := by
     intro i hi
     have hi' : i < 256 := hi
     have hpure_cell : (Pure.intt_layer (lift_res p) layer)[i]!
@@ -644,13 +681,41 @@ theorem intt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat)
     have hcond : (idx_z < len_z) ↔ (i % (2 * 2 ^ layer) < 2 ^ layer) := by
       rw [Aeneas.Std.UScalar.lt_equiv, hidx_val, hlen_val]
     show hacspec_ml_dsa.ntt.intt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-        (p, len_z, k_z) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (p, len_z, k_z))
+        (len_z, p, k_z) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (len_z, p, k_z))
     unfold hacspec_ml_dsa.ntt.intt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-    unfold hacspec_ml_dsa.ntt.intt_layer.closure.Insts.CoreOpsFunctionFnTupleUsizeI32.call
+    -- Inlined closure body (the old extraction factored it through `intt_layer_coeff`);
+    -- restate the reduced do-block (defeq resolves the `(len, p, k)` capture destructure).
     change (do
-        let v ← hacspec_ml_dsa.ntt.intt_layer_coeff p len_z k_z ⟨BitVec.ofNat _ i⟩
-        Result.ok (v, (p, len_z, k_z))) = .ok (f i, (p, len_z, k_z))
-    unfold hacspec_ml_dsa.ntt.intt_layer_coeff
+        let i2 ← 2#usize * len_z
+        let round ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) / i2
+        let idx ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) % i2
+        if idx < len_z then
+          let i3 ← Aeneas.Std.Array.index_usize p ⟨BitVec.ofNat _ i⟩
+          let i4 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i3)
+          let i5 ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) + len_z
+          let i6 ← Aeneas.Std.Array.index_usize p i5
+          let i7 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i6)
+          let i8 ← i4 + i7
+          let i9 ← hacspec_ml_dsa.arithmetic.mod_q i8
+          Result.ok (i9, (len_z, p, k_z))
+        else
+          let i3 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 hacspec_ml_dsa.parameters.Q)
+          let i4 ← k_z - round
+          let i5 ← Aeneas.Std.Array.index_usize hacspec_ml_dsa.ntt.ZETAS i4
+          let i6 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i5)
+          let i7 ← i3 - i6
+          let i8 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 hacspec_ml_dsa.parameters.Q)
+          let z ← i7 % i8
+          let i9 ← (⟨BitVec.ofNat _ i⟩ : Std.Usize) - len_z
+          let i10 ← Aeneas.Std.Array.index_usize p i9
+          let i11 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i10)
+          let i12 ← Aeneas.Std.Array.index_usize p ⟨BitVec.ofNat _ i⟩
+          let i13 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i12)
+          let i14 ← i11 - i13
+          let i15 ← z * i14
+          let i16 ← hacspec_ml_dsa.arithmetic.mod_q i15
+          Result.ok (i16, (len_z, p, k_z)))
+      = .ok (f i, (len_z, p, k_z))
     rw [htl_eq]; simp only [bind_tc_ok]
     rw [hround_eq]; simp only [bind_tc_ok]
     rw [hidx_eq]; simp only [bind_tc_ok]
@@ -784,8 +849,8 @@ theorem intt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat)
   have heq := createi_pure_eq (T := Std.I32)
     (F := hacspec_ml_dsa.ntt.intt_layer.closure)
     256#usize
-    hacspec_ml_dsa.ntt.intt_layer.closure.Insts.CoreOpsFunctionFnTupleUsizeI32
-    (p, len_z, k_z) f hpure
+    hacspec_ml_dsa.ntt.intt_layer.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
+    (len_z, p, k_z) f hpure
   have heq' : hacspec_ml_dsa.ntt.intt_layer p ⟨BitVec.ofNat _ layer⟩
       = .ok ⟨(List.range (256#usize : Std.Usize).val).map f,
              by simp [List.length_map, List.length_range]⟩ := by
@@ -851,22 +916,19 @@ theorem reduce_polynomial_bridge (p : Aeneas.Std.Array Std.I32 256#usize) :
   set f : Nat → Std.I32 :=
     fun i => canonI32 ((Pure.reduce_polynomial (lift_res p))[i]!) with hf_def
   have hpure : ∀ i : Nat, i < (256#usize : Std.Usize).val →
-      (hacspec_ml_dsa.ntt.reduce_polynomial.closure.Insts.CoreOpsFunctionFnTupleUsizeI32
-        : CoreModels.core.ops.function.Fn _ _ _).FnMutInst.call_mut
+      hacspec_ml_dsa.ntt.reduce_polynomial.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
           (8347681#i64, p) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (8347681#i64, p)) := by
     intro i hi
     have hi' : i < 256 := hi
     show hacspec_ml_dsa.ntt.reduce_polynomial.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
         (8347681#i64, p) ⟨BitVec.ofNat _ i⟩ = .ok (f i, (8347681#i64, p))
     unfold hacspec_ml_dsa.ntt.reduce_polynomial.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-    unfold hacspec_ml_dsa.ntt.reduce_polynomial.closure.Insts.CoreOpsFunctionFnTupleUsizeI32.call
     change (do
-        let v ← (do
-          let i1 ← Aeneas.Std.Array.index_usize p ⟨BitVec.ofNat _ i⟩
-          let i2 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i1)
-          let i3 ← (8347681#i64) * i2
-          hacspec_ml_dsa.arithmetic.mod_q i3)
-        Result.ok (v, (8347681#i64, p))) = .ok (f i, (8347681#i64, p))
+        let i1 ← Aeneas.Std.Array.index_usize p ⟨BitVec.ofNat _ i⟩
+        let i2 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i1)
+        let i3 ← (8347681#i64) * i2
+        let i4 ← hacspec_ml_dsa.arithmetic.mod_q i3
+        Result.ok (i4, (8347681#i64, p))) = .ok (f i, (8347681#i64, p))
     rw [idx_ok p i hi']; simp only [bind_tc_ok]
     obtain ⟨wpi, hwpi_eq, hwpi_val⟩ := cast_i64_ok (p.val[i]!)
     rw [hwpi_eq]; simp only [bind_tc_ok]
@@ -886,7 +948,7 @@ theorem reduce_polynomial_bridge (p : Aeneas.Std.Array Std.I32 256#usize) :
   have heq := createi_pure_eq (T := Std.I32)
     (F := hacspec_ml_dsa.ntt.reduce_polynomial.closure)
     256#usize
-    hacspec_ml_dsa.ntt.reduce_polynomial.closure.Insts.CoreOpsFunctionFnTupleUsizeI32
+    hacspec_ml_dsa.ntt.reduce_polynomial.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
     (8347681#i64, p) f hpure
   have heq' : hacspec_ml_dsa.ntt.reduce_polynomial p
       = .ok ⟨(List.range (256#usize : Std.Usize).val).map f,

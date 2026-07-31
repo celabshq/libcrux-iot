@@ -765,21 +765,7 @@ theorem reduce_fc
       exact h_bd u hu j hj
 
 /--
-info: 'libcrux_iot_ml_dsa.Polynomial.NttArith.reduce_fc' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- simd.portable.sample.rejection_sample_less_than_eta_equals_2,
- simd.portable.sample.rejection_sample_less_than_eta_equals_4,
- simd.portable.sample.rejection_sample_less_than_field_modulus,
- simd.portable.encoding.commitment.serialize,
- simd.portable.encoding.error.deserialize,
- simd.portable.encoding.error.serialize,
- simd.portable.encoding.gamma1.deserialize,
- simd.portable.encoding.gamma1.serialize,
- simd.portable.encoding.t0.deserialize,
- simd.portable.encoding.t0.serialize,
- simd.portable.encoding.t1.deserialize,
- simd.portable.encoding.t1.serialize]
+info: 'libcrux_iot_ml_dsa.Polynomial.NttArith.reduce_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 #print axioms reduce_fc
