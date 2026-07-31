@@ -107,7 +107,7 @@ private theorem checked_sub_ok2 (x y : Std.I32) (B : Nat)
     rw [h.2.1]; exact h_abs
   | fail e =>
     rw [hz] at h
-    exact absurd h_in h
+    exact absurd h_in h.2
   | div =>
     rw [hz] at h
     exact h.elim
@@ -135,7 +135,7 @@ private theorem checked_add_ok2 (x y : Std.I32) (B : Nat)
     rw [h.2.1]; exact h_abs
   | fail e =>
     rw [hz] at h
-    exact absurd h_in h
+    exact absurd h_in h.2
   | div =>
     rw [hz] at h
     exact h.elim
@@ -999,7 +999,8 @@ abbrev Acc := Aeneas.Std.Array libcrux_iot_ml_dsa.simd.portable.vector_type.Coef
 /-- Local `usize_add_ok_eq` helper. -/
 theorem usize_add_ok_eq (x y : Std.Usize) (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  have hT := Std.Usize.add_spec h_max
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y)
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 
@@ -1066,7 +1067,7 @@ theorem outer_3_plus_step_lemma_fc
     ⦃ ⇓ r => ⌜ InvLayer3OuterFC.step_post OFFSET STEP_BY ZETA re B e k r ⌝ ⦄ := by
   have h_acc_len : acc.length = 32 := Std.Array.length_eq _
   obtain ⟨h_done, h_undone, h_bd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_dsa.simd.portable.invntt.outer_3_plus_loop.body
   by_cases h_lt : k.val < e.val
   · -- `Some j = k` branch.
@@ -1342,7 +1343,7 @@ theorem outer_3_plus_step_lemma_fc
             rw [h_a_u]
             exact h_bd u h_u_ge h_u_lt l hl
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ e, done.
     have hk_ge : k.val ≥ e.val := Nat.not_lt.mp h_lt
     have h_iter_none := iter_next_none_eq k e hk_ge
@@ -1395,7 +1396,7 @@ theorem outer_3_plus_step_lemma_fc
           · exact Or.inl h
           · exact Or.inr (by rw [hk_eq]; exact h)
     show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_pure
+    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- KEYSTONE cross-unit INVERSE NTT layer op `outer_3_plus` FC. Loops `j` over
@@ -1475,7 +1476,7 @@ theorem outer_3_plus_fc
           · intro j hj_ge hj_lt; exact absurd hj_lt (by omega)
           · intro u _ _ _; rfl
           · intro u h1 h2 l hl; have hbu := hin u h1 h2 l hl; omega
-        simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_init_pure)
+        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_init_pure)
       ?_)
   · -- Post-entailment: inv at k=e yields the locked post.
     rw [PostCond.entails_noThrow]
@@ -1483,7 +1484,7 @@ theorem outer_3_plus_fc
     have h_inv_holds : (InvLayer3OuterFC.inv OFFSET STEP_BY ZETA re B e r).holds := by
       simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
     obtain ⟨h_done, h_undone, h_bd⟩ := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_holds
+      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_holds
     refine ⟨?_, ?_, ?_⟩
     · -- Butterfly eqns: rewrite `< OFFSET+STEP_BY` into `< e.val`.
       intro j hj_ge hj_lt
