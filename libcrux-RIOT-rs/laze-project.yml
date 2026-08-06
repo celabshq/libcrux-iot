@@ -1,0 +1,10 @@
+imports:
+  - git:
+      url: https://github.com/future-proof-iot/RIOT-rs
+      commit: e5120570794310c8a3fa837c4c45e73a47bcb443
+    dldir: riot-rs
+
+apps:
+  - name: libcrux-RIOT-rs
+    depends:
+      - sw/benchmark

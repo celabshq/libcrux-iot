@@ -1,0 +1,41 @@
+[package]
+name = "libcrux-RIOT-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+riot-rs = { path = "build/imports/riot-rs/src/riot-rs", features = [ "bench", "threading" ] }
+riot-rs-boards = { path = "build/imports/riot-rs/src/riot-rs-boards" }
+
+libcrux-ml-kem = { git = "https://github.com/cryspen/libcrux.git", default-features = false, features = ["pre-verification", "mlkem512", "mlkem768", "mlkem1024"] }
+libcrux-ml-dsa = { git = "https://github.com/cryspen/libcrux.git" }
+
+[profile.release]
+incremental = false
+codegen-units = 1
+debug = true
+lto = false
+opt-level = "s"
+
+[profile.release.package.esp-wifi]
+opt-level = 3
+
+[patch.crates-io]
+# riot-rs embassy fork
+embassy-executor = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-hal-internal = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-nrf = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-net = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-rp = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-net-driver = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-net-driver-channel = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-stm32 = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-sync = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-time-driver = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-time-queue-driver = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+embassy-usb-driver = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+cyw43 = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+cyw43-pio = { git = "https://github.com/kaspar030/embassy", branch = "for-riot-rs-2024-08-18" }
+
+# version 0.12-to-be
+smoltcp = { git = "https://github.com/smoltcp-rs/smoltcp.git", rev = "125773e282bc2e0c914a49e9c75573926e26e558" }
