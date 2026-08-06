@@ -57,13 +57,36 @@ macro_rules! cloop {
             $body
         }
     };
-    (for $i:ident in ($start:literal..$end:expr).step_by($step:literal) $body:block) => {
-        for $i in ($start..($end / $step + 1)) {
-            let $i = $i * $step;
-            if $i >= $end { break; }
+    (for $i:ident in ($start:literal..$end:expr).step_by($step:literal) $body:block) => {{
+        let mut $i = $start;
+        let step = $step;
+        let end = $end;
+        // This is only needed for type inference to connect the types of $i and $end.
+        // Otherwise we can't call checked_add for some usages of cloop.
+        // Optimized out by eurydice.
+        if false {
+            let _ = $i >= end;
+        }
+        // If $body contains a `continue`, we would enter an infinite loop if we did the
+        // step_by addition after the $body. Instead, we initialize $i with $start and
+        // do the step_by increase before the $body, except on the first iteration.
+        let mut first_iter = true;
+        loop {
+            if !first_iter {
+                // This guards against the $i overflowing its type,
+                // in that case break from the loop
+                $i = match $i.checked_add(step) {
+                    Some(v) => v,
+                    None => break
+                };
+            }
+            first_iter = false;
+            if $i >= end {
+                break;
+            }
             $body
         }
-    };
+    }};
 }
 
 #[cfg(not(eurydice))]

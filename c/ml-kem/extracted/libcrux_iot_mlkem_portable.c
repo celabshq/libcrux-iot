@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: 5db7272c7ac7c1933d461a7c12ea5d00fdf450d2
+ * Libcrux: 95a43e554866d4eb2db411c066ca0fb528eddbfd
  */
 
 #include "internal/libcrux_iot_mlkem_portable.h"
@@ -2267,12 +2267,6 @@ static KRML_MUSTINLINE void serialize_public_key_mut_df(
       t_as_ntt,
       libcrux_secrets_int_classify_public_classify_ref_mut_a1_75(&lvalue)[0U],
       scratch);
-  Eurydice_mut_borrow_slice_u8 uu____0 = Eurydice_slice_subslice_mut_c8(
-      serialized,
-      (KRML_CLITERAL(core_ops_range_Range_87){
-          .start = (size_t)0U,
-          .end = libcrux_iot_ml_kem_constants_ranked_bytes_per_ring_element(
-              (size_t)4U)}));
   Eurydice_slice_copy(
       Eurydice_slice_subslice_from_mut_6d(
           serialized,
@@ -2852,8 +2846,8 @@ generics
 */
 static KRML_MUSTINLINE void sample_from_binomial_distribution_2_a7(
     Eurydice_borrow_slice_u8 randomness, Eurydice_arr_04 *sampled_i16s) {
-  for (size_t i0 = (size_t)0U; i0 < randomness.meta / (size_t)4U; i0++) {
-    size_t chunk_number = i0;
+  for (size_t i = (size_t)0U; i < randomness.meta / (size_t)4U; i++) {
+    size_t chunk_number = i;
     Eurydice_borrow_slice_u8 byte_chunk = Eurydice_slice_subslice_shared_c8(
         randomness, (KRML_CLITERAL(core_ops_range_Range_87){
                         .start = chunk_number * (size_t)4U,
@@ -2871,19 +2865,49 @@ static KRML_MUSTINLINE void sample_from_binomial_distribution_2_a7(
         libcrux_secrets_int_public_integers_classify_27_df(1431655765U);
     uint32_t coin_toss_outcomes =
         core_num__u32__wrapping_add(even_bits, odd_bits);
-    for (uint32_t i = 0U; i < 32U / 4U; i++) {
-      uint32_t outcome_set = i;
-      uint32_t outcome_set0 = outcome_set * 4U;
-      int16_t outcome_1 = libcrux_secrets_int_as_i16_b8(
-          coin_toss_outcomes >> (uint32_t)outcome_set0 &
-          libcrux_secrets_int_public_integers_classify_27_df(3U));
-      int16_t outcome_2 = libcrux_secrets_int_as_i16_b8(
-          coin_toss_outcomes >>
-              (uint32_t)core_num__u32__wrapping_add(outcome_set0, 2U) &
-          libcrux_secrets_int_public_integers_classify_27_df(3U));
-      size_t offset = (size_t)(outcome_set0 >> 2U);
-      int16_t uu____0 = core_num__i16__wrapping_sub(outcome_1, outcome_2);
-      sampled_i16s->data[(size_t)8U * chunk_number + offset] = uu____0;
+    uint32_t outcome_set = 0U;
+    uint32_t step = 4U;
+    uint32_t end = 32U;
+    bool first_iter = true;
+    while (true) {
+      if (first_iter) {
+        first_iter = false;
+        if (outcome_set >= end) {
+          break;
+        }
+        int16_t outcome_1 = libcrux_secrets_int_as_i16_b8(
+            coin_toss_outcomes >> (uint32_t)outcome_set &
+            libcrux_secrets_int_public_integers_classify_27_df(3U));
+        int16_t outcome_2 = libcrux_secrets_int_as_i16_b8(
+            coin_toss_outcomes >>
+                (uint32_t)core_num__u32__wrapping_add(outcome_set, 2U) &
+            libcrux_secrets_int_public_integers_classify_27_df(3U));
+        size_t offset = (size_t)(outcome_set >> 2U);
+        int16_t uu____0 = core_num__i16__wrapping_sub(outcome_1, outcome_2);
+        sampled_i16s->data[(size_t)8U * chunk_number + offset] = uu____0;
+      } else {
+        core_option_Option_7e uu____1 =
+            core_num__u32__checked_add(outcome_set, step);
+        if (uu____1.tag == core_option_None) {
+          break;
+        }
+        uint32_t v = uu____1.f0;
+        outcome_set = v;
+        first_iter = false;
+        if (outcome_set >= end) {
+          break;
+        }
+        int16_t outcome_1 = libcrux_secrets_int_as_i16_b8(
+            coin_toss_outcomes >> (uint32_t)outcome_set &
+            libcrux_secrets_int_public_integers_classify_27_df(3U));
+        int16_t outcome_2 = libcrux_secrets_int_as_i16_b8(
+            coin_toss_outcomes >>
+                (uint32_t)core_num__u32__wrapping_add(outcome_set, 2U) &
+            libcrux_secrets_int_public_integers_classify_27_df(3U));
+        size_t offset = (size_t)(outcome_set >> 2U);
+        int16_t uu____2 = core_num__i16__wrapping_sub(outcome_1, outcome_2);
+        sampled_i16s->data[(size_t)8U * chunk_number + offset] = uu____2;
+      }
     }
   }
 }
@@ -5826,12 +5850,6 @@ static KRML_MUSTINLINE void serialize_public_key_mut_21(
       t_as_ntt,
       libcrux_secrets_int_classify_public_classify_ref_mut_a1_75(&lvalue)[0U],
       scratch);
-  Eurydice_mut_borrow_slice_u8 uu____0 = Eurydice_slice_subslice_mut_c8(
-      serialized,
-      (KRML_CLITERAL(core_ops_range_Range_87){
-          .start = (size_t)0U,
-          .end = libcrux_iot_ml_kem_constants_ranked_bytes_per_ring_element(
-              (size_t)3U)}));
   Eurydice_slice_copy(
       Eurydice_slice_subslice_from_mut_6d(
           serialized,
