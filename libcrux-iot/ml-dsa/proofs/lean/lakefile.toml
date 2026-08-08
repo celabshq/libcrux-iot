@@ -17,4 +17,4 @@ rev = "v0.2.0"
 # HacspecSha3); TODO: repoint at a pushed cryspen/libcrux rev.
 [[require]]
 name = "HacspecMlDsa"
-path = "/workspace/libcrux/proofs-update/specs/ml-dsa/proofs/lean"
+path = "/Users/karthik/libcrux-proofs-update/specs/ml-dsa/proofs/lean"
