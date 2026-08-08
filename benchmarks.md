@@ -1,126 +1,278 @@
 # Benchmark Results
 
-All numbers reported here refer to cycle counts.
+Results captured on the reference board.
 
-| Device                          | Clock speed                   |
-|---------------------------------|-------------------------------|
-| [ESP32-S3] [^1] [^2]            | 240 MHz                       |
-| [STM32-L4R5xx] (our Nucleo-144) | 4 MHz (default, up to 120MHz) |
-| [ESP32-C6] [^3]                 | 160 MHz                       |
-| [nRF52840-DK]                   | 64 MHz                        |
-| [nRF5340-DK]                    | 128 MHz                       |
-| [nRF52-DK]                      |                               |
-| - nRF52832                      | 64 MHz                        |
-| - nRF52810                      | 64 MHz                        |
+## Cycle Measurements
 
-## ML-KEM
+To run ML-KEM measurements:
+```
+cd libcrux-nucleo-l4r5zi
+# $variant in {mlkem512, mlkem768, mlkem1024}
+DEFMT_LOG=info cargo rrb mlkem --no-default-features -F $variant,mldsa44
+```
+
+To run ML-DSA measurements:
+
+```
+cd libcrux-nucleo-l4r5zi
+# $variant in {mldsa44, mldsa65, mldsa87}
+DEFMT_LOG=info cargo rrb mldsa --no-default-features -F $variant,mlkem512
+```
 
 ### ML-KEM 512
-
-| Device                          | KeyGen[Debug] | KeyGen[Release] | Encaps[Debug] | Encaps[Release] | Decaps[Debug] | Decaps[Release] |
-|---------------------------------|---------------|-----------------|---------------|-----------------|---------------|-----------------|
-| Raspberry Pi 3                  |               |                 |               |                 |               |                 |
-| Raspberry Pi 4                  |               |                 |               |                 |               |                 |
-| [ESP32-S3] [^1] [^2]            |               |                 |               |                 |               |                 |
-| [STM32-L4R5xx] (our Nucleo-144) | 4445020       | 771501          | 5044052       | 839800          | 6134089       | 839800          |
-| [ESP32-C6] [^3]                 |               |                 |               |                 |               |                 |
-| [nRF52840-DK]                   | 5968523       | 764636          | 6806307       | 839812          | 8316331       | 1011669         |
-| [nRF5340-DK]                    |               |                 |               |                 |               |                 |
-| [nRF52-DK]                      |               |                 |               |                 |               |                 |
-| - nRF52832                      | 5789064       | 762595          | 6579357       | 838838          | 7998480       | 1010106         |
-| - nRF52810                      | ❌ [^5]       | ❌ [^4]         | ❌ [^5]       | ❌ [^4]         | ❌ [^5]       | ❌ [^4]         |
-
+```
+l,0,16000000,ML-KEM Benchmark
+b,r,bench_keygen,0
+b,d,bench_keygen,0,690156
+b,r,bench_keygen,1
+b,d,bench_keygen,1,690150
+b,r,bench_keygen,2
+b,d,bench_keygen,2,690157
+b,r,bench_keygen,3
+b,d,bench_keygen,3,690150
+b,r,bench_keygen,4
+b,d,bench_keygen,4,690150
+b,r,bench_encaps,0
+b,d,bench_encaps,0,736112
+b,r,bench_encaps,1
+b,d,bench_encaps,1,736103
+b,r,bench_encaps,2
+b,d,bench_encaps,2,736115
+b,r,bench_encaps,3
+b,d,bench_encaps,3,736103
+b,r,bench_encaps,4
+b,d,bench_encaps,4,736117
+b,r,bench_decaps,0
+b,d,bench_decaps,0,852716
+b,r,bench_decaps,1
+b,d,bench_decaps,1,852730
+b,r,bench_decaps,2
+b,d,bench_decaps,2,852716
+b,r,bench_decaps,3
+b,d,bench_decaps,3,852725
+b,r,bench_decaps,4
+b,d,bench_decaps,4,852716
+Firmware exited successfully
+```
 
 ### ML-KEM 768
 
-| Device                          | KeyGen[Debug] | KeyGen[Release] | Encaps[Debug] | Encaps[Release] | Decaps[Debug] | Decaps[Release] |
-|---------------------------------|---------------|-----------------|---------------|-----------------|---------------|-----------------|
-| Raspberry Pi 3                  |               |                 |               |                 |               |                 |
-| Raspberry Pi 4                  |               |                 |               |                 |               |                 |
-| [ESP32-S3] [^1] [^2]            |               |                 |               |                 |               |                 |
-| [STM32-L4R5xx] (our Nucleo-144) | 7085443       | 1273471         | 7996675       | 1395000         | 9421249       | 1591459         |
-| [ESP32-C6] [^3]                 |               |                 |               |                 |               |                 |
-| [nRF52840-DK]                   | 9315152       | 1257679         | 10418524      | 1381088         | 12319554      | 1607698         |
-| [nRF5340-DK]                    |               |                 |               |                 |               |                 |
-| [nRF52-DK]                      |               |                 |               |                 |               |                 |
-| - nRF52832                      | 9434994       | 1276466         | 10691113      | 1401091         | 12626256      | 1630202         |
-| - nRF52810                      | ❌ [^5]       | ❌ [^4]         | ❌ [^5]       | ❌ [^4]         | ❌ [^5]       | ❌ [^4]         |
-
+```
+l,0,16000000,ML-KEM Benchmark
+b,r,bench_keygen,0
+b,d,bench_keygen,0,1103324
+b,r,bench_keygen,1
+b,d,bench_keygen,1,1103324
+b,r,bench_keygen,2
+b,d,bench_keygen,2,1103328
+b,r,bench_keygen,3
+b,d,bench_keygen,3,1103320
+b,r,bench_keygen,4
+b,d,bench_keygen,4,1103326
+b,r,bench_encaps,0
+b,d,bench_encaps,0,1196687
+b,r,bench_encaps,1
+b,d,bench_encaps,1,1196684
+b,r,bench_encaps,2
+b,d,bench_encaps,2,1196692
+b,r,bench_encaps,3
+b,d,bench_encaps,3,1196688
+b,r,bench_encaps,4
+b,d,bench_encaps,4,1196687
+b,r,bench_decaps,0
+b,d,bench_decaps,0,1353693
+b,r,bench_decaps,1
+b,d,bench_decaps,1,1353704
+b,r,bench_decaps,2
+b,d,bench_decaps,2,1353700
+b,r,bench_decaps,3
+b,d,bench_decaps,3,1353695
+b,r,bench_decaps,4
+b,d,bench_decaps,4,1353693
+Firmware exited successfully
+```
 
 ### ML-KEM 1024
 
-| Device                          | KeyGen[Debug] | KeyGen[Release] | Encaps[Debug] | Encaps[Release] | Decaps[Debug] | Decaps[Release] |
-|---------------------------------|---------------|-----------------|---------------|-----------------|---------------|-----------------|
-| Raspberry Pi 3                  |               |                 |               |                 |               |                 |
-| Raspberry Pi 4                  |               |                 |               |                 |               |                 |
-| [ESP32-S3] [^1] [^2]            |               |                 |               |                 |               |                 |
-| [STM32-L4R5xx] (our Nucleo-144) | 10981246      | 1991691         | 11988292      | 2129442         | 13756274      | 2371826         |
-| [ESP32-C6] [^3]                 |               |                 |               |                 |               |                 |
-| [nRF52840-DK]                   | 14_910_284    | 1_959_916       | 16_318_665    | 2_103_371       | 18_830_628    | 2_391_463       |
-| [nRF5340-DK]                    |               |                 |               |                 |               |                 |
-| [nRF52-DK]                      |               |                 |               |                 |               |                 |
-| - nRF52832                      | 14886756      | 1951395         | 16021505      | 2094650         | 18385162      | 2381655         |
-| - nRF52810                      | ❌ [^5]       | ❌ [^4]         | ❌ [^5]       | ❌ [^4]         | ❌ [^5]       | ❌ [^4]         |
+```
+l,0,16000000,ML-KEM Benchmark
+b,r,bench_keygen,0
+b,d,bench_keygen,0,1716659
+b,r,bench_keygen,1
+b,d,bench_keygen,1,1716659
+b,r,bench_keygen,2
+b,d,bench_keygen,2,1716659
+b,r,bench_keygen,3
+b,d,bench_keygen,3,1716662
+b,r,bench_keygen,4
+b,d,bench_keygen,4,1716659
+b,r,bench_encaps,0
+b,d,bench_encaps,0,1833362
+b,r,bench_encaps,1
+b,d,bench_encaps,1,1833364
+b,r,bench_encaps,2
+b,d,bench_encaps,2,1833365
+b,r,bench_encaps,3
+b,d,bench_encaps,3,1833363
+b,r,bench_encaps,4
+b,d,bench_encaps,4,1833359
+b,r,bench_decaps,0
+b,d,bench_decaps,0,2027928
+b,r,bench_decaps,1
+b,d,bench_decaps,1,2027933
+b,r,bench_decaps,2
+b,d,bench_decaps,2,2027933
+b,r,bench_decaps,3
+b,d,bench_decaps,3,2027933
+b,r,bench_decaps,4
+b,d,bench_decaps,4,2027932
+Firmware exited successfully
+```
 
-
-## ML-DSA
 ### ML-DSA 44
 
-| Device                          | KeyGen[Debug] | KeyGen[Release] | Sign[Debug] | Sign[Release] | Verify[Debug] | Verify[Release] |
-|---------------------------------|---------------|-----------------|-------------|---------------|---------------|-----------------|
-| Raspberry Pi 3                  |               |                 |             |               |               |                 |
-| Raspberry Pi 4                  |               |                 |             |               |               |                 |
-| [ESP32-S3] [^1] [^2]            |               |                 |             |               |               |                 |
-| [STM32-L4R5xx] (our Nucleo-144) | 19524681      | 3476142         | 28743483    | 4825636       | 20929483      | 3695919         |
-| [ESP32-C6] [^3]                 |               |                 |             |               |               |                 |
-| [nRF52840-DK]                   | 25565997      | 3565042         | 37809350    | 4987219       | 27441288      | 3788007         |
-| [nRF5340-DK]                    |               |                 |             |               |               |                 |
-| [nRF52-DK]                      |               |                 |             |               |               |                 |
-| - nRF52832                      | ❌ [^5]       | ❌ [^4]         | ❌ [^5]     | ❌ [^4]       | ❌ [^5]       | ❌ [^4]         |
-| - nRF52810                      |               |                 |             |               |               |                 |
+```
+l,0,16000000,ML-DSA Benchmark
+b,r,bench_keygen,0
+b,d,bench_keygen,0,2907973
+b,r,bench_keygen,1
+b,d,bench_keygen,1,2907975
+b,r,bench_keygen,2
+b,d,bench_keygen,2,2907974
+b,r,bench_keygen,3
+b,d,bench_keygen,3,2907972
+b,r,bench_keygen,4
+b,d,bench_keygen,4,2907975
+b,r,bench_sign,0
+b,d,bench_sign,0,3834740
+b,r,bench_sign,1
+b,d,bench_sign,1,3834744
+b,r,bench_sign,2
+b,d,bench_sign,2,3834741
+b,r,bench_sign,3
+b,d,bench_sign,3,3834744
+b,r,bench_sign,4
+b,d,bench_sign,4,3834746
+b,r,bench_verify,0
+b,d,bench_verify,0,2560836
+b,r,bench_verify,1
+b,d,bench_verify,1,2560838
+b,r,bench_verify,2
+b,d,bench_verify,2,2560837
+b,r,bench_verify,3
+b,d,bench_verify,3,2560836
+b,r,bench_verify,4
+b,d,bench_verify,4,2560839
+Firmware exited successfully
+```
 
 ### ML-DSA 65
 
-| Device                          | KeyGen[Debug] | KeyGen[Release] | Sign[Debug] | Sign[Release] | Verify[Debug] | Verify[Release] |
-|---------------------------------|---------------|-----------------|-------------|---------------|---------------|-----------------|
-| Raspberry Pi 3                  |               |                 |             |               |               |                 |
-| Raspberry Pi 4                  |               |                 |             |               |               |                 |
-| [ESP32-S3] [^1] [^2]            |               |                 |             |               |               |                 |
-| [STM32-L4R5xx] (our Nucleo-144) | 36271715      | 6382246         | 47606417    | 7981373       | 37005196      | 6501876         |
-| [ESP32-C6] [^3]                 |               |                 |             |               |               |                 |
-| [nRF52840-DK]                   | 47073665      | 6638977         | 62247859    | 8364565       | 48188918      | 6767475         |
-| [nRF5340-DK]                    |               |                 |             |               |               |                 |
-| [nRF52-DK]                      |               |                 |             |               |               |                 |
-| - nRF52832                      | ❌ [^5]       | ❌ [^6]         | ❌ [^5]     | ❌ [^6]       | ❌ [^5]       | ❌ [^6]         |
-| - nRF52810                      |               |                 |             |               |               |                 |
-
+```
+l,0,16000000,ML-DSA Benchmark
+b,r,bench_keygen,0
+b,d,bench_keygen,0,4548147
+b,r,bench_keygen,1
+b,d,bench_keygen,1,4548143
+b,r,bench_keygen,2
+b,d,bench_keygen,2,4548147
+b,r,bench_keygen,3
+b,d,bench_keygen,3,4548146
+b,r,bench_keygen,4
+b,d,bench_keygen,4,4548144
+b,r,bench_sign,0
+b,d,bench_sign,0,5609316
+b,r,bench_sign,1
+b,d,bench_sign,1,5609313
+b,r,bench_sign,2
+b,d,bench_sign,2,5609311
+b,r,bench_sign,3
+b,d,bench_sign,3,5609316
+b,r,bench_sign,4
+b,d,bench_sign,4,5609313
+b,r,bench_verify,0
+b,d,bench_verify,0,4240913
+b,r,bench_verify,1
+b,d,bench_verify,1,4240920
+b,r,bench_verify,2
+b,d,bench_verify,2,4240919
+b,r,bench_verify,3
+b,d,bench_verify,3,4240916
+b,r,bench_verify,4
+b,d,bench_verify,4,4240921
+Firmware exited successfully
+```
 
 ### ML-DSA 87
 
-| Device                          | KeyGen[Debug] | KeyGen[Release] | Sign[Debug] | Sign[Release] | Verify[Debug] | Verify[Release] |
-|---------------------------------|---------------|-----------------|-------------|---------------|---------------|-----------------|
-| Raspberry Pi 3                  |               |                 |             |               |               |                 |
-| Raspberry Pi 4                  |               |                 |             |               |               |                 |
-| [ESP32-S3] [^1] [^2]            |               |                 |             |               |               |                 |
-| [STM32-L4R5xx] (our Nucleo-144) | 60053867      | 10633875        | 137335754   | 21909905      | 61676143      | 10794553        |
-| [ESP32-C6] [^3]                 |               |                 |             |               |               |                 |
-| [nRF52840-DK]                   | ❌ [^5]       | ❌ [^4]         | ❌ [^5]     | ❌ [^4]       | ❌ [^5]       | ❌ [^4]         |
-| [nRF5340-DK]                    |               |                 |             |               |               |                 |
-| [nRF52-DK]                      |               |                 |             |               |               |                 |
-| - nRF52832                      | ❌ [^5]       | ❌ [^6]         | ❌ [^5]     | ❌ [^6]       | ❌ [^5]       | ❌ [^6]         |
-| - nRF52810                      |               |                 |             |               |               |                 |
+```
+l,0,16000000,ML-DSA Benchmark
+b,r,bench_keygen,0
+b,d,bench_keygen,0,7786305
+b,r,bench_keygen,1
+b,d,bench_keygen,1,7786304
+b,r,bench_keygen,2
+b,d,bench_keygen,2,7786303
+b,r,bench_keygen,3
+b,d,bench_keygen,3,7786306
+b,r,bench_keygen,4
+b,d,bench_keygen,4,7786306
+b,r,bench_sign,0
+b,d,bench_sign,0,13558244
+b,r,bench_sign,1
+b,d,bench_sign,1,13558242
+b,r,bench_sign,2
+b,d,bench_sign,2,13558238
+b,r,bench_sign,3
+b,d,bench_sign,3,13558242
+b,r,bench_sign,4
+b,d,bench_sign,4,13558240
+b,r,bench_verify,0
+b,d,bench_verify,0,7210660
+b,r,bench_verify,1
+b,d,bench_verify,1,7210655
+b,r,bench_verify,2
+b,d,bench_verify,2,7210655
+b,r,bench_verify,3
+b,d,bench_verify,3,7210657
+b,r,bench_verify,4
+b,d,bench_verify,4,7210654
+Firmware exited successfully
+```
 
 
-[STM32-L4R5xx]: https://www.st.com/en/microcontrollers-microprocessors/stm32l4r5zi.html?rt=db&id=DB3171
-[ESP32-C6]: https://www.espressif.com/en/products/socs/esp32-c6
-[STM32-L476RG]: https://www.st.com/en/microcontrollers-microprocessors/stm32l476rg.html?rt=db&id=DB2196
-[nRF52840-DK]: https://www.nordicsemi.com/Products/nRF52840
-[nRF5340-DK]: https://www.nordicsemi.com/Products/nRF5340
-[nRF52-DK]: https://www.nordicsemi.com/Products/Development-hardware/nRF52-DK
-[esp32-s3]: https://www.espressif.com/en/products/socs/esp32-s3
-[^1]: https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/hw-reference/esp32s3/user-guide-devkitc-1.html
-[^2]: https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf
-[^3]: https://www.espressif.com/sites/default/files/documentation/esp32-c6-wroom-1_wroom-1u_datasheet_en.pdf
-[^4]: The benchmark crashses due to insufficient stack space.
-[^5]: Core locks up.
-[^6]: Benchmark binary does not fit available flash space.
+## Stack usage
+
+Results in bytes on the reference board.
+Run `./measure-stacks.sh` in `libcrux-nucleo-l4r5zi` to reproduce.
+
+```
+Repository at commit: 9218c076a08d4fb9697e4e615c049a576ea78c4f
+l,0,0,ML-KEM 1024 Key Generation
+b,r,stack,0
+b,d,stack,0,34016
+Firmware exited successfully
+l,0,0,ML-KEM 1024 Encapsulation
+b,r,stack,0
+b,d,stack,0,20104
+Firmware exited successfully
+l,0,0,ML-KEM 1024 Decapsulation
+b,r,stack,0
+b,d,stack,0,23400
+Firmware exited successfully
+l,0,0,ML-DSA 87 Key Generation
+b,r,stack,0
+b,d,stack,0,109464
+Firmware exited successfully
+l,0,0,ML-DSA 87 Signing
+b,r,stack,0
+b,d,stack,0,168192
+Firmware exited successfully
+l,0,0,ML-DSA 87 Verification
+b,r,stack,0
+b,d,stack,0,9760
+Firmware exited successfully
+```
+
+
+

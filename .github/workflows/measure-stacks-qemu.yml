@@ -1,0 +1,76 @@
+name: Measure Stacks (QEMU)
+
+on:
+  merge_group:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    if: ${{ github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: libcrux-nucleo-l4r5zi
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+
+      # qemu-system-arm emulates the nucleo-l4r5zi binaries (mps2-an386
+      # machine); see run-qemu.sh.
+      - name: 🛠️ Install qemu-system-arm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-arm
+
+      - name: 🛠️ Install defmt-print
+        run: cargo install defmt-print --version 0.3.13 --locked
+
+      - name: 📏 Measure stacks under QEMU
+        run: ./measure-stacks-qemu.sh
+
+      - name: 📋 Show results
+        run: |
+          file="stack-$(git rev-parse HEAD)-qemu.dat"
+          cat "$file"
+          {
+            echo '```'
+            cat "$file"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: ⬆️ Upload results
+        uses: actions/upload-artifact@v7
+        with:
+          name: stack-measurements-qemu
+          path: libcrux-nucleo-l4r5zi/stack-*-qemu.dat
+
+  measure-stacks-qemu-status:
+    if: ${{ always() }}
+    needs: [measure]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1

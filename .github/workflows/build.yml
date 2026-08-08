@@ -1,10 +1,11 @@
 name: Build for all boards
 
+permissions: {}
+
 on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main", "*"]
   workflow_dispatch:
 
 env:
@@ -20,9 +21,10 @@ jobs:
                          ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Install GNU ARM Toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1

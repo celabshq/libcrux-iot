@@ -1,11 +1,12 @@
 name: SHA3 C - Extract, Build & Test
 
+permissions: {}
+
 on:
   merge_group:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main", "*"]
   workflow_dispatch:
 
 env:
@@ -19,12 +20,14 @@ jobs:
   extract-c:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cryspen/libcrux-c:latest
+      image: ghcr.io/cryspen/libcrux-c@sha256:08087ee55fdb908a84ce4d579366e16132bf41717484c46a83326a9da73c07a2
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Extract C
         run: |
@@ -33,7 +36,7 @@ jobs:
           ../c/extract-sha3.sh
 
       - name: Upload C extraction
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: c-extraction-sha3-iot
           path: c/sha3/extracted
@@ -54,7 +57,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: c-extraction-sha3-iot
 

@@ -1,5 +1,3 @@
-#[cfg(feature = "check-secret-independence")]
-use libcrux_secrets::EncodeOps as _;
 use libcrux_secrets::{
     CastOps as _, Classify as _, ClassifyRef as _, Declassify as _, DeclassifyRef as _, I32, U64,
     U8,

@@ -1,0 +1,97 @@
+name: Combined (ML-KEM, ML-DSA & SHA3) C - Extract, Build & Test
+
+permissions: {}
+
+on:
+  merge_group:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  extract-c:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/cryspen/libcrux-c@sha256:08087ee55fdb908a84ce4d579366e16132bf41717484c46a83326a9da73c07a2
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+            persist-credentials: false
+
+      - name: Extract C
+        run: |
+          export HOME=/home/user
+          ./c/extract-combined.sh
+
+      - name: Upload C extraction
+        uses: actions/upload-artifact@v7
+        with:
+          name: c-extraction-combined-iot
+          path: c/combined/generated
+          include-hidden-files: true
+          if-no-files-found: error
+
+  build-c:
+    needs: [extract-c]
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: c-extraction-combined-iot
+
+      - name: Set CC and CXX to Clang on Ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+
+      - name: 🔨 Build
+        run: |
+          cmake -B build
+          cmake --build build
+
+      - name: 🏃🏻‍♀️ Test SHA3
+        run: ./build/sha3_test
+        if: ${{ matrix.os != 'windows-latest' }}
+
+      - name: 🏃🏻‍♀️ Test ML-KEM 768
+        run: ./build/ml_kem_test768
+        if: ${{ matrix.os != 'windows-latest' }}
+
+      - name: 🏃🏻‍♀️ Test ML-DSA 65
+        run: ./build/ml_dsa_test65
+        if: ${{ matrix.os != 'windows-latest' }}
+
+
+  combined-build-test-status:
+    if: ${{ always() }}
+    needs: [build-c]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1

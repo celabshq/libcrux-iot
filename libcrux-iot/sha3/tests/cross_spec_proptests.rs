@@ -199,7 +199,9 @@ fn shake128_input_output_boundaries() {
                     imp.as_slice(),
                     spc,
                     "shake128 mismatch in_len={} out_len={} pattern={}",
-                    in_len, out_len, p
+                    in_len,
+                    out_len,
+                    p
                 );
             }
         }
@@ -223,7 +225,9 @@ fn shake256_input_output_boundaries() {
                     imp.as_slice(),
                     spc,
                     "shake256 mismatch in_len={} out_len={} pattern={}",
-                    in_len, out_len, p
+                    in_len,
+                    out_len,
+                    p
                 );
             }
         }

@@ -1,11 +1,12 @@
 name: SHA3 - Build & Test
 
+permissions: {}
+
 on:
   merge_group:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main", "*"]
   workflow_dispatch:
 
 env:
@@ -35,7 +36,9 @@ jobs:
         working-directory: libcrux-iot/sha3
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: 🛠️ Setup Rust Nightly

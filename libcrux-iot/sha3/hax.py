@@ -105,12 +105,16 @@ class proveAction(argparse.Action):
 class cleanAction(argparse.Action):
 
     def __call__(self, parser, args, values, option_string=None) -> None:
-        fst_files = glob("./proofs/fstar/extraction/*.fst")
-        fsti_files = glob("./proofs/fstar/extraction/*.fsti")
-        if fst_files:
-            shell(["rm"] + fst_files)
-        if fsti_files:
-            shell(["rm"] + fsti_files)
+        # Clean the SHA3 extraction and the secrets extraction
+        subfolders = ["extraction", "secrets"]
+
+        for folder in subfolders:
+            fst_files = glob(f"./proofs/fstar/{folder}/*.fst")
+            fsti_files = glob(f"./proofs/fstar/{folder}/*.fsti")
+            if fst_files:
+                shell(["rm"] + fst_files)
+            if fsti_files:
+                shell(["rm"] + fsti_files)
         return None
 
 

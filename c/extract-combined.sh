@@ -19,10 +19,9 @@ if [[ -z "$KRML_HOME" ]]; then
     exit 1
 fi
 
-extract_root=$(pwd)
-# mlkem_root=$(realpath ../../)
-repo_root=$(realpath ../)
-workspace_root=$repo_root/libcrux-iot
+repo_root=$(git rev-parse --show-toplevel)
+extract_root="$repo_root/c"
+workspace_root="$repo_root/libcrux-iot"
 
 portable_only=0
 no_hacl=0

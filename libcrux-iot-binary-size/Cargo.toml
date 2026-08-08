@@ -1,0 +1,37 @@
+[package]
+edition = "2024"
+name = "libcrux-iot-binary-size"
+version = "0.1.0"
+
+[features]
+mldsa-keygen = ["dep:libcrux-iot-ml-dsa"]
+mldsa-sign = ["dep:libcrux-iot-ml-dsa"]
+mldsa-verify = ["dep:libcrux-iot-ml-dsa"]
+mldsa44 = ["libcrux-iot-ml-dsa/mldsa44"]
+mldsa65 = ["libcrux-iot-ml-dsa/mldsa65"]
+mldsa87 = ["libcrux-iot-ml-dsa/mldsa87"]
+
+mlkem-keygen = ["dep:libcrux-iot-ml-kem"]
+mlkem-encaps = ["dep:libcrux-iot-ml-kem"]
+mlkem-decaps = ["dep:libcrux-iot-ml-kem"]
+mlkem512 = ["libcrux-iot-ml-kem/mlkem512"]
+mlkem768 = ["libcrux-iot-ml-kem/mlkem768"]
+mlkem1024 = ["libcrux-iot-ml-kem/mlkem1024"]
+
+[dependencies]
+cortex-m-rt = "0.7"
+libcrux-iot-ml-dsa = { path = "../libcrux-iot/ml-dsa", default-features = false, optional = true }
+libcrux-iot-ml-kem = { path = "../libcrux-iot/ml-kem", default-features = false, optional = true }
+
+[patch.crates-io]
+# patch until libcrux-secrets 0.0.6 is released
+libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "ff50cd1f5e20e88dcba911469ba32ba87733006c" }
+
+[profile.release]
+codegen-units = 1
+lto = 'fat'
+panic = "abort"
+
+[profile.release-small]
+inherits = "release"
+opt-level = "z"

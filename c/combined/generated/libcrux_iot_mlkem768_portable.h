@@ -6275,16 +6275,18 @@ libcrux_iot_ml_kem_serialize_deserialize_ring_elements_reduced_51(
   Eurydice_dst_ref_mut_2f deserialized_pk
 )
 {
+  Eurydice_borrow_slice_u8
+  public_key0 = libcrux_secrets_int_classify_public_classify_ref_6d_90(public_key);
   for
   (size_t
     i = (size_t)0U;
-    i < public_key.meta / LIBCRUX_IOT_ML_KEM_CONSTANTS_BYTES_PER_RING_ELEMENT;
+    i < public_key0.meta / LIBCRUX_IOT_ML_KEM_CONSTANTS_BYTES_PER_RING_ELEMENT;
     i++)
   {
     size_t i0 = i;
     Eurydice_borrow_slice_u8
     ring_element =
-      Eurydice_slice_subslice_shared_c8(public_key,
+      Eurydice_slice_subslice_shared_c8(public_key0,
         (
           KRML_CLITERAL(core_ops_range_Range_87){
             .start = i0 * LIBCRUX_IOT_ML_KEM_CONSTANTS_BYTES_PER_RING_ELEMENT,
@@ -6292,7 +6294,7 @@ libcrux_iot_ml_kem_serialize_deserialize_ring_elements_reduced_51(
               LIBCRUX_IOT_ML_KEM_CONSTANTS_BYTES_PER_RING_ELEMENT
           }
         ));
-    libcrux_iot_ml_kem_serialize_deserialize_to_reduced_ring_element_a7(libcrux_secrets_int_classify_public_classify_ref_6d_90(ring_element),
+    libcrux_iot_ml_kem_serialize_deserialize_to_reduced_ring_element_a7(ring_element,
       &deserialized_pk.ptr[i0]);
   }
 }

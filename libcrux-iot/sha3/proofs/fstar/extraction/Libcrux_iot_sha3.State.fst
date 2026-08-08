@@ -397,22 +397,16 @@ let load_block_2u32
       in
       ()
   in
-  let state_flat:t_Array Libcrux_iot_sha3.Lane.t_Lane2U32 (mk_usize 25) =
-    Rust_primitives.Hax.repeat (Libcrux_iot_sha3.Lane.impl_Lane2U32__zero ()
-        <:
-        Libcrux_iot_sha3.Lane.t_Lane2U32)
-      (mk_usize 25)
-  in
-  let state_flat:t_Array Libcrux_iot_sha3.Lane.t_Lane2U32 (mk_usize 25) =
+  let keccak_state:t_KeccakState =
     Rust_primitives.Hax.Folds.fold_range (mk_usize 0)
       (v_RATE /! mk_usize 8 <: usize)
-      (fun state_flat temp_1_ ->
-          let state_flat:t_Array Libcrux_iot_sha3.Lane.t_Lane2U32 (mk_usize 25) = state_flat in
+      (fun keccak_state temp_1_ ->
+          let keccak_state:t_KeccakState = keccak_state in
           let _:usize = temp_1_ in
           true)
-      state_flat
-      (fun state_flat i ->
-          let state_flat:t_Array Libcrux_iot_sha3.Lane.t_Lane2U32 (mk_usize 25) = state_flat in
+      keccak_state
+      (fun keccak_state i ->
+          let keccak_state:t_KeccakState = keccak_state in
           let i:usize = i in
           let offset:usize = start +! (mk_usize 8 *! i <: usize) in
           let a:u32 =
@@ -457,33 +451,16 @@ let load_block_2u32
                 <:
                 t_Array u8 (mk_usize 4))
           in
-          let state_flat:t_Array Libcrux_iot_sha3.Lane.t_Lane2U32 (mk_usize 25) =
-            Rust_primitives.Hax.Monomorphized_update_at.update_at_usize state_flat
-              i
-              (Libcrux_iot_sha3.Lane.impl_Lane2U32__interleave (Core_models.Convert.f_from #Libcrux_iot_sha3.Lane.t_Lane2U32
-                      #(t_Array u32 (mk_usize 2))
-                      #FStar.Tactics.Typeclasses.solve
-                      (let list = [a; b] in
-                        FStar.Pervasives.assert_norm (Prims.eq2 (List.Tot.length list) 2);
-                        Rust_primitives.Hax.array_of_list 2 list)
-                    <:
-                    Libcrux_iot_sha3.Lane.t_Lane2U32)
+          let lane:Libcrux_iot_sha3.Lane.t_Lane2U32 =
+            Libcrux_iot_sha3.Lane.impl_Lane2U32__interleave (Core_models.Convert.f_from #Libcrux_iot_sha3.Lane.t_Lane2U32
+                  #(t_Array u32 (mk_usize 2))
+                  #FStar.Tactics.Typeclasses.solve
+                  (let list = [a; b] in
+                    FStar.Pervasives.assert_norm (Prims.eq2 (List.Tot.length list) 2);
+                    Rust_primitives.Hax.array_of_list 2 list)
                 <:
                 Libcrux_iot_sha3.Lane.t_Lane2U32)
           in
-          state_flat)
-  in
-  let keccak_state:t_KeccakState =
-    Rust_primitives.Hax.Folds.fold_range (mk_usize 0)
-      (v_RATE /! mk_usize 8 <: usize)
-      (fun keccak_state temp_1_ ->
-          let keccak_state:t_KeccakState = keccak_state in
-          let _:usize = temp_1_ in
-          true)
-      keccak_state
-      (fun keccak_state i ->
-          let keccak_state:t_KeccakState = keccak_state in
-          let i:usize = i in
           let got:Libcrux_iot_sha3.Lane.t_Lane2U32 =
             impl_KeccakState__get_lane keccak_state
               (i /! mk_usize 5 <: usize)
@@ -495,18 +472,8 @@ let load_block_2u32
               (i %! mk_usize 5 <: usize)
               (Libcrux_iot_sha3.Lane.impl_Lane2U32__from_ints (let list =
                       [
-                        (got.[ mk_usize 0 ] <: u32) ^.
-                        ((state_flat.[ i ] <: Libcrux_iot_sha3.Lane.t_Lane2U32).[ mk_usize 0 ]
-                          <:
-                          u32)
-                        <:
-                        u32;
-                        (got.[ mk_usize 1 ] <: u32) ^.
-                        ((state_flat.[ i ] <: Libcrux_iot_sha3.Lane.t_Lane2U32).[ mk_usize 1 ]
-                          <:
-                          u32)
-                        <:
-                        u32
+                        (got.[ mk_usize 0 ] <: u32) ^. (lane.[ mk_usize 0 ] <: u32) <: u32;
+                        (got.[ mk_usize 1 ] <: u32) ^. (lane.[ mk_usize 1 ] <: u32) <: u32
                       ]
                     in
                     FStar.Pervasives.assert_norm (Prims.eq2 (List.Tot.length list) 2);

@@ -24,6 +24,9 @@ type MLDSASignature = mldsa::MLDSA87Signature;
 #[cfg(feature = "mldsa87")]
 type MLDSAKeyPair = mldsa::MLDSA87KeyPair;
 
+#[cfg(not(any(feature = "mldsa44", feature = "mldsa65", feature = "mldsa87")))]
+compile_error!("Must select any feature of mldsa44, mldsa65, mldsa87");
+
 struct MLDSABenchState {
     randomness_gen: [u8; 32],
     keypair: MLDSAKeyPair,

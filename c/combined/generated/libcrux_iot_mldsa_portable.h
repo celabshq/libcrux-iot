@@ -10888,7 +10888,7 @@ A monomorphic instance of core.result.Result
 with types libcrux_iot_ml_dsa_types_MLDSASignature_06, libcrux_iot_ml_dsa_types_SigningError
 
 */
-typedef struct core_result_Result_20_s
+typedef struct core_result_Result_200_s
 {
   core_result_Result_8e_tags tag;
   union {
@@ -10897,7 +10897,7 @@ typedef struct core_result_Result_20_s
   }
   val;
 }
-core_result_Result_20;
+core_result_Result_200;
 
 /**
  Init with zero
@@ -11347,7 +11347,7 @@ with types libcrux_iot_ml_dsa_simd_portable_vector_type_Coefficients, libcrux_io
 with const generics
 
 */
-static KRML_MUSTINLINE core_result_Result_20
+static KRML_MUSTINLINE core_result_Result_200
 libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_c4(
   Eurydice_borrow_slice_u8 signing_key,
   Eurydice_borrow_slice_u8 message,
@@ -11363,12 +11363,12 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_c4(
       context,
       randomness,
       &signature);
-  core_result_Result_20 uu____1;
+  core_result_Result_200 uu____1;
   if (uu____0.tag == core_result_Ok)
   {
     uu____1 =
       (
-        KRML_CLITERAL(core_result_Result_20){
+        KRML_CLITERAL(core_result_Result_200){
           .tag = core_result_Ok,
           .val = { .case_Ok = signature }
         }
@@ -11378,7 +11378,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_c4(
   {
     libcrux_iot_ml_dsa_types_SigningError e = uu____0.f0;
     uu____1 =
-      (KRML_CLITERAL(core_result_Result_20){ .tag = core_result_Err, .val = { .case_Err = e } });
+      (KRML_CLITERAL(core_result_Result_200){ .tag = core_result_Err, .val = { .case_Err = e } });
   }
   return uu____1;
 }
@@ -11386,7 +11386,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_c4(
 /**
  Sign.
 */
-static inline core_result_Result_20
+static inline core_result_Result_200
 libcrux_iot_ml_dsa_ml_dsa_generic_instantiations_portable_ml_dsa_87_sign(
   const Eurydice_arr_e2 *signing_key,
   Eurydice_borrow_slice_u8 message,
@@ -11494,7 +11494,7 @@ with types libcrux_iot_ml_dsa_simd_portable_vector_type_Coefficients, libcrux_io
 with const generics
 
 */
-static KRML_MUSTINLINE core_result_Result_20
+static KRML_MUSTINLINE core_result_Result_200
 libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_pre_hashed_36(
   Eurydice_borrow_slice_u8 signing_key,
   Eurydice_borrow_slice_u8 message,
@@ -11512,12 +11512,12 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_pre_hashed_36(
       pre_hash_buffer,
       randomness,
       &signature);
-  core_result_Result_20 uu____1;
+  core_result_Result_200 uu____1;
   if (uu____0.tag == core_result_Ok)
   {
     uu____1 =
       (
-        KRML_CLITERAL(core_result_Result_20){
+        KRML_CLITERAL(core_result_Result_200){
           .tag = core_result_Ok,
           .val = { .case_Ok = signature }
         }
@@ -11527,7 +11527,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_pre_hashed_36(
   {
     libcrux_iot_ml_dsa_types_SigningError e = uu____0.f0;
     uu____1 =
-      (KRML_CLITERAL(core_result_Result_20){ .tag = core_result_Err, .val = { .case_Err = e } });
+      (KRML_CLITERAL(core_result_Result_200){ .tag = core_result_Err, .val = { .case_Err = e } });
   }
   return uu____1;
 }
@@ -11535,7 +11535,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_pre_hashed_36(
 /**
  Sign (pre-hashed).
 */
-static inline core_result_Result_20
+static inline core_result_Result_200
 libcrux_iot_ml_dsa_ml_dsa_generic_instantiations_portable_ml_dsa_87_sign_pre_hashed_shake128(
   const Eurydice_arr_e2 *signing_key,
   Eurydice_borrow_slice_u8 message,

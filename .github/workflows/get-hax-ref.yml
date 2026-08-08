@@ -1,5 +1,7 @@
 name: Get hax rev
 
+permissions: {}
+
 on:
   workflow_call:
     outputs:
@@ -15,7 +17,9 @@ jobs:
     outputs:
       hax_ref: ${{ steps.step1.outputs.hax_ref }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+        with:
+            persist-credentials: false
       - id: step1
         working-directory: libcrux-iot
         run: |

@@ -51,7 +51,7 @@ libcrux_iot_ml_dsa_ml_dsa_87_portable_generate_key_pair(Eurydice_arr_ec randomne
  and is a byte string of length at most 255 bytes. It
  may also be empty.
 */
-static inline core_result_Result_20
+static inline core_result_Result_200
 libcrux_iot_ml_dsa_ml_dsa_87_portable_sign(
   const Eurydice_arr_e2 *signing_key,
   Eurydice_borrow_slice_u8 message,
@@ -97,7 +97,7 @@ libcrux_iot_ml_dsa_ml_dsa_87_portable_sign_mut(
  and is a byte string of length at most 255 bytes. It
  may also be empty.
 */
-static inline core_result_Result_20
+static inline core_result_Result_200
 libcrux_iot_ml_dsa_ml_dsa_87_portable_sign_pre_hashed_shake128(
   const Eurydice_arr_e2 *signing_key,
   Eurydice_borrow_slice_u8 message,

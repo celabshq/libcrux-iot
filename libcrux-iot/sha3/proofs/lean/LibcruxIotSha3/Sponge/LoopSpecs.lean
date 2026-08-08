@@ -735,45 +735,21 @@ private theorem u8_bv_inj (x y : BitVec 8) :
   · intro h; cases h; rfl
   · intro h; rw [h]
 
-/-- Pure-BV byte-bridge for the `lo` half (in `setWidth 8` form). Closed by
-    `bv_decide` (one call per byte index). -/
-private theorem deinterleave_bv_lo_setWidth_eq_0 (e o : BitVec 32) :
-    (deinterleave_bv e o).1.setWidth 8 = ((lift_lane_bv e o) >>> 0).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
+/-- Pure-BV byte-bridges in `setWidth 8` form, one general lemma per half.
+    The four byte indices `i < 4` are dispatched by `omega` + `bv_decide`
+    (the case-split is needed because `bv_decide` cannot quantify over the
+    shift amount). -/
+private theorem deinterleave_bv_lo_setWidth_eq (e o : BitVec 32) (i : Nat) (hi : i < 4) :
+    ((deinterleave_bv e o).1 >>> (8 * i)).setWidth 8
+      = ((lift_lane_bv e o) >>> (8 * i)).setWidth 8 := by
+  rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 from by omega) with h | h | h | h <;>
+    subst h <;> simp only [deinterleave_bv, lift_lane_bv, spread_to_even] <;> bv_decide
 
-private theorem deinterleave_bv_lo_setWidth_eq_1 (e o : BitVec 32) :
-    ((deinterleave_bv e o).1 >>> 8).setWidth 8
-      = ((lift_lane_bv e o) >>> 8).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
-
-private theorem deinterleave_bv_lo_setWidth_eq_2 (e o : BitVec 32) :
-    ((deinterleave_bv e o).1 >>> 16).setWidth 8
-      = ((lift_lane_bv e o) >>> 16).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
-
-private theorem deinterleave_bv_lo_setWidth_eq_3 (e o : BitVec 32) :
-    ((deinterleave_bv e o).1 >>> 24).setWidth 8
-      = ((lift_lane_bv e o) >>> 24).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
-
-private theorem deinterleave_bv_hi_setWidth_eq_0 (e o : BitVec 32) :
-    (deinterleave_bv e o).2.setWidth 8 = ((lift_lane_bv e o) >>> 32).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
-
-private theorem deinterleave_bv_hi_setWidth_eq_1 (e o : BitVec 32) :
-    ((deinterleave_bv e o).2 >>> 8).setWidth 8
-      = ((lift_lane_bv e o) >>> 40).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
-
-private theorem deinterleave_bv_hi_setWidth_eq_2 (e o : BitVec 32) :
-    ((deinterleave_bv e o).2 >>> 16).setWidth 8
-      = ((lift_lane_bv e o) >>> 48).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
-
-private theorem deinterleave_bv_hi_setWidth_eq_3 (e o : BitVec 32) :
-    ((deinterleave_bv e o).2 >>> 24).setWidth 8
-      = ((lift_lane_bv e o) >>> 56).setWidth 8 := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]; bv_decide
+private theorem deinterleave_bv_hi_setWidth_eq (e o : BitVec 32) (i : Nat) (hi : i < 4) :
+    ((deinterleave_bv e o).2 >>> (8 * i)).setWidth 8
+      = ((lift_lane_bv e o) >>> (8 * (i + 4))).setWidth 8 := by
+  rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 from by omega) with h | h | h | h <;>
+    subst h <;> simp only [deinterleave_bv, lift_lane_bv, spread_to_even] <;> bv_decide
 
 /-- Convert `BitVec.ofNat 8 (b.toNat >>> off &&& 0xff)` to a pure-BitVec
     `(b >>> off).setWidth 8` form (the latter is `bv_decide`-friendly). -/
@@ -870,86 +846,18 @@ private theorem byte_bridge_hi (e o : BitVec 32) (i : Nat) (_hi : i < 4)
         (BitVec.getElem!_eq_testBit_toNat _ _).symm]
   rw [setWidth8_shift_getElem _ _ _ hj]
 
-/-- Byte-level bridge for byte `0` of the `lo` half. -/
-private theorem deinterleave_bv_lo_toLEBytes_byte_0 (e o : BitVec 32) :
-    (deinterleave_bv e o).1.toLEBytes[0]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 0) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).1 >>> (8 * 0)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * 0)).setWidth 8 := by
-    simp only [Nat.mul_zero, BitVec.ushiftRight_zero]
-    exact deinterleave_bv_lo_setWidth_eq_0 e o
-  have := byte_bridge_lo e o 0 (by decide) h_setW
-  simpa using this
+/-- Byte-level bridge for the `lo` half: byte `i` (`i < 4`) of the lane. -/
+private theorem deinterleave_bv_lo_toLEBytes_byte (e o : BitVec 32) (i : Nat) (hi : i < 4) :
+    (deinterleave_bv e o).1.toLEBytes[i]!
+      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> (8 * i)) &&& 0xff)) :=
+  byte_bridge_lo e o i hi (deinterleave_bv_lo_setWidth_eq e o i hi)
 
-private theorem deinterleave_bv_lo_toLEBytes_byte_1 (e o : BitVec 32) :
-    (deinterleave_bv e o).1.toLEBytes[1]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 8) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).1 >>> (8 * 1)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * 1)).setWidth 8 := by
-    simp only [Nat.mul_one]
-    exact deinterleave_bv_lo_setWidth_eq_1 e o
-  have := byte_bridge_lo e o 1 (by decide) h_setW
-  simpa using this
-
-private theorem deinterleave_bv_lo_toLEBytes_byte_2 (e o : BitVec 32) :
-    (deinterleave_bv e o).1.toLEBytes[2]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 16) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).1 >>> (8 * 2)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * 2)).setWidth 8 := by
-    show ((deinterleave_bv e o).1 >>> 16).setWidth 8 = _
-    exact deinterleave_bv_lo_setWidth_eq_2 e o
-  have := byte_bridge_lo e o 2 (by decide) h_setW
-  simpa using this
-
-private theorem deinterleave_bv_lo_toLEBytes_byte_3 (e o : BitVec 32) :
-    (deinterleave_bv e o).1.toLEBytes[3]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 24) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).1 >>> (8 * 3)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * 3)).setWidth 8 := by
-    show ((deinterleave_bv e o).1 >>> 24).setWidth 8 = _
-    exact deinterleave_bv_lo_setWidth_eq_3 e o
-  have := byte_bridge_lo e o 3 (by decide) h_setW
-  simpa using this
-
-private theorem deinterleave_bv_hi_toLEBytes_byte_0 (e o : BitVec 32) :
-    (deinterleave_bv e o).2.toLEBytes[0]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 32) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).2 >>> (8 * 0)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * (0 + 4))).setWidth 8 := by
-    simp only [Nat.mul_zero, BitVec.ushiftRight_zero, Nat.zero_add]
-    exact deinterleave_bv_hi_setWidth_eq_0 e o
-  have := byte_bridge_hi e o 0 (by decide) h_setW
-  simpa using this
-
-private theorem deinterleave_bv_hi_toLEBytes_byte_1 (e o : BitVec 32) :
-    (deinterleave_bv e o).2.toLEBytes[1]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 40) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).2 >>> (8 * 1)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * (1 + 4))).setWidth 8 := by
-    show ((deinterleave_bv e o).2 >>> 8).setWidth 8 = _
-    exact deinterleave_bv_hi_setWidth_eq_1 e o
-  have := byte_bridge_hi e o 1 (by decide) h_setW
-  simpa using this
-
-private theorem deinterleave_bv_hi_toLEBytes_byte_2 (e o : BitVec 32) :
-    (deinterleave_bv e o).2.toLEBytes[2]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 48) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).2 >>> (8 * 2)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * (2 + 4))).setWidth 8 := by
-    show ((deinterleave_bv e o).2 >>> 16).setWidth 8 = _
-    exact deinterleave_bv_hi_setWidth_eq_2 e o
-  have := byte_bridge_hi e o 2 (by decide) h_setW
-  simpa using this
-
-private theorem deinterleave_bv_hi_toLEBytes_byte_3 (e o : BitVec 32) :
-    (deinterleave_bv e o).2.toLEBytes[3]!
-      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> 56) &&& 0xff)) := by
-  have h_setW : ((deinterleave_bv e o).2 >>> (8 * 3)).setWidth 8
-                  = ((lift_lane_bv e o) >>> (8 * (3 + 4))).setWidth 8 := by
-    show ((deinterleave_bv e o).2 >>> 24).setWidth 8 = _
-    exact deinterleave_bv_hi_setWidth_eq_3 e o
-  have := byte_bridge_hi e o 3 (by decide) h_setW
-  simpa using this
+/-- Byte-level bridge for the `hi` half: byte `i` (`i < 4`), i.e. byte `i + 4`
+    of the full 64-bit lane. -/
+private theorem deinterleave_bv_hi_toLEBytes_byte (e o : BitVec 32) (i : Nat) (hi : i < 4) :
+    (deinterleave_bv e o).2.toLEBytes[i]!
+      = (BitVec.ofNat 8 (((lift_lane_bv e o).toNat >>> (8 * (i + 4))) &&& 0xff)) :=
+  byte_bridge_hi e o i hi (deinterleave_bv_hi_setWidth_eq e o i hi)
 
 /-- The outer fixpoint of `state.store_block_2u32_loop` terminates with
     `.ok`, preserves the length of the output slice, and at every byte
@@ -1191,16 +1099,8 @@ theorem state.store_block_2u32_loop_spec
               rw [show lift_lane r_4 = ⟨lift_lane_bv (r_4.val[0]!).bv (r_4.val[1]!).bv⟩ from rfl]
               -- lift_lane.bv = lift_lane_bv ...
               rw [hb_mod_8, h_r6]
-              -- Goal: lo half byte (b - 8k) ∈ [0,4), bridge via the 4 byte_i helpers.
-              rcases (show b - 8 * k.val = 0 ∨ b - 8 * k.val = 1
-                          ∨ b - 8 * k.val = 2 ∨ b - 8 * k.val = 3 from by omega) with
-                heq | heq | heq | heq <;>
-                ( rw [heq]
-                  first
-                  | exact deinterleave_bv_lo_toLEBytes_byte_0 _ _
-                  | exact deinterleave_bv_lo_toLEBytes_byte_1 _ _
-                  | exact deinterleave_bv_lo_toLEBytes_byte_2 _ _
-                  | exact deinterleave_bv_lo_toLEBytes_byte_3 _ _)
+              -- Goal: lo half byte (b - 8k) ∈ [0,4), bridge via the general lo helper.
+              exact deinterleave_bv_lo_toLEBytes_byte _ _ _ (by omega)
             · -- Middle of SECOND setSlice (offset 8k+4, length 4).
               push Not at hb_lt_p1
               have hb_lt_p2 : b < 8 * k.val + 8 := by omega
@@ -1248,15 +1148,8 @@ theorem state.store_block_2u32_loop_spec
               have hb_decomp : 8 * (b - 8 * k.val)
                                   = 8 * ((b - (8 * k.val + 4)) + 4) := by omega
               rw [hb_decomp]
-              rcases (show b - (8 * k.val + 4) = 0 ∨ b - (8 * k.val + 4) = 1
-                          ∨ b - (8 * k.val + 4) = 2 ∨ b - (8 * k.val + 4) = 3 from by omega) with
-                heq | heq | heq | heq <;>
-                ( rw [heq]
-                  first
-                  | exact deinterleave_bv_hi_toLEBytes_byte_0 _ _
-                  | exact deinterleave_bv_hi_toLEBytes_byte_1 _ _
-                  | exact deinterleave_bv_hi_toLEBytes_byte_2 _ _
-                  | exact deinterleave_bv_hi_toLEBytes_byte_3 _ _)
+              -- Goal: hi half byte (b - (8k+4)) ∈ [0,4), bridge via the general hi helper.
+              exact deinterleave_bv_hi_toLEBytes_byte _ _ _ (by omega)
         · -- Untouched bytes: 8(k+1) ≤ b → preserved.
           intro b hb_ge hb_25
           have hb_ge_8k1 : 8 * (k.val + 1) ≤ b := by

@@ -187,16 +187,7 @@ let impl_3: t_Xof t_Shake128Xof (mk_usize 168) =
     f_absorb_pre
     =
     (fun (self_: t_Shake128Xof) (input: t_Slice u8) ->
-        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 168 &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 input <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len
-            <:
-            Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int));
+        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 168);
     f_absorb_post = (fun (self: t_Shake128Xof) (input: t_Slice u8) (out: t_Shake128Xof) -> true);
     f_absorb
     =
@@ -213,16 +204,7 @@ let impl_3: t_Xof t_Shake128Xof (mk_usize 168) =
     f_absorb_final_pre
     =
     (fun (self_: t_Shake128Xof) (input: t_Slice u8) ->
-        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 168 &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 input <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len
-            <:
-            Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int));
+        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 168);
     f_absorb_final_post
     =
     (fun (self: t_Shake128Xof) (input: t_Slice u8) (out: t_Shake128Xof) -> true);
@@ -272,16 +254,7 @@ let impl_4: t_Xof t_Shake256Xof (mk_usize 136) =
     f_absorb_pre
     =
     (fun (self_: t_Shake256Xof) (input: t_Slice u8) ->
-        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 136 &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 input <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len
-            <:
-            Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int));
+        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 136);
     f_absorb_post = (fun (self: t_Shake256Xof) (input: t_Slice u8) (out: t_Shake256Xof) -> true);
     f_absorb
     =
@@ -298,16 +271,7 @@ let impl_4: t_Xof t_Shake256Xof (mk_usize 136) =
     f_absorb_final_pre
     =
     (fun (self_: t_Shake256Xof) (input: t_Slice u8) ->
-        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 136 &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 input <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len
-            <:
-            Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int));
+        self_.f_state.Libcrux_iot_sha3.Keccak.f_buf_len <. mk_usize 136);
     f_absorb_final_post
     =
     (fun (self: t_Shake256Xof) (input: t_Slice u8) (out: t_Shake256Xof) -> true);

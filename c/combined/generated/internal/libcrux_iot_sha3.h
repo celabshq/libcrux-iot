@@ -120,7 +120,7 @@ libcrux_iot_sha3_keccak_fill_buffer_f0_60(
   size_t consumed = (size_t)0U;
   if (self->buf_len > (size_t)0U)
   {
-    if (self->buf_len + input_len >= (size_t)168U)
+    if (input_len >= (size_t)168U - self->buf_len)
     {
       consumed = (size_t)168U - self->buf_len;
       Eurydice_slice_copy(Eurydice_array_to_subslice_from_mut_5f0(&self->buf, self->buf_len),
@@ -368,7 +368,7 @@ libcrux_iot_sha3_state_store_18_60(
   {
     size_t i0 = i;
     Eurydice_arr_a0
-    lane =
+    keccak_lane =
       libcrux_iot_sha3_lane_deinterleave_8d(libcrux_iot_sha3_state_get_lane_18(&self,
           i0 / (size_t)5U,
           i0 % (size_t)5U));
@@ -383,7 +383,8 @@ libcrux_iot_sha3_state_store_18_60(
         ));
     /* original Rust expression is not an lvalue in C */
     Eurydice_array_u8x4
-    lvalue0 = core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&lane, (size_t)0U)[0U]);
+    lvalue0 =
+      core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&keccak_lane, (size_t)0U)[0U]);
     Eurydice_slice_copy(uu____0, Eurydice_array_to_slice_shared_98(&lvalue0), uint8_t);
     Eurydice_mut_borrow_slice_u8
     uu____1 =
@@ -396,13 +397,14 @@ libcrux_iot_sha3_state_store_18_60(
         ));
     /* original Rust expression is not an lvalue in C */
     Eurydice_array_u8x4
-    lvalue = core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&lane, (size_t)1U)[0U]);
+    lvalue =
+      core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&keccak_lane, (size_t)1U)[0U]);
     Eurydice_slice_copy(uu____1, Eurydice_array_to_slice_shared_98(&lvalue), uint8_t);
   }
   if (last_block_len > (size_t)4U)
   {
     Eurydice_arr_a0
-    lane =
+    keccak_lane =
       libcrux_iot_sha3_lane_deinterleave_8d(libcrux_iot_sha3_state_get_lane_18(&self,
           num_full_blocks / (size_t)5U,
           num_full_blocks % (size_t)5U));
@@ -418,7 +420,8 @@ libcrux_iot_sha3_state_store_18_60(
         ));
     /* original Rust expression is not an lvalue in C */
     Eurydice_array_u8x4
-    lvalue0 = core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&lane, (size_t)0U)[0U]);
+    lvalue0 =
+      core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&keccak_lane, (size_t)0U)[0U]);
     Eurydice_slice_copy(uu____2, Eurydice_array_to_slice_shared_98(&lvalue0), uint8_t);
     Eurydice_mut_borrow_slice_u8
     uu____3 =
@@ -431,7 +434,8 @@ libcrux_iot_sha3_state_store_18_60(
         ));
     /* original Rust expression is not an lvalue in C */
     Eurydice_array_u8x4
-    lvalue = core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&lane, (size_t)1U)[0U]);
+    lvalue =
+      core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&keccak_lane, (size_t)1U)[0U]);
     Eurydice_slice_copy(uu____3,
       Eurydice_array_to_subslice_shared_d41(&lvalue,
         (KRML_CLITERAL(core_ops_range_Range_87){ .start = (size_t)0U, .end = last_half_block_len })),
@@ -440,7 +444,7 @@ libcrux_iot_sha3_state_store_18_60(
   else if (last_block_len > (size_t)0U)
   {
     Eurydice_arr_a0
-    lane =
+    keccak_lane =
       libcrux_iot_sha3_lane_deinterleave_8d(libcrux_iot_sha3_state_get_lane_18(&self,
           num_full_blocks / (size_t)5U,
           num_full_blocks % (size_t)5U));
@@ -455,12 +459,62 @@ libcrux_iot_sha3_state_store_18_60(
         ));
     /* original Rust expression is not an lvalue in C */
     Eurydice_array_u8x4
-    lvalue = core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&lane, (size_t)0U)[0U]);
+    lvalue =
+      core_num__u32__to_le_bytes(libcrux_iot_sha3_lane_index_cc(&keccak_lane, (size_t)0U)[0U]);
     Eurydice_slice_copy(uu____4,
       Eurydice_array_to_subslice_shared_d41(&lvalue,
         (KRML_CLITERAL(core_ops_range_Range_87){ .start = (size_t)0U, .end = last_block_len })),
       uint8_t);
   }
+}
+
+/**
+A monomorphic instance of libcrux_iot_sha3.keccak._squeeze
+with const generics
+- RATE= 168
+*/
+static KRML_MUSTINLINE void
+libcrux_iot_sha3_keccak__squeeze_60(
+  libcrux_iot_sha3_keccak_KeccakXofState_31 *state,
+  Eurydice_mut_borrow_slice_u8 out
+)
+{
+  if (state->sponge)
+  {
+    libcrux_iot_sha3_keccak_keccakf1600(&state->inner);
+  }
+  size_t out_len = out.meta;
+  size_t blocks = out_len / (size_t)168U;
+  size_t last = out_len - out_len % (size_t)168U;
+  size_t mid;
+  if ((size_t)168U >= out_len)
+  {
+    mid = out_len;
+  }
+  else
+  {
+    mid = (size_t)168U;
+  }
+  libcrux_iot_sha3_state_store_18_60(state->inner, Eurydice_slice_subslice_to_mut_72(out, mid));
+  size_t offset = mid;
+  for (size_t i = (size_t)1U; i < blocks; i++)
+  {
+    libcrux_iot_sha3_keccak_keccakf1600(&state->inner);
+    libcrux_iot_sha3_state_store_18_60(state->inner,
+      Eurydice_slice_subslice_mut_c8(out,
+        (KRML_CLITERAL(core_ops_range_Range_87){ .start = offset, .end = offset + (size_t)168U })));
+    offset += (size_t)168U;
+  }
+  if (last > (size_t)0U)
+  {
+    if (last < out_len)
+    {
+      libcrux_iot_sha3_keccak_keccakf1600(&state->inner);
+      libcrux_iot_sha3_state_store_18_60(state->inner,
+        Eurydice_slice_subslice_from_mut_6d(out, offset));
+    }
+  }
+  state->sponge = true;
 }
 
 /**
@@ -480,42 +534,7 @@ libcrux_iot_sha3_keccak_squeeze_f0_60(
   Eurydice_mut_borrow_slice_u8 out
 )
 {
-  if (self->sponge)
-  {
-    libcrux_iot_sha3_keccak_keccakf1600(&self->inner);
-  }
-  size_t out_len = out.meta;
-  size_t blocks = out_len / (size_t)168U;
-  size_t last = out_len - out_len % (size_t)168U;
-  size_t mid;
-  if ((size_t)168U >= out_len)
-  {
-    mid = out_len;
-  }
-  else
-  {
-    mid = (size_t)168U;
-  }
-  libcrux_iot_sha3_state_store_18_60(self->inner, Eurydice_slice_subslice_to_mut_72(out, mid));
-  size_t offset = mid;
-  for (size_t i = (size_t)1U; i < blocks; i++)
-  {
-    libcrux_iot_sha3_keccak_keccakf1600(&self->inner);
-    libcrux_iot_sha3_state_store_18_60(self->inner,
-      Eurydice_slice_subslice_mut_c8(out,
-        (KRML_CLITERAL(core_ops_range_Range_87){ .start = offset, .end = offset + (size_t)168U })));
-    offset += (size_t)168U;
-  }
-  if (last > (size_t)0U)
-  {
-    if (last < out_len)
-    {
-      libcrux_iot_sha3_keccak_keccakf1600(&self->inner);
-      libcrux_iot_sha3_state_store_18_60(self->inner,
-        Eurydice_slice_subslice_from_mut_6d(out, offset));
-    }
-  }
-  self->sponge = true;
+  libcrux_iot_sha3_keccak__squeeze_60(self, out);
 }
 
 /**
@@ -582,9 +601,21 @@ static inline uint32_t libcrux_iot_sha3_from_c3(libcrux_iot_sha3_Algorithm v)
 }
 
 /**
-This function found in impl {core::convert::From<u32> for libcrux_iot_sha3::Algorithm}
+A monomorphic instance of core.result.Result
+with types libcrux_iot_sha3_Algorithm, ()
+
 */
-static inline libcrux_iot_sha3_Algorithm libcrux_iot_sha3_from_c2(uint32_t v)
+typedef struct core_result_Result_20_s
+{
+  core_result_Result_8e_tags tag;
+  libcrux_iot_sha3_Algorithm f0;
+}
+core_result_Result_20;
+
+/**
+This function found in impl {core::convert::TryFrom<u32, libcrux_iot_sha3::UnknownAlgorithm> for libcrux_iot_sha3::Algorithm}
+*/
+static inline core_result_Result_20 libcrux_iot_sha3_try_from_72(uint32_t v)
 {
   switch (v)
   {
@@ -594,23 +625,46 @@ static inline libcrux_iot_sha3_Algorithm libcrux_iot_sha3_from_c2(uint32_t v)
       }
     case 2U:
       {
-        return libcrux_iot_sha3_Algorithm_Sha256;
+        return
+          (
+            KRML_CLITERAL(core_result_Result_20){
+              .tag = core_result_Ok,
+              .f0 = libcrux_iot_sha3_Algorithm_Sha256
+            }
+          );
       }
     case 3U:
       {
-        return libcrux_iot_sha3_Algorithm_Sha384;
+        return
+          (
+            KRML_CLITERAL(core_result_Result_20){
+              .tag = core_result_Ok,
+              .f0 = libcrux_iot_sha3_Algorithm_Sha384
+            }
+          );
       }
     case 4U:
       {
-        return libcrux_iot_sha3_Algorithm_Sha512;
+        return
+          (
+            KRML_CLITERAL(core_result_Result_20){
+              .tag = core_result_Ok,
+              .f0 = libcrux_iot_sha3_Algorithm_Sha512
+            }
+          );
       }
     default:
       {
-        KRML_HOST_EPRINTF("KaRaMeL abort at %s:%d\n%s\n", __FILE__, __LINE__, "panic!");
-        KRML_HOST_EXIT(255U);
+        return (KRML_CLITERAL(core_result_Result_20){ .tag = core_result_Err });
       }
   }
-  return libcrux_iot_sha3_Algorithm_Sha224;
+  return
+    (
+      KRML_CLITERAL(core_result_Result_20){
+        .tag = core_result_Ok,
+        .f0 = libcrux_iot_sha3_Algorithm_Sha224
+      }
+    );
 }
 
 #if defined(__cplusplus)

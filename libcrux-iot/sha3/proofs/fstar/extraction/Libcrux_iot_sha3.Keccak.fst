@@ -44,26 +44,17 @@ let impl__new (v_RATE: usize) (_: Prims.unit) : t_KeccakXofState v_RATE =
 /// loaded.
 let impl__fill_buffer (v_RATE: usize) (self: t_KeccakXofState v_RATE) (inputs: t_Slice u8)
     : Prims.Pure (t_KeccakXofState v_RATE & usize)
-      (requires
-        self.f_buf_len <=. v_RATE &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 inputs <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self.f_buf_len <: Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int))
+      (requires self.f_buf_len <. v_RATE)
       (ensures
         fun temp_0_ ->
           let (self_e_future: t_KeccakXofState v_RATE), (res: usize) = temp_0_ in
-          b2t (res <=. v_RATE <: bool) /\ b2t (self_e_future.f_buf_len <=. v_RATE <: bool) /\
-          (b2t (res >. mk_usize 0 <: bool) ==> b2t (self_e_future.f_buf_len =. v_RATE <: bool))) =
+          res <=. v_RATE && self_e_future.f_buf_len <=. v_RATE) =
   let input_len:usize = Core_models.Slice.impl__len #u8 inputs in
   let consumed:usize = mk_usize 0 in
   let (consumed: usize), (self: t_KeccakXofState v_RATE) =
     if self.f_buf_len >. mk_usize 0
     then
-      if (self.f_buf_len +! input_len <: usize) >=. v_RATE
+      if input_len >=. (v_RATE -! self.f_buf_len <: usize)
       then
         let consumed:usize = v_RATE -! self.f_buf_len in
         let self:t_KeccakXofState v_RATE =
@@ -840,25 +831,12 @@ let impl__absorb_full (v_RATE: usize) (self: t_KeccakXofState v_RATE) (inputs: t
       (requires
         v_RATE >. mk_usize 0 && (v_RATE %! mk_usize 8 <: usize) =. mk_usize 0 &&
         v_RATE <=. mk_usize 168 &&
-        self.f_buf_len <. v_RATE &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 inputs <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self.f_buf_len <: Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int))
+        self.f_buf_len <. v_RATE)
       (ensures
         fun temp_0_ ->
           let (self_e_future: t_KeccakXofState v_RATE), (remainder: usize) = temp_0_ in
           remainder <. v_RATE && remainder <=. (Core_models.Slice.impl__len #u8 inputs <: usize) &&
-          self_e_future.f_buf_len <=. v_RATE &&
-          ((Rust_primitives.Hax.Int.from_machine self_e_future.f_buf_len <: Hax_lib.Int.t_Int) +
-            (Rust_primitives.Hax.Int.from_machine remainder <: Hax_lib.Int.t_Int)
-            <:
-            Hax_lib.Int.t_Int) <
-          (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int
-          )) =
+          self_e_future.f_buf_len <. v_RATE) =
   let _:Prims.unit =
     if true
     then
@@ -942,14 +920,7 @@ let impl__absorb (v_RATE: usize) (self: t_KeccakXofState v_RATE) (inputs: t_Slic
       (requires
         v_RATE >. mk_usize 0 && (v_RATE %! mk_usize 8 <: usize) =. mk_usize 0 &&
         v_RATE <=. mk_usize 168 &&
-        self.f_buf_len <. v_RATE &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 inputs <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self.f_buf_len <: Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int))
+        self.f_buf_len <. v_RATE)
       (fun _ -> Prims.l_True) =
   let (tmp0: t_KeccakXofState v_RATE), (out: usize) = impl__absorb_full v_RATE self inputs in
   let self:t_KeccakXofState v_RATE = tmp0 in
@@ -1021,14 +992,7 @@ let impl__absorb_final
       (requires
         v_RATE >. mk_usize 0 && (v_RATE %! mk_usize 8 <: usize) =. mk_usize 0 &&
         v_RATE <=. mk_usize 168 &&
-        self.f_buf_len <. v_RATE &&
-        ((Rust_primitives.Hax.Int.from_machine (Core_models.Slice.impl__len #u8 inputs <: usize)
-            <:
-            Hax_lib.Int.t_Int) +
-          (Rust_primitives.Hax.Int.from_machine self.f_buf_len <: Hax_lib.Int.t_Int)
-          <:
-          Hax_lib.Int.t_Int) <=
-        (Rust_primitives.Hax.Int.from_machine Core_models.Num.impl_usize__MAX <: Hax_lib.Int.t_Int))
+        self.f_buf_len <. v_RATE)
       (fun _ -> Prims.l_True) =
   let (tmp0: t_KeccakXofState v_RATE), (out: usize) = impl__absorb_full v_RATE self inputs in
   let self:t_KeccakXofState v_RATE = tmp0 in
@@ -1136,21 +1100,21 @@ let impl__absorb_final
 
 #push-options "--z3rlimit 60"
 
-let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
+let e_squeeze (v_RATE: usize) (keccak_state: t_KeccakXofState v_RATE) (out: t_Slice u8)
     : Prims.Pure (t_KeccakXofState v_RATE & t_Slice u8)
       (requires
         v_RATE =. mk_usize 168 || v_RATE =. mk_usize 144 || v_RATE =. mk_usize 136 ||
         v_RATE =. mk_usize 104 ||
         v_RATE =. mk_usize 72)
       (fun _ -> Prims.l_True) =
-  let state:t_KeccakXofState v_RATE =
-    if state.f_sponge
+  let keccak_state:t_KeccakXofState v_RATE =
+    if keccak_state.f_sponge
     then
-      let state:t_KeccakXofState v_RATE =
-        { state with f_inner = keccakf1600 state.f_inner } <: t_KeccakXofState v_RATE
+      let keccak_state:t_KeccakXofState v_RATE =
+        { keccak_state with f_inner = keccakf1600 keccak_state.f_inner } <: t_KeccakXofState v_RATE
       in
-      state
-    else state
+      keccak_state
+    else keccak_state
   in
   let out_len:usize = Core_models.Slice.impl__len #u8 out in
   let blocks:usize = out_len /! v_RATE in
@@ -1160,7 +1124,7 @@ let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
     Rust_primitives.Hax.Monomorphized_update_at.update_at_range_to out
       ({ Core_models.Ops.Range.f_end = mid } <: Core_models.Ops.Range.t_RangeTo usize)
       (Libcrux_iot_sha3.State.impl_KeccakState__store v_RATE
-          state.f_inner
+          keccak_state.f_inner
           (out.[ { Core_models.Ops.Range.f_end = mid } <: Core_models.Ops.Range.t_RangeTo usize ]
             <:
             t_Slice u8)
@@ -1168,11 +1132,13 @@ let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
         t_Slice u8)
   in
   let offset:usize = mid in
-  let (offset: usize), (out: t_Slice u8), (state: t_KeccakXofState v_RATE) =
+  let (keccak_state: t_KeccakXofState v_RATE), (offset: usize), (out: t_Slice u8) =
     Rust_primitives.Hax.Folds.fold_range (mk_usize 1)
       blocks
       (fun temp_0_ e_k ->
-          let (offset: usize), (out: t_Slice u8), (state: t_KeccakXofState v_RATE) = temp_0_ in
+          let (keccak_state: t_KeccakXofState v_RATE), (offset: usize), (out: t_Slice u8) =
+            temp_0_
+          in
           let e_k:usize = e_k in
           ((Core_models.Slice.impl__len #u8 out <: usize) =. out_len <: bool) &&
           ((Rust_primitives.Hax.Int.from_machine offset <: Hax_lib.Int.t_Int) =
@@ -1182,12 +1148,16 @@ let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
               Hax_lib.Int.t_Int)
             <:
             bool))
-      (offset, out, state <: (usize & t_Slice u8 & t_KeccakXofState v_RATE))
+      (keccak_state, offset, out <: (t_KeccakXofState v_RATE & usize & t_Slice u8))
       (fun temp_0_ e_k ->
-          let (offset: usize), (out: t_Slice u8), (state: t_KeccakXofState v_RATE) = temp_0_ in
+          let (keccak_state: t_KeccakXofState v_RATE), (offset: usize), (out: t_Slice u8) =
+            temp_0_
+          in
           let e_k:usize = e_k in
-          let state:t_KeccakXofState v_RATE =
-            { state with f_inner = keccakf1600 state.f_inner } <: t_KeccakXofState v_RATE
+          let keccak_state:t_KeccakXofState v_RATE =
+            { keccak_state with f_inner = keccakf1600 keccak_state.f_inner }
+            <:
+            t_KeccakXofState v_RATE
           in
           let out:t_Slice u8 =
             Rust_primitives.Hax.Monomorphized_update_at.update_at_range out
@@ -1198,7 +1168,7 @@ let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
                 <:
                 Core_models.Ops.Range.t_Range usize)
               (Libcrux_iot_sha3.State.impl_KeccakState__store v_RATE
-                  state.f_inner
+                  keccak_state.f_inner
                   (out.[ {
                         Core_models.Ops.Range.f_start = offset;
                         Core_models.Ops.Range.f_end = offset +! v_RATE <: usize
@@ -1211,9 +1181,9 @@ let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
                 t_Slice u8)
           in
           let offset:usize = offset +! v_RATE in
-          offset, out, state <: (usize & t_Slice u8 & t_KeccakXofState v_RATE))
+          keccak_state, offset, out <: (t_KeccakXofState v_RATE & usize & t_Slice u8))
   in
-  let (out: t_Slice u8), (state: t_KeccakXofState v_RATE) =
+  let (keccak_state: t_KeccakXofState v_RATE), (out: t_Slice u8) =
     if last >. mk_usize 0 && last <. out_len
     then
       let _:Prims.unit =
@@ -1225,14 +1195,14 @@ let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
           in
           ()
       in
-      let state:t_KeccakXofState v_RATE =
-        { state with f_inner = keccakf1600 state.f_inner } <: t_KeccakXofState v_RATE
+      let keccak_state:t_KeccakXofState v_RATE =
+        { keccak_state with f_inner = keccakf1600 keccak_state.f_inner } <: t_KeccakXofState v_RATE
       in
       let out:t_Slice u8 =
         Rust_primitives.Hax.Monomorphized_update_at.update_at_range_from out
           ({ Core_models.Ops.Range.f_start = offset } <: Core_models.Ops.Range.t_RangeFrom usize)
           (Libcrux_iot_sha3.State.impl_KeccakState__store v_RATE
-              state.f_inner
+              keccak_state.f_inner
               (out.[ { Core_models.Ops.Range.f_start = offset }
                   <:
                   Core_models.Ops.Range.t_RangeFrom usize ]
@@ -1241,11 +1211,13 @@ let e_squeeze (v_RATE: usize) (state: t_KeccakXofState v_RATE) (out: t_Slice u8)
             <:
             t_Slice u8)
       in
-      out, state <: (t_Slice u8 & t_KeccakXofState v_RATE)
-    else out, state <: (t_Slice u8 & t_KeccakXofState v_RATE)
+      keccak_state, out <: (t_KeccakXofState v_RATE & t_Slice u8)
+    else keccak_state, out <: (t_KeccakXofState v_RATE & t_Slice u8)
   in
-  let state:t_KeccakXofState v_RATE = { state with f_sponge = true } <: t_KeccakXofState v_RATE in
-  state, out <: (t_KeccakXofState v_RATE & t_Slice u8)
+  let keccak_state:t_KeccakXofState v_RATE =
+    { keccak_state with f_sponge = true } <: t_KeccakXofState v_RATE
+  in
+  keccak_state, out <: (t_KeccakXofState v_RATE & t_Slice u8)
 
 #pop-options
 
@@ -1600,13 +1572,7 @@ let keccak (v_RATE: usize) (v_DELIM: u8) (data out: t_Slice u8)
       (fun temp_0_ e_i ->
           let (s: Libcrux_iot_sha3.State.t_KeccakState), (start: usize) = temp_0_ in
           let e_i:usize = e_i in
-          (Rust_primitives.Hax.Int.from_machine start <: Hax_lib.Int.t_Int) =
-          ((Rust_primitives.Hax.Int.from_machine e_i <: Hax_lib.Int.t_Int) *
-            (Rust_primitives.Hax.Int.from_machine v_RATE <: Hax_lib.Int.t_Int)
-            <:
-            Hax_lib.Int.t_Int)
-          <:
-          bool)
+          start =. (e_i *! v_RATE <: usize) <: bool)
       (s, start <: (Libcrux_iot_sha3.State.t_KeccakState & usize))
       (fun temp_0_ e_i ->
           let (s: Libcrux_iot_sha3.State.t_KeccakState), (start: usize) = temp_0_ in
@@ -1639,13 +1605,7 @@ let keccak (v_RATE: usize) (v_DELIM: u8) (data out: t_Slice u8)
               in
               let e_i:usize = e_i in
               ((Core_models.Slice.impl__len #u8 out <: usize) =. outlen <: bool) &&
-              ((Rust_primitives.Hax.Int.from_machine offset <: Hax_lib.Int.t_Int) =
-                ((Rust_primitives.Hax.Int.from_machine e_i <: Hax_lib.Int.t_Int) *
-                  (Rust_primitives.Hax.Int.from_machine v_RATE <: Hax_lib.Int.t_Int)
-                  <:
-                  Hax_lib.Int.t_Int)
-                <:
-                bool))
+              (offset =. (e_i *! v_RATE <: usize) <: bool))
           (offset, out, s <: (usize & t_Slice u8 & Libcrux_iot_sha3.State.t_KeccakState))
           (fun temp_0_ e_i ->
               let (offset: usize), (out: t_Slice u8), (s: Libcrux_iot_sha3.State.t_KeccakState) =

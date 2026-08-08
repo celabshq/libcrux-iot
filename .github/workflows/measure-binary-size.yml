@@ -1,0 +1,67 @@
+name: Measure Binary Size
+
+on:
+  merge_group:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    if: ${{ github.event_name != 'merge_group' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: libcrux-iot-binary-size
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+          components: llvm-tools-preview
+
+      - name: Install dependencies
+        run: |
+          cargo install cargo-binutils --locked
+          cargo install cargo-bloat # XXX locked does not work https://github.com/RazrFalcon/cargo-bloat/issues/114
+
+      - name: 📏 Measure binary sizes for Cortex-M4
+        run: python3 binary_size_report.py
+
+      - name: 📋 Show results
+        run: |
+          file=./binary-size-report/summary.md
+          cat "$file" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: ⬆️ Upload results
+        uses: actions/upload-artifact@v7
+        with:
+          name: binary-size-measurements
+          path: libcrux-iot-binary-size/binary-size-report
+
+  measure-binary-size-status:
+    if: ${{ always() }}
+    needs: [measure]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1

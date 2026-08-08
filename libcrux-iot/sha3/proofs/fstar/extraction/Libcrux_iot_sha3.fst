@@ -44,46 +44,107 @@ let t_Algorithm_cast_to_repr (x: t_Algorithm) : u32 =
   | Algorithm_Sha384  -> anon_const_Algorithm_Sha384__anon_const_0
   | Algorithm_Sha512  -> anon_const_Algorithm_Sha512__anon_const_0
 
-let impl_2: Core_models.Clone.t_Clone t_Algorithm =
+let impl_3: Core_models.Clone.t_Clone t_Algorithm =
   { f_clone = (fun x -> x); f_clone_pre = (fun _ -> True); f_clone_post = (fun _ _ -> True) }
 
 [@@ FStar.Tactics.Typeclasses.tcinstance]
 assume
-val impl_1': Core_models.Marker.t_Copy t_Algorithm
+val impl_2': Core_models.Marker.t_Copy t_Algorithm
 
 unfold
-let impl_1 = impl_1'
+let impl_2 = impl_2'
 
 [@@ FStar.Tactics.Typeclasses.tcinstance]
 assume
-val impl_3': Core_models.Fmt.t_Debug t_Algorithm
-
-unfold
-let impl_3 = impl_3'
-
-[@@ FStar.Tactics.Typeclasses.tcinstance]
-assume
-val impl_4': Core_models.Marker.t_StructuralPartialEq t_Algorithm
+val impl_4': Core_models.Fmt.t_Debug t_Algorithm
 
 unfold
 let impl_4 = impl_4'
 
 [@@ FStar.Tactics.Typeclasses.tcinstance]
 assume
-val impl_5': Core_models.Cmp.t_PartialEq t_Algorithm t_Algorithm
+val impl_5': Core_models.Marker.t_StructuralPartialEq t_Algorithm
 
 unfold
 let impl_5 = impl_5'
 
 [@@ FStar.Tactics.Typeclasses.tcinstance]
 assume
-val impl_6': Core_models.Convert.t_From t_Algorithm u32
+val impl_6': Core_models.Cmp.t_PartialEq t_Algorithm t_Algorithm
 
 unfold
 let impl_6 = impl_6'
 
+/// Error returned when a `u32` does not correspond to an [`Algorithm`].
+type t_UnknownAlgorithm = | UnknownAlgorithm : t_UnknownAlgorithm
+
+let impl_8: Core_models.Clone.t_Clone t_UnknownAlgorithm =
+  { f_clone = (fun x -> x); f_clone_pre = (fun _ -> True); f_clone_post = (fun _ _ -> True) }
+
 [@@ FStar.Tactics.Typeclasses.tcinstance]
-let impl: Core_models.Convert.t_From u32 t_Algorithm =
+assume
+val impl_7': Core_models.Marker.t_Copy t_UnknownAlgorithm
+
+unfold
+let impl_7 = impl_7'
+
+[@@ FStar.Tactics.Typeclasses.tcinstance]
+assume
+val impl_9': Core_models.Fmt.t_Debug t_UnknownAlgorithm
+
+unfold
+let impl_9 = impl_9'
+
+[@@ FStar.Tactics.Typeclasses.tcinstance]
+assume
+val impl_10': Core_models.Marker.t_StructuralPartialEq t_UnknownAlgorithm
+
+unfold
+let impl_10 = impl_10'
+
+[@@ FStar.Tactics.Typeclasses.tcinstance]
+assume
+val impl_11': Core_models.Cmp.t_PartialEq t_UnknownAlgorithm t_UnknownAlgorithm
+
+unfold
+let impl_11 = impl_11'
+
+[@@ FStar.Tactics.Typeclasses.tcinstance]
+let impl: Core_models.Convert.t_TryFrom t_Algorithm u32 =
+  {
+    f_Error = t_UnknownAlgorithm;
+    f_try_from_pre = (fun (v: u32) -> true);
+    f_try_from_post
+    =
+    (fun (v: u32) (out: Core_models.Result.t_Result t_Algorithm t_UnknownAlgorithm) -> true);
+    f_try_from
+    =
+    fun (v: u32) ->
+      match v <: u32 with
+      | Rust_primitives.Integers.MkInt 1 ->
+        Core_models.Result.Result_Ok (Algorithm_Sha224 <: t_Algorithm)
+        <:
+        Core_models.Result.t_Result t_Algorithm t_UnknownAlgorithm
+      | Rust_primitives.Integers.MkInt 2 ->
+        Core_models.Result.Result_Ok (Algorithm_Sha256 <: t_Algorithm)
+        <:
+        Core_models.Result.t_Result t_Algorithm t_UnknownAlgorithm
+      | Rust_primitives.Integers.MkInt 3 ->
+        Core_models.Result.Result_Ok (Algorithm_Sha384 <: t_Algorithm)
+        <:
+        Core_models.Result.t_Result t_Algorithm t_UnknownAlgorithm
+      | Rust_primitives.Integers.MkInt 4 ->
+        Core_models.Result.Result_Ok (Algorithm_Sha512 <: t_Algorithm)
+        <:
+        Core_models.Result.t_Result t_Algorithm t_UnknownAlgorithm
+      | _ ->
+        Core_models.Result.Result_Err (UnknownAlgorithm <: t_UnknownAlgorithm)
+        <:
+        Core_models.Result.t_Result t_Algorithm t_UnknownAlgorithm
+  }
+
+[@@ FStar.Tactics.Typeclasses.tcinstance]
+let impl_1: Core_models.Convert.t_From u32 t_Algorithm =
   {
     f_from_pre = (fun (v: t_Algorithm) -> true);
     f_from_post = (fun (v: t_Algorithm) (out: u32) -> true);
@@ -358,6 +419,15 @@ let hash (v_LEN: usize) (algorithm: t_Algorithm) (payload: t_Slice u8)
             (cast (Core_models.Num.impl_u32__MAX <: u32) <: usize)
             <:
             bool)
+      in
+      ()
+  in
+  let _:Prims.unit =
+    if true
+    then
+      let _:Prims.unit =
+        match v_LEN, digest_size algorithm <: (usize & usize) with
+        | left_val, right_val -> Hax_lib.v_assert (left_val =. right_val <: bool)
       in
       ()
   in

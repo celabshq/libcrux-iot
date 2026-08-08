@@ -1,9 +1,10 @@
-[target.'cfg(all(target_arch = "arm", target_os = "none", not(feature = "stack")))']
-# runner = "probe-rs run --chip STM32L4R5ZITx"
-runner = ["probe-rs", "run", "--chip", "STM32L4R5ZITx", "--log-format", "{s}"]
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+runner = ["probe-rs", "run", "--chip", "STM32L4R5ZITx",]
 
 rustflags = [
-  # "-C", "linker=flip-link",
+  # flip-link doesn't work with paint-stack until https://github.com/rust-embedded/cortex-m/pull/577
+  # is released
+  #"-C", "linker=flip-link",
   "-C", "link-arg=-Tlink.x",
   "-C", "link-arg=-Tdefmt.x",
   # This is needed if your flash or ram addresses are not aligned to 0x10000 in memory.x
@@ -11,18 +12,10 @@ rustflags = [
   "-C", "link-arg=--nmagic",
 ]
 
-[target.'cfg(all(target_arch = "arm", target_os = "none", feature = "stack"))']
-# runner = "probe-rs run --chip STM32L4R5ZITx"
-runner = ["probe-rs", "run", "--chip", "STM32L4R5ZITx", "--log-format", "{s}"]
-
-rustflags = [
-  # "-C", "linker=flip-link", # Using flip-link is, a priori, incompatible with `cortex-m-rt` feature `paint-stack`
-  "-C", "link-arg=-Tlink.x",
-  "-C", "link-arg=-Tdefmt.x",
-  # This is needed if your flash or ram addresses are not aligned to 0x10000 in memory.x
-  # See https://github.com/rust-embedded/cortex-m-quickstart/pull/95
-  "-C", "link-arg=--nmagic",
-]
+# To run a binary under QEMU instead of a real board, build with `--features qemu`
+# (which selects an alternate `memory.x` and routes defmt through ARM semihosting)
+# and override the runner via env var. The convenience wrapper `./run-qemu.sh`
+# does both.
 
 [build]
 # TODO(3) Adjust the compilation target.
@@ -36,3 +29,4 @@ target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)
 [alias]
 rb = "run --bin"
 rrb = "run --release --bin"
+measure-cycles = "run --profile measure-cycles --bin"

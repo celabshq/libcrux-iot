@@ -73,7 +73,24 @@
           extensions = [
             "rust-src"
             "rust-analyzer"
+            "llvm-tools-preview"
           ];
+          # Targets needed for libcrux-nucleo-l4r5zi (real board + qemu mps2-an386).
+          targets = [ "thumbv7em-none-eabihf" ];
+        };
+
+        # defmt-print decodes the rzCOBS-framed log stream that
+        # libcrux-nucleo-l4r5zi emits over ARM semihosting under qemu.
+        # Pinned to the 0.3.x line (defmt 0.3 compatible).
+        defmt-print = pkgs.rustPlatform.buildRustPackage rec {
+          pname = "defmt-print";
+          version = "0.3.13";
+          src = pkgs.fetchCrate {
+            inherit pname version;
+            hash = "sha256-j1qtHKZNMkPkAZg6Vw6bXqZjBBjkgRvLLuS8d3tJBGI=";
+          };
+          cargoHash = "sha256-BoDlig4uLMBcejI6AOjaoVOQ+DveTV9jn1Q3vC2bY74=";
+          doCheck = false;
         };
 
         # --- Lean toolchain (used by devShells.lean) ------------------------
@@ -116,30 +133,34 @@
         '';
       in
       {
-        devShells.default = pkgs.mkShell (
-          tools-environment
-          // {
-            packages = [
-              pkgs.clang_18
-              pkgs.llvmPackages_18.clang-tools
-              (pkgs.writeShellScriptBin "clang-format-18" ''exec ${pkgs.llvmPackages_18.clang-tools}/bin/clang-format "$@"'')
-              pkgs.cmake
-              pkgs.ninja
-              pkgs.openssl
-              pkgs.pkg-config
-              pkgs.jq
-              pkgs.valgrind
-              pkgs.libclang
-              pkgs.python3
-              pkgs.cargo-nextest
-              rustToolchain
-              fstar.packages.${system}.default
-              hax.packages.${system}.default
-            ];
-            RUST_SRC_PATH = "${rustToolchain.outPath}/lib/rustlib/src/rust/library";
-            LIBCLANG_PATH = "${pkgs.llvmPackages_18.libclang.lib}/lib";
-          }
-        );
+        devShells.default = pkgs.mkShell (tools-environment // {
+          packages = [
+            pkgs.clang_18
+            pkgs.llvmPackages_18.clang-tools
+            (pkgs.writeShellScriptBin "clang-format-18" ''exec ${pkgs.llvmPackages_18.clang-tools}/bin/clang-format "$@"'')
+            pkgs.cmake
+            pkgs.ninja
+            pkgs.openssl
+            pkgs.pkg-config
+            pkgs.jq
+            pkgs.valgrind
+            pkgs.libclang
+            pkgs.python3
+            pkgs.cargo-bloat
+            pkgs.cargo-binutils
+            # `qemu-system-arm` for emulating the nucleo-l4r5zi binaries
+            # (libcrux-nucleo-l4r5zi/run-qemu.sh). Pulls in all qemu system
+            # emulators; if size matters this can be narrowed in the future.
+            pkgs.qemu
+            pkgs.flip-link
+            defmt-print
+            rustToolchain
+            fstar.packages.${system}.default
+            hax.packages.${system}.default
+          ];
+          RUST_SRC_PATH = "${rustToolchain.outPath}/lib/rustlib/src/rust/library";
+          LIBCLANG_PATH = "${pkgs.llvmPackages_18.libclang.lib}/lib";
+        });
 
         # Toolchain for the SHA-3 Lean proof. Reproduces the "Reproduction"
         # section of
