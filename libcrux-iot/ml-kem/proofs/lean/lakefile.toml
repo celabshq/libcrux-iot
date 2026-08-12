@@ -16,4 +16,4 @@ rev = "v0.2.0"
 # brings in HacspecSha3 (the spec references hacspec_sha3.*).
 [[require]]
 name = "HacspecMlKem"
-path = "/Users/karthik/libcrux-proofs-update/specs/ml-kem/proofs/lean"
+path = "../../../../../libcrux-proofs-update/specs/ml-kem/proofs/lean"

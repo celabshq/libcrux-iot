@@ -15,4 +15,4 @@ rev = "v0.2.0"
 # once the spec migration lands; local worktree path for now.
 [[require]]
 name = "HacspecSha3"
-path = "/Users/karthik/libcrux-proofs-update/specs/sha3/proofs/lean"
+path = "../../../../../libcrux-proofs-update/specs/sha3/proofs/lean"
