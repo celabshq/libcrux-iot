@@ -41,6 +41,12 @@ def constants.BYTES_PER_RING_ELEMENT : Result Std.Usize := do
   let i ← constants.BITS_PER_RING_ELEMENT
   i / 8#usize
 
+/-- [libcrux_iot_ml_kem::constants::SHARED_SECRET_SIZE]
+    Source: 'ml-kem/src/constants.rs', lines 14:0-14:41
+    Visibility: public -/
+@[global_simps, irreducible]
+def constants.SHARED_SECRET_SIZE : Std.Usize := 32#usize
+
 /-- [libcrux_iot_ml_kem::polynomial::ZETAS_TIMES_MONTGOMERY_R]
     Source: 'ml-kem/src/polynomial.rs', lines 5:0-17:2 -/
 @[global_simps, irreducible]
@@ -2357,6 +2363,75 @@ def serialize.deserialize_to_uncompressed_ring_element
       Std.U8) ce
   serialize.deserialize_to_uncompressed_ring_element_loop
     vectortraitsOperationsInst iter re
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_ring_elements_reduced]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop_body]
+def serialize.deserialize_ring_elements_reduced_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (deserialized_pk : Slice (polynomial.PolynomialRingElement Vector))
+  :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.slice.iter.ChunksExact Std.U8)) × (Slice
+    (polynomial.PolynomialRingElement Vector))) (Slice
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) iter
+  match o with
+  | core.option.Option.None => ok (done deserialized_pk)
+  | core.option.Option.Some p =>
+    let (i, ring_element) := p
+    let (pre, index_mut_back) ← Slice.index_mut_usize deserialized_pk i
+    let pre1 ←
+      serialize.deserialize_to_reduced_ring_element vectortraitsOperationsInst
+        ring_element pre
+    let s := index_mut_back pre1
+    ok (cont (iter1, s))
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_ring_elements_reduced]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop]
+def serialize.deserialize_ring_elements_reduced_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (deserialized_pk : Slice (polynomial.PolynomialRingElement Vector))
+  :
+  Result (Slice (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, deserialized_pk1) =>
+      serialize.deserialize_ring_elements_reduced_loop.body
+      vectortraitsOperationsInst iter1 deserialized_pk1)
+    (iter, deserialized_pk)
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_ring_elements_reduced]:
+    Source: 'ml-kem/src/serialize.rs', lines 104:0-129:1 -/
+def serialize.deserialize_ring_elements_reduced
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (public_key : Slice Std.U8)
+  (deserialized_pk : Slice (polynomial.PolynomialRingElement Vector)) :
+  Result (Slice (polynomial.PolynomialRingElement Vector))
+  := do
+  let public_key1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsClassifyRefSharedASlice.classify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar public_key
+  let i ← constants.BYTES_PER_RING_ELEMENT
+  let ce ← core.slice.Slice.chunks_exact public_key1 i
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) ce
+  let deserialized_pk1 ←
+    serialize.deserialize_ring_elements_reduced_loop vectortraitsOperationsInst
+      iter deserialized_pk
+  libcrux_secrets.mem_requests.ct_declassify public_key1
+  ok deserialized_pk1
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10]: loop body 0:
     Source: 'ml-kem/src/serialize.rs', lines 141:4-148:5 -/

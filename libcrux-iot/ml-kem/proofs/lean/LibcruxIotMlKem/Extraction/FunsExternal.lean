@@ -70,6 +70,28 @@ namespace libcrux_secrets.traits.Declassify.Blanket
 def declassify {T : Type} (a : T) : Aeneas.Std.Result T := ok a
 end libcrux_secrets.traits.Declassify.Blanket
 
+/-! ### `mem_requests` — valgrind constant-time markers.
+
+    `ct_classify` / `ct_declassify` are `fn <T: ?Sized>(val: &T)` returning `()`.
+    Their whole body sits behind `#[cfg(valgrind_ct_test)]`; the module's own
+    docs say "When the `cfg` is not enabled, these operations are no-ops".
+    Extraction runs WITHOUT that cfg (`RUSTFLAGS=--cfg hax_backend_lean` only),
+    so a no-op returning `Unit` is the faithful model.
+
+    `Unit` is a deliberate choice, NOT something the call sites force: aeneas
+    emits these as bare statements in a `Result` do-block, which discards the
+    value, so `Result α` elaborates for any `α` (measured: `Result Nat` is
+    accepted too; only `Result T` is rejected). Fixing `α := Unit` matches the
+    Rust `()` return and stops a future call site from pinning something else.
+    The parameter stays generic because Rust's bound is `T: ?Sized`; aeneas
+    erases the shared reference, so it is the value type (e.g. `Slice U8`),
+    never a reference type. -/
+
+namespace libcrux_secrets.mem_requests
+def ct_classify   {T : Type} (_ : T) : Aeneas.Std.Result Unit := ok ()
+def ct_declassify {T : Type} (_ : T) : Aeneas.Std.Result Unit := ok ()
+end libcrux_secrets.mem_requests
+
 namespace libcrux_secrets
 
 /-! Cast stubs written in the upstream `declassify → cast → classify`
