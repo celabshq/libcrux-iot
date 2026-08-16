@@ -25,3 +25,4 @@ import LibcruxIotMlKem.Matrix.ComputeAsPlusE
 import LibcruxIotMlKem.Matrix.ComputeMessage.FC
 import LibcruxIotMlKem.Matrix.ComputeVectorU.FC
 import LibcruxIotMlKem.Matrix.ComputeRingElementV.FC
+import LibcruxIotMlKem.SerializeFc
