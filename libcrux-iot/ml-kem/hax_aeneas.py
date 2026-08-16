@@ -34,6 +34,37 @@ START_FROM = [
     "crate::matrix::compute_ring_element_v",
     "crate::matrix::compute_vector_u",
     "crate::matrix::sample_matrix_entry",
+    # INC-1: the deterministic (de)serialize + (de)compress layer. Only
+    # `deserialize_to_reduced_ring_element` was reachable before (transitively via
+    # matrix); this adds the eight compress_then_serialize_{4,5,10,11} /
+    # deserialize_then_decompress_{4,5,10,11} entry points. The per-coefficient
+    # compress/decompress primitives already extract via `crate::vector::*`
+    # (vector::portable::compress). OPAQUE is deliberately unchanged: this layer is
+    # deterministic and reaches neither SHAKE nor sampling.
+    "crate::serialize::compress_then_serialize_4",
+    "crate::serialize::compress_then_serialize_5",
+    "crate::serialize::compress_then_serialize_10",
+    "crate::serialize::compress_then_serialize_11",
+    "crate::serialize::compress_then_serialize_message",
+    "crate::serialize::compress_then_serialize_ring_element_u",
+    "crate::serialize::compress_then_serialize_ring_element_v",
+    "crate::serialize::deserialize_then_decompress_4",
+    "crate::serialize::deserialize_then_decompress_5",
+    "crate::serialize::deserialize_then_decompress_10",
+    "crate::serialize::deserialize_then_decompress_11",
+    "crate::serialize::deserialize_then_decompress_message",
+    "crate::serialize::deserialize_then_decompress_ring_element_u",
+    "crate::serialize::deserialize_then_decompress_ring_element_v",
+    "crate::serialize::deserialize_to_uncompressed_ring_element",
+    "crate::serialize::serialize_uncompressed_ring_element",
+    # NOT `crate::serialize::*`: that also pulls in
+    # `deserialize_ring_elements_reduced`, the layer's ONLY caller of
+    # `libcrux_secrets::mem_requests::ct_declassify`, for which the hand-written
+    # Extraction/FunsExternal.lean has no model (aeneas does not generate one
+    # either -- FunsExternal_Template only proposes the explicit --opaque
+    # sample_matrix_entry). Adding that model is a TCB act, so it is deferred to
+    # KB; `deserialize_ring_elements_reduced` is an ind_cpa-level entry point and
+    # belongs to INC-2 anyway.
 ]
 
 # Items to keep opaque (extract signature only, skip body).
@@ -41,7 +72,8 @@ START_FROM = [
 # The whole hash_functions module is opaque. The SHA-3 verification can be
 # found in libcrux-iot/sha3.
 #
-# We also omit serialization and sampling.
+# Sampling stays opaque because it calls SHAKE. Serialization is NO LONGER
+# omitted as of INC-1 (see START_FROM) -- it is deterministic and SHAKE-free.
 #
 OPAQUE = [
     "crate::hash_functions::portable::*",
