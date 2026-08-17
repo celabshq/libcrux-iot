@@ -492,7 +492,9 @@ private theorem bind_ok_pair {α β γ : Type} {x : Result (α × β)} {a : α} 
 
 private theorem array_update16 (A : Std.Array Std.I16 16#usize) (i : Std.Usize) (x : Std.I16)
     (hi : i.val < 16) : Aeneas.Std.Array.update A i x = .ok (A.set i x) := by
-  have hlen : i.val < A.val.length := by have := A.property; simp_all
+  have hlen : i.val < A.val.length := by
+    have hA : A.val.length = 16 := by have := A.property; simpa using this
+    omega
   simp only [Aeneas.Std.Array.update, Aeneas.Std.Array.getElem?_Usize_eq,
     List.getElem?_eq_getElem hlen]
   rfl
@@ -661,7 +663,9 @@ private theorem deserialize_uncompressed_loop_fc
         (by rw [h24]; simpa [Aeneas.Std.Slice.length] using hrest24) (by scalar_tac)
     have hcnt16 : cnt.val < 16 := by omega
     have hcoeff_len : cnt.val < acc.coefficients.val.length := by
-      have := acc.coefficients.property; simp_all
+      have hc : acc.coefficients.val.length = 16 := by
+        have := acc.coefficients.property; simpa using this
+      omega
     have hchunk_len : chunk.val.length = 24 := by
       simpa [Aeneas.Std.Slice.length] using hclen
     obtain ⟨v, hv_eq, hv⟩ :=
@@ -812,7 +816,8 @@ private theorem bytes_to_bits_closure_eq (a : Std.Array Std.U8 384#usize) (k : N
   have hq16 : q.val = k / 8 := by rw [hq_val, hkv, h8]
   have hr8 : r.val = k % 8 := by rw [hr_val, hkv, h8]
   have hqlt : q.val < a.val.length := by
-    have := a.property; simp_all; omega
+    have ha : a.val.length = 384 := by have := a.property; simpa using this
+    rw [ha, hq16]; omega
   have hidx : Aeneas.Std.Array.index_usize a q = .ok (a.val[q.val]!) := by
     simp only [Aeneas.Std.Array.index_usize, Aeneas.Std.Array.getElem?_Usize_eq,
       List.getElem?_eq_getElem hqlt]
@@ -839,7 +844,7 @@ private theorem usize_mul_lit (x y z : Std.Usize) (h : x.val * y.val = z.val)
     (x * y : Aeneas.Std.Result Std.Usize) = .ok z := by
   obtain ⟨m, hm_eq, hm_v⟩ := Std.WP.spec_imp_exists
     (Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y)
-      (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp))
+      (fun e => by cases e <;> scalar_tac) (by simp))
   have hm : m = z := by
     apply Aeneas.Std.UScalar.eq_of_val_eq
     rw [hm_v, h]
@@ -1028,6 +1033,528 @@ theorem serialize_uncompressed_ring_element_fc
                 = .ok p.2 ⌝ ⦄ := by
   sorry
 
+/-! ## PROVER bank for L5.7, part 2 — the SPEC-side decode chain.
+
+    Ported from `Hacspec_ml_kem.Commute.Serialize_bits.fst`: the ladder
+    `lemma_bytes_to_bits_index` → `lemma_coeff_bit` → `lemma_coeff_value` →
+    `lemma_recon_step`/`lemma_recon_combine` → `lemma_bitvec_to_bounded_index_12`
+    → `lemma_byte_decode_index_12` → `lemma_deserialize_coeff_eq_byte_decode_12`.
+
+    Architectural note (copied from F*): `Serialize_bits.fst` keeps its per-chunk
+    bit equality behind the `[@@ "opaque_to_smt"]` atom `chunk_decoded_12` so the
+    bit-vector equality never enters the composer's loop-body VC. The Lean
+    analogue here is the named `dec12` atom of part 1 together with the
+    `bitSum_sliceBit_eq_dec12` keystone: below, the accumulator loop is stated
+    purely in terms of `bitSum`, and `dec12` is only introduced once, at the
+    apex. No raw `|||`/`testBit` reasoning appears in any loop residue. -/
+
+section L57Bank2
+
+open Aeneas.Std
+open libcrux_iot_ml_kem.Util.LoopSpecs
+
+/-! ### Generic scalar / array / iterator plumbing.
+
+    `Vector/Portable/Arithmetic/LoopHelper.lean` has the same iterator lemmas but
+    pinned to the bound `16`; the spec-side bit loop runs to `d = 12`, so the
+    generic-bound versions are re-derived here from
+    `LoopSpecs.IteratorRange_next_spec_usize`. -/
+
+private theorem usize_mul_ok (x y : Std.Usize) (hb : x.val * y.val ≤ Std.Usize.max) :
+    ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
+  obtain ⟨z, hz, hv, _⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.mul_bv_spec (x := x) (y := y) (by scalar_tac))
+  exact ⟨z, hz, hv⟩
+
+private theorem usize_add_ok (x y : Std.Usize) (hb : x.val + y.val ≤ Std.Usize.max) :
+    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
+  obtain ⟨z, hz, hv, _⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.add_bv_spec (x := x) (y := y) (by scalar_tac))
+  exact ⟨z, hz, hv⟩
+
+private theorem u16_add_ok (x y : Std.U16) (hb : x.val + y.val ≤ 65535) :
+    ∃ z : Std.U16, (x + y : Result Std.U16) = .ok z ∧ z.val = x.val + y.val := by
+  obtain ⟨z, hz, hv, _⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.add_bv_spec (x := x) (y := y) (by scalar_tac))
+  exact ⟨z, hz, hv⟩
+
+/-- `1u16 << n` for `n < 16`: the shift result stays SYMBOLIC as `2 ^ n.val`
+    (the closed-large-scalar pitfall — never `decide` on `1 <<< k`). -/
+private theorem u16_shl_one_ok (n : Std.Usize) (hn : n.val < 16) :
+    ∃ z : Std.U16, ((1#u16 : Std.U16) <<< n : Result Std.U16) = .ok z
+      ∧ z.val = 2 ^ n.val := by
+  obtain ⟨z, hz, hv, _⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.ShiftLeft_spec (ty0 := .U16) (1#u16) n
+      (Std.UScalar.size .U16) (by simpa using hn) rfl)
+  refine ⟨z, hz, ?_⟩
+  have h1 : ((1#u16 : Std.U16).val) = 1 := rfl
+  have hsize : Std.UScalar.size .U16 = 65536 := by
+    rw [Std.UScalar.size_def]; norm_num [Std.UScalarTy.numBits]
+  have hlt : (2:Nat) ^ n.val < 65536 := by
+    have : (2:Nat) ^ n.val ≤ 2 ^ 15 := Nat.pow_le_pow_right (by omega) (by omega)
+    have h15 : (2:Nat) ^ 15 = 32768 := by norm_num
+    omega
+  rw [hv, h1, hsize, Nat.shiftLeft_eq, one_mul, Nat.mod_eq_of_lt hlt]
+
+private theorem u16_rem_ok (x y : Std.U16) (hy : 0 < y.val) :
+    ∃ z : Std.U16, (x % y : Result Std.U16) = .ok z ∧ z.val = x.val % y.val := by
+  obtain ⟨z, hz, hv⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.rem_spec (ty := .U16) x (y := y) (by omega))
+  exact ⟨z, hz, hv⟩
+
+private theorem array_index_ok {α : Type} [Inhabited α] {N : Std.Usize}
+    (a : Std.Array α N) (i : Std.Usize) (h : i.val < a.val.length) :
+    Aeneas.Std.Array.index_usize a i = .ok (a.val[i.val]!) := by
+  simp only [Aeneas.Std.Array.index_usize, Aeneas.Std.Array.getElem?_Usize_eq,
+    List.getElem?_eq_getElem h]
+  rw [getElem!_pos a.val i.val h]
+
+/-- Generic-bound analogue of `LoopHelper.iter_next_some_eq`. -/
+private theorem iter_some_gen (i e : Std.Usize) (h_lt : i.val < e.val) :
+    ∃ s : Std.Usize, s.val = i.val + 1 ∧
+      CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+          CoreModels.core.Usize.Insts.CoreIterRangeStep
+          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
+        = .ok (some i,
+            ({ start := s, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) := by
+  have hT := IteratorRange_next_spec_usize i e
+    (Q := Std.Do.PostCond.noThrow fun (oi : Option Std.Usize × _) => ⌜
+      ∃ s : Std.Usize, s.val = i.val + 1
+        ∧ oi = (some i,
+            ({ start := s, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) ⌝)
+    (fun _ s hs => by
+      dsimp only [Std.Do.PostCond.noThrow, Std.Do.SPred.down_pure]
+      exact ⟨s, hs, rfl⟩)
+    (fun hge => absurd h_lt (Nat.not_lt.mpr hge))
+  obtain ⟨v, hveq, s, hs, hpair⟩ := triple_exists_ok_fc hT
+  refine ⟨s, hs, ?_⟩
+  show CoreModels.core.iter.range.IteratorRange.next
+      CoreModels.core.Usize.Insts.CoreIterRangeStep
+      ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize) = _
+  rw [hveq, hpair]
+
+/-- Generic-bound analogue of `LoopHelper.iter_next_none_eq`. -/
+private theorem iter_none_gen (i e : Std.Usize) (h_ge : e.val ≤ i.val) :
+    CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+        CoreModels.core.Usize.Insts.CoreIterRangeStep
+        ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
+      = .ok ((none : Option Std.Usize),
+          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) := by
+  have hT := IteratorRange_next_spec_usize i e
+    (Q := Std.Do.PostCond.noThrow fun (oi : Option Std.Usize × _) => ⌜
+      oi = ((none : Option Std.Usize),
+        ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) ⌝)
+    (fun hlt => absurd hlt (Nat.not_lt.mpr h_ge))
+    (fun _ => by dsimp only [Std.Do.PostCond.noThrow, Std.Do.SPred.down_pure])
+  obtain ⟨v, hveq, hP⟩ := triple_exists_ok_fc hT
+  show CoreModels.core.iter.range.IteratorRange.next
+      CoreModels.core.Usize.Insts.CoreIterRangeStep
+      ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize) = _
+  rw [hveq, hP]
+
+/-! ### The `d`-step bit-accumulation loop of `bitvector_to_bounded_ints`.
+
+    Port of F* `dec_inv` / `dec_step` (`Commute.Serialize_bits.fst`): the loop
+    invariant is exactly "the accumulator equals the partial bit sum", which is
+    `bitSum` here. The residue never sees a bit-vector equality — `dec12` enters
+    only at the apex, through `bitSum_sliceBit_eq_dec12`. -/
+
+private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.Usize)
+    (hd : d.val ≤ 16)
+    (hmul : j.val * d.val + d.val ≤ Std.Usize.max)
+    (hbd : j.val * d.val + d.val ≤ Nd.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop
+      (Nd := Nd) { start := 0#usize, «end» := d } d a j 0#u16
+    ⦃ ⇓ c => ⌜ c.val = bitSum (fun t => a.val[j.val * d.val + t]!) d.val ⌝ ⦄ := by
+  have halen : a.val.length = Nd.val := a.property
+  unfold
+    hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop
+  apply Std.Do.Triple.of_entails_right _
+    (loop_range_spec_usize
+      (fun (iter1, c1) =>
+        hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
+          (Nd := Nd) d a j iter1 c1)
+      (β := Std.U16) 0#u16 0#usize d
+      (fun i c => .ok (c.val = bitSum (fun t => a.val[j.val * d.val + t]!) i.val))
+      (by scalar_tac)
+      ((holds_ok _).mpr (by
+        show (0#u16 : Std.U16).val = bitSum (fun t => a.val[j.val * d.val + t]!) 0
+        simp [bitSum]))
+      ?_)
+  · rw [Std.Do.PostCond.entails_noThrow]
+    intro r h
+    exact (holds_ok _).mp h
+  · intro acc i hge hle hinv
+    have hinv' : acc.val = bitSum (fun t => a.val[j.val * d.val + t]!) i.val :=
+      (holds_ok _).mp hinv
+    by_cases hlt : i.val < d.val
+    · obtain ⟨s, hs, hnext⟩ := iter_some_gen i d hlt
+      obtain ⟨m, hm, hmv⟩ := usize_mul_ok j d (by omega)
+      obtain ⟨q, hq, hqv⟩ := usize_add_ok m i (by omega)
+      have hqval : q.val = j.val * d.val + i.val := by rw [hqv, hmv]
+      have hqlt : q.val < a.val.length := by rw [halen, hqval]; omega
+      have hidx : Aeneas.Std.Array.index_usize a q = .ok (a.val[q.val]!) :=
+        array_index_ok a q hqlt
+      have hbitsum : bitSum (fun t => a.val[j.val * d.val + t]!) (i.val + 1)
+          = bitSum (fun t => a.val[j.val * d.val + t]!) i.val
+            + (if a.val[q.val]! then 2 ^ i.val else 0) := by
+        rw [bitSum, hqval]
+      by_cases hb : a.val[q.val]! = true
+      · obtain ⟨w, hw, hwv⟩ := u16_shl_one_ok i (by omega)
+        have hlow : bitSum (fun t => a.val[j.val * d.val + t]!) i.val < 2 ^ i.val :=
+          bitSum_lt _ _
+        have hpow : (2:Nat) ^ i.val ≤ 2 ^ 15 := Nat.pow_le_pow_right (by omega) (by omega)
+        have h15 : (2:Nat) ^ 15 = 32768 := by norm_num
+        obtain ⟨c2, hc2, hc2v⟩ := u16_add_ok acc w (by omega)
+        refine triple_of_ok_fc
+          (v := .cont (({ start := s, «end» := d } :
+                          CoreModels.core.ops.range.Range Std.Usize), c2)) ?_ ?_
+        · show
+            hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
+              (Nd := Nd) d a j ({ start := i, «end» := d } :
+                CoreModels.core.ops.range.Range Std.Usize) acc = _
+          unfold
+            hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
+          rw [hnext]
+          show (do
+              let i2 ← j * d
+              let i3 ← i2 + i
+              let b ← Aeneas.Std.Array.index_usize a i3
+              if b = true then do
+                  let i4 ← (1#u16 : Std.U16) <<< i
+                  let coefficient1 ← acc + i4
+                  Result.ok (ControlFlow.cont
+                    ((⟨s, d⟩ : CoreModels.core.ops.range.Range Std.Usize), coefficient1))
+                else Result.ok (ControlFlow.cont
+                    ((⟨s, d⟩ : CoreModels.core.ops.range.Range Std.Usize), acc))) = _
+          rw [hm]; simp only [Aeneas.Std.bind_tc_ok]
+          rw [hq]; simp only [Aeneas.Std.bind_tc_ok]
+          rw [hidx]; simp only [Aeneas.Std.bind_tc_ok, hb, if_true]
+          rw [hw]; simp only [Aeneas.Std.bind_tc_ok]
+          rw [hc2]; rfl
+        · refine ⟨hlt, rfl, hs, (holds_ok _).mpr ?_⟩
+          show c2.val = bitSum (fun t => a.val[j.val * d.val + t]!) s.val
+          rw [hs, hbitsum, hc2v, hinv', hwv, if_pos hb]
+      · have hbf : a.val[q.val]! = false := by
+          cases h : a.val[q.val]! with
+          | false => rfl
+          | true => exact absurd h hb
+        refine triple_of_ok_fc
+          (v := .cont (({ start := s, «end» := d } :
+                          CoreModels.core.ops.range.Range Std.Usize), acc)) ?_ ?_
+        · show
+            hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
+              (Nd := Nd) d a j ({ start := i, «end» := d } :
+                CoreModels.core.ops.range.Range Std.Usize) acc = _
+          unfold
+            hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
+          rw [hnext]
+          show (do
+              let i2 ← j * d
+              let i3 ← i2 + i
+              let b ← Aeneas.Std.Array.index_usize a i3
+              if b = true then do
+                  let i4 ← (1#u16 : Std.U16) <<< i
+                  let coefficient1 ← acc + i4
+                  Result.ok (ControlFlow.cont
+                    ((⟨s, d⟩ : CoreModels.core.ops.range.Range Std.Usize), coefficient1))
+                else Result.ok (ControlFlow.cont
+                    ((⟨s, d⟩ : CoreModels.core.ops.range.Range Std.Usize), acc))) = _
+          rw [hm]; simp only [Aeneas.Std.bind_tc_ok]
+          rw [hq]; simp only [Aeneas.Std.bind_tc_ok]
+          rw [hidx]; simp only [Aeneas.Std.bind_tc_ok, hbf, Bool.false_eq_true, if_false]
+        · refine ⟨hlt, rfl, hs, (holds_ok _).mpr ?_⟩
+          show acc.val = bitSum (fun t => a.val[j.val * d.val + t]!) s.val
+          rw [hs, hbitsum, hinv', hbf]
+          simp
+    · have hieq : i.val = d.val := by omega
+      refine triple_of_ok_fc (v := .done acc) ?_ ?_
+      · show
+          hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
+            (Nd := Nd) d a j ({ start := i, «end» := d } :
+              CoreModels.core.ops.range.Range Std.Usize) acc = _
+        unfold
+          hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
+        rw [iter_none_gen i d (by omega)]
+        rfl
+      · refine (holds_ok _).mpr ?_
+        show acc.val = bitSum (fun t => a.val[j.val * d.val + t]!) d.val
+        rw [hieq] at hinv'; exact hinv'
+
+/-! ### `bitvector_to_bounded_ints` closed form.
+
+    F* analogue: `lemma_bitvec_to_bounded_index_12` (`Serialize_bits.fst`). -/
+
+/-- The `U16` carrying a `Nat` payload. Kept as a named `def` so the array
+    element function below is a closed term (no inline computation). -/
+private def u16OfNat (x : Nat) : Std.U16 := ⟨BitVec.ofNat _ x⟩
+
+private theorem u16OfNat_val (x : Nat) (h : x < 65536) : (u16OfNat x).val = x := by
+  show (BitVec.ofNat _ x).toNat = x
+  rw [BitVec.toNat_ofNat]
+  exact Nat.mod_eq_of_lt (by simpa [Std.UScalarTy.numBits] using h)
+
+/-- Pure normal form of the `bitvector_to_bounded_ints` closure at index `k`. -/
+private theorem bvb_closure_eq {N Nd : Std.Usize} (a : Std.Array Bool Nd)
+    (d : Std.Usize) (k : Nat)
+    (hd : d.val ≤ 16) (hk : k < 2 ^ 32)
+    (hmul : k * d.val + d.val ≤ Std.Usize.max)
+    (hbd : k * d.val + d.val ≤ Nd.val) :
+    (hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+        N Nd).call_mut (d, a) ⟨BitVec.ofNat _ k⟩
+      = .ok (u16OfNat (bitSum (fun t => a.val[k * d.val + t]!) d.val), (d, a)) := by
+  -- `LoopSpecs.bv_ofNat_val_eq` is `private` there, so the same two lines here.
+  have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k := by
+    show (BitVec.ofNat _ k).toNat = k
+    simp only [BitVec.toNat_ofNat]
+    apply Nat.mod_eq_of_lt
+    have h32 : (32 : Nat) ≤ System.Platform.numBits := by
+      have := System.Platform.numBits_eq; omega
+    calc k < 2 ^ 32 := hk
+      _ ≤ 2 ^ System.Platform.numBits := Nat.pow_le_pow_right (by decide) h32
+  obtain ⟨z, hz, hzv⟩ :=
+    triple_exists_ok_fc (bvb_loop_fc a d ⟨BitVec.ofNat _ k⟩ hd
+      (by rw [hkv]; exact hmul) (by rw [hkv]; exact hbd))
+  have hzeq : z = u16OfNat (bitSum (fun t => a.val[k * d.val + t]!) d.val) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    have hlt : bitSum (fun t => a.val[k * d.val + t]!) d.val < 65536 := by
+      have h1 := bitSum_lt (fun t => a.val[k * d.val + t]!) d.val
+      have h2 : (2:Nat) ^ d.val ≤ 2 ^ 16 := Nat.pow_le_pow_right (by omega) hd
+      have h16 : (2:Nat) ^ 16 = 65536 := by norm_num
+      omega
+    rw [u16OfNat_val _ hlt, hzv, hkv]
+  show (do
+      let coefficient ←
+        hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop
+          (Nd := Nd) { start := 0#usize, «end» := d } d a ⟨BitVec.ofNat _ k⟩ 0#u16
+      Result.ok (coefficient, ((d, a) : Std.Usize × Std.Array Bool Nd))) = _
+  rw [hz]; simp only [Aeneas.Std.bind_tc_ok, hzeq]; rfl
+
+/-- `bitvector_to_bounded_ints` at `N = 256`, `d = 12`, `Nd = 3072`: cell `k` is
+    the 12-bit sum of bits `12k .. 12k+11`. -/
+private theorem bvb_256_12_get (bv : Std.Array Bool 3072#usize) :
+    ∃ arr : Std.Array Std.U16 256#usize,
+      hacspec_ml_kem.serialize.bitvector_to_bounded_ints 256#usize bv 12#usize = .ok arr
+      ∧ ∀ k : Nat, k < 256 →
+          (arr.val[k]!).val = bitSum (fun t => bv.val[12 * k + t]!) 12 := by
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have h12 : ((12#usize : Std.Usize)).val = 12 := by scalar_tac
+  have h3072 : ((3072#usize : Std.Usize)).val = 3072 := by scalar_tac
+  have hmul : ((256#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (3072#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Std.U16)
+      (256#usize : Std.Usize)
+      (hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+        256#usize 3072#usize)
+      ((12#usize : Std.Usize), bv)
+      (fun k => u16OfNat (bitSum (fun t => bv.val[k * 12 + t]!) 12))
+      (fun k hk => by
+        rw [h256] at hk
+        have h32 : (2:Nat) ^ 32 = 4294967296 := by norm_num
+        have := bvb_closure_eq (N := 256#usize) bv (12#usize) k
+          (by rw [h12]; omega) (by omega) (by rw [h12]; scalar_tac)
+          (by rw [h12, h3072]; omega)
+        rw [h12] at this
+        exact this)
+  have key : hacspec_ml_kem.serialize.bitvector_to_bounded_ints 256#usize bv 12#usize
+      = CoreModels.core.array.from_fn (256#usize : Std.Usize)
+          (hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+            256#usize 3072#usize)
+          ((12#usize : Std.Usize), bv) := by
+    unfold hacspec_ml_kem.serialize.bitvector_to_bounded_ints
+    rw [hmul]
+    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
+      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+  rw [key, hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro k hk
+  have hget : ((List.range ((256#usize : Std.Usize)).val).map
+      (fun k => u16OfNat (bitSum (fun t => bv.val[k * 12 + t]!) 12)))[k]!
+      = u16OfNat (bitSum (fun t => bv.val[k * 12 + t]!) 12) := by
+    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
+      List.getElem?_range (by rw [h256]; exact hk)]
+    rfl
+  have hcomm : (fun t => bv.val[k * 12 + t]!) = (fun t => bv.val[12 * k + t]!) := by
+    funext t; rw [Nat.mul_comm]
+  show (((List.range ((256#usize : Std.Usize)).val).map
+      (fun k => u16OfNat (bitSum (fun t => bv.val[k * 12 + t]!) 12)))[k]!).val = _
+  rw [hget, hcomm]
+  refine u16OfNat_val _ ?_
+  have h1 := bitSum_lt (fun t => bv.val[12 * k + t]!) 12
+  have h12' : (2:Nat) ^ 12 = 4096 := by norm_num
+  omega
+
+/-! ### `byte_decode_generic` and `byte_decode` at `d = 12`.
+
+    F* analogue: `lemma_byte_decode_index_12` and the headline
+    `lemma_deserialize_coeff_eq_byte_decode_12` (`Serialize_bits.fst`). -/
+
+private theorem byte_decode_generic_12_get (a : Std.Array Std.U8 384#usize) :
+    ∃ arr : Std.Array Std.U16 256#usize,
+      hacspec_ml_kem.serialize.byte_decode_generic 32#usize 256#usize
+          (Nd := 384#usize) 3072#usize a 12#usize = .ok arr
+      ∧ ∀ k : Nat, k < 256 → (arr.val[k]!).val = dec12 a.val k := by
+  obtain ⟨bv, hbv, hbvget⟩ := bytes_to_bits_get a
+  obtain ⟨arr, harr, harrget⟩ := bvb_256_12_get bv
+  have e1 : ((32#usize : Std.Usize) * (8#usize : Std.Usize) : Result Std.Usize)
+      = .ok (256#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have e2 : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have e3 : ((384#usize : Std.Usize) * (8#usize : Std.Usize) : Result Std.Usize)
+      = .ok (3072#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  refine ⟨arr, ?_, ?_⟩
+  · unfold hacspec_ml_kem.serialize.byte_decode_generic
+    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+      le_refl, if_true, Aeneas.Std.bind_tc_ok, e1, e2, e3, hbv, harr]
+  · intro k hk
+    rw [harrget k hk,
+      bitSum_congr _ (fun t => sliceBit a.val (12 * k + t)) 12
+        (fun t ht => hbvget (12 * k + t) (by omega))]
+    exact bitSum_sliceBit_eq_dec12 a.val k
+
+/-! ### The FE bridge: spec-side `FieldElement.new (x % q)` ↔ impl-side `lift_fe`. -/
+
+private theorem lift_fe_of_nat (lane : Std.I16) (n : Nat) (h : lane.val = (n : Int)) :
+    lift_fe lane = { val := u16OfNat (n % 3329) } := by
+  unfold lift_fe libcrux_iot_ml_kem.Spec.feOfZMod
+    libcrux_iot_ml_kem.Spec.i16_to_spec_fe_plain
+  have hz : (((n : Int) : ZMod 3329)).val = n % 3329 := by
+    rw [show (((n : Int)) : ZMod 3329) = ((n : Nat) : ZMod 3329) by push_cast; ring]
+    simp [ZMod.val_natCast]
+  rw [h, hz]
+  rfl
+
+/-- The `byte_decode` reduce-and-wrap closure, at index `k`. -/
+private theorem byte_decode_closure_eq {D32 D256 : Std.Usize}
+    (decoded : Std.Array Std.U16 256#usize) (k : Nat) (hk : k < 256) (hk32 : k < 2 ^ 32) :
+    (hacspec_ml_kem.serialize.byte_decode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        D32 D256).call_mut decoded ⟨BitVec.ofNat _ k⟩
+      = .ok (({ val := u16OfNat ((decoded.val[k]!).val % 3329) } :
+                hacspec_ml_kem.parameters.FieldElement), decoded) := by
+  have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k := by
+    show (BitVec.ofNat _ k).toNat = k
+    simp only [BitVec.toNat_ofNat]
+    apply Nat.mod_eq_of_lt
+    have h32 : (32 : Nat) ≤ System.Platform.numBits := by
+      have := System.Platform.numBits_eq; omega
+    calc k < 2 ^ 32 := hk32
+      _ ≤ 2 ^ System.Platform.numBits := Nat.pow_le_pow_right (by decide) h32
+  have hlen : decoded.val.length = 256 := by have := decoded.property; simpa using this
+  have hidx : Aeneas.Std.Array.index_usize decoded (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      = .ok (decoded.val[k]!) := by
+    have := array_index_ok decoded (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [hkv, hlen]; exact hk)
+    rw [hkv] at this; exact this
+  have hq : ((hacspec_ml_kem.parameters.FIELD_MODULUS : Std.U16)).val = 3329 := by
+    simp [hacspec_ml_kem.parameters.FIELD_MODULUS]
+  obtain ⟨r, hr, hrv⟩ :=
+    u16_rem_ok (decoded.val[k]!) hacspec_ml_kem.parameters.FIELD_MODULUS (by rw [hq]; omega)
+  have hreq : r = u16OfNat ((decoded.val[k]!).val % 3329) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [hrv, hq, u16OfNat_val _ (by omega)]
+  show (do
+      let i ← Aeneas.Std.Array.index_usize decoded (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      let i1 ← i % hacspec_ml_kem.parameters.FIELD_MODULUS
+      let fe ← hacspec_ml_kem.parameters.FieldElement.new i1
+      Result.ok (fe, decoded)) = _
+  rw [hidx]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hr]; simp only [Aeneas.Std.bind_tc_ok]
+  unfold hacspec_ml_kem.parameters.FieldElement.new
+  simp only [Aeneas.Std.bind_tc_ok, hreq]
+
+/-- **The apex, spec side**: `byte_decode 3072 a 12` reproduces `lift_poly p`
+    whenever `p`'s lanes hold `dec12` of `a`'s bytes. -/
+private theorem byte_decode_12_eq (a : Std.Array Std.U8 384#usize)
+    (p : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hp : declane a.val p 16) :
+    hacspec_ml_kem.serialize.byte_decode (D32 := 384#usize) 3072#usize a 12#usize
+      = .ok (lift_poly p) := by
+  obtain ⟨decoded, hdec, hdecget⟩ := byte_decode_generic_12_get a
+  have e2 : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have e4 : ((256#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (3072#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have halen : a.val.length = 384 := by have := a.property; simpa using this
+  have hslice : (Aeneas.Std.lift (Aeneas.Std.Array.to_slice a) : Result (Slice Std.U8))
+      = .ok ⟨a.val, by scalar_tac⟩ := by
+    simp [Aeneas.Std.lift, Aeneas.Std.Array.to_slice]
+  have hlenq : ∀ sl : Slice Std.U8, sl.val.length = 384 →
+      CoreModels.core.slice.Slice.len sl = .ok (384#usize : Std.Usize) := by
+    intro sl hsl
+    have hl : Aeneas.Std.Slice.len sl = (384#usize : Std.Usize) := by
+      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+      rw [Aeneas.Std.Slice.len_val]
+      show sl.val.length = ((384#usize : Std.Usize)).val
+      rw [hsl]; scalar_tac
+    simp [CoreModels.core.slice.Slice.len, hl]
+    rfl
+  -- the reduce-and-wrap `createi`
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
+      (T := hacspec_ml_kem.parameters.FieldElement)
+      (256#usize : Std.Usize)
+      (hacspec_ml_kem.serialize.byte_decode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        384#usize 3072#usize)
+      decoded
+      (fun k => lift_fe (p.coefficients.val[k / 16]!).elements.val[k % 16]!)
+      (fun k hk => by
+        have hk256 : k < 256 := by simpa using hk
+        have hlane : ((p.coefficients.val[k / 16]!).elements.val[k % 16]!).val
+            = ((dec12 a.val k : Nat) : Int) := by
+          have := hp (k / 16) (by omega) (k % 16) (by omega)
+          rw [show 16 * (k / 16) + k % 16 = k from by omega] at this
+          exact this
+        rw [byte_decode_closure_eq decoded k hk256 (by omega),
+          lift_fe_of_nat _ (dec12 a.val k) hlane, hdecget k hk256])
+  unfold hacspec_ml_kem.serialize.byte_decode
+  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+    le_refl, if_true, Aeneas.Std.bind_tc_ok, hslice, hlenq ⟨a.val, by scalar_tac⟩ halen, e2, e4, hdec,
+    hacspec_ml_kem.parameters.createi, hfn]
+  rfl
+
+/-! ### `byte_decode_dyn` at `d = 12` — the slice-shaped entry point. -/
+
+private theorem byte_decode_dyn_12_eq (b : Slice Std.U8) (hb : b.val.length = 384)
+    (p : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hp : declane b.val p 16) :
+    hacspec_ml_kem.serialize.byte_decode_dyn b 12#usize = .ok (lift_poly p) := by
+  have hl : Aeneas.Std.Slice.len b = (384#usize : Std.Usize) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [Aeneas.Std.Slice.len_val]
+    show b.val.length = ((384#usize : Std.Usize)).val
+    rw [hb]; scalar_tac
+  have hlen : CoreModels.core.slice.Slice.len b = .ok (384#usize : Std.Usize) := by
+    simp [CoreModels.core.slice.Slice.len, hl]
+    rfl
+  have e2 : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  unfold hacspec_ml_kem.serialize.byte_decode_dyn
+  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+    le_refl, if_true, Aeneas.Std.bind_tc_ok, hlen, e2]
+  -- select the `d = 12` branch of the `match d.val with` dispatch
+  show (do
+      let r ←
+        CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+          (384#usize : Std.Usize) b
+      let a ←
+        CoreModels.core.result.Result.unwrap
+          CoreModels.core.array.TryFromSliceError.Insts.CoreFmtDebug r
+      hacspec_ml_kem.serialize.byte_decode (D32 := 384#usize) 3072#usize a 12#usize) = _
+  have htry :
+      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+          (384#usize : Std.Usize) b
+        = .ok (CoreModels.core.result.Result.Ok
+            (⟨b.val, by rw [hb]; scalar_tac⟩ : Std.Array Std.U8 384#usize)) := by
+    unfold
+      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+    rw [dif_pos hl]
+  rw [htry]
+  simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
+  exact byte_decode_12_eq _ p hp
+
+end L57Bank2
+
 /-- L5.7 — `serialize.deserialize_to_uncompressed_ring_element` (= `ByteDecode_12`).
 
     Sibling of L5.6 and of the A2 axiom `deserialize_to_reduced_ring_element_fc`;
@@ -1045,6 +1572,13 @@ theorem deserialize_to_uncompressed_ring_element_fc
       serialized re
     ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.byte_decode_dyn serialized 12#usize
                 = .ok (lift_poly p) ⌝ ⦄ := by
-  sorry
+  -- Impl side: the 16-chunk `chunks_exact 24` loop puts `dec12` in every lane.
+  have hlen' : serialized.val.length = 384 := by
+    simpa [Aeneas.Std.Slice.length] using h_len
+  obtain ⟨p, hp_eq, hp⟩ :=
+    triple_exists_ok_fc (deserialize_uncompressed_impl_fc serialized hlen' re)
+  -- Spec side: `byte_decode_dyn _ 12` reproduces exactly those lanes.
+  exact triple_of_ok_fc hp_eq
+    (byte_decode_dyn_12_eq serialized hlen' p ((holds_ok _).mp hp))
 
 end libcrux_iot_ml_kem.SerializeFc
