@@ -216,14 +216,10 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
         // If `aad_len_encoding_len` + `aad_len` is not a multiple of
         // `AES_BLOCK_LEN`, `block_index` will be greater than 0 and
         // point just beyond the last byte of the AAD written to the
-        // last block.  The remainder of the last block must be padded
-        // with zeroes before accumulation.
+        // last block.  The remainder of the last block will be
+        // implicitly zero-padded during accumulation.
         if block_index > 0 {
-            for i in block_index..AES_BLOCK_LEN {
-                current_block[i] = 0;
-            }
-
-            self.accumulate(current_block.as_slice());
+            self.accumulate(&current_block[..block_index]);
         }
     }
 
