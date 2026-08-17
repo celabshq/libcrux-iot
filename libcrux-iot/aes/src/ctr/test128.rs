@@ -10,18 +10,23 @@ type AesGcm128CtrContext<T> = AesCtrContext<T, 11, AES_GCM_CTR_LEN, AES_GCM_NONC
 pub(crate) fn aes128_ctr_xor_block<T: AESState>(
     ctx: &AesGcm128CtrContext<T>,
     ctr: u32,
-    inp: &mut [u8],
+    buffer: &mut [u8],
 ) {
-    debug_assert!(inp.len() <= 16);
-    ctx.aes_ctr_xor_block(ctr, inp);
+    debug_assert!(buffer.len() <= 16);
+    ctx.aes_ctr_xor_block(ctr, buffer);
 }
 
-pub(crate) fn aes128_ctr_encrypt<T: AESState>(key: &[u8], nonce: &[u8], ctr: u32, inp: &mut [u8]) {
+pub(crate) fn aes128_ctr_encrypt<T: AESState>(
+    key: &[u8],
+    nonce: &[u8],
+    ctr: u32,
+    buffer: &mut [u8],
+) {
     debug_assert!(nonce.len() == NONCE_LEN);
     debug_assert!(key.len() == GCM_KEY_LEN);
 
     let ctx = AesGcm128CtrContext::<T>::init(key, nonce);
-    ctx.aes_ctr_update(ctr, inp);
+    ctx.aes_ctr_update(ctr, buffer);
 }
 
 const INPUT: [u8; 32] = [
