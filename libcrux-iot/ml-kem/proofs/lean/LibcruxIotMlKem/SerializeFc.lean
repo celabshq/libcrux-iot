@@ -1788,6 +1788,168 @@ theorem compress_then_serialize_message_fc
 
 /-! ## Ciphertext component `v` — `d = dv`, exact 1:1 with the hacspec model. -/
 
+/-! ### SPECREQ evidence for L5.3 (`deserialize_then_decompress_ring_element_v_fc`).
+
+    The L5.3 statement below is **under-constrained**: its precondition is
+    `⌜True⌝`, but the Rust source of `deserialize_then_decompress_ring_element_v`
+    carries
+
+        #[hax_lib::requires(
+            (V_COMPRESSION_FACTOR == 4 || V_COMPRESSION_FACTOR == 5) &&
+            serialized.len() == 32 * V_COMPRESSION_FACTOR)]
+
+    (`ml-kem/src/serialize.rs`, immediately above the fn) and the scaffold did not
+    transcribe it. Both conjuncts are independently necessary; the two lemmas
+    below refute the L5.3 Triple at a concrete instance of each, so this is a
+    machine-checked counterexample rather than a report.
+
+    * `specreq_L53_refuted_at_dv_zero` — at `V_COMPRESSION_FACTOR = 0` the impl's
+      `match V_COMPRESSION_FACTOR as u32` falls through to `unreachable!()`, i.e.
+      `fail panic`, and `⇓` is `PostCond.noThrow` (total), so the Triple is false
+      for EVERY `K`, `serialized`, `output`.
+    * `specreq_L53_refuted_at_dv_four_empty` — at `V_COMPRESSION_FACTOR = 4` with a
+      zero-length `serialized` the impl SUCCEEDS (`specreq_L53_d4_empty_ok`:
+      `chunks_exact 8` yields no chunk, so the loop returns `output` unchanged)
+      while the spec's `byte_decode_dyn` asserts `len = 32 * d = 128` and returns
+      `fail assertionFailure`. So the post is violated by a successful run — the
+      length conjunct is not merely a totality side-condition.
+
+    Nothing here edits, weakens, or hypothesises the locked statement; the `sorry`
+    stands. See the SPECREQ in the dispatch report for the proposed pre. -/
+
+section SpecreqL53
+
+open libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl
+
+/-- `V_COMPRESSION_FACTOR = 0` takes the `unreachable!()` arm. -/
+private theorem specreq_L53_dispatch_fail_of_dv_zero (K : Std.Usize)
+    (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst) K 0#usize serialized output
+    = .fail .panic := by
+  simp only [libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+/-- **Counterexample 1** — the L5.3 post-condition shape at `V_COMPRESSION_FACTOR = 0`
+    is refutable for every `K`, `serialized`, `output`. -/
+private theorem specreq_L53_refuted_at_dv_zero (K : Std.Usize) (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ¬ (⦃ ⌜ True ⌝ ⦄
+       libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v
+         (vectortraitsOperationsInst := portable_ops_inst) K 0#usize serialized output
+       ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_v serialized 0#usize
+                   = .ok (lift_poly p) ⌝ ⦄) := by
+  rw [specreq_L53_dispatch_fail_of_dv_zero]
+  simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply]
+
+/-- `V_COMPRESSION_FACTOR = 4` dispatches to `deserialize_then_decompress_4`. -/
+private theorem specreq_L53_dispatch_eq_d4 (K : Std.Usize) (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst) K 4#usize serialized output
+    = libcrux_iot_ml_kem.serialize.deserialize_then_decompress_4
+        (vectortraitsOperationsInst := portable_ops_inst) serialized output := by
+  simp only [libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+private theorem specreq_L53_slice_len_zero (sl : Slice Std.U8) (h : sl.val.length = 0) :
+    CoreModels.core.slice.Slice.len sl = .ok (0#usize : Std.Usize) := by
+  have hlen : Aeneas.Std.Slice.len sl = (0#usize : Std.Usize) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [Aeneas.Std.Slice.len_val]
+    show sl.val.length = ((0#usize : Std.Usize)).val
+    rw [h]; scalar_tac
+  simp only [CoreModels.core.slice.Slice.len, hlen]; rfl
+
+/-- Spec side: `byte_decode_dyn` at `d = 4` asserts `len = 32 * 4 = 128`, so a
+    zero-length input makes the whole spec chain fail. -/
+private theorem specreq_L53_spec_fail_of_empty (serialized : Slice Std.U8)
+    (h : serialized.val.length = 0) :
+    hacspec_ml_kem.serialize.deserialize_then_decompress_v serialized 4#usize
+      = .fail .assertionFailure := by
+  obtain ⟨z, hz, hzv⟩ : ∃ z : Std.Usize,
+      ((32#usize : Std.Usize) * (4#usize : Std.Usize) : Result Std.Usize) = .ok z
+        ∧ z.val = 128 := by
+    obtain ⟨z, hz, hv, _⟩ := Std.WP.spec_imp_exists (Std.UScalar.mul_bv_spec
+      (x := (32#usize : Std.Usize)) (y := (4#usize : Std.Usize)) (by scalar_tac))
+    exact ⟨z, hz, by rw [hv]; scalar_tac⟩
+  have hne : (0#usize : Std.Usize) ≠ z := by
+    intro hc; rw [← hc] at hzv; scalar_tac
+  simp only [hacspec_ml_kem.serialize.deserialize_then_decompress_v,
+    hacspec_ml_kem.serialize.byte_decode_dyn]
+  simp [Aeneas.Std.massert, hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT,
+    specreq_L53_slice_len_zero serialized h, hz, hne]
+
+/-- Impl side at `d = 4` on a zero-length input: `chunks_exact 8` produces no
+    chunk, so the loop returns `output` unchanged — the impl SUCCEEDS. -/
+private theorem specreq_L53_d4_empty_ok (serialized : Slice Std.U8)
+    (h : serialized.val.length = 0)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_4
+      (vectortraitsOperationsInst := portable_ops_inst) serialized output
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (p = output)).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_4
+  rw [show (CoreModels.core.slice.Slice.chunks_exact serialized (8#usize : Std.Usize))
+        = .ok { cs := 8#usize, elements := serialized } from rfl]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [show (CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
+        (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+          Std.U8)
+        { cs := (8#usize : Std.Usize), elements := serialized })
+      = .ok ({ iter := { cs := 8#usize, elements := serialized }, count := 0#usize } : EnumCE)
+      from rfl]
+  simp only [Aeneas.Std.bind_tc_ok]
+  unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_4_loop
+  refine loop_chunks_exact_pk_spec _ output serialized 8#usize 0
+    (fun _ acc => .ok (acc = output)) (by scalar_tac)
+    (by simpa [Aeneas.Std.Slice.length] using h)
+    ((holds_ok _).mpr rfl) ?_
+  intro acc k rest cnt hk hcnt hrest hsuf hinv
+  have hk0 : k = 0 := by omega
+  subst hk0
+  have hrest0 : rest.length = 0 := by rw [hrest]; simp
+  refine triple_of_ok_fc (v := .done acc) ?_ ?_
+  · show libcrux_iot_ml_kem.serialize.deserialize_then_decompress_4_loop.body
+      portable_ops_inst { iter := { cs := 8#usize, elements := rest }, count := cnt } acc = _
+    unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_4_loop.body
+    rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+          (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+            Std.U8)
+          { iter := { cs := 8#usize, elements := rest }, count := cnt })
+        = .ok (CoreModels.core.option.Option.None,
+               { iter := { cs := 8#usize, elements := rest }, count := cnt }) from
+        enumerate_chunks_next_done rest 8#usize cnt (by rw [hrest0]; scalar_tac)]
+    rfl
+  · exact hinv
+
+/-- **Counterexample 2** — at `V_COMPRESSION_FACTOR = 4` with `serialized.len() = 0`
+    the impl returns `.ok output` while the spec returns `fail assertionFailure`,
+    so the L5.3 post-condition shape is refutable. The length conjunct of the
+    source's `requires` is therefore independently necessary. -/
+private theorem specreq_L53_refuted_at_dv_four_empty (K : Std.Usize)
+    (serialized : Slice Std.U8) (h : serialized.val.length = 0)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ¬ (⦃ ⌜ True ⌝ ⦄
+       libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v
+         (vectortraitsOperationsInst := portable_ops_inst) K 4#usize serialized output
+       ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_v serialized 4#usize
+                   = .ok (lift_poly p) ⌝ ⦄) := by
+  intro hT
+  obtain ⟨v, _, hpost⟩ := triple_exists_ok_fc hT
+  rw [specreq_L53_spec_fail_of_empty serialized h] at hpost
+  exact absurd hpost (by simp)
+
+end SpecreqL53
+
 /-- L5.3 — `serialize.deserialize_then_decompress_ring_element_v`.
 
     `ByteDecode_dv` then `Decompress_dv` over one ring element. The hacspec
