@@ -16,8 +16,12 @@ const SIX_BYTE_ENCODING_RANGE: Range<usize> = (1 << 16) - (1 << 8)..usize::MAX;
 #[cfg(target_pointer_width = "64")]
 const TEN_BYTE_ENCODING_RANGE: Range<usize> = (1 << 32)..usize::MAX;
 
-impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> super::State
-    for State<TAG_LEN, NUM_KEYS, T>
+impl<
+        const TAG_LEN: usize,
+        const NUM_KEYS: usize,
+        T: AESState,
+        Aad: core::iter::ExactSizeIterator<Item = u8>,
+    > super::AeadState<Aad> for State<TAG_LEN, NUM_KEYS, T>
 where
     AesCtrContext<T, NUM_KEYS, AES_CCM_CTR_LEN, AES_CCM_NONCE_START>: CcmInit,
 {
@@ -42,12 +46,7 @@ where
     }
 
     /// Encrypt and authenticate AAD and plaintext.
-    fn encrypt(
-        &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = u8>,
-        plaintext: &mut [u8],
-        tag: &mut [u8],
-    ) {
+    fn encrypt(&mut self, aad: Aad, plaintext: &mut [u8], tag: &mut [u8]) {
         debug_assert_eq!(tag.len(), TAG_LEN);
 
         // fill accumulator with CBC-MAC of AAD and plaintext
@@ -68,7 +67,7 @@ where
     /// plaintext from ciphertext.
     fn decrypt<'a>(
         &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = u8>,
+        aad: Aad,
         ciphertext: &mut [u8],
         tag: &[u8],
     ) -> Result<(), DecryptError> {

@@ -705,21 +705,11 @@ pub mod aes_ccm_256 {
 
 /// Trait for an AES State.
 /// Implemented for 128 and 256.
-pub(crate) trait State {
+pub(crate) trait AeadState<Aad: core::iter::ExactSizeIterator<Item = u8>> {
     fn init(key: &[u8]) -> Self;
     fn set_nonce(&mut self, nonce: &[u8]);
-    fn encrypt(
-        &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = u8>,
-        plaintext: &mut [u8],
-        tag: &mut [u8],
-    );
-    fn decrypt(
-        &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = u8>,
-        ciphertext: &mut [u8],
-        tag: &[u8],
-    ) -> Result<(), DecryptError>;
+    fn encrypt(&mut self, aad: Aad, plaintext: &mut [u8], tag: &mut [u8]);
+    fn decrypt(&mut self, aad: Aad, ciphertext: &mut [u8], tag: &[u8]) -> Result<(), DecryptError>;
 }
 
 pub(crate) mod implementations {
@@ -850,10 +840,10 @@ pub use aes::AES_256_KEY_LEN;
 pub use libcrux_traits::aead::arrayref::{DecryptError, EncryptError, KeyGenError};
 
 /// Generic AES-based AEAD encrypt.
-pub(crate) fn encrypt<S: State>(
+pub(crate) fn encrypt<Aad: core::iter::ExactSizeIterator<Item = u8>, S: AeadState<Aad>>(
     key: &[u8],
     nonce: &[u8],
-    aad: impl core::iter::ExactSizeIterator<Item = u8>,
+    aad: Aad,
     plaintext: &mut [u8],
     tag: &mut [u8],
 ) -> Result<(), EncryptError> {
@@ -868,10 +858,10 @@ pub(crate) fn encrypt<S: State>(
 }
 
 /// Generic AES-based AEAD decrypt.
-pub(crate) fn decrypt<S: State>(
+pub(crate) fn decrypt<Aad: core::iter::ExactSizeIterator<Item = u8>, S: AeadState<Aad>>(
     key: &[u8],
     nonce: &[u8],
-    aad: impl core::iter::ExactSizeIterator<Item = u8>,
+    aad: Aad,
     ciphertext: &mut [u8],
     tag: &[u8],
 ) -> Result<(), DecryptError> {
@@ -894,28 +884,28 @@ macro_rules! pub_crate_mod {
 
             #[doc = $variant_comment]
             /// encrypt.
-            pub fn encrypt(
+            pub fn encrypt<Aad: core::iter::ExactSizeIterator<Item = u8>>(
                 key: &[u8],
                 nonce: &[u8],
-                aad: impl core::iter::ExactSizeIterator<Item = u8>,
+                aad: Aad,
                 plaintext: &mut [u8],
                 tag: &mut [u8],
             ) -> Result<(), EncryptError> {
                 debug_assert!(key.len() == $key_len);
-                crate::encrypt::<State>(key, nonce, aad, plaintext, tag)
+                crate::encrypt::<Aad, State>(key, nonce, aad, plaintext, tag)
             }
 
             #[doc = $variant_comment]
             /// decrypt.
-            pub fn decrypt(
+            pub fn decrypt<Aad: core::iter::ExactSizeIterator<Item = u8>>(
                 key: &[u8],
                 nonce: &[u8],
-                aad: impl core::iter::ExactSizeIterator<Item = u8>,
+                aad: Aad,
                 ciphertext: &mut [u8],
                 tag: &[u8],
             ) -> Result<(), DecryptError> {
                 debug_assert!(key.len() == $key_len);
-                crate::decrypt::<State>(key, nonce, aad, ciphertext, tag)
+                crate::decrypt::<Aad, State>(key, nonce, aad, ciphertext, tag)
             }
         }
     };

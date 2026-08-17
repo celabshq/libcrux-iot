@@ -17,8 +17,12 @@ pub(crate) struct State<T: AESState, U: GF128FieldElement, const NUM_KEYS: usize
     pub(crate) tag_mix: [u8; TAG_LEN],
 }
 
-impl<T: AESState, U: GF128FieldElement, const NUM_KEYS: usize> super::State
-    for State<T, U, NUM_KEYS>
+impl<
+        T: AESState,
+        U: GF128FieldElement,
+        const NUM_KEYS: usize,
+        Aad: core::iter::ExactSizeIterator<Item = u8>,
+    > super::AeadState<Aad> for State<T, U, NUM_KEYS>
 where
     AesCtrContext<T, NUM_KEYS, AES_GCM_CTR_LEN, AES_GCM_NONCE_START>: GcmInit,
 {
@@ -44,12 +48,7 @@ where
         self.aes_state.aes_ctr_key_block(1, &mut self.tag_mix);
     }
 
-    fn encrypt(
-        &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = u8>,
-        plaintext: &mut [u8],
-        tag: &mut [u8],
-    ) {
+    fn encrypt(&mut self, aad: Aad, plaintext: &mut [u8], tag: &mut [u8]) {
         debug_assert!(plaintext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
         debug_assert!(tag.len() == TAG_LEN);
 
@@ -71,12 +70,7 @@ where
         }
     }
 
-    fn decrypt(
-        &mut self,
-        aad: impl core::iter::ExactSizeIterator<Item = u8>,
-        ciphertext: &mut [u8],
-        tag: &[u8],
-    ) -> Result<(), DecryptError> {
+    fn decrypt(&mut self, aad: Aad, ciphertext: &mut [u8], tag: &[u8]) -> Result<(), DecryptError> {
         debug_assert!(ciphertext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
         debug_assert!(tag.len() == TAG_LEN);
 
