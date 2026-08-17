@@ -65,12 +65,7 @@ where
 
     /// Verify authentication tag, and if valid decrypt
     /// plaintext from ciphertext.
-    fn decrypt<'a>(
-        &mut self,
-        aad: Aad,
-        ciphertext: &mut [u8],
-        tag: &[u8],
-    ) -> Result<(), DecryptError> {
+    fn decrypt(&mut self, aad: Aad, ciphertext: &mut [u8], tag: &[u8]) -> Result<(), DecryptError> {
         debug_assert_eq!(tag.len(), TAG_LEN);
 
         // Feed accumulator with AAD.
