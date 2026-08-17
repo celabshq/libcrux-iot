@@ -1971,6 +1971,131 @@ theorem deserialize_then_decompress_ring_element_v_fc
                 = .ok (lift_poly p) ⌝ ⦄ := by
   sorry
 
+/-! ### PROVER bank toward the POSITIVE L5.3 proof.
+
+    The section above shows the locked L5.3 Triple is FALSE as written, so it is not
+    closable. Everything here is stated UNDER the source's `#[hax_lib::requires]`
+    (`ml-kem/src/serialize.rs` 337-340), i.e. it is what the RE-LOCKED obligation will
+    need; nothing here is used by, weakens, or hypothesises the locked statement,
+    which keeps its `sorry`.
+
+    `specreq_L53_dispatch_eq_d4` (above) is the `d = 4` half of the first rung;
+    `L53_dispatch_eq_d5` completes it, and `L53_dispatch_of_pre` is the rung itself:
+    under the dv-conjunct the dispatcher reduces to exactly one of the two real arms,
+    with the `unreachable!()` arm eliminated. `specreq_L53_d4_empty_ok` (above) is the
+    reusable `cs = 8` instantiation of the `chunks_exact` loop combinator. What remains
+    for the positive proof is the per-chunk commute work at `d = 4` (8 bytes → 16 lanes)
+    and `d = 5` (10 bytes → 16 lanes), plus `Decompress_d`. -/
+
+section L53Bank
+
+/-- `V_COMPRESSION_FACTOR = 5` dispatches to `deserialize_then_decompress_5` — the
+    `d = 5` companion of `specreq_L53_dispatch_eq_d4`. -/
+private theorem L53_dispatch_eq_d5 (K : Std.Usize) (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst) K 5#usize serialized output
+    = libcrux_iot_ml_kem.serialize.deserialize_then_decompress_5
+        (vectortraitsOperationsInst := portable_ops_inst) serialized output := by
+  simp only [libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+/-- **First rung of the positive L5.3 proof**: under the dv-conjunct of the source's
+    `requires`, the dispatcher reduces to exactly one of the two real arms — the
+    `unreachable!()` arm that `specreq_L53_refuted_at_dv_zero` exploits is gone. -/
+private theorem L53_dispatch_of_pre (K V_COMPRESSION_FACTOR : Std.Usize)
+    (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_dv : V_COMPRESSION_FACTOR.val = 4 ∨ V_COMPRESSION_FACTOR.val = 5) :
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst)
+      K V_COMPRESSION_FACTOR serialized output
+    = if V_COMPRESSION_FACTOR.val = 4 then
+        libcrux_iot_ml_kem.serialize.deserialize_then_decompress_4
+          (vectortraitsOperationsInst := portable_ops_inst) serialized output
+      else
+        libcrux_iot_ml_kem.serialize.deserialize_then_decompress_5
+          (vectortraitsOperationsInst := portable_ops_inst) serialized output := by
+  rcases h_dv with h | h
+  · rw [show V_COMPRESSION_FACTOR = 4#usize from Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac),
+      specreq_L53_dispatch_eq_d4]
+    simp
+  · rw [show V_COMPRESSION_FACTOR = 5#usize from Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac),
+      L53_dispatch_eq_d5]
+    simp
+
+/-- Spec-side normal form: `deserialize_then_decompress_v` is `ByteDecode_dv` followed
+    by `Decompress_dv`. Stated once so the positive proof never unfolds it inline. -/
+private theorem L53_spec_unfold (s : Slice Std.U8) (dv : Std.Usize) :
+    hacspec_ml_kem.serialize.deserialize_then_decompress_v s dv
+    = (do let a ← hacspec_ml_kem.serialize.byte_decode_dyn s dv
+          hacspec_ml_kem.compress.decompress a dv) := rfl
+
+end L53Bank
+
+/-! ### SPECREQ evidence for L5.4 (`compress_then_serialize_ring_element_v_fc`).
+
+    L5.4 carries the SAME defect as L5.3, and it is the next obligation in the queue.
+    Its source (`ml-kem/src/serialize.rs` 231-234) carries
+
+        #[hax_lib::requires(
+            out.len() == C2_LEN &&
+            (V_COMPRESSION_FACTOR == 4 && C2_LEN == 128 ||
+                V_COMPRESSION_FACTOR == 5 && C2_LEN == 160))]
+
+    but the scaffold transcribed only the `out.len() == C2_LEN` conjunct (as the binder
+    `h_len`). `compress_then_serialize_ring_element_v` dispatches on the same
+    `match V_COMPRESSION_FACTOR as u32 { 4, 5, _ => unreachable!() }`, so
+    `V_COMPRESSION_FACTOR = 0` refutes the L5.4 Triple by the identical argument.
+
+    The refutation below carries L5.4's `h_len` binder, so it refutes the obligation in
+    its own exact shape rather than a convenient variant: the dropped conjunct is not
+    recoverable from the one the scaffold kept. The L5.3 dispatch above was proved with
+    the same three-lemma `simp only` normal form, so this cost one rung, not a dispatch.
+
+    This is evidence, not a statement edit: L5.4's `sorry` stands untouched. -/
+
+section SpecreqL54
+
+/-- `V_COMPRESSION_FACTOR = 0` takes the `unreachable!()` arm of the L5.4 dispatcher. -/
+private theorem specreq_L54_dispatch_fail_of_dv_zero (K C2_LEN : Std.Usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst) K 0#usize C2_LEN re out scratch
+    = .fail .panic := by
+  simp only [libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+/-- **Counterexample (L5.4)** — the L5.4 post-condition shape at `V_COMPRESSION_FACTOR = 0`
+    is refutable for every `K`, `C2_LEN`, `re`, `out`, `scratch`, INCLUDING under L5.4's
+    own `h_len : out.length = C2_LEN.val` binder. -/
+private theorem specreq_L54_refuted_at_dv_zero (K C2_LEN : Std.Usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_len : out.length = C2_LEN.val) :
+    ¬ (⦃ ⌜ True ⌝ ⦄
+       libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
+         (vectortraitsOperationsInst := portable_ops_inst) K 0#usize C2_LEN re out scratch
+       ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 C2_LEN,
+                    hacspec_ml_kem.serialize.compress_then_serialize_v
+                        C2_LEN (lift_poly re) 0#usize
+                      = .ok enc
+                    ∧ p.1.length = C2_LEN.val
+                    ∧ ∀ ℓ : Nat, ℓ < C2_LEN.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄) := by
+  rw [specreq_L54_dispatch_fail_of_dv_zero]
+  simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply]
+
+end SpecreqL54
+
 /-- L5.4 — `serialize.compress_then_serialize_ring_element_v`.
 
     The encode direction of L5.3: `Compress_dv` then `ByteEncode_dv`. The impl
