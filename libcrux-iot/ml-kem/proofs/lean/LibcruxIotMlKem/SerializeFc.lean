@@ -1754,26 +1754,11 @@ private theorem lift_poly_raw
 
 end L56Bank
 
-/-! ## Message (de)serialization — `d = 1`, exact 1:1 with the hacspec model. -/
+/-! ## Message (de)serialization — `d = 1`, exact 1:1 with the hacspec model.
 
-/-- L5.1 — `serialize.deserialize_then_decompress_message`.
-
-    FIPS-203 message decode: 32 bytes → 256 coefficients, each bit `b` mapped to
-    `Decompress_1(b)`. The hacspec counterpart takes the same fixed-size 32-byte
-    array and returns the ring element directly, so the binding is exact: no
-    length side conditions, no chunk indexing. -/
-@[spec]
-theorem deserialize_then_decompress_message_fc
-    (serialized : Std.Array Std.U8 32#usize)
-    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
-            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    ⦃ ⌜ True ⌝ ⦄
-    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_message
-      (vectortraitsOperationsInst := portable_ops_inst)
-      serialized re
-    ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_message serialized
-                = .ok (lift_poly p) ⌝ ⦄ := by
-  sorry
+    L5.1 (`deserialize_then_decompress_message_fc`) is stated at the END of this
+    file, after its `L51Bank` section: it assembles `message_impl_fc` and
+    `message_spec_eq`, which must therefore precede it. -/
 
 /-- L5.2 — `serialize.compress_then_serialize_message`.
 
@@ -3051,6 +3036,183 @@ private theorem byte_decode_1_get (a : Std.Array Std.U8 32#usize) :
       List.getElem?_range (by rw [h256]; exact hk)]
     rfl
 
+/-! ### Spec side — `Decompress_1` as `b ↦ b * 1665`.
+
+    Port of `lemma_decompress_1_fe_commute` (`Commute.Chunk.fst`). The spec's
+    `decompress_d` is the FIPS-203 rounding formula
+    `⌊(2·fe·q + 2^d) / 2^(d+1)⌉`; at `d = 1` and `fe ∈ {0,1}` it collapses to
+    `(6658·fe + 2) / 4 = 1665·fe`, which is exactly the impl's `(-b) & 1665`
+    (`decompress_1_eq` above). Every intermediate is kept SYMBOLIC in `Nat`:
+    `2 ^ d` never becomes a closed large scalar. -/
+
+private theorem u32_mul_ok (x y : Std.U32) (hb : x.val * y.val ≤ Std.U32.max) :
+    ∃ z : Std.U32, (x * y : Result Std.U32) = .ok z ∧ z.val = x.val * y.val := by
+  obtain ⟨z, hz, hv, _⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.mul_bv_spec (x := x) (y := y) (by scalar_tac))
+  exact ⟨z, hz, hv⟩
+
+private theorem u32_add_ok (x y : Std.U32) (hb : x.val + y.val ≤ Std.U32.max) :
+    ∃ z : Std.U32, (x + y : Result Std.U32) = .ok z ∧ z.val = x.val + y.val := by
+  obtain ⟨z, hz, hv, _⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.add_bv_spec (x := x) (y := y) (by scalar_tac))
+  exact ⟨z, hz, hv⟩
+
+private theorem u32_div_ok (x y : Std.U32) (hy : 0 < y.val) :
+    ∃ z : Std.U32, (x / y : Result Std.U32) = .ok z ∧ z.val = x.val / y.val := by
+  obtain ⟨z, hz, hv⟩ := Std.UScalar.div_spec (ty := .U32) x (y := y) (by omega)
+  exact ⟨z, hz, hv⟩
+
+/-- `Decompress_1(b) = 1665 · b` for `b ∈ {0,1}` — the spec-side half of
+    `lemma_decompress_1_fe_commute`. -/
+private theorem decompress_d_1_eq (fe : hacspec_ml_kem.parameters.FieldElement)
+    (hfe : fe.val.val < 2) :
+    hacspec_ml_kem.compress.decompress_d fe 1#usize
+      = .ok { val := u16OfNat (fe.val.val * 1665) } := by
+  obtain ⟨t2, hshl, hshlv⟩ := u16_shl_one_ok (1#usize) (by scalar_tac)
+  have h1u : ((1#usize : Std.Usize)).val = 1 := by scalar_tac
+  have ht2 : t2.val = 2 := by rw [hshlv, h1u]; norm_num
+  have hass1 : ((1#usize : Std.Usize) < (12#usize : Std.Usize)) := by scalar_tac
+  have hass2 : fe.val < t2 := by
+    have : fe.val.val < t2.val := by omega
+    scalar_tac
+  have hc1 : Std.UScalar.cast .U32 (1#usize : Std.Usize) = (1#u32 : Std.U32) := by
+    refine Std.UScalar.eq_of_val_eq ?_
+    rw [Std.UScalar.cast_val_eq, h1u]; scalar_tac
+  have hc3329 : Std.UScalar.cast .U32 (3329#u16 : Std.U16) = (3329#u32 : Std.U32) := by
+    refine Std.UScalar.eq_of_val_eq ?_
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have hcfe : (Std.UScalar.cast .U32 fe.val).val = fe.val.val := by
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have hpow : CoreModels.core.num.U32.pow 2#u32 (1#u32 : Std.U32) = .ok (2#u32 : Std.U32) := rfl
+  have h2 : ((2#u32 : Std.U32)).val = 2 := by scalar_tac
+  have h3329 : ((3329#u32 : Std.U32)).val = 3329 := by scalar_tac
+  obtain ⟨i3, hi3, hi3v⟩ := u32_mul_ok 2#u32 (Std.UScalar.cast .U32 fe.val) (by
+    rw [hcfe, h2]; scalar_tac)
+  obtain ⟨i5, hi5, hi5v⟩ := u32_mul_ok i3 3329#u32 (by
+    rw [hi3v, hcfe, h2, h3329]; scalar_tac)
+  obtain ⟨num, hnum, hnumv⟩ := u32_add_ok i5 2#u32 (by
+    rw [hi5v, hi3v, hcfe, h2, h3329]; scalar_tac)
+  obtain ⟨i6, hi6, hi6v⟩ := u32_mul_ok 2#u32 2#u32 (by rw [h2]; scalar_tac)
+  obtain ⟨dec, hdec, hdecv⟩ := u32_div_ok num i6 (by rw [hi6v, h2]; omega)
+  have hdecv' : dec.val = fe.val.val * 1665 := by
+    rw [hdecv, hnumv, hi5v, hi3v, hcfe, hi6v, h2, h3329]
+    omega
+  have hfinal : Std.UScalar.cast .U16 dec = u16OfNat (fe.val.val * 1665) := by
+    refine Std.UScalar.eq_of_val_eq ?_
+    rw [Std.UScalar.cast_val_eq, u16OfNat_val _ (by rw [← hdecv']; scalar_tac), hdecv']
+    have h16 : (Std.UScalarTy.U16).numBits = 16 := rfl
+    rw [h16]
+    exact Nat.mod_eq_of_lt (by omega)
+  unfold hacspec_ml_kem.compress.decompress_d
+  simp only [Aeneas.Std.massert, hacspec_ml_kem.parameters.FIELD_MODULUS,
+    hacspec_ml_kem.parameters.FieldElement.new, Aeneas.Std.lift,
+    Aeneas.Std.bind_tc_ok, hshl, if_pos hass1, if_pos hass2, hc1, hc3329, hpow,
+    hi3, hi5, hnum, hi6, hdec, hfinal]
+
+/-- The `decompress` `createi` closure at `d = 1`, index `k`. -/
+private theorem decompress_closure_1_eq
+    (arr : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (k : Nat) (hk : k < 256) (b : Nat) (hb : b < 2)
+    (hval : (arr.val[k]!).val.val = b) :
+    (hacspec_ml_kem.compress.decompress.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement).call_mut
+        ((arr, 1#usize) : hacspec_ml_kem.compress.decompress.closure)
+        (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      = .ok (({ val := u16OfNat (b * 1665) } : hacspec_ml_kem.parameters.FieldElement),
+             ((arr, 1#usize) : hacspec_ml_kem.compress.decompress.closure)) := by
+  have hkv := usize_ofNat_val k (by omega)
+  have hlen : arr.val.length = 256 := by have := arr.property; simpa using this
+  have hidx : Aeneas.Std.Array.index_usize arr (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      = .ok (arr.val[k]!) := by
+    have := array_index_ok arr (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [hkv, hlen]; exact hk)
+    rw [hkv] at this; exact this
+  have hdd := decompress_d_1_eq (arr.val[k]!) (by rw [hval]; exact hb)
+  rw [hval] at hdd
+  show (do
+      let fe ← Aeneas.Std.Array.index_usize arr (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      let fe1 ← hacspec_ml_kem.compress.decompress_d fe (1#usize : Std.Usize)
+      Result.ok (fe1, ((arr, 1#usize) : hacspec_ml_kem.compress.decompress.closure))) = _
+  rw [hidx]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hdd]; simp only [Aeneas.Std.bind_tc_ok]; rfl
+
+/-! ### The `lift` seam at `d = 1`: an impl lane of `1665·b` IS `Decompress_1(b)`.
+
+    Impl-side normal form is `bv.toNat ∈ {0, 1665}` (`decompress_1_eq`); the
+    spec-side normal form is `FieldElement.new (1665·b)`. Both are below `q`, so
+    the canonical-residue projection of `lift_fe` is the identity here. -/
+
+private theorem lift_fe_of_toNat (lane : Std.I16) (n : Nat) (hn : n < 3329)
+    (h : lane.bv.toNat = n) :
+    lift_fe lane = { val := u16OfNat n } := by
+  have hlt : lane.bv.toNat < 4096 := by rw [h]; omega
+  rw [lift_fe_of_nat lane n (by rw [i16_val_of_toNat lane hlt, h]),
+    Nat.mod_eq_of_lt hn]
+
+/-- **The apex, spec side**: `byte_decode 256 · 1` followed by `Decompress_1`
+    reproduces `lift_poly p` whenever `p`'s lanes hold `1665 ·` the message bit. -/
+private theorem message_spec_eq
+    (serialized : Std.Array Std.U8 32#usize)
+    (p : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hp : msglane serialized.val p 16) :
+    hacspec_ml_kem.serialize.deserialize_then_decompress_message serialized
+      = .ok (lift_poly p) := by
+  obtain ⟨arr, harr, harrget⟩ := byte_decode_1_get serialized
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
+      (T := hacspec_ml_kem.parameters.FieldElement)
+      (256#usize : Std.Usize)
+      hacspec_ml_kem.compress.decompress.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+      ((arr, 1#usize) : hacspec_ml_kem.compress.decompress.closure)
+      (fun k => lift_fe (p.coefficients.val[k / 16]!).elements.val[k % 16]!)
+      (fun k hk => by
+        have hk256 : k < 256 := by rw [h256] at hk; exact hk
+        -- the spec lane holds the raw bit …
+        have hbitval : (arr.val[k]!).val.val
+            = (if sliceBit serialized.val k then 1 else 0) := by
+          rw [harrget k hk256]
+          exact u16OfNat_val _ (by split <;> scalar_tac)
+        -- … and the impl lane holds `1665 ·` it.
+        have hlane : ((p.coefficients.val[k / 16]!).elements.val[k % 16]!).bv.toNat
+            = (if sliceBit serialized.val k then 1665 else 0) := by
+          have := hp (k / 16) (by omega) (k % 16) (by omega)
+          rw [show 16 * (k / 16) + k % 16 = k from by omega] at this
+          exact this
+        rw [decompress_closure_1_eq arr k hk256 _ (by split <;> omega) hbitval,
+          lift_fe_of_toNat _ _ (by split <;> omega) hlane]
+        congr 2
+        split <;> norm_num)
+  unfold hacspec_ml_kem.serialize.deserialize_then_decompress_message
+  rw [harr]
+  simp only [Aeneas.Std.bind_tc_ok, hacspec_ml_kem.compress.decompress,
+    hacspec_ml_kem.parameters.createi, hfn]
+  rfl
+
 end L51Bank
+
+/-- L5.1 — `serialize.deserialize_then_decompress_message`.
+
+    FIPS-203 message decode: 32 bytes → 256 coefficients, each bit `b` mapped to
+    `Decompress_1(b)`. The hacspec counterpart takes the same fixed-size 32-byte
+    array and returns the ring element directly, so the binding is exact: no
+    length side conditions, no chunk indexing.
+
+    Stated after the `L51Bank` section so the two halves it assembles —
+    `message_impl_fc` (the 16-chunk `deserialize_1`/`decompress_1` loop) and
+    `message_spec_eq` (`ByteDecode_1` ∘ `Decompress_1`) — are already in scope. -/
+@[spec]
+theorem deserialize_then_decompress_message_fc
+    (serialized : Std.Array Std.U8 32#usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_message
+      (vectortraitsOperationsInst := portable_ops_inst)
+      serialized re
+    ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_message serialized
+                = .ok (lift_poly p) ⌝ ⦄ := by
+  -- Impl side: the 16-chunk loop puts `1665 · bit` in every lane.
+  obtain ⟨p, hp_eq, hp⟩ := triple_exists_ok_fc (message_impl_fc serialized re)
+  -- Spec side: `ByteDecode_1` then `Decompress_1` reproduces exactly those lanes.
+  exact triple_of_ok_fc hp_eq (message_spec_eq serialized p ((holds_ok _).mp hp))
 
 end libcrux_iot_ml_kem.SerializeFc
