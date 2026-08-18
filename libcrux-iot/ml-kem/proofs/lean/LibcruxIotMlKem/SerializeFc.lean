@@ -1961,14 +1961,26 @@ theorem deserialize_then_decompress_ring_element_v_fc
     (K V_COMPRESSION_FACTOR : Std.Usize)
     (serialized : Slice Std.U8)
     (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
-                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    -- RESTATED 2026-08-18. The previous form had NO hypotheses and a `⌜True⌝` pre; it
+    -- was FALSE, and this file proves it so (`specreq_L53_refuted_at_dv_zero`, and again
+    -- at dv = 4 with an empty slice). Hypotheses transcribed VERBATIM from the upstream
+    -- contract (libcrux-ml-kem/src/serialize.rs):
+    --   is_rank $K /\ $COMPRESSION_FACTOR == vector_v_compression_factor $K
+    --   /\ Seq.length $serialized == 32 * v $COMPRESSION_FACTOR
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
+    (h_cf : hacspec_ml_kem.parameters.vector_v_compression_factor K
+              = .ok V_COMPRESSION_FACTOR)
+    (h_len : serialized.length = 32 * V_COMPRESSION_FACTOR.val) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_v
       (vectortraitsOperationsInst := portable_ops_inst)
       K V_COMPRESSION_FACTOR serialized output
     ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_v
                   serialized V_COMPRESSION_FACTOR
-                = .ok (lift_poly p) ⌝ ⦄ := by
+                = .ok (lift_poly p)
+                ∧ (∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                    ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 4095) ⌝ ⦄ := by
   sorry
 
 /-! ### PROVER bank toward the POSITIVE L5.3 proof.
@@ -2110,7 +2122,23 @@ theorem compress_then_serialize_ring_element_v_fc
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (out : Slice Std.U8)
     (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (h_len : out.length = C2_LEN.val) :
+    -- RESTATED 2026-08-18. The previous form carried only `h_len` and was FALSE; this
+    -- file proves it so (the dv-dispatch refutation). Hypotheses transcribed VERBATIM
+    -- from the upstream contract (libcrux-ml-kem/src/serialize.rs):
+    --   is_rank v_K /\ $COMPRESSION_FACTOR == vector_v_compression_factor v_K
+    --   /\ Seq.length $out == v $OUT_LEN /\ v $OUT_LEN == 32 * v $COMPRESSION_FACTOR
+    --   /\ is_bounded_poly (sz 3328) $re
+    -- The LAST conjunct is the one whose absence cost $71.82 on the sibling encode
+    -- obligation: `byte_encode` reads a canonicalised `FieldElement.val` while the impl
+    -- adds q at most once, so an unreduced coefficient makes impl and spec disagree
+    -- (witness: lane 3400 -> impl byte 0x48, spec byte 0x47).
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
+    (h_cf : hacspec_ml_kem.parameters.vector_v_compression_factor K
+              = .ok V_COMPRESSION_FACTOR)
+    (h_len : out.length = C2_LEN.val)
+    (h_c2 : C2_LEN.val = 32 * V_COMPRESSION_FACTOR.val)
+    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
       (vectortraitsOperationsInst := portable_ops_inst)
