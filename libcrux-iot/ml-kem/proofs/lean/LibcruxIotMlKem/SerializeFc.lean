@@ -5075,7 +5075,29 @@ section MCPBank
     `d`; see the two corrections in the bank docstring. -/
 theorem compress_barrett_eq (x d : Nat) (hx : x < 3329) (hd : d < 12) :
     ((x * 2 ^ d + 1664) * 10321340) / 2 ^ 35 = (2 * x * 2 ^ d + 3329) / 6658 := by
-  sorry
+  -- The whole content of the identity is a statement about `m = x * 2 ^ d` alone: the
+  -- exponent never has to be unfolded, only bounded.  Split the two concerns.
+  --
+  -- (1) The magic constant is exact on the range that matters.  With `n = m + 1664` and
+  -- `n = 3329 * q + r`, the honest side is `(2 * n + 1) / 6658 = q` because `2 * r + 1` is
+  -- below 6658; the Barrett side is `q` because `3329 * 10321340 = 2 ^ 35 + 2492`, so the
+  -- slack `2492 * q + 10321340 * r` stays under `2 ^ 35` as long as `q ≤ 4140`, and
+  -- `m ≤ 6815744` gives `q ≤ 2047`.  Both divisors are literals, so this is linear integer
+  -- arithmetic once `m` is abstract, and `omega` does it in one step.
+  have key : ∀ m : Nat, m ≤ 6815744 →
+      ((m + 1664) * 10321340) / 2 ^ 35 = (2 * m + 3329) / 6658 := by
+    intro m hm; omega
+  -- (2) `hx` and `hd` are exactly what pins `m` into that range: `3328 * 2048 = 6815744`.
+  -- This is where `hx : x < 3329` is load-bearing — the identity genuinely fails above it,
+  -- first at `x = 14566` (d = 10) and `x = 7283` (d = 11).
+  have h2 : (2 : Nat) ^ d ≤ 2048 :=
+    calc (2 : Nat) ^ d ≤ 2 ^ 11 := Nat.pow_le_pow_right (by norm_num) (by omega)
+      _ = 2048 := by norm_num
+  have hm : x * 2 ^ d ≤ 6815744 :=
+    calc x * 2 ^ d ≤ 3328 * 2048 := Nat.mul_le_mul (by omega) h2
+      _ = 6815744 := by norm_num
+  rw [show 2 * x * 2 ^ d = 2 * (x * 2 ^ d) from by ring]
+  exact key _ hm
 
 /-- **M-C′(2) — the IMPL seam.** `compress_ciphertext_coefficient` in closed `Nat` form.
     Carries the u64 no-wrap obligation (`wrapping_add`/`wrapping_mul`: worst case
