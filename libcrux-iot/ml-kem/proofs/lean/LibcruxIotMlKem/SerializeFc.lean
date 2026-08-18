@@ -1752,6 +1752,101 @@ private theorem lift_poly_raw
   rw [hget, lift_fe_raw]
   rfl
 
+/-! ### M-B — the spec-side `createi` chain and the `byte_encode_into` wrapper.
+
+    THE EXEMPLAR (readiness map §3 #1, re-ranked #1 in AMENDMENTS 3 §P1.8). These
+    two are the UNIQUE remaining blocker for L5.6: everything else this file needs
+    for the encode direction is already banked above — the impl-side 24-byte
+    `serialize_12` closed form (`:1120`), the 16-iteration range loop (`:1388`),
+    and the encode keystone `bitSum_encBit_eq_encByte` (`:1673`), which is the
+    MATHEMATICS. What is missing is only PLUMBING: identifying `byte_encode`'s
+    three-level `createi` chain with the pure byte function `encByte`, and then
+    threading it through the `to_slice`/`copy_from_slice` wrapper.
+
+    ## Shape
+
+    Follow `bytes_to_bits_get` (`:854`) — the decode-side analogue, ~30 lines over
+    `Util.CreateI.from_fn_pure_eq` / `createi_pure_eq`. The existential form is
+    deliberate and is the CORRECTED shape: the readiness map's original sketch
+    wrote the result as `.ok ⟨fun n => …⟩`, which does not elaborate —
+    `createi_pure_eq` concludes at `Result.ok ⟨List.map f (List.range ↑N), _⟩`, so
+    the payload is a `List.map`, not a function, and the map's second sketch left
+    its `s` unbound. Stating `∃ out, … = .ok out ∧ (pointwise)` sidesteps both and
+    matches the idiom the decode side already uses.
+
+    ## Why there is NO bound hypothesis (verified, not assumed)
+
+    Both statements are UNCONDITIONAL. `encLane` is `(x.val % 3329).toNat` — the
+    canonical residue by mathematical `%` — and `lift_poly_raw` (just above) proves
+    `((lift_poly re).val[j]!).val).val = encLane re j` with no side condition. So on
+    the SPEC side the canonicalisation has already happened and no `is_bounded_poly`
+    is needed.
+
+    The `h_bnd : natAbs ≤ 3328` that L5.6's own statement carries belongs to a
+    DIFFERENT seam: the impl's `to_unsigned_field_modulus` adds q AT MOST ONCE, so
+    it agrees with the canonical residue only for a reduced lane. That seam is
+    `to_unsigned_fm_eq` (`:979`) and is already banked. Keeping the bound out of
+    M-B is what isolates plumbing from mathematics.
+
+    Machine-checked before locking (`references/mlkem-falsify-harness.lean`): both
+    statements hold for all 6657 admissible lane values AND for 60 random polys with
+    lanes drawn from the full I16 range, including the all-`32767` and all-`-32768`
+    corners — i.e. they survive massive violations of `h_bnd`, which is what shows
+    the hypothesis would be dead weight rather than load-bearing.
+
+    ## Kinds covered
+
+    K4 (sub-byte field packing, ENCODE) — closing the one PARTIAL entry in the §1
+    taxonomy — and K11 for the ENCODE direction, whose terminal `bits_to_bytes` is
+    MANY-TO-ONE (each byte folds 8 bools) where every decode generator is
+    one-to-many and pointwise. That asymmetry is the "dimension of difference" from
+    `bytes_to_bits_get`, and it is why the window lemma `bitSum_encBit_eq_encByte`
+    had to exist at all.
+
+    ## Provenance
+
+    MINE, DO NOT PORT. The F* ladder `lemma_bitvec_from_bounded_index_d` →
+    `lemma_bits_to_bytes_bit_d` → `lemma_byte_encode_bit_d` → `lemma_serialize_byte_eq_d`
+    (`Hacspec_ml_kem.Commute.Serialize_compress.fst`) is a source of SPEC and of
+    similarity signals only; its SMT-shaped lemma structure is not to be copied. -/
+
+/-- **M-B(1)** — `byte_encode` at `d = 12` produces exactly the pure model
+    `encByte`. This is the spec-side `createi` chain: `byte_encode.closure` reads
+    `(p[j]).val`, `bitvector_from_bounded_ints` expands it to 3072 bits, and
+    `bits_to_bytes` folds each 8-bit window back to a byte.
+
+    The keystone `bitSum_encBit_eq_encByte` (`:1673`) already proves the WINDOW
+    identity; what remains is to normalise the three `createi` levels onto it via
+    `Util.CreateI.createi_pure_eq` / `from_fn_pure_eq`, exactly as
+    `bytes_to_bits_get` does for the decode direction. -/
+theorem byte_encode_12_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ∃ out : Std.Array Std.U8 384#usize,
+      hacspec_ml_kem.serialize.byte_encode 384#usize 3072#usize (lift_poly re) 12#usize
+        = .ok out
+      ∧ ∀ n : Nat, n < 384 → (out.val[n]!).val = encByte re n := by
+  sorry
+
+/-- **M-B(2)** — the `byte_encode_into` slice wrapper. At `d = 12` the spec
+    dispatches (`match d.val with | 12 => …`) to `byte_encode 384 3072 p 12`, then
+    `Array.to_slice` and `copy_from_slice` into the caller's buffer. So this is
+    M-B(1) plus the wrapper every encode obligation goes through; the `massert`s on
+    `d ≤ BITS_PER_COEFFICIENT` and `out.len = 32 * d` discharge from `h_len`.
+
+    This is the form L5.6's post is stated against, so it is the apex of the pair. -/
+theorem byte_encode_into_12_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (serialized : Slice Std.U8)
+    (h_len : serialized.length = 384) :
+    ∃ s : Slice Std.U8,
+      hacspec_ml_kem.serialize.byte_encode_into (lift_poly re) 12#usize serialized
+        = .ok s
+      ∧ s.length = 384
+      ∧ ∀ n : Nat, n < 384 → (s.val[n]!).val = encByte re n := by
+  sorry
+
 end L56Bank
 
 /-! ## Message (de)serialization — `d = 1`, exact 1:1 with the hacspec model.
