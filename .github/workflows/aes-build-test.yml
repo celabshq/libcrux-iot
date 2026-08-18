@@ -44,7 +44,7 @@ jobs:
       - name: 🔨 Build
         run: |
           rustc --print=cfg
-          cargo build --verbose
+          cargo build --verbose --all-targets
 
       - name: 🔨 Build Release
         run: cargo build --verbose --release
