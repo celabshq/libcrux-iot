@@ -4583,6 +4583,95 @@ private theorem message_spec_eq
 
 end L51Bank
 
+/-! ## M-E — DECOMPRESS at a general `d` (kind K6).
+
+    THE EXEMPLAR for readiness-map kind K6, which is `PARTIAL — d = 1 only`. At `d = 1`
+    the value set is `{0, 1665}`, so the whole thing is a two-case `decide`; there is no
+    rounding argument at all. At a general `d` there is: an arithmetic shift right on a
+    signed 32-bit value has to be identified with floor division, and the `.as_i16()`
+    truncation at the end has to be shown faithful.
+
+    BOTH SIDES ARE ABSENT at general `d`, which is why this bank has two statements
+    rather than one. The tree's `decompress_d_1_eq` (`:4461`) is the SPEC side at
+    `d = 1`; the IMPL side at `d = 1` is `decompress_1` (`:4272`, a `negate`-then-`& 1665`
+    special case that shares no code with the general path). Neither transfers.
+
+    ## Falsified before locking (`references/mlkem-falsify-harness.lean`)
+
+    SPEC side: EXHAUSTIVE over every `x < 2 ^ d` at `d ∈ {1,4,5,10,11}`, and swept over
+    EVERY `d < 12` (first 300 values each). Zero counterexamples — so the closed form is
+    generic in `d < 12`, not merely valid at the four widths ML-KEM instantiates. Stated
+    generically for that reason.
+    IMPL side: `d ∈ {4,5,10,11}`, 25 random lane-vectors each plus the `0` and `2^d - 1`
+    boundary vectors. Zero counterexamples.
+    NEGATIVE CONTROL: with lanes NOT `< 2 ^ d` the impl statement is REFUTED immediately
+    (lanes come back as arbitrary signed junk, e.g. `-16026`, because `.as_i16()`
+    truncates a result that no longer fits). `hlane` is load-bearing, not decoration —
+    this is the `pair it with a < 2^d` caveat AMENDMENTS 2 records for M-E, now measured.
+
+    ## On the precondition — ours is deliberately STRONGER than the Rust's
+
+    iot `ml-kem/src/vector/portable/compress.rs:89` says
+    `#[hax_lib::requires(0 <= COEFFICIENT_BITS && COEFFICIENT_BITS < 31)]`. That is a
+    PANIC-FREEDOM precondition (it keeps the shift well-defined), NOT a correctness one:
+    verified by hand that no `I32` overflow is possible for ANY `I16` lane at any `d < 31`
+    (`2 · 32767 · 3329 + 2 ^ 30 = 1,291,904,510 < 2 ^ 31`). Correctness of the RESULT needs
+    more, and the extra hypotheses are not invented — `hd` is the spec's own
+    `massert (to_bit_size < 12)` and `hlane` is its own `massert (fe.val < 1 <<< d)`.
+    Transcribing only the Rust `requires` would give a TRUE panic-freedom statement that
+    says nothing about decompression, which is the "true but useless for composition"
+    failure mode `references/mlkem-inc1-contracts.txt` rule 2 exists to prevent.
+
+    ## Provenance
+
+    MINE, DO NOT PORT. ml-dsa `Vector/Portable/Rounding.lean:65` `sshiftRight_val_i32` is
+    a full exemplar for the shift-is-division step and is `private` — a template to COPY,
+    never to import (it is a different lake package). -/
+
+section MEBank
+
+/-- **M-E(1) — the SPEC side at a general `d`.** `Decompress_d(x) = (2x·q + 2^d) / 2^(d+1)`.
+    Generalises `decompress_d_1_eq` (`:4461`) off `d = 1`, where the value set is `{0,1665}`
+    and no rounding argument is needed. The two `massert`s discharge from `hd` and `hfe`;
+    the result is `< 3329` so `FieldElement.new` is total here. -/
+theorem decompress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : Std.Usize)
+    (hd : d.val < 12) (hfe : fe.val.val < 2 ^ d.val) :
+    hacspec_ml_kem.compress.decompress_d fe d
+      = .ok { val := u16OfNat ((2 * fe.val.val * 3329 + 2 ^ d.val) / 2 ^ (d.val + 1)) } := by
+  sorry
+
+/-- **M-E(2) — the IMPL side at a general `d`, the APEX of this bank.** The 16-lane loop
+    of `decompress_ciphertext_coefficient` computes, per lane,
+    `((lane · 3329) <<< 1 + (1 <<< d)) >>> (d+1)` in `I32` and truncates back to `I16`.
+
+    Three things have to be shown and none of them arises at `d = 1`: the `I32` arithmetic
+    does not wrap (worst case `d = 11`, lane `2047`: `13,630,974 < 2 ^ 31` — note this
+    CORRECTS the readiness map body's `13,629,374`, per amendment A4); the arithmetic
+    shift right on a NON-NEGATIVE `I32` is floor division by `2 ^ (d+1)`; and the closing
+    `.as_i16()` is faithful because the result is `< 3329`.
+
+    The `0 ≤ · ∧ · < 3329` conjunct is the CONSUMER's bound, per the amended transcription
+    rule's mandatory third check: L5.3's post requires `natAbs ≤ 3328` on every lane
+    (`deserialize_then_decompress_ring_element_v_fc`), and `compute_message_fc` binds the
+    same downstream. Stating it here is what makes this bank composable rather than merely
+    true. -/
+theorem decompress_ciphertext_coefficient_gen_fc (d : Std.I32)
+    (a : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hd0 : 0 ≤ d.val) (hd : d.val < 12)
+    (hlane : ∀ i : Nat, i < 16 →
+        0 ≤ (a.elements.val[i]!).val ∧ (a.elements.val[i]!).val < 2 ^ d.val.toNat) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient d a
+    ⦃ ⇓ r => ⌜ ∀ i : Nat, i < 16 →
+                ((r.elements.val[i]!).val).toNat
+                    = (2 * ((a.elements.val[i]!).val).toNat * 3329 + 2 ^ d.val.toNat)
+                        / 2 ^ (d.val.toNat + 1)
+                  ∧ 0 ≤ (r.elements.val[i]!).val
+                  ∧ (r.elements.val[i]!).val < 3329 ⌝ ⦄ := by
+  sorry
+
+end MEBank
+
 /-- L5.1 — `serialize.deserialize_then_decompress_message`.
 
     FIPS-203 message decode: 32 bytes → 256 coefficients, each bit `b` mapped to
@@ -4624,6 +4713,8 @@ theorem deserialize_then_decompress_message_fc
     rw [hlane]; split <;> omega
   rw [i16_val_of_toNat _ hlt, hlane]
   split <;> simp
+
+
 
 
 
