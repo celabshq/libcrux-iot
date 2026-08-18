@@ -61,7 +61,7 @@ instance : Inhabited parameters.FieldElement := ⟨defaultFE⟩
     computes `(self.val + other.val) % q` via U32 lifts; this `_pure`
     extracts the `.ok` value (see `FieldElement.add_eq_ok` below for
     the pure-projection side lemma pinning the result). -/
-noncomputable def FieldElement.add_pure
+def FieldElement.add_pure
     (self other : parameters.FieldElement) : parameters.FieldElement :=
   match parameters.FieldElement.add self other with
   | .ok r => r
@@ -69,21 +69,21 @@ noncomputable def FieldElement.add_pure
 
 /-- Pure projection of `parameters.FieldElement.sub`. Mirrors
     `add_pure`; hacspec body computes `(self.val + q - other.val) % q`. -/
-noncomputable def FieldElement.sub_pure
+def FieldElement.sub_pure
     (self other : parameters.FieldElement) : parameters.FieldElement :=
   match parameters.FieldElement.sub self other with
   | .ok r => r
   | _ => defaultFE
 
 /-- Pure projection of `parameters.FieldElement.mul`. -/
-noncomputable def FieldElement.mul_pure
+def FieldElement.mul_pure
     (self other : parameters.FieldElement) : parameters.FieldElement :=
   match parameters.FieldElement.mul self other with
   | .ok r => r
   | _ => defaultFE
 
 /-- Pure projection of `parameters.FieldElement.neg`. -/
-noncomputable def FieldElement.neg_pure
+def FieldElement.neg_pure
     (self : parameters.FieldElement) : parameters.FieldElement :=
   match parameters.FieldElement.neg self with
   | .ok r => r
@@ -99,7 +99,7 @@ noncomputable def FieldElement.neg_pure
     this file. -/
 
 /-- Pure projection of `polynomial.add_to_ring_element`. -/
-noncomputable def polynomial.add_to_ring_element_pure
+def polynomial.add_to_ring_element_pure
     (lhs rhs : Std.Array parameters.FieldElement 256#usize) :
     Std.Array parameters.FieldElement 256#usize :=
   match hacspec_ml_kem.polynomial.add_to_ring_element lhs rhs with
@@ -107,7 +107,7 @@ noncomputable def polynomial.add_to_ring_element_pure
   | _ => lhs
 
 /-- Pure projection of `polynomial.poly_barrett_reduce`. -/
-noncomputable def polynomial.poly_barrett_reduce_pure
+def polynomial.poly_barrett_reduce_pure
     (p : Std.Array parameters.FieldElement 256#usize) :
     Std.Array parameters.FieldElement 256#usize :=
   match hacspec_ml_kem.polynomial.poly_barrett_reduce p with
@@ -115,7 +115,7 @@ noncomputable def polynomial.poly_barrett_reduce_pure
   | _ => p
 
 /-- Pure projection of `polynomial.subtract_reduce`. -/
-noncomputable def polynomial.subtract_reduce_pure
+def polynomial.subtract_reduce_pure
     (a b : Std.Array parameters.FieldElement 256#usize) :
     Std.Array parameters.FieldElement 256#usize :=
   match hacspec_ml_kem.polynomial.subtract_reduce a b with
@@ -739,6 +739,10 @@ theorem polynomial.add_to_ring_element_eq_ok
     A noncomputable wrapper extracting the `.ok` witness from
     `uscalar_rem_ok_U16`. Used as the pointwise function in
     `poly_barrett_reduce_eq_ok`. -/
+-- NOTE: genuinely noncomputable as written -- it uses `Classical.choose` to extract the
+-- `.ok` witness rather than computing `z % 3329` directly. Everything ELSE in the Spec
+-- layer is now computable (see the header note); this is the one real holdout, and it
+-- could be made computable by defining it directly and reproving `rem_q_U16_eq`.
 private noncomputable def rem_q_U16 (z : Std.U16) : Std.U16 :=
   have hq_ne : (parameters.FIELD_MODULUS : Std.U16).val ≠ 0 := by
     unfold parameters.FIELD_MODULUS; decide

@@ -26,11 +26,11 @@ open libcrux_iot_ml_kem.Spec
 
 /-- Default `FieldElement` used by `[i]!` projections inside the
     lift bodies below. The canonical residue 0 mod q. -/
-noncomputable def defaultFE :
+def defaultFE :
     hacspec_ml_kem.parameters.FieldElement :=
   feOfZMod (0 : ZMod 3329)
 
-private noncomputable instance : Inhabited hacspec_ml_kem.parameters.FieldElement :=
+private instance : Inhabited hacspec_ml_kem.parameters.FieldElement :=
   ⟨defaultFE⟩
 
 /-- Local `Inhabited` instance for `PortableVector` used by `[i]!`
@@ -52,23 +52,23 @@ private instance instInhabitedPolynomialRingElement_fcTargets
 /-- Plain-domain lane lift from `Int` to a hacspec `FieldElement`.
     Used by `barrett_reduce_element_fc` (the impl carries the value
     in plain domain). -/
-noncomputable def lift_fe_int (x : Int) : hacspec_ml_kem.parameters.FieldElement :=
+def lift_fe_int (x : Int) : hacspec_ml_kem.parameters.FieldElement :=
   feOfZMod (x : ZMod 3329)
 
 /-- Plain-domain lane lift from `Std.I16` to a hacspec `FieldElement`.
     Composes `i16_to_spec_fe_plain` with `feOfZMod`. -/
-noncomputable def lift_fe (lane : Std.I16) : hacspec_ml_kem.parameters.FieldElement :=
+def lift_fe (lane : Std.I16) : hacspec_ml_kem.parameters.FieldElement :=
   feOfZMod (i16_to_spec_fe_plain lane)
 
 /-- Mont-domain lane lift from `Std.I16` to a hacspec `FieldElement`.
     Used for outputs of impl ops that produce Mont-form lanes
     (`montgomery_multiply_*`, `montgomery_reduce_element`). -/
-noncomputable def lift_fe_mont (lane : Std.I16) : hacspec_ml_kem.parameters.FieldElement :=
+def lift_fe_mont (lane : Std.I16) : hacspec_ml_kem.parameters.FieldElement :=
   feOfZMod (i16_to_spec_fe_mont lane)
 
 /-- Plain-domain poly lift `PortableVector chunk → 16 FE-array`.
     Maps each of the 16 lanes through `lift_fe`. -/
-noncomputable def lift_chunk
+def lift_chunk
     (chunk : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize (chunk.elements.val.map lift_fe) (by
@@ -76,7 +76,7 @@ noncomputable def lift_chunk
 
 /-- Mont-domain poly lift `PortableVector chunk → 16 FE-array`.
     Maps each of the 16 lanes through `lift_fe_mont`. -/
-noncomputable def lift_chunk_mont
+def lift_chunk_mont
     (chunk : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize (chunk.elements.val.map lift_fe_mont) (by
@@ -86,7 +86,7 @@ noncomputable def lift_chunk_mont
     Array FE 256`. The result is the hacspec "ring element" type.
     Flattens 16 chunks × 16 lanes via the standard
     `i = j / 16`, `k = j % 16` decomposition. -/
-noncomputable def lift_poly
+def lift_poly
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -97,7 +97,7 @@ noncomputable def lift_poly
 
 /-- Mont-domain poly lift. Same shape as `lift_poly` but strips one
     `R` factor per lane via `i16_to_spec_fe_mont`. -/
-noncomputable def lift_poly_mont
+def lift_poly_mont
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -107,7 +107,7 @@ noncomputable def lift_poly_mont
     (by simp)
 
 /-- Vector lift: `Array (PolynomialRingElement) K → Array (Array FE 256) K`. -/
-noncomputable def lift_vec {K : Std.Usize}
+def lift_vec {K : Std.Usize}
     (v : Std.Array
           (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K) :
@@ -119,7 +119,7 @@ noncomputable def lift_vec {K : Std.Usize}
     (e.g. `compute_ring_element_v` takes `r_as_ntt : Slice ...`).
     The FC theorems that consume this expect `v.length = K.val` as a
     precondition; out-of-range indices default to the unit chunk. -/
-noncomputable def lift_vec_slice
+def lift_vec_slice
     (v : Slice
           (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -134,7 +134,7 @@ noncomputable def lift_vec_slice
     `.val` (Int). Used by the L6c NTT-multiply family FC equations to
     relate the impl-side I32 accumulator to a `FieldElement 256`-array.
     Matches the `Spec.poly_reducing_from_i32_array_pure` lane shape — composes cleanly with L6.7. -/
-noncomputable def lift_accumulator_i32
+def lift_accumulator_i32
     (acc : Std.Array Std.I32 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   Std.Array.make 256#usize
@@ -142,7 +142,7 @@ noncomputable def lift_accumulator_i32
     (by simp)
 
 /-- Matrix lift: `Array (Array (PolynomialRingElement) K) K → Array (Array (Array FE 256) K) K`. -/
-noncomputable def lift_matrix {K : Std.Usize}
+def lift_matrix {K : Std.Usize}
     (m : Std.Array
           (Std.Array
             (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
@@ -168,6 +168,8 @@ noncomputable opaque Spec.sample_matrix_A_pure
     the matrix in-place via `sample_matrix_entry`; the hacspec spec calls
     `matrix.sample_matrix_A` on the seed once at the top. Defers to
     `Spec.sample_matrix_A_pure` above for the deterministic projection. -/
+-- Genuinely noncomputable: reaches the SHAKE-opaque sampling / axiomatised
+-- deserialize chain. The rest of the Spec layer is computable.
 noncomputable def lift_matrix_from_seed
     (seed : Slice Std.U8) (K : Std.Usize) :
     Std.Array
@@ -188,7 +190,7 @@ noncomputable def lift_matrix_from_seed
     caller's `matrix_A.length = K.val * K.val` precondition for the
     indexing to be in-range (out-of-range indices default to the unit poly
     via the `Inhabited` instance). -/
-noncomputable def lift_matrix_from_slice
+def lift_matrix_from_slice
     (slice : Slice
               (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -218,6 +220,8 @@ noncomputable opaque Spec.t_as_ntt_from_public_key_pure
     The impl `matrix.compute_ring_element_v` deserializes `public_key` into
     a vector of ring elements; the hacspec spec receives this vector
     pre-deserialized as its first argument. -/
+-- Genuinely noncomputable: reaches the SHAKE-opaque sampling / axiomatised
+-- deserialize chain. The rest of the Spec layer is computable.
 noncomputable def lift_t_as_ntt_from_public_key
     (public_key : Slice Std.U8) (K : Std.Usize) :
     Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
@@ -245,7 +249,7 @@ noncomputable def lift_t_as_ntt_from_public_key
     The round-trip form composes with the existing `zmodOfFE_feOfZMod`
     identity in M.1, making the FC equation reduce to "lift_fe r = lift_fe value
     given r ≡ value mod q". -/
-noncomputable def Spec.barrett_pure (x : hacspec_ml_kem.parameters.FieldElement) :
+def Spec.barrett_pure (x : hacspec_ml_kem.parameters.FieldElement) :
     hacspec_ml_kem.parameters.FieldElement :=
   feOfZMod (zmodOfFE x)
 
@@ -260,7 +264,7 @@ noncomputable def Spec.barrett_pure (x : hacspec_ml_kem.parameters.FieldElement)
     The TOTAL effect is `value.val · R⁻² mod q`. Since `R⁻¹ = 169 mod q`,
     `R⁻² = 169² mod q`. So `Spec.mont_reduce_pure` multiplies its
     ZMod-projected argument by `169 · 169`. -/
-noncomputable def Spec.mont_reduce_pure (x : hacspec_ml_kem.parameters.FieldElement) :
+def Spec.mont_reduce_pure (x : hacspec_ml_kem.parameters.FieldElement) :
     hacspec_ml_kem.parameters.FieldElement :=
   feOfZMod (zmodOfFE x * 169 * 169)
 
@@ -275,7 +279,7 @@ noncomputable def Spec.mont_reduce_pure (x : hacspec_ml_kem.parameters.FieldElem
     fe · (fer · R⁻¹) = fe · fer · R⁻¹ in Mont. The Mont encoding is then
     stripped by `lift_fe_mont`, giving the canonical math value
     fe · fer · R⁻¹. -/
-noncomputable def Spec.montgomery_multiply_fe_by_fer_pure
+def Spec.montgomery_multiply_fe_by_fer_pure
     (fe fer : hacspec_ml_kem.parameters.FieldElement) :
     hacspec_ml_kem.parameters.FieldElement :=
   feOfZMod (zmodOfFE fe * zmodOfFE fer * 169)
@@ -287,7 +291,7 @@ def Spec.get_n_least_significant_bits_pure (n : Std.U8) (value : Std.U32) : Std.
 
 /-- Pure pointwise add at the FE-array level (16-lane chunk).
     Lifts `FieldElement.add_pure` across the 16 lanes via `List.range 16`. -/
-noncomputable def Spec.chunk_add_pure
+def Spec.chunk_add_pure
     (a b : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize
@@ -298,7 +302,7 @@ noncomputable def Spec.chunk_add_pure
 
 /-- Pure pointwise sub at the FE-array level (16-lane chunk).
     Lifts `FieldElement.sub_pure` across the 16 lanes. -/
-noncomputable def Spec.chunk_sub_pure
+def Spec.chunk_sub_pure
     (a b : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize
@@ -309,7 +313,7 @@ noncomputable def Spec.chunk_sub_pure
 
 /-- Pure pointwise neg at the FE-array level (16-lane chunk).
     Lifts `FieldElement.neg_pure` across the 16 lanes. -/
-noncomputable def Spec.chunk_neg_pure
+def Spec.chunk_neg_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize
@@ -320,7 +324,7 @@ noncomputable def Spec.chunk_neg_pure
 
 /-- Pure pointwise barrett-reduce at the FE-array level.
     Lifts `Spec.barrett_pure` (the canonical round-trip) across 16 lanes. -/
-noncomputable def Spec.chunk_barrett_reduce_pure
+def Spec.chunk_barrett_reduce_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize
@@ -331,7 +335,7 @@ noncomputable def Spec.chunk_barrett_reduce_pure
 /-- Pure pointwise `montgomery_multiply_by_constant` at the chunk level
     (each lane: `fe · c / R`). Lifts `Spec.montgomery_multiply_fe_by_fer_pure`
     across 16 lanes, with the second arg threaded as the constant `c`. -/
-noncomputable def Spec.chunk_montgomery_multiply_by_constant_pure
+def Spec.chunk_montgomery_multiply_by_constant_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (c : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -342,7 +346,7 @@ noncomputable def Spec.chunk_montgomery_multiply_by_constant_pure
 
 /-- Pure pointwise plain `multiply_by_constant` at the chunk level.
     Lifts `FieldElement.mul_pure` across 16 lanes with the constant `c`. -/
-noncomputable def Spec.chunk_multiply_by_constant_pure
+def Spec.chunk_multiply_by_constant_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (c : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -364,7 +368,7 @@ noncomputable def Spec.chunk_multiply_by_constant_pure
     is the canonical FE-side BV operation; the FC proof will STOP and report
     when attempted. Not on the L7 critical path (used only in compress/
     serialize, which lives outside the 4 matrix-level targets). -/
-noncomputable def Spec.chunk_bitwise_and_with_constant_pure
+def Spec.chunk_bitwise_and_with_constant_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (c : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -384,7 +388,7 @@ noncomputable def Spec.chunk_bitwise_and_with_constant_pure
     underlying `I16` sshiftRight depends on raw bit pattern. The body here
     serves as a placeholder; the FC proof will STOP and report. Not on
     the L7 critical path. -/
-noncomputable def Spec.chunk_shift_right_pure
+def Spec.chunk_shift_right_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (SHIFT_BY : Std.I32) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -398,7 +402,7 @@ noncomputable def Spec.chunk_shift_right_pure
 /-- Pure `reducing_from_i32_array` at the chunk level. Lifts `Spec.mont_reduce_pure`
     over 16 lanes of the input `i32` slice. Each lane: take `array[i]`,
     project through `lift_fe_int`, apply Montgomery reduction. -/
-noncomputable def Spec.chunk_reducing_from_i32_array_pure
+def Spec.chunk_reducing_from_i32_array_pure
     (array : Slice Std.I32) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize
@@ -485,7 +489,7 @@ theorem Spec.chunk_reducing_from_i32_array_pure_lane_eq
     the second write wins (matching impl semantics). When `i ≠ j` the
     `(i, j)` lanes become `(add_pure a[i] (mul_pure a[j] zeta),
     sub_pure a[i] (mul_pure a[j] zeta))` respectively. -/
-noncomputable def Spec.chunk_ntt_step_pure
+def Spec.chunk_ntt_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (zeta : hacspec_ml_kem.parameters.FieldElement) (i j : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -500,7 +504,7 @@ noncomputable def Spec.chunk_ntt_step_pure
 /-- Pure NTT-layer-1 step at the chunk level. Mirrors the impl's
     8 sequential `ntt_step` calls at pairs (0,2)(1,3)(4,6)(5,7)
     (8,10)(9,11)(12,14)(13,15) with zetas z0,z0,z1,z1,z2,z2,z3,z3. -/
-noncomputable def Spec.chunk_ntt_layer_1_step_pure
+def Spec.chunk_ntt_layer_1_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z0 z1 z2 z3 : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -516,7 +520,7 @@ noncomputable def Spec.chunk_ntt_layer_1_step_pure
 /-- Pure NTT-layer-2 step at the chunk level. Mirrors the impl's
     8 sequential `ntt_step` calls at pairs (0,4)(1,5)(2,6)(3,7)
     (8,12)(9,13)(10,14)(11,15) with zetas z0,z0,z0,z0,z1,z1,z1,z1. -/
-noncomputable def Spec.chunk_ntt_layer_2_step_pure
+def Spec.chunk_ntt_layer_2_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z0 z1 : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -532,7 +536,7 @@ noncomputable def Spec.chunk_ntt_layer_2_step_pure
 /-- Pure NTT-layer-3 step at the chunk level. Mirrors the impl's
     8 sequential `ntt_step` calls at pairs (0,8)(1,9)(2,10)(3,11)
     (4,12)(5,13)(6,14)(7,15) all with the same zeta. -/
-noncomputable def Spec.chunk_ntt_layer_3_step_pure
+def Spec.chunk_ntt_layer_3_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -554,7 +558,7 @@ noncomputable def Spec.chunk_ntt_layer_3_step_pure
       - new `a[j] = mul_pure (sub_pure a[j] a[i]) zeta`  (Mont-mul with zeta)
     where the reads on the RHS are at the ORIGINAL `a`. When `i = j` the
     second write wins (matching impl semantics). -/
-noncomputable def Spec.chunk_inv_ntt_step_pure
+def Spec.chunk_inv_ntt_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (zeta : hacspec_ml_kem.parameters.FieldElement) (i j : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -573,7 +577,7 @@ noncomputable def Spec.chunk_inv_ntt_step_pure
     `(0,2)(1,3)(4,6)(5,7)(8,10)(9,11)(12,14)(13,15)` with zetas
     `z0,z0,z1,z1,z2,z2,z3,z3`. Mirrors `Spec.chunk_ntt_layer_1_step_pure` on the same lane-pair sequence but with the inverse
     butterfly direction (`chunk_inv_ntt_step_pure` vs `chunk_ntt_step_pure`). -/
-noncomputable def Spec.chunk_inv_ntt_layer_1_step_pure
+def Spec.chunk_inv_ntt_layer_1_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z0 z1 z2 z3 : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -590,7 +594,7 @@ noncomputable def Spec.chunk_inv_ntt_layer_1_step_pure
     8 sequential `Spec.chunk_inv_ntt_step_pure` calls at disjoint lane pairs
     `(0,4)(1,5)(2,6)(3,7)(8,12)(9,13)(10,14)(11,15)` with zetas
     `z0,z0,z0,z0,z1,z1,z1,z1`. Mirror of `Spec.chunk_ntt_layer_2_step_pure`. -/
-noncomputable def Spec.chunk_inv_ntt_layer_2_step_pure
+def Spec.chunk_inv_ntt_layer_2_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z0 z1 : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -607,7 +611,7 @@ noncomputable def Spec.chunk_inv_ntt_layer_2_step_pure
     8 sequential `Spec.chunk_inv_ntt_step_pure` calls at disjoint lane pairs
     `(0,8)(1,9)(2,10)(3,11)(4,12)(5,13)(6,14)(7,15)` with a single zeta `z`.
     Mirror of `Spec.chunk_ntt_layer_3_step_pure`. -/
-noncomputable def Spec.chunk_inv_ntt_layer_3_step_pure
+def Spec.chunk_inv_ntt_layer_3_step_pure
     (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -631,7 +635,7 @@ noncomputable def Spec.chunk_inv_ntt_layer_3_step_pure
     All arithmetic in canonical `FieldElement` domain (the impl's
     Montgomery `bj·ζ_mont → mont_reduce → bj·ζ_canonical` collapses
     under `lift_fe_int`). -/
-noncomputable def Spec.chunk_accumulating_ntt_multiply_pure
+def Spec.chunk_accumulating_ntt_multiply_pure
     (a b acc : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z0 z1 z2 z3 : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -680,20 +684,20 @@ noncomputable def Spec.chunk_accumulating_ntt_multiply_pure
 
 /-- Local `Inhabited` for 16-element FE arrays, used by `[!]` indexing
     inside `Spec.flatten_chunks`. -/
-private noncomputable instance instInhabitedFEChunk_fcTargets :
+private instance instInhabitedFEChunk_fcTargets :
     Inhabited (Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :=
   ⟨Std.Array.make 16#usize (List.replicate 16 defaultFE) (by simp)⟩
 
 /-- Local `Inhabited` for the 256-FE poly-ring array, used by `[!]` indexing
     inside `lift_matrix_from_slice`'s outer projection and the L6c
     accumulator-lift family. -/
-private noncomputable instance instInhabitedFEPoly_fcTargets :
+private instance instInhabitedFEPoly_fcTargets :
     Inhabited (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :=
   ⟨Std.Array.make 256#usize (List.replicate 256 defaultFE) List.length_replicate⟩
 
 /-- Local `Inhabited` for the K-shape array-of-polys, used by `[!]` indexing
     inside `lift_matrix_from_slice`'s outer projection and `lift_vec`. -/
-private noncomputable instance instInhabitedFEPolyVec_fcTargets
+private instance instInhabitedFEPolyVec_fcTargets
     {K : Std.Usize} :
     Inhabited (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) :=
   ⟨Std.Array.make K (List.replicate K.val default) List.length_replicate⟩
@@ -703,13 +707,13 @@ private noncomputable instance instInhabitedFEPolyVec_fcTargets
     The Mont-domain table holds `Std.I16` values; `lift_fe_mont` strips
     one factor of R (yielding the canonical zeta). Out-of-range lookups
     default to `lift_fe_mont 0 = 0` via `[!]`. -/
-noncomputable def Spec.zeta_at (i : Nat) : hacspec_ml_kem.parameters.FieldElement :=
+def Spec.zeta_at (i : Nat) : hacspec_ml_kem.parameters.FieldElement :=
   lift_fe_mont (libcrux_iot_ml_kem.polynomial.ZETAS_TIMES_MONTGOMERY_R.val[i]!)
 
 /-- Chunk projection: extract the `k`-th 16-element chunk of a 256-array.
     Used to address the impl's `re.coefficients[k]` chunk slot at the
     spec level. -/
-noncomputable def Spec.chunk_at
+def Spec.chunk_at
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) (k : Nat) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize ((List.range 16).map (fun j => p.val[16 * k + j]!))
@@ -717,7 +721,7 @@ noncomputable def Spec.chunk_at
 
 /-- Flatten 16 chunks of 16 FEs into a 256-array. Inverse of
     `Spec.chunk_at` under the `lift_poly` decomposition. -/
-noncomputable def Spec.flatten_chunks
+def Spec.flatten_chunks
     (chunks : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
                 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -727,7 +731,7 @@ noncomputable def Spec.flatten_chunks
 /-- Pure projection of `ntt_at_layer_1` driver: 16 chunks, each chunk
     transformed by `chunk_ntt_layer_1_step_pure` with 4 zetas drawn
     from positions `zeta_i + 4k + {1..4}` in the global ZETAS table. -/
-noncomputable def Spec.ntt_layer_1_pure
+def Spec.ntt_layer_1_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -743,7 +747,7 @@ noncomputable def Spec.ntt_layer_1_pure
 /-- Pure projection of `ntt_at_layer_2` driver: 16 chunks, each chunk
     transformed by `chunk_ntt_layer_2_step_pure` with 2 zetas at
     positions `zeta_i + 2k + {1, 2}`. -/
-noncomputable def Spec.ntt_layer_2_pure
+def Spec.ntt_layer_2_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -757,7 +761,7 @@ noncomputable def Spec.ntt_layer_2_pure
 /-- Pure projection of `ntt_at_layer_3` driver: 16 chunks, each chunk
     transformed by `chunk_ntt_layer_3_step_pure` with 1 zeta at
     position `zeta_i + k + 1`. -/
-noncomputable def Spec.ntt_layer_3_pure
+def Spec.ntt_layer_3_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -775,7 +779,7 @@ noncomputable def Spec.ntt_layer_3_pure
     indices read across all 16 chunks span `[zeta_i - 64 .. zeta_i - 1]`.
     For the natural composer (top-level invert_ntt_montgomery) `zeta_i =
     64`, giving indices `[0..63]`. -/
-noncomputable def Spec.invert_ntt_layer_1_pure
+def Spec.invert_ntt_layer_1_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -793,7 +797,7 @@ noncomputable def Spec.invert_ntt_layer_1_pure
     and applies `chunk_inv_ntt_layer_2_step_pure`. The impl decrements
     `zeta_i` by 2 per chunk, so indices span `[zeta_i - 32 .. zeta_i - 1]`.
     Natural composer entry: `zeta_i = 32`, giving indices `[0..31]`. -/
-noncomputable def Spec.invert_ntt_layer_2_pure
+def Spec.invert_ntt_layer_2_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -809,7 +813,7 @@ noncomputable def Spec.invert_ntt_layer_2_pure
     `chunk_inv_ntt_layer_3_step_pure`. The impl decrements `zeta_i` by 1
     per chunk, so indices span `[zeta_i - 16 .. zeta_i - 1]`. Natural
     composer entry: `zeta_i = 16`, giving indices `[0..15]`. -/
-noncomputable def Spec.invert_ntt_layer_3_pure
+def Spec.invert_ntt_layer_3_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -824,7 +828,7 @@ noncomputable def Spec.invert_ntt_layer_3_pure
     on the a-side write: `new_a[ℓ] := barrett_reduce(a[ℓ] + b[ℓ])`, which under
     `lift_fe_mont`'s canonical lift is simply `a[ℓ] + b[ℓ]` (no zeta on a-side
     for the inverse direction). -/
-noncomputable def Spec.chunk_inv_pair_butterfly_a_pure
+def Spec.chunk_inv_pair_butterfly_a_pure
     (chunk_a chunk_b : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize ((List.range 16).map (fun ℓ =>
@@ -837,7 +841,7 @@ noncomputable def Spec.chunk_inv_pair_butterfly_a_pure
     which under `lift_fe_mont`'s canonical lift collapses to
     `(b[ℓ] − a[ℓ]) * z` (canonical, with `z = lift_fe_mont zeta_r` consuming
     the Mont-domain `R⁻¹` of the impl's `mont_mul`). -/
-noncomputable def Spec.chunk_inv_pair_butterfly_b_pure
+def Spec.chunk_inv_pair_butterfly_b_pure
     (chunk_a chunk_b : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -853,7 +857,7 @@ noncomputable def Spec.chunk_inv_pair_butterfly_b_pure
     using the inverse butterflies (`chunk_inv_pair_butterfly_{a,b}_pure`).
     Chunk position `c ∈ 0..16`; step_vec/group/offset/partner relations same
     as forward. -/
-noncomputable def Spec.chunk_inv_at_layer_4_plus_pure
+def Spec.chunk_inv_at_layer_4_plus_pure
     (chunks : Std.Array
       (Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) 16#usize)
     (layer : Std.Usize) (zeta_fn : Nat → hacspec_ml_kem.parameters.FieldElement)
@@ -879,7 +883,7 @@ noncomputable def Spec.chunk_inv_at_layer_4_plus_pure
 
     Note: unlike the forward layer-4+ which uses `zeta_i + group + 1`,
     inverse uses `zeta_i - 1 - group` (zeta_i decrements per outer iter). -/
-noncomputable def Spec.invert_ntt_layer_4_plus_pure
+def Spec.invert_ntt_layer_4_plus_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) (layer : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -897,7 +901,7 @@ noncomputable def Spec.invert_ntt_layer_4_plus_pure
     Composes seven layers in inverse order: layer 1, 2, 3, 4_plus(4),
     4_plus(5), 4_plus(6), 4_plus(7). zeta_i thread:
     `128 → 64 → 32 → 16 → 8 → 4 → 2 → 1` (final, discarded). -/
-noncomputable def Spec.invert_ntt_montgomery_pure
+def Spec.invert_ntt_montgomery_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   let p1 := Spec.invert_ntt_layer_1_pure p 128#usize
@@ -913,7 +917,7 @@ noncomputable def Spec.invert_ntt_montgomery_pure
     applies `chunk_accumulating_ntt_multiply_pure` with the 4 canonical-domain
     zetas at `Spec.zeta_at (64 + 4*k + m)` for `m ∈ {0..3}` (matching the
     impl's `polynomial.zeta` lookups at `64 + 4*k + m` per chunk —). -/
-noncomputable def Spec.accumulating_ntt_multiply_pure
+def Spec.accumulating_ntt_multiply_pure
     (a b acc : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   Spec.flatten_chunks
@@ -933,7 +937,7 @@ noncomputable def Spec.accumulating_ntt_multiply_pure
     lane ℓ in chunk_a becomes `chunk_a[ℓ] + chunk_b[ℓ] * z` (plain ZMod
     via Montgomery cancellation in `lift_fe_mont`); lane ℓ in chunk_b
     becomes `chunk_a[ℓ] - chunk_b[ℓ] * z`. -/
-noncomputable def Spec.chunk_pair_butterfly_a_pure
+def Spec.chunk_pair_butterfly_a_pure
     (chunk_a chunk_b : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -943,7 +947,7 @@ noncomputable def Spec.chunk_pair_butterfly_a_pure
         (chunk_b.val[ℓ]!) z)))
     (by simp)
 
-noncomputable def Spec.chunk_pair_butterfly_b_pure
+def Spec.chunk_pair_butterfly_b_pure
     (chunk_a chunk_b : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
     (z : hacspec_ml_kem.parameters.FieldElement) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -963,7 +967,7 @@ noncomputable def Spec.chunk_pair_butterfly_b_pure
       New chunk = chunk_partner - chunk_c * zeta_fn group.
     The `zeta_fn : Nat → FE` lets layer-4-6 use the zeta table and
     layer-7 use the constant `lift_fe_mont (-1600)`. -/
-noncomputable def Spec.chunk_at_layer_4_plus_pure
+def Spec.chunk_at_layer_4_plus_pure
     (chunks : Std.Array
       (Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) 16#usize)
     (layer : Std.Usize) (zeta_fn : Nat → hacspec_ml_kem.parameters.FieldElement)
@@ -984,7 +988,7 @@ noncomputable def Spec.chunk_at_layer_4_plus_pure
     Iterates `2 * (128 >>> layer)` chunk-pair butterflies (= 16 chunks
     touched once each), with zeta_offset incrementing every `step_vec`
     inner butterflies (8 distinct zetas across the layer for layers 4-6). -/
-noncomputable def Spec.ntt_at_layer_4_plus_pure
+def Spec.ntt_at_layer_4_plus_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i : Std.Usize) (layer : Std.Usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -1003,14 +1007,14 @@ noncomputable def Spec.ntt_at_layer_4_plus_pure
     not Mont — `multiply_by_constant_fc` lifts via `lift_fe`, not
     `lift_fe_mont`). Lifted value is `lift_fe ((-1600)#i16)`, a fixed
     element of the field. -/
-noncomputable def Spec.zeta_layer_7 :
+def Spec.zeta_layer_7 :
     hacspec_ml_kem.parameters.FieldElement :=
   lift_fe ((-1600)#i16)
 
 /-- Pure projection of `ntt_at_layer_7` driver. Single layer of 8
     chunk-pair butterflies between chunks `(j, j+8)` for j ∈ 0..8, all
     with the constant zeta `Spec.zeta_layer_7`. -/
-noncomputable def Spec.ntt_at_layer_7_pure
+def Spec.ntt_at_layer_7_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   let chunks0 : Std.Array
@@ -1035,7 +1039,7 @@ noncomputable def Spec.ntt_at_layer_7_pure
     - layer 2: starts at 31, advances by 32 to 63.
     - layer 1: starts at 63, advances by 64 to 127.
     Total zetas: 0 + 2 + 4 + 8 + 16 + 32 + 64 = 126 (indices 1..126 used). -/
-noncomputable def Spec.ntt_pure
+def Spec.ntt_pure
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   let p7 := Spec.ntt_at_layer_7_pure p
@@ -1056,7 +1060,7 @@ noncomputable def Spec.ntt_pure
     field element). They differ structurally because `ntt_vector_u`'s impl
     uses the Mont path while `ntt_binomially_sampled_ring_element` uses the
     plain path; we target each spec at the impl actually used. -/
-noncomputable def Spec.ntt_pure_vec_u
+def Spec.ntt_pure_vec_u
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   let p7 := Spec.ntt_at_layer_4_plus_pure p 0#usize 7#usize
@@ -1093,7 +1097,7 @@ theorem Spec.zeta_at_one_eq_layer_7 :
 /-- Per-chunk pure projection of `polynomial.add_error_reduce`: for the
     `ℓ`-th lane of a 16-lane chunk,
     `out[ℓ] := self_chunk[ℓ] · lift_fe_mont(1441#i16) + error_chunk[ℓ]`. -/
-noncomputable def Spec.chunk_add_error_reduce_pure
+def Spec.chunk_add_error_reduce_pure
     (self_chunk error_chunk :
         Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -1108,7 +1112,7 @@ noncomputable def Spec.chunk_add_error_reduce_pure
     for the `ℓ`-th lane,
     `out[ℓ] := self_chunk[ℓ] · lift_fe_mont(1353#i16) + error_chunk[ℓ]`,
     where `1353 ≡ R² (mod q)` (cf. `libcrux_iot_ml_kem.Spec.NumericKeystones.mont_1353_eq_RR_mod_q`). -/
-noncomputable def Spec.chunk_add_standard_error_reduce_pure
+def Spec.chunk_add_standard_error_reduce_pure
     (self_chunk error_chunk :
         Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -1125,7 +1129,7 @@ noncomputable def Spec.chunk_add_standard_error_reduce_pure
               + (self_chunk[ℓ] + message_chunk[ℓ])`.
     The impl barrett-reduces this sum, but `barrett_pure` is identity
     after `lift_fe`. -/
-noncomputable def Spec.chunk_add_message_error_reduce_pure
+def Spec.chunk_add_message_error_reduce_pure
     (self_chunk message_chunk result_chunk :
         Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
@@ -1143,7 +1147,7 @@ noncomputable def Spec.chunk_add_message_error_reduce_pure
     barrett". chunk `k ∈ 0..16` and lane `ℓ`:
     `out_chunk[k][ℓ] := self[k][ℓ] · lift_fe_mont(1441#i16) + error[k][ℓ]`,
     flattened to a 256-array via `Spec.flatten_chunks`. -/
-noncomputable def Spec.add_error_reduce_pure
+def Spec.add_error_reduce_pure
     (self error : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   Spec.flatten_chunks
@@ -1156,7 +1160,7 @@ noncomputable def Spec.add_error_reduce_pure
     `k` and lane `ℓ`:
     `out[k][ℓ] := self[k][ℓ] · lift_fe_mont(1353#i16) + error[k][ℓ]`
     (1353 ≡ R² mod q lifts to `× R` in canonical domain). -/
-noncomputable def Spec.add_standard_error_reduce_pure
+def Spec.add_standard_error_reduce_pure
     (self error : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   Spec.flatten_chunks
@@ -1169,7 +1173,7 @@ noncomputable def Spec.add_standard_error_reduce_pure
     `k` and lane `ℓ`:
     `out[k][ℓ] := result[k][ℓ] · lift_fe_mont(1441#i16) +
                   (self[k][ℓ] + message[k][ℓ])`. -/
-noncomputable def Spec.add_message_error_reduce_pure
+def Spec.add_message_error_reduce_pure
     (self message : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (result : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
@@ -1183,7 +1187,7 @@ noncomputable def Spec.add_message_error_reduce_pure
     construction: for `i ∈ 0..256`,
     `out[i] := Spec.mont_reduce_pure (lift_fe_int array.val[i].val)`.
     Mirrors `Spec.chunk_reducing_from_i32_array_pure` per chunk-of-16. -/
-noncomputable def Spec.poly_reducing_from_i32_array_pure
+def Spec.poly_reducing_from_i32_array_pure
     (array : Slice Std.I32) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   Std.Array.make 256#usize
@@ -1197,7 +1201,7 @@ noncomputable def Spec.poly_reducing_from_i32_array_pure
 
     This is the chunk-level building block used by `Spec.subtract_reduce_pure`
     (which flattens 16 chunks via `Spec.flatten_chunks`). -/
-noncomputable def Spec.chunk_subtract_reduce_pure
+def Spec.chunk_subtract_reduce_pure
     (self_chunk b_chunk : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize :=
   Std.Array.make 16#usize ((List.range 16).map (fun ℓ =>
@@ -1218,7 +1222,7 @@ noncomputable def Spec.chunk_subtract_reduce_pure
     then flatten 16 chunks to a 256-array via `Spec.flatten_chunks`. The
     chunk-level form mirrors the impl's chunk-loop structure and pairs
     with `flatten_chunks_eq_lift_poly_fc` in the FC closure proof. -/
-noncomputable def Spec.subtract_reduce_pure
+def Spec.subtract_reduce_pure
     (self b : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
   Spec.flatten_chunks
