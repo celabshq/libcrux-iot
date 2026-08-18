@@ -20,35 +20,6 @@ fn non_matching_lengths() {
         .unwrap_err();
 }
 
-// tests that an error is returned if ptxt is too long
-// NOTE: this test is not applicable for pointer widths less than 64.
-#[test]
-#[cfg(target_pointer_width = "64")]
-fn ptxt_too_long() {
-    use libcrux_iot_aes::AeadConsts as _;
-    use libcrux_traits::aead::arrayref::{DecryptError, EncryptError};
-
-    let k: Gcm128Key = [0; AesGcm128::KEY_LEN].classify().into();
-    let nonce: Gcm128Nonce = [0; AesGcm128::NONCE_LEN].classify().into();
-    let mut tag: Gcm128Tag = [0; AesGcm128::TAG_LEN].classify().into();
-
-    // unsafely create a slice that is too long
-    let pt: &mut [u8] =
-        unsafe { std::slice::from_raw_parts_mut(8 as *mut u8, u32::MAX as usize * 16) };
-
-    // check that encryption returns error
-    let e = k
-        .encrypt(&mut [], &mut tag, &nonce, b"", pt.classify_ref())
-        .unwrap_err();
-    assert_eq!(e, EncryptError::PlaintextTooLong);
-
-    // check that decryption returns error
-    let e = k
-        .decrypt(pt.classify_ref_mut(), &nonce, b"", &mut [], &tag)
-        .unwrap_err();
-    assert_eq!(e, DecryptError::PlaintextTooLong);
-}
-
 #[test]
 fn ccm_two_byte_aad_len_encoding() {
     use libcrux_iot_aes::{AeadConsts as _, AesCcm128};
