@@ -2823,39 +2823,12 @@ end MCBank
     file, after its `L51Bank` section: it assembles `message_impl_fc` and
     `message_spec_eq`, which must therefore precede it. -/
 
-/-- L5.2 — `serialize.compress_then_serialize_message`.
-
-    The encode direction of L5.1: `Compress_1` each coefficient, pack 256 bits
-    into 32 bytes. The impl writes into a caller-provided `serialized` slice and
-    threads a `scratch` vector, returning both; the hacspec returns a fresh
-    32-byte array. The post therefore constrains the RETURNED slice `p.1`, and
-    requires it to have message length. `scratch` is workspace and is
-    deliberately unconstrained. -/
-@[spec]
-theorem compress_then_serialize_message_fc
-    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
-            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (serialized : Slice Std.U8)
-    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (h_len : serialized.length = 32)
-    -- ENCODE precondition, machine-falsified before adding: without it this statement is
-    -- FALSE. `byte_encode` reads a canonicalised `FieldElement.val` while the impl's
-    -- `to_unsigned_field_modulus` adds q AT MOST ONCE, so an unreduced lane diverges.
-    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
-        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
-    -- Counterexample without h_bnd (evaluated on the extracted impl): lane 4162 ->
-    -- impl bytes [0,0,0,0]; canon(4162)=833, Compress_1(833)=1 so spec byte0=1.
-    -- Tight: 3328 agrees, 3329 already diverges. Mirrored at -4162.
-    ⦃ ⌜ True ⌝ ⦄
-    libcrux_iot_ml_kem.serialize.compress_then_serialize_message
-      (vectortraitsOperationsInst := portable_ops_inst)
-      re serialized scratch
-    ⦃ ⇓ p => ⌜ ∃ out : Std.Array Std.U8 32#usize,
-                  hacspec_ml_kem.serialize.compress_then_serialize_message (lift_poly re)
-                    = .ok out
-                  ∧ p.1.length = 32
-                  ∧ ∀ ℓ : Nat, ℓ < 32 → p.1.val[ℓ]! = out.val[ℓ]! ⌝ ⦄ := by
-  sorry
+/-! L5.2 (`compress_then_serialize_message_fc`) is stated at the END of this file,
+    after its `L52Bank` section — for the same reason L5.1 is. It assembles M-D
+    (`compress_message_coefficient_eq`, `compress_1_threshold_eq`) and M-C′
+    (`compress_d_gen_eq`), all of which are declared further down, so the statement cannot
+    sit here. Its `@[spec]` registration and the full locked statement are unchanged; only
+    the position moved. -/
 
 /-! ## Ciphertext component `v` — `d = dv`, exact 1:1 with the hacspec model. -/
 
@@ -6145,8 +6118,961 @@ theorem deserialize_then_decompress_message_fc
   rw [i16_val_of_toNat _ hlt, hlane]
   split <;> simp
 
+/-! ## L5.2 bank — ENCODE at `d = 1` (`compress_then_serialize_message`).
 
+    Stated HERE, at the end of the file, for the same reason L5.1 is: the obligation
+    assembles `compress_message_coefficient_eq` / `compress_1_threshold_eq` (M-D, above)
+    and `compress_d_gen_eq` (M-C′), all of which live after L5.2's scaffold position.
 
+    ### What is NEW here, and what is copied
+
+    * COPIED, not cited: the three-level `createi` normalisation of `byte_encode`
+      (`byte_encode_12_eq`'s shape, `L56Bank`). Those lemmas are hard-wired at
+      `384 / 3072 / d = 12` and conclude against `encByte`, a `d = 12` byte model with no
+      `d` parameter, so they cannot be instantiated here; the SHAPE transfers verbatim at
+      `32 / 256 / d = 1`.
+    * NOT applicable: `bitSum_laneBit_window` (M-C) carries `4 ≤ d`. At `d = 1` lane `j`
+      occupies bit `j` exactly, so a byte is a one-to-one fold of eight lanes and there is
+      no group law to instantiate. `msgByte` IS the `bits_to_bytes` window by definition.
+    * NEW (no exemplar at any width): the `serialize_1` impl seam. `serialize_N` had no
+      precedent in this tree at any `N`; `serialize_1_eq` below is that gap closed, and it
+      needed nothing beyond the `u8_or_bit_step` accumulator the encode bank already had —
+      a page of straight-line body walk, not a new technique.
+    * REUSED from `L56Bank`: `encLane`/`uval` (the canonical-residue model),
+      `to_unsigned_fm_eq` + `uval_encLane` (where `h_bnd` is consumed the FIRST time),
+      `slice_index_mut_range_strict` + `slice_update_eq` (the K2 write-back),
+      `u8_shl_iscalar` / `u8_or_bit_step` / `bitSum` (the packing accumulator). -/
+
+section L52Bank
+
+/-! ### Scalar seams the `d = 1` path needs and the `d = 12` path did not. -/
+
+/-- `as_u16` on an `I16`: a SAME-WIDTH cast, so it is faithful with no side condition. -/
+private def cu16 (x : Std.I16) : Std.U16 := Std.IScalar.hcast .U16 x
+
+private theorem as_u16_eq (x : Std.I16) :
+    libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_u16 x = .ok (cu16 x) := by
+  unfold libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_u16
+    libcrux_secrets.traits.Declassify.Blanket.declassify
+    libcrux_secrets.traits.Classify.Blanket.classify
+  simp [cu16, Aeneas.Std.lift]
+
+private theorem cu16_val (x : Std.I16) : (cu16 x).val = x.bv.toNat := by
+  show (Std.UScalar.bv (Std.IScalar.hcast .U16 x)).toNat = _
+  rw [Std.IScalar.hcast_bv_eq, BitVec.signExtend_eq_setWidth_of_le _ (by decide),
+    BitVec.toNat_setWidth]
+  show x.bv.toNat % 2 ^ 16 = x.bv.toNat
+  exact Nat.mod_eq_of_lt (by simpa using toNat16_lt x.bv)
+
+private theorem as_u8_eq (x : Std.I16) :
+    libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_u8 x = .ok (c8 x) := by
+  unfold libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_u8
+    libcrux_secrets.traits.Declassify.Blanket.declassify
+    libcrux_secrets.traits.Classify.Blanket.classify
+  simp [c8, Aeneas.Std.lift]
+
+/-- One slot of the `serialize_1` OR chain: a `0`/`1` byte shifted by a closed amount.
+    The `d = 12` bank's `u8_bit_shl` is stated for `cast_fromBool`; here the bit already
+    arrived as a `U8` whose value is `0` or `1`, so the bound is the same but the source
+    is not. -/
+private theorem u8_bit_shl_of_val (x : Std.U8) (b : Bool) (t : Std.I32) (e : Nat)
+    (hx : x.val = if b then 1 else 0)
+    (ht0 : 0 ≤ t.val) (ht : t.val < 8) (he : t.toNat = e) (he8 : e < 8) :
+    ∃ z : Std.U8, (x <<< t : Result Std.U8) = .ok z ∧ z.val = if b then 2 ^ e else 0 := by
+  have hpow : (2:Nat) ^ e ≤ 128 := by
+    calc (2:Nat) ^ e ≤ 2 ^ 7 := Nat.pow_le_pow_right (by omega) (by omega)
+      _ = 128 := by norm_num
+  obtain ⟨z, hz, hzv⟩ := u8_shl_iscalar x t ht0 ht (by rw [hx, he]; split <;> omega)
+  exact ⟨z, hz, by rw [hzv, hx, he]; split <;> omega⟩
+
+/-! ### The pure `Nat` / `Bool` model at `d = 1`.
+
+    `msgBit re j` is the compressed bit of lane `j` and `msgByte re n` is byte `n`.
+    Because `d = 1` divides `8`, `msgByte` is LITERALLY the `bits_to_bytes` window, so
+    the spec-side Level-3 step is a `bitSum_congr` and nothing more. -/
+
+/-- The compressed bit of lane `j`: `Compress_1(canon(re[j]))`, as a `Bool`. The
+    threshold form comes from M-D's `compress_1_threshold_eq` / `compress_message_coefficient_eq`,
+    which is why BOTH sides can be stated against it. -/
+private def msgBit (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (j : Nat) : Bool :=
+  decide (833 ≤ encLane re j ∧ encLane re j ≤ 2496)
+
+/-- Byte `n` of the `d = 1` packing of `re`: the LSB-first fold of lanes `8n … 8n+7`. -/
+private def msgByte (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (n : Nat) : Nat :=
+  bitSum (fun t => msgBit re (8 * n + t)) 8
+
+private theorem msgByte_lt (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (n : Nat) :
+    msgByte re n < 256 := by
+  have := bitSum_lt (fun t => msgBit re (8 * n + t)) 8
+  simpa [msgByte] using this
+
+/-! ### Impl step 2 — `compress_1`.
+
+    The per-lane body is `as_u16 ∘ compress_message_coefficient ∘ as_i16`, and M-D's
+    `compress_message_coefficient_eq` is UNCONDITIONAL, so `cmc1` below is total and the
+    whole 16-lane loop is `LoopHelper.elementwise_unary_spec` at `per_elem := cmc1`. No
+    new loop reasoning: the body is literally `unary_loop_body cmc1`. -/
+
+/-- The per-lane closed form of `compress_1`'s body. -/
+private def cmc1 (x : Std.I16) : Result Std.I16 :=
+  .ok (c16 (u8OfNat (if 833 ≤ x.bv.toNat ∧ x.bv.toNat ≤ 2496 then 1 else 0)))
+
+private theorem cmc1_toNat (x : Std.I16) :
+    ∃ r : Std.I16, cmc1 x = .ok r
+      ∧ r.bv.toNat = if 833 ≤ x.bv.toNat ∧ x.bv.toNat ≤ 2496 then 1 else 0 := by
+  refine ⟨_, rfl, ?_⟩
+  rw [c16_bv_toNat, u8OfNat_val _ (by split <;> omega)]
+
+/-- The extracted `compress_1` body IS `unary_loop_body cmc1`: every intermediate step
+    (`as_u16`, `compress_message_coefficient`, `as_i16`) is total, so the flat bind chain
+    collapses onto the canonical unary shape. -/
+private theorem compress_1_body_eq (iter : CoreModels.core.ops.range.Range Std.Usize)
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.vector.portable.compress.compress_1_loop.body iter v
+      = libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body cmc1 iter v := by
+  unfold libcrux_iot_ml_kem.vector.portable.compress.compress_1_loop.body
+    libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body
+  simp only [as_u16_eq, compress_message_coefficient_eq, cu16_val, as_i16_eq, cmc1,
+    Aeneas.Std.bind_tc_ok]
+  rfl
+
+private theorem compress_1_eq
+    (v0 : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ∃ r : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector,
+      libcrux_iot_ml_kem.vector.portable.compress.compress_1 v0 = .ok r
+      ∧ ∀ l : Nat, l < 16 →
+          (r.elements.val[l]!).bv.toNat
+            = if 833 ≤ (v0.elements.val[l]!).bv.toNat
+                ∧ (v0.elements.val[l]!).bv.toNat ≤ 2496 then 1 else 0 := by
+  have hloop : libcrux_iot_ml_kem.vector.portable.compress.compress_1 v0
+      = loop (fun p => libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body
+                cmc1 p.1 p.2)
+          (({ start := 0#usize, «end» := 16#usize }
+              : CoreModels.core.ops.range.Range Std.Usize), v0) := by
+    unfold libcrux_iot_ml_kem.vector.portable.compress.compress_1
+      libcrux_iot_ml_kem.vector.portable.compress.compress_1_loop
+    congr 1
+    · funext p
+      exact compress_1_body_eq p.1 p.2
+    · have hFEV : (libcrux_iot_ml_kem.vector.traits.FIELD_ELEMENTS_IN_VECTOR : Std.Usize)
+          = (16#usize : Std.Usize) :=
+        Std.UScalar.eq_of_val_eq (by
+          rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.field_elements_in_vector_val]
+          scalar_tac)
+      rw [hFEV]
+  obtain ⟨r, hr_eq, hr⟩ := triple_exists_ok_fc
+    (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.elementwise_unary_spec cmc1
+      (fun x y => y.bv.toNat
+        = if 833 ≤ x.bv.toNat ∧ x.bv.toNat ≤ 2496 then 1 else 0)
+      (fun x => by
+        obtain ⟨y, hy_eq, hy⟩ := cmc1_toNat x
+        exact triple_of_ok_fc hy_eq hy)
+      v0)
+  refine ⟨r, by rw [hloop]; exact hr_eq, ?_⟩
+  intro l hl
+  obtain ⟨ri, _, hri, hP⟩ := hr l hl
+  rw [hri]; exact hP
+
+/-! ### Impl step 3 — `serialize_1`. THE UNCOVERED SEAM.
+
+    There is no `serialize_N` exemplar in this tree at ANY width (the decode side has
+    `deserialize_1_eq` / `deserialize_5_int_lanes_eq`; the encode side had only
+    `serialize_12`, which goes through `serialize_12_int` and a 3-byte group law). This is
+    that gap closed, and the measured answer is: **no new technique was needed.** It is a
+    straight-line body walk over the accumulator the `d = 12` encode bank already banked
+    (`u8_shl_iscalar` → `u8_or_bit_step` → `bitSum`), with `u8_bit_shl_of_val` as the only
+    new one-liner (the bit arrives as a `U8` of value `0`/`1` rather than as
+    `cast_fromBool`).
+
+    Stated against an ARBITRARY `f : Nat → Bool` rather than against `msgBit`: the two
+    output bytes are then the two `bitSum` windows verbatim, so the caller supplies
+    `f := msgBit re ∘ (16 * i + ·)` and no re-indexing algebra enters the loop residue. -/
+set_option maxHeartbeats 4000000 in
+private theorem serialize_1_eq
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) (h : out.val.length = 2) (f : Nat → Bool)
+    (hv : ∀ l : Nat, l < 16 → (v.elements.val[l]!).bv.toNat = if f l then 1 else 0) :
+    ∃ s : Slice Std.U8,
+      libcrux_iot_ml_kem.vector.portable.serialize.serialize_1 v out = .ok s
+      ∧ s.val.length = 2
+      ∧ (s.val[0]!).val = bitSum f 8
+      ∧ (s.val[1]!).val = bitSum (fun t => f (8 + t)) 8 := by
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  have hb : ∀ l : Nat, l < 16 → (c8 (v.elements.val[l]!)).val = if f l then 1 else 0 := by
+    intro l hl
+    rw [c8_val, hv l hl]
+    split <;> norm_num
+  have hidx : ∀ (u : Std.Usize) (l : Nat), u.val = l → l < 16 →
+      Aeneas.Std.Array.index_usize v.elements u = .ok (v.elements.val[l]!) := by
+    intro u l hu hl
+    rw [enc_array_index_ok v.elements u (by rw [hE, hu]; omega), hu]
+  have q0 := hidx 0#usize 0 (by scalar_tac) (by omega)
+  have q1 := hidx 1#usize 1 (by scalar_tac) (by omega)
+  have q2 := hidx 2#usize 2 (by scalar_tac) (by omega)
+  have q3 := hidx 3#usize 3 (by scalar_tac) (by omega)
+  have q4 := hidx 4#usize 4 (by scalar_tac) (by omega)
+  have q5 := hidx 5#usize 5 (by scalar_tac) (by omega)
+  have q6 := hidx 6#usize 6 (by scalar_tac) (by omega)
+  have q7 := hidx 7#usize 7 (by scalar_tac) (by omega)
+  have q8 := hidx 8#usize 8 (by scalar_tac) (by omega)
+  have q9 := hidx 9#usize 9 (by scalar_tac) (by omega)
+  have q10 := hidx 10#usize 10 (by scalar_tac) (by omega)
+  have q11 := hidx 11#usize 11 (by scalar_tac) (by omega)
+  have q12 := hidx 12#usize 12 (by scalar_tac) (by omega)
+  have q13 := hidx 13#usize 13 (by scalar_tac) (by omega)
+  have q14 := hidx 14#usize 14 (by scalar_tac) (by omega)
+  have q15 := hidx 15#usize 15 (by scalar_tac) (by omega)
+  -- the fourteen shifted slots, seven per output byte
+  obtain ⟨z1, hz1, hz1v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[1]!)) (f 1) 1#i32 1
+    (hb 1 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z2, hz2, hz2v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[2]!)) (f 2) 2#i32 2
+    (hb 2 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z3, hz3, hz3v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[3]!)) (f 3) 3#i32 3
+    (hb 3 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z4, hz4, hz4v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[4]!)) (f 4) 4#i32 4
+    (hb 4 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z5, hz5, hz5v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[5]!)) (f 5) 5#i32 5
+    (hb 5 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z6, hz6, hz6v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[6]!)) (f 6) 6#i32 6
+    (hb 6 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z7, hz7, hz7v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[7]!)) (f 7) 7#i32 7
+    (hb 7 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z9, hz9, hz9v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[9]!)) (f 9) 1#i32 1
+    (hb 9 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z10, hz10, hz10v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[10]!)) (f 10) 2#i32 2
+    (hb 10 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z11, hz11, hz11v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[11]!)) (f 11) 3#i32 3
+    (hb 11 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z12, hz12, hz12v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[12]!)) (f 12) 4#i32 4
+    (hb 12 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z13, hz13, hz13v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[13]!)) (f 13) 5#i32 5
+    (hb 13 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z14, hz14, hz14v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[14]!)) (f 14) 6#i32 6
+    (hb 14 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z15, hz15, hz15v⟩ := u8_bit_shl_of_val (c8 (v.elements.val[15]!)) (f 15) 7#i32 7
+    (hb 15 (by omega)) (by decide) (by decide) (by decide) (by decide)
+  -- byte 0: the accumulation over lanes 0 … 7, in pure `Nat`
+  have a0 : (c8 (v.elements.val[0]!)).val = bitSum f 1 := by
+    rw [hb 0 (by omega)]
+    show _ = bitSum f 0 + (if f 0 then 2 ^ 0 else 0)
+    simp only [bitSum, pow_zero]
+    split <;> omega
+  have a1 := u8_or_bit_step f _ z1 (f 1) 1 a0 hz1v rfl
+  have a2 := u8_or_bit_step f _ z2 (f 2) 2 a1 hz2v rfl
+  have a3 := u8_or_bit_step f _ z3 (f 3) 3 a2 hz3v rfl
+  have a4 := u8_or_bit_step f _ z4 (f 4) 4 a3 hz4v rfl
+  have a5 := u8_or_bit_step f _ z5 (f 5) 5 a4 hz5v rfl
+  have a6 := u8_or_bit_step f _ z6 (f 6) 6 a5 hz6v rfl
+  have a7 := u8_or_bit_step f _ z7 (f 7) 7 a6 hz7v rfl
+  -- byte 1: the same accumulation over lanes 8 … 15, against the shifted window
+  have b0 : (c8 (v.elements.val[8]!)).val = bitSum (fun t => f (8 + t)) 1 := by
+    rw [hb 8 (by omega)]
+    show _ = bitSum (fun t => f (8 + t)) 0 + (if f (8 + 0) then 2 ^ 0 else 0)
+    simp only [bitSum, pow_zero, Nat.add_zero]
+    split <;> omega
+  have b1 := u8_or_bit_step (fun t => f (8 + t)) _ z9 (f 9) 1 b0 hz9v (by norm_num)
+  have b2 := u8_or_bit_step (fun t => f (8 + t)) _ z10 (f 10) 2 b1 hz10v (by norm_num)
+  have b3 := u8_or_bit_step (fun t => f (8 + t)) _ z11 (f 11) 3 b2 hz11v (by norm_num)
+  have b4 := u8_or_bit_step (fun t => f (8 + t)) _ z12 (f 12) 4 b3 hz12v (by norm_num)
+  have b5 := u8_or_bit_step (fun t => f (8 + t)) _ z13 (f 13) 5 b4 hz13v (by norm_num)
+  have b6 := u8_or_bit_step (fun t => f (8 + t)) _ z14 (f 14) 6 b5 hz14v (by norm_num)
+  have b7 := u8_or_bit_step (fun t => f (8 + t)) _ z15 (f 15) 7 b6 hz15v (by norm_num)
+  -- `bitSum _ (7 + 1)` is `bitSum _ 8` by reduction; name the closed forms once
+  have a7' : (c8 (v.elements.val[0]!) ||| z1 ||| z2 ||| z3 ||| z4 ||| z5 ||| z6 ||| z7).val
+      = bitSum f 8 := a7
+  have b7' : (c8 (v.elements.val[8]!) ||| z9 ||| z10 ||| z11 ||| z12 ||| z13 ||| z14
+        ||| z15).val
+      = bitSum (fun t => f (8 + t)) 8 := b7
+  have hu0 : (0#usize : Std.Usize).val = 0 := by scalar_tac
+  have hu1 : (1#usize : Std.Usize).val = 1 := by scalar_tac
+  have hlen : CoreModels.core.slice.Slice.len out = .ok (2#usize : Std.Usize) := by
+    show Result.ok (Aeneas.Std.Slice.len out) = _
+    congr 1
+    apply Std.UScalar.eq_of_val_eq
+    simp [Aeneas.Std.Slice.len_val, h]
+  refine ⟨(out.set 0#usize
+              (c8 (v.elements.val[0]!) ||| z1 ||| z2 ||| z3 ||| z4 ||| z5 ||| z6 ||| z7)).set
+            1#usize
+              (c8 (v.elements.val[8]!) ||| z9 ||| z10 ||| z11 ||| z12 ||| z13 ||| z14 ||| z15),
+          ?_, ?_, ?_, ?_⟩
+  · unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_1
+    rw [hlen]
+    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true,
+      q0, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14, q15,
+      as_u8_eq, hz1, hz2, hz3, hz4, hz5, hz6, hz7,
+      hz9, hz10, hz11, hz12, hz13, hz14, hz15, Aeneas.Std.lift]
+    rw [slice_update_eq _ _ _ (by simp only [h]; scalar_tac)]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [slice_update_eq _ _ _
+      (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]
+  · simp only [Aeneas.Std.Slice.set_val_eq, List.length_set]; exact h
+  · simp only [Aeneas.Std.Slice.set_val_eq, hu0, hu1]
+    rw [← a7']
+    simp_lists
+  · simp only [Aeneas.Std.Slice.set_val_eq, hu0, hu1]
+    rw [← b7']
+    simp_lists
+
+/-! ### Impl apex — the `0..16` range loop with the 2-byte mutable subslice write-back.
+
+    Structurally identical to `serialize_uncompressed_loop_fc` (K2): written-prefix
+    invariant, `slice_index_mut_range_strict` for `&mut serialized[2i .. 2i+2]`,
+    `List.getElem!_setSlice!_{prefix,middle}` for the two conjuncts. Only the chunk width
+    changes, 24 → 2. -/
+
+/-- Written-prefix loop invariant: after `k` iterations the first `2k` bytes carry
+    `msgByte`, and the length is preserved. -/
+private def msgInv (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+      libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (k : Std.Usize)
+    (acc : Slice Std.U8 × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    Result Prop :=
+  pure (acc.1.val.length = 32 ∧
+        ∀ n : Nat, n < 2 * k.val → (acc.1.val[n]!).val = msgByte re n)
+
+/-- The two bytes one chunk writes, re-indexed onto the global byte stream. -/
+private theorem s1chunk_get
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (k : Nat) (s : Slice Std.U8)
+    (h0 : (s.val[0]!).val = msgByte re (2 * k))
+    (h1 : (s.val[1]!).val = msgByte re (2 * k + 1))
+    (m : Nat) (hm : m < 2) : (s.val[m]!).val = msgByte re (2 * k + m) := by
+  interval_cases m
+  · simpa using h0
+  · simpa using h1
+
+set_option maxHeartbeats 4000000 in
+private theorem msg_enc_loop_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
+      ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
+    (serialized : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_len : serialized.val.length = 32) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_message_loop
+      (vectortraitsOperationsInst := portable_ops_inst)
+      { start := 0#usize, «end» := 16#usize } re serialized scratch
+    ⦃ ⇓ p => ⌜ (msgInv re 16#usize p).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_message_loop
+  refine libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
+    (fun (iter1, serialized1, scratch1) =>
+      libcrux_iot_ml_kem.serialize.compress_then_serialize_message_loop.body
+        (vectortraitsOperationsInst := portable_ops_inst) re iter1 serialized1 scratch1)
+    (serialized, scratch) 0#usize 16#usize (msgInv re) (by scalar_tac) ?_ ?_
+  · show (pure _ : Result Prop).holds
+    simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+    intro _
+    exact ⟨h_len, by intro n hn; exact absurd hn (by scalar_tac)⟩
+  · intro acc k hk0 hk16 hinv
+    have h16 : (16#usize : Std.Usize).val = 16 := rfl
+    obtain ⟨hacc_len, hacc_done⟩ : acc.1.val.length = 32 ∧
+        ∀ n : Nat, n < 2 * k.val → (acc.1.val[n]!).val = msgByte re n := by
+      have hh := hinv
+      simp only [msgInv, Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails] at hh
+      exact hh trivial
+    by_cases hlt : k.val < 16
+    · obtain ⟨s, hs_val, h_iter⟩ :=
+        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
+          (by rw [h16]; exact hlt)
+      have hcl : re.coefficients.val.length = 16 := by
+        have := re.coefficients.property; simpa using this
+      have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
+          = .ok (re.coefficients.val[k.val]!) :=
+        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
+          re.coefficients k (by rw [show re.coefficients.length = 16 from hcl]; exact hlt)
+      obtain ⟨sc1, hsc1_eq, hsc1⟩ :=
+        to_unsigned_fm_eq (re.coefficients.val[k.val]!) acc.2
+          (fun l hl => hbnd k.val hlt l hl)
+      -- lane facts: `sc1` carries the canonical residues, `sc2` their compressed bits
+      have hlanes : ∀ l : Nat, l < 16 →
+          (sc1.elements.val[l]!).bv.toNat = encLane re (16 * k.val + l) := by
+        intro l hl
+        obtain ⟨hb0, hb1, hb2⟩ := hsc1 l hl
+        exact uval_encLane re k.val l hlt hl _ hb0 hb1 hb2
+      obtain ⟨sc2, hsc2_eq, hsc2⟩ := compress_1_eq sc1
+      have hbits : ∀ l : Nat, l < 16 →
+          (sc2.elements.val[l]!).bv.toNat
+            = if msgBit re (16 * k.val + l) then 1 else 0 := by
+        intro l hl
+        rw [hsc2 l hl, hlanes l hl]
+        unfold msgBit
+        simp only [decide_eq_true_eq]
+      obtain ⟨i1, hi1_eq, hi1⟩ := usize_mul_ok_e (2#usize : Std.Usize) k (by scalar_tac)
+      obtain ⟨i2, hi2_eq, hi2⟩ := usize_add_ok_e i1 (2#usize : Std.Usize) (by scalar_tac)
+      have hi1v : i1.val = 2 * k.val := by rw [hi1]; scalar_tac
+      have hi2v : i2.val = 2 * k.val + 2 := by rw [hi2, hi1v]; scalar_tac
+      obtain ⟨sub, wb, hmut_eq, hsub_len, hwb⟩ :=
+        slice_index_mut_range_strict acc.1 i1 i2 (by omega) (by rw [hacc_len]; omega)
+      have hsub2 : sub.val.length = 2 := by rw [hsub_len]; omega
+      obtain ⟨s1, hs1_eq, hs1_len, hs1_b0, hs1_b1⟩ :=
+        serialize_1_eq sc2 sub hsub2 (fun t => msgBit re (16 * k.val + t)) hbits
+      -- re-index the two bytes onto the global stream
+      have hb0 : (s1.val[0]!).val = msgByte re (2 * k.val) := by
+        rw [hs1_b0]
+        unfold msgByte
+        exact bitSum_congr _ _ 8 (fun t _ => by congr 1; omega)
+      have hb1 : (s1.val[1]!).val = msgByte re (2 * k.val + 1) := by
+        rw [hs1_b1]
+        unfold msgByte
+        exact bitSum_congr _ _ 8 (fun t _ => by congr 1; omega)
+      refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
+        (v := .cont (({ start := s, «end» := 16#usize }
+                : CoreModels.core.ops.range.Range Std.Usize), (wb s1, sc2))) ?_ ?_
+      · show libcrux_iot_ml_kem.serialize.compress_then_serialize_message_loop.body
+          (vectortraitsOperationsInst := portable_ops_inst) re
+          { start := k, «end» := 16#usize } acc.1 acc.2 = _
+        unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_message_loop.body
+        rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+              core.Usize.Insts.CoreIterRangeStep
+              ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize))
+            = (CoreModels.core.iter.range.IteratorRange.next
+                core.Usize.Insts.CoreIterRangeStep
+                ({ start := k, «end» := 16#usize }
+                  : CoreModels.core.ops.range.Range Std.Usize)) from rfl]
+        rw [h_iter]
+        simp only [Aeneas.Std.bind_tc_ok]
+        show (do
+            let t ← Aeneas.Std.Array.index_usize re.coefficients k
+            let scratch1 ← libcrux_iot_ml_kem.serialize.to_unsigned_field_modulus
+                             portable_ops_inst t acc.2
+            let scratch2 ← libcrux_iot_ml_kem.vector.portable.compress.compress_1 scratch1
+            let i1' ← (2#usize : Std.Usize) * k
+            let i2' ← i1' + (2#usize : Std.Usize)
+            let (sb, index_mut_back) ←
+              CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+                (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+                  Std.U8) acc.1 { start := i1', «end» := i2' }
+            let sr ← libcrux_iot_ml_kem.vector.portable.serialize.serialize_1 scratch2 sb
+            Result.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
+                : CoreModels.core.ops.range.Range Std.Usize),
+              (index_mut_back sr, scratch2)))) = _
+        rw [h_idx]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hsc1_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hsc2_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hi2_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hmut_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hs1_eq]; rfl
+      · refine ⟨by rw [h16]; exact hlt, rfl, hs_val, ?_⟩
+        show (msgInv re s (wb s1, sc2)).holds
+        simp only [msgInv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        intro _
+        have hwbv := hwb s1 (by rw [hs1_len]; omega)
+        refine ⟨?_, ?_⟩
+        · rw [hwbv, List.length_setSlice!]; exact hacc_len
+        · intro n hn
+          rw [hs_val] at hn
+          rw [hwbv]
+          by_cases hnk : n < 2 * k.val
+          · rw [List.getElem!_setSlice!_prefix _ _ _ _ (by omega)]
+            exact hacc_done n hnk
+          · rw [List.getElem!_setSlice!_middle _ _ _ _
+              ⟨by omega, by rw [hs1_len]; omega, by rw [hacc_len]; omega⟩]
+            rw [hi1v, s1chunk_get re k.val s1 hb0 hb1 (n - 2 * k.val) (by omega)]
+            congr 1
+            omega
+    · have hk : k.val = 16 := by omega
+      refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
+        (v := .done acc) ?_ ?_
+      · show libcrux_iot_ml_kem.serialize.compress_then_serialize_message_loop.body
+          (vectortraitsOperationsInst := portable_ops_inst) re
+          { start := k, «end» := 16#usize } acc.1 acc.2 = _
+        unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_message_loop.body
+        rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+              core.Usize.Insts.CoreIterRangeStep
+              ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize))
+            = (CoreModels.core.iter.range.IteratorRange.next
+                core.Usize.Insts.CoreIterRangeStep
+                ({ start := k, «end» := 16#usize }
+                  : CoreModels.core.ops.range.Range Std.Usize)) from rfl]
+        rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_none_eq k
+          (by rw [h16]; omega)]
+        rfl
+      · show (msgInv re 16#usize acc).holds
+        simp only [msgInv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        intro _
+        exact ⟨hacc_len, by intro n hn; exact hacc_done n (by rw [hk]; rw [h16] at hn; omega)⟩
+
+/-- Impl-side apex: `compress_then_serialize_message` writes exactly `msgByte re` into all
+    32 bytes and preserves the length. -/
+private theorem msg_enc_impl_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
+      ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
+    (serialized : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_len : serialized.val.length = 32) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_message
+      (vectortraitsOperationsInst := portable_ops_inst) re serialized scratch
+    ⦃ ⇓ p => ⌜ (msgInv re 16#usize p).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_message
+  exact msg_enc_loop_fc re hbnd serialized scratch h_len
+
+/-! ### Spec side — `byte_encode 32 256 (compress p 1) 1`.
+
+    FOUR `createi` levels, one more than the `d = 12` encode bank, because the spec applies
+    `Compress_1` to every coefficient first. Level 0 is where M-D and M-C′ are CITED:
+    `compress_d_gen_eq` (generic in `d < 12`, hence covers `d = 1`) gives the closed form,
+    and `compress_1_threshold_eq` turns it into the threshold predicate. Levels 1–3 are the
+    `byte_encode_12_eq` shape at `32 / 256 / d = 1`.
+
+    Note the ASYMMETRY in where the bound lives: on the spec side `compress_1_threshold_eq`'s
+    `x < 3329` is discharged by `encLane_lt`, which is definitional (`encLane` is a residue
+    mod q by construction). `h_bnd` is therefore consumed on the IMPL side only — through
+    `to_unsigned_fm_eq`, which is what makes the impl lane equal that residue at all. -/
+
+/-- The spec-side compressed coefficient at lane `k`. -/
+private def msgFe (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (k : Nat) :
+    hacspec_ml_kem.parameters.FieldElement :=
+  { val := u16OfNat (if msgBit re k then 1 else 0) }
+
+/-! #### Level 0 — `compress.compress p 1`: every coefficient becomes its compressed bit. -/
+
+private theorem compress_msg_closure_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (k : Nat) (hk : k < 256) :
+    (hacspec_ml_kem.compress.compress.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement).call_mut
+        (lift_poly re, (1#usize : Std.Usize)) ⟨BitVec.ofNat _ k⟩
+      = .ok (msgFe re k, (lift_poly re, (1#usize : Std.Usize))) := by
+  have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
+    enc_usize_ofNat_val k (by omega)
+  have hlen : (lift_poly re).val.length = 256 := by
+    have := (lift_poly re).property; simpa using this
+  show (do
+      let fe ← Aeneas.Std.Array.index_usize (lift_poly re) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      let fe1 ← hacspec_ml_kem.compress.compress_d fe (1#usize : Std.Usize)
+      Result.ok (fe1, ((lift_poly re, (1#usize : Std.Usize))
+        : hacspec_ml_kem.compress.compress.closure))) = _
+  rw [enc_array_index_ok (lift_poly re) _ (by rw [hkv, hlen]; exact hk), hkv]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [compress_d_gen_eq ((lift_poly re).val[k]!) (1#usize : Std.Usize) (by scalar_tac)]
+  simp only [Aeneas.Std.bind_tc_ok]
+  -- M-C′(3) gave the closed form; M-D(2) turns it into the threshold predicate
+  rw [show ((1#usize : Std.Usize)).val = 1 from by scalar_tac, lift_poly_raw re k hk,
+    compress_1_threshold_eq (encLane re k) (encLane_lt re k)]
+  unfold msgFe msgBit
+  simp only [decide_eq_true_eq]
+  rfl
+
+/-- **Level 0.** The 256 compressed coefficients are exactly `msgBit re`. -/
+private theorem compress_msg_get
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ∃ a : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
+      hacspec_ml_kem.compress.compress (lift_poly re) (1#usize : Std.Usize) = .ok a
+      ∧ ∀ k : Nat, k < 256 → ((a.val[k]!).val).val = if msgBit re k then 1 else 0 := by
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
+      (T := hacspec_ml_kem.parameters.FieldElement) (256#usize : Std.Usize)
+      (hacspec_ml_kem.compress.compress.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement)
+      (lift_poly re, (1#usize : Std.Usize))
+      (fun k => msgFe re k)
+      (fun k hk => compress_msg_closure_eq re k (by rw [h256] at hk; exact hk))
+  unfold hacspec_ml_kem.compress.compress
+  simp only [hacspec_ml_kem.parameters.createi]
+  rw [hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro k hk
+  rw [enc_mk_getElem (by rw [h256]; exact hk)]
+  show ((msgFe re k).val).val = _
+  unfold msgFe
+  exact u16OfNat_val _ (by split <;> scalar_tac)
+
+/-! #### Level 1 — `byte_encode`'s own `createi`, generic in the two width params.
+
+    The `d = 12` bank states this at `384 / 3072`; the closure body never mentions either,
+    so the generic form below is the same twelve lines and serves both. -/
+
+private theorem byte_encode_closure_eq_gen {D32 D256 : Std.Usize}
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) (k : Nat) (hk : k < 256) :
+    (hacspec_ml_kem.serialize.byte_encode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+        D32 D256).call_mut p ⟨BitVec.ofNat _ k⟩
+      = .ok ((p.val[k]!).val, p) := by
+  have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
+    enc_usize_ofNat_val k (by omega)
+  have hlen : p.val.length = 256 := by have := p.property; simpa using this
+  show (do
+      let fe ← Aeneas.Std.Array.index_usize p (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      Result.ok (fe.val, p)) = _
+  rw [enc_array_index_ok p _ (by rw [hkv, hlen]; exact hk), hkv]
+  simp only [Aeneas.Std.bind_tc_ok]
+
+/-- **Level 1** at `d = 1`: the raw `U16` array is the `0`/`1` bit array. -/
+private theorem byte_encode_msg_raw_get
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (a : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (ha : ∀ k : Nat, k < 256 → ((a.val[k]!).val).val = if msgBit re k then 1 else 0) :
+    ∃ p_raw : Std.Array Std.U16 256#usize,
+      hacspec_ml_kem.parameters.createi (256#usize : Std.Usize)
+          (hacspec_ml_kem.serialize.byte_encode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+            32#usize 256#usize) a
+        = .ok p_raw
+      ∧ ∀ k : Nat, k < 256 → (p_raw.val[k]!).val = if msgBit re k then 1 else 0 := by
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Std.U16)
+      (256#usize : Std.Usize)
+      (hacspec_ml_kem.serialize.byte_encode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+        32#usize 256#usize) a
+      (fun k => (a.val[k]!).val)
+      (fun k hk => byte_encode_closure_eq_gen a k (by rw [h256] at hk; exact hk))
+  simp only [hacspec_ml_kem.parameters.createi]
+  rw [hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro k hk
+  rw [enc_mk_getElem (by rw [h256]; exact hk)]
+  exact ha k hk
+
+/-! #### Level 2 — `bitvector_from_bounded_ints` at `d = 1`: bit `m` IS lane `m`.
+
+    `m / 1 = m` and `m % 1 = 0`, so there is no windowing at all: the bit stream is the
+    lane stream. This is precisely why `bitSum_laneBit_window` (which needs `4 ≤ d`) has
+    nothing to do here. -/
+
+private theorem bvfb_closure_1_eq (a : Std.Array Std.U16 256#usize) (m : Nat) (hm : m < 256) :
+    (hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+        (256#usize : Std.Usize) (256#usize : Std.Usize)).call_mut
+        (a, (1#usize : Std.Usize)) ⟨BitVec.ofNat _ m⟩
+      = .ok (natBit ((a.val[m]!).val) 0, (a, (1#usize : Std.Usize))) := by
+  have hmv : ((⟨BitVec.ofNat _ m⟩ : Std.Usize)).val = m :=
+    enc_usize_ofNat_val m (by omega)
+  have h1 : ((1#usize : Std.Usize)).val = 1 := by scalar_tac
+  have hlen : a.val.length = 256 := by have := a.property; simpa using this
+  obtain ⟨q, hq_eq, hq_val⟩ :=
+    Std.UScalar.div_spec (⟨BitVec.ofNat _ m⟩ : Std.Usize)
+      (y := (1#usize : Std.Usize)) (by decide)
+  obtain ⟨r, hr_eq, hr_val⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.rem_spec (⟨BitVec.ofNat _ m⟩ : Std.Usize)
+      (y := (1#usize : Std.Usize)) (by decide))
+  have hqv : q.val = m := by rw [hq_val, hmv, h1, Nat.div_one]
+  have hrv : r.val = 0 := by rw [hr_val, hmv, h1, Nat.mod_one]
+  obtain ⟨y, hy_eq, hy⟩ := u16_shr_and1_eq (a.val[q.val]!) r (by rw [hrv]; omega)
+  show (do
+      let i1 ← (⟨BitVec.ofNat _ m⟩ : Std.Usize) / (1#usize : Std.Usize)
+      let i2 ← Aeneas.Std.Array.index_usize a i1
+      let i3 ← (⟨BitVec.ofNat _ m⟩ : Std.Usize) % (1#usize : Std.Usize)
+      let i4 ← i2 >>> i3
+      let i5 ← Aeneas.Std.lift (i4 &&& 1#u16)
+      Result.ok (decide (i5 = 1#u16),
+        ((a, (1#usize : Std.Usize)) :
+          hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure
+            (256#usize : Std.Usize) (256#usize : Std.Usize)))) = _
+  rw [hq_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok a q (by rw [hqv, hlen]; omega)]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hr_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hy_eq]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hy, hqv, hrv]
+  rfl
+
+/-- **Level 2.** The 256 booleans are exactly `msgBit re`. -/
+private theorem bvfb_256_1_msg_get
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (p_raw : Std.Array Std.U16 256#usize)
+    (hp : ∀ k : Nat, k < 256 → (p_raw.val[k]!).val = if msgBit re k then 1 else 0) :
+    ∃ bv : Std.Array Bool 256#usize,
+      hacspec_ml_kem.serialize.bitvector_from_bounded_ints (N := 256#usize)
+          (256#usize : Std.Usize) p_raw (1#usize : Std.Usize) = .ok bv
+      ∧ ∀ m : Nat, m < 256 → bv.val[m]! = msgBit re m := by
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have hmul : ((256#usize : Std.Usize) * (1#usize : Std.Usize) : Result Std.Usize)
+      = .ok (256#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Bool)
+      (256#usize : Std.Usize)
+      (hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+        (256#usize : Std.Usize) (256#usize : Std.Usize))
+      (p_raw, (1#usize : Std.Usize))
+      (fun m => natBit ((p_raw.val[m]!).val) 0)
+      (fun m hm => bvfb_closure_1_eq p_raw m (by rw [h256] at hm; exact hm))
+  have key : hacspec_ml_kem.serialize.bitvector_from_bounded_ints (N := 256#usize)
+        (256#usize : Std.Usize) p_raw (1#usize : Std.Usize)
+      = CoreModels.core.array.from_fn (256#usize : Std.Usize)
+          (hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+            (256#usize : Std.Usize) (256#usize : Std.Usize))
+          (p_raw, (1#usize : Std.Usize)) := by
+    unfold hacspec_ml_kem.serialize.bitvector_from_bounded_ints
+    rw [hmul]
+    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
+      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+  rw [key, hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro m hm
+  rw [enc_mk_getElem (by rw [h256]; exact hm)]
+  show natBit ((p_raw.val[m]!).val) 0 = msgBit re m
+  rw [hp m hm]
+  cases hb : msgBit re m <;> simp [natBit]
+
+/-! #### Level 3 — `bits_to_bytes`, generic in the two width params.
+
+    The `d = 12` bank states this at `384 / 3072`; nothing in the closure body mentions
+    either width, so the generic form below is the same body walk and covers both. Stated
+    generically rather than copied so the `d ∈ {4,5,10,11}` rungs inherit it. -/
+
+private theorem bits_to_bytes_closure_eq_gen {N N8 : Std.Usize} (bv : Std.Array Bool N8)
+    (n : Nat) (hn : 8 * n + 8 ≤ N8.val) (hn32 : n < 2 ^ 32)
+    (hmax : 8 * n + 8 ≤ Std.Usize.max) :
+    (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+        N N8).call_mut bv ⟨BitVec.ofNat _ n⟩
+      = .ok (u8OfNat (bitSum (fun t => bv.val[8 * n + t]!) 8), bv) := by
+  set f : Nat → Bool := fun t => bv.val[8 * n + t]! with hf
+  have hnv : ((⟨BitVec.ofNat _ n⟩ : Std.Usize)).val = n := enc_usize_ofNat_val n hn32
+  have hlen : bv.val.length = N8.val := by have := bv.property; simpa using this
+  have h8 : ((8#usize : Std.Usize)).val = 8 := by scalar_tac
+  obtain ⟨i, hi, hiv0⟩ :=
+    usize_mul_ok_e (8#usize : Std.Usize) (⟨BitVec.ofNat _ n⟩ : Std.Usize)
+      (by rw [h8, hnv]; omega)
+  have hiv : i.val = 8 * n := by rw [hiv0, h8, hnv]
+  -- the eight cell indices
+  obtain ⟨j1, hj1, hj1v⟩ := usize_add_ok_e i (1#usize) (by rw [hiv]; scalar_tac)
+  obtain ⟨j2, hj2, hj2v⟩ := usize_add_ok_e i (2#usize) (by rw [hiv]; scalar_tac)
+  obtain ⟨j3, hj3, hj3v⟩ := usize_add_ok_e i (3#usize) (by rw [hiv]; scalar_tac)
+  obtain ⟨j4, hj4, hj4v⟩ := usize_add_ok_e i (4#usize) (by rw [hiv]; scalar_tac)
+  obtain ⟨j5, hj5, hj5v⟩ := usize_add_ok_e i (5#usize) (by rw [hiv]; scalar_tac)
+  obtain ⟨j6, hj6, hj6v⟩ := usize_add_ok_e i (6#usize) (by rw [hiv]; scalar_tac)
+  obtain ⟨j7, hj7, hj7v⟩ := usize_add_ok_e i (7#usize) (by rw [hiv]; scalar_tac)
+  have e1 : j1.val = 8 * n + 1 := by rw [hj1v, hiv]; scalar_tac
+  have e2 : j2.val = 8 * n + 2 := by rw [hj2v, hiv]; scalar_tac
+  have e3 : j3.val = 8 * n + 3 := by rw [hj3v, hiv]; scalar_tac
+  have e4 : j4.val = 8 * n + 4 := by rw [hj4v, hiv]; scalar_tac
+  have e5 : j5.val = 8 * n + 5 := by rw [hj5v, hiv]; scalar_tac
+  have e6 : j6.val = 8 * n + 6 := by rw [hj6v, hiv]; scalar_tac
+  have e7 : j7.val = 8 * n + 7 := by rw [hj7v, hiv]; scalar_tac
+  -- the eight shifted slots
+  obtain ⟨z1, hz1, hz1v⟩ :=
+    u8_bit_shl (bv.val[j1.val]!) (1#i32) 1 (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z2, hz2, hz2v⟩ :=
+    u8_bit_shl (bv.val[j2.val]!) (2#i32) 2 (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z3, hz3, hz3v⟩ :=
+    u8_bit_shl (bv.val[j3.val]!) (3#i32) 3 (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z4, hz4, hz4v⟩ :=
+    u8_bit_shl (bv.val[j4.val]!) (4#i32) 4 (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z5, hz5, hz5v⟩ :=
+    u8_bit_shl (bv.val[j5.val]!) (5#i32) 5 (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z6, hz6, hz6v⟩ :=
+    u8_bit_shl (bv.val[j6.val]!) (6#i32) 6 (by decide) (by decide) (by decide) (by decide)
+  obtain ⟨z7, hz7, hz7v⟩ :=
+    u8_bit_shl (bv.val[j7.val]!) (7#i32) 7 (by decide) (by decide) (by decide) (by decide)
+  -- the accumulation, in pure `Nat`
+  have a0 : (Std.UScalar.cast_fromBool .U8 (bv.val[i.val]!)).val = bitSum f 1 := by
+    rw [cast_fromBool_u8_val]
+    show _ = bitSum f 0 + (if f 0 then 2 ^ 0 else 0)
+    simp only [bitSum, hf, hiv, Nat.add_zero, pow_zero]
+    split <;> omega
+  have a1 := u8_or_bit_step f _ z1 (bv.val[j1.val]!) 1 a0 hz1v (by rw [hf, e1])
+  have a2 := u8_or_bit_step f _ z2 (bv.val[j2.val]!) 2 a1 hz2v (by rw [hf, e2])
+  have a3 := u8_or_bit_step f _ z3 (bv.val[j3.val]!) 3 a2 hz3v (by rw [hf, e3])
+  have a4 := u8_or_bit_step f _ z4 (bv.val[j4.val]!) 4 a3 hz4v (by rw [hf, e4])
+  have a5 := u8_or_bit_step f _ z5 (bv.val[j5.val]!) 5 a4 hz5v (by rw [hf, e5])
+  have a6 := u8_or_bit_step f _ z6 (bv.val[j6.val]!) 6 a5 hz6v (by rw [hf, e6])
+  have a7 := u8_or_bit_step f _ z7 (bv.val[j7.val]!) 7 a6 hz7v (by rw [hf, e7])
+  have hfinal : (Std.UScalar.cast_fromBool .U8 (bv.val[i.val]!) ||| z1 ||| z2 ||| z3 ||| z4
+      ||| z5 ||| z6 ||| z7) = u8OfNat (bitSum f 8) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [a7, u8OfNat_val _ (by have := bitSum_lt f 8; simpa using this)]
+  show (do
+      let i ← (8#usize : Std.Usize) * (⟨BitVec.ofNat _ n⟩ : Std.Usize)
+      let b ← Aeneas.Std.Array.index_usize bv i
+      let i1 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b)
+      let i2 ← i + 1#usize
+      let b1 ← Aeneas.Std.Array.index_usize bv i2
+      let i3 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b1)
+      let i4 ← i3 <<< (1#i32 : Std.I32)
+      let i5 ← Aeneas.Std.lift (i1 ||| i4)
+      let i6 ← i + 2#usize
+      let b2 ← Aeneas.Std.Array.index_usize bv i6
+      let i7 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b2)
+      let i8 ← i7 <<< (2#i32 : Std.I32)
+      let i9 ← Aeneas.Std.lift (i5 ||| i8)
+      let i10 ← i + 3#usize
+      let b3 ← Aeneas.Std.Array.index_usize bv i10
+      let i11 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b3)
+      let i12 ← i11 <<< (3#i32 : Std.I32)
+      let i13 ← Aeneas.Std.lift (i9 ||| i12)
+      let i14 ← i + 4#usize
+      let b4 ← Aeneas.Std.Array.index_usize bv i14
+      let i15 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b4)
+      let i16 ← i15 <<< (4#i32 : Std.I32)
+      let i17 ← Aeneas.Std.lift (i13 ||| i16)
+      let i18 ← i + 5#usize
+      let b5 ← Aeneas.Std.Array.index_usize bv i18
+      let i19 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b5)
+      let i20 ← i19 <<< (5#i32 : Std.I32)
+      let i21 ← Aeneas.Std.lift (i17 ||| i20)
+      let i22 ← i + 6#usize
+      let b6 ← Aeneas.Std.Array.index_usize bv i22
+      let i23 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b6)
+      let i24 ← i23 <<< (6#i32 : Std.I32)
+      let i25 ← Aeneas.Std.lift (i21 ||| i24)
+      let i26 ← i + 7#usize
+      let b7 ← Aeneas.Std.Array.index_usize bv i26
+      let i27 ← Aeneas.Std.lift (Std.UScalar.cast_fromBool .U8 b7)
+      let i28 ← i27 <<< (7#i32 : Std.I32)
+      let i29 ← Aeneas.Std.lift (i25 ||| i28)
+      Result.ok (i29, bv)) = _
+  rw [hi]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv i (by rw [hiv, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hj1]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv j1 (by rw [e1, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hz1]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hj2]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv j2 (by rw [e2, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hz2]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hj3]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv j3 (by rw [e3, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hz3]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hj4]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv j4 (by rw [e4, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hz4]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hj5]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv j5 (by rw [e5, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hz5]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hj6]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv j6 (by rw [e6, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hz6]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hj7]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok bv j7 (by rw [e7, hlen]; omega)]
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hz7]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hfinal]
+
+/-- **Level 3, assembled at `N = 32`.** -/
+private theorem bits_to_bytes_32_get (bv : Std.Array Bool 256#usize) :
+    ∃ out : Std.Array Std.U8 32#usize,
+      hacspec_ml_kem.serialize.bits_to_bytes (32#usize : Std.Usize)
+          (N8 := 256#usize) bv = .ok out
+      ∧ ∀ n : Nat, n < 32 →
+          (out.val[n]!).val = bitSum (fun t => bv.val[8 * n + t]!) 8 := by
+  have h32 : ((32#usize : Std.Usize)).val = 32 := by scalar_tac
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have hmul : ((32#usize : Std.Usize) * (8#usize : Std.Usize) : Result Std.Usize)
+      = .ok (256#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Std.U8)
+      (32#usize : Std.Usize)
+      (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+        (32#usize : Std.Usize) (256#usize : Std.Usize)) bv
+      (fun n => u8OfNat (bitSum (fun t => bv.val[8 * n + t]!) 8))
+      (fun n hn => bits_to_bytes_closure_eq_gen bv n
+        (by rw [h32] at hn; rw [h256]; omega)
+        (by rw [h32] at hn; omega)
+        (by rw [h32] at hn; scalar_tac))
+  have key : hacspec_ml_kem.serialize.bits_to_bytes (32#usize : Std.Usize)
+        (N8 := 256#usize) bv
+      = CoreModels.core.array.from_fn (32#usize : Std.Usize)
+          (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+            (32#usize : Std.Usize) (256#usize : Std.Usize)) bv := by
+    unfold hacspec_ml_kem.serialize.bits_to_bytes
+    rw [hmul]
+    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
+      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+  rw [key, hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro n hn
+  rw [enc_mk_getElem (by rw [h32]; exact hn)]
+  exact u8OfNat_val _ (by have := bitSum_lt (fun t => bv.val[8 * n + t]!) 8; simpa using this)
+
+/-! #### Spec apex — the four levels assembled. -/
+
+private theorem msg_enc_spec_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ∃ out : Std.Array Std.U8 32#usize,
+      hacspec_ml_kem.serialize.compress_then_serialize_message (lift_poly re) = .ok out
+      ∧ ∀ n : Nat, n < 32 → (out.val[n]!).val = msgByte re n := by
+  obtain ⟨a, ha, ha_get⟩ := compress_msg_get re
+  obtain ⟨p_raw, hp_raw, hp_get⟩ := byte_encode_msg_raw_get re a ha_get
+  obtain ⟨bv, hbv, hbv_get⟩ := bvfb_256_1_msg_get re p_raw hp_get
+  obtain ⟨out, hout, hout_get⟩ := bits_to_bytes_32_get bv
+  have e1 : ((32#usize : Std.Usize) * (1#usize : Std.Usize) : Result Std.Usize)
+      = .ok (32#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have e2 : ((256#usize : Std.Usize) * (1#usize : Std.Usize) : Result Std.Usize)
+      = .ok (256#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have hass : ((1#usize : Std.Usize) ≤ (12#usize : Std.Usize)) := by scalar_tac
+  refine ⟨out, ?_, ?_⟩
+  · unfold hacspec_ml_kem.serialize.compress_then_serialize_message
+      hacspec_ml_kem.serialize.byte_encode
+    simp only [ha, Aeneas.Std.bind_tc_ok, hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT,
+      Aeneas.Std.massert, if_pos hass, if_true, e1, e2, hp_raw, hbv, hout]
+  · intro n hn
+    rw [hout_get n hn]
+    unfold msgByte
+    exact bitSum_congr _ _ 8 (fun t ht => hbv_get (8 * n + t) (by omega))
+
+end L52Bank
+
+/-- L5.2 — `serialize.compress_then_serialize_message`.
+
+    The encode direction of L5.1: `Compress_1` each coefficient, pack 256 bits
+    into 32 bytes. The impl writes into a caller-provided `serialized` slice and
+    threads a `scratch` vector, returning both; the hacspec returns a fresh
+    32-byte array. The post therefore constrains the RETURNED slice `p.1`, and
+    requires it to have message length. `scratch` is workspace and is
+    deliberately unconstrained.
+
+    Stated after `L52Bank` so the two halves it assembles — `msg_enc_impl_fc` (the
+    16-chunk `to_unsigned_field_modulus` / `compress_1` / `serialize_1` loop) and
+    `msg_enc_spec_eq` (`Compress_1` then `ByteEncode_1`) — are already in scope. Both
+    halves are stated against the SAME pure byte model `msgByte re`, so the apex is a
+    `.val`-level equality and nothing bit-level survives into it. -/
+@[spec]
+theorem compress_then_serialize_message_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (serialized : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_len : serialized.length = 32)
+    -- ENCODE precondition, machine-falsified before adding: without it this statement is
+    -- FALSE. `byte_encode` reads a canonicalised `FieldElement.val` while the impl's
+    -- `to_unsigned_field_modulus` adds q AT MOST ONCE, so an unreduced lane diverges.
+    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    -- Counterexample without h_bnd (evaluated on the extracted impl): lane 4162 ->
+    -- impl bytes [0,0,0,0]; canon(4162)=833, Compress_1(833)=1 so spec byte0=1.
+    -- Tight: 3328 agrees, 3329 already diverges. Mirrored at -4162.
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_message
+      (vectortraitsOperationsInst := portable_ops_inst)
+      re serialized scratch
+    ⦃ ⇓ p => ⌜ ∃ out : Std.Array Std.U8 32#usize,
+                  hacspec_ml_kem.serialize.compress_then_serialize_message (lift_poly re)
+                    = .ok out
+                  ∧ p.1.length = 32
+                  ∧ ∀ ℓ : Nat, ℓ < 32 → p.1.val[ℓ]! = out.val[ℓ]! ⌝ ⦄ := by
+  -- Impl side: the 16-chunk loop writes `msgByte re` into all 32 bytes. `h_bnd` is
+  -- consumed HERE and only here, inside `to_unsigned_fm_eq`.
+  obtain ⟨p, hp_eq, hp⟩ :=
+    triple_exists_ok_fc (msg_enc_impl_fc re h_bnd serialized scratch h_len)
+  have himpl : p.1.val.length = 32 ∧ ∀ n : Nat, n < 2 * (16#usize : Std.Usize).val →
+      (p.1.val[n]!).val = msgByte re n := by
+    simp only [msgInv, Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+      Std.Do.SPred.pure, Std.Do.SPred.entails] at hp
+    exact hp trivial
+  -- Spec side: `Compress_1` then `ByteEncode_1` reproduces exactly those bytes.
+  obtain ⟨out, hout_eq, hout⟩ := msg_enc_spec_eq re
+  refine triple_of_ok_fc hp_eq ⟨out, hout_eq, himpl.1, ?_⟩
+  intro ℓ hℓ
+  refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+  rw [himpl.2 ℓ (by scalar_tac), hout ℓ hℓ]
 
 
 end libcrux_iot_ml_kem.SerializeFc
