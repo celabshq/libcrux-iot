@@ -2297,6 +2297,122 @@ theorem byte_encode_into_12_eq
 
 end L56Bank
 
+/-! ## M-C — the sub-byte GROUP LAW at a modulus that does not divide 8.
+
+    THE EXEMPLAR for kind K3's open sub-cases (readiness map §1; re-ranked #2 in
+    AMENDMENTS 3 §P1.8). K3 is `FULL` at `d = 12` and `d = 1` and those are the EASY
+    moduli: 12 = 8 + 4, so a 3-byte group holds exactly 2 lanes and realigns every 3
+    bytes, and `d = 1` needs no group law at all. At `d ∈ {4,5,10,11}` a lane can
+    straddle a byte boundary and the boundaries never realign inside a chunk. That is
+    the "dimension of difference", and it is what these three close.
+
+    ## Why this is stated GENERICALLY in `d`, against the map and against A1
+
+    The map ranked this as `M-C(d=5)`; amendment A1 corrected the modulus to `d = 11`
+    (the only width whose lanes span THREE bytes) and both assumed one exemplar per
+    modulus. Measured before authoring: the group law does not need to be
+    per-modulus. `n` bits read at ANY bit offset come from the 3-byte window at
+    `m / 8`, for every `n ≤ 17` — so ONE lemma covers d = 4, 5, 10, 11 and 12 at once
+    and the separate `M-C(d=11)` item (ranked #7, deferred) is subsumed rather than
+    postponed. A1's ADEQUACY argument is what forced this: it is satisfied here by
+    generality instead of by a second build.
+
+    ## Side conditions — measured, and each one load-bearing
+
+    `hn : n ≤ 17` on the decode law is EXACTLY TIGHT: a 3-byte window is 24 bits and
+    the read starts at bit `m % 8 ≤ 7`, leaving 17. Swept `n = 0 … 20` over random
+    byte lists at every offset — clean through 17, first counterexamples at n = 18.
+
+    `hd : 4 ≤ d` and `hL : ∀ i, L i < 2 ^ d` on the encode law are both refuted when
+    dropped: with `d ≤ 3` a 3-lane window cannot cover 8 bits (fails at d = 1, 2, 3),
+    and with unbounded lanes it fails at EVERY d (the high bits of `L q` leak past the
+    field). Neither is decoration.
+
+    Out-of-range reads are fine and deliberate: `(default : Std.U8).val = 0`
+    (evaluated), so `decw`'s window is zero-padded past the end of `l` and `sliceBit`
+    reads `false` there — the two sides stay equal with no length hypothesis. That is
+    what lets the decode law apply to the LAST lane of a group, where the 3-byte
+    window genuinely runs off the end of a 5-byte slice.
+
+    ## Falsified before locking (`references/mlkem-falsify-harness.lean`)
+
+    Decode law: d ∈ {1,4,5,10,11,12}, every lane, random byte lists. Encode law:
+    d ∈ {4,5,10,11,12}, every byte of a 40-lane run. Impl apex: 60 random 5-byte
+    groups, the all-0x00/0xFF/alternating corners, and EXHAUSTIVELY over each of the
+    five byte positions × all 256 values. Zero counterexamples.
+
+    ## Provenance
+
+    MINE, DO NOT PORT. `references/mlkem-bitpack-recipe.lean` (re-checked against this
+    tree today: elaborates, no sorry) carries the two tools this needs —
+    `or_shift_eq_add` ("OR == + when the fields are disjoint", skill §4.1's key device)
+    and `field_eq : (x >>> s) &&& (2 ^ w - 1) = x / 2 ^ s % 2 ^ w`. Work in `Nat`, not
+    `BitVec`. -/
+
+section MCBank
+
+/-- The shared normal form: the `n` bits at bit offset `m` of a byte list, read out
+    of the 3-byte window based at byte `m / 8`. This is to a general `d` what `dec12`
+    (`:209`) is to `d = 12` — the common normal form of the impl's byte arithmetic and
+    the spec's bit vector. Zero-padded past the end of `l`, see the note above. -/
+private def decw (l : List Std.U8) (m n : Nat) : Nat :=
+  (l[m / 8]!.val + 256 * l[m / 8 + 1]!.val + 65536 * l[m / 8 + 2]!.val)
+    / 2 ^ (m % 8) % 2 ^ n
+
+/-- **M-C(1) — the generic DECODE group law.** The spec-side bit stream, windowed at
+    any offset, is a 3-byte read. Generalises `bitSum_sliceBit_eq_dec12` (`:274`) off
+    `d = 12` and off byte alignment; `n ≤ 17` is tight. -/
+theorem bitSum_sliceBit_window (l : List Std.U8) (m n : Nat) (hn : n ≤ 17) :
+    bitSum (fun t => sliceBit l (m + t)) n = decw l m n := by
+  sorry
+
+/-- **M-C(2) — the generic ENCODE group law.** Byte `n` of the `d`-bit lane stream is
+    a 3-lane read. The encode counterpart of M-C(1), and the general-`d` form of
+    `bitSum_encBit_eq_encByte` (`:1673`, which is `d = 12` only). Stated over an
+    abstract lane function `L` rather than `encLane` so it serves every `d` and both
+    the `_v` and (later) `_u` families. -/
+theorem bitSum_laneBit_window (d : Nat) (hd : 4 ≤ d) (L : Nat → Nat)
+    (hL : ∀ i, L i < 2 ^ d) (n : Nat) :
+    bitSum (fun t => natBit (L ((8 * n + t) / d)) ((8 * n + t) % d)) 8
+      = (L (8 * n / d) / 2 ^ (8 * n % d)
+          + L (8 * n / d + 1) * 2 ^ (d - 8 * n % d)
+          + L (8 * n / d + 2) * 2 ^ (2 * d - 8 * n % d)) % 256 := by
+  sorry
+
+/-- **M-C(3) — the impl seam at `d = 5`, the APEX of this bank.** `deserialize_5_int`
+    turns 5 bytes into 8 lanes through a chain of `&&&` / `|||` / `<<<` / `>>>`; this
+    says each lane is exactly the corresponding 5-bit window of the spec bit stream.
+
+    This is the half that is NOT mechanical, and it is why the exemplar includes an
+    impl-side statement rather than only the two pure laws: at `d = 12` every lane is
+    one `or_shift_eq_add` over a 3-byte group, whereas here the shift amounts advance
+    by 5 modulo 8 and every lane has a different split. Expect M-C(1) to do the
+    spec-side half and the bitpack recipe the impl-side half.
+
+    No 3-byte-window caveat is needed: for `k < 8` every bit index is `≤ 39`, i.e.
+    byte index `≤ 4`, which is in range for an exactly-5-byte slice. -/
+theorem deserialize_5_int_lanes_eq (bytes : Slice Std.U8) (h_len : bytes.length = 5) :
+    ∃ v0 v1 v2 v3 v4 v5 v6 v7 : Std.I16,
+      libcrux_iot_ml_kem.vector.portable.serialize.deserialize_5_int bytes
+          = .ok (v0, v1, v2, v3, v4, v5, v6, v7)
+      ∧ ∀ k : Nat, k < 8 →
+          (([v0, v1, v2, v3, v4, v5, v6, v7] : List Std.I16)[k]!).val
+              = (bitSum (fun t => sliceBit bytes.val (5 * k + t)) 5 : Int)
+            -- BOUND CONJUNCT, per the amended transcription rule's MANDATORY third
+            -- check (references/mlkem-inc1-contracts.txt): the iot source carries only
+            -- `#[hax_lib::requires(bytes.len() == 5)]` and NO `ensures`, so the post is
+            -- ours to choose from what the CONSUMER binds. The consumer is
+            -- `deserialize_5` -> `deserialize_then_decompress_ring_element_v` at dv = 5,
+            -- whose Decompress_5 step needs `x < 2 ^ 5` (this is exactly the
+            -- `pair it with a < 2^d` caveat AMENDMENTS 2 records for M-E: without it the
+            -- downstream `.as_i16()` truncation invalidates the composed step).
+            -- Implied by the equality via `bitSum_lt` (:91) — costs the prover a line
+            -- here and saves the consumer from re-deriving it.
+            ∧ (([v0, v1, v2, v3, v4, v5, v6, v7] : List Std.I16)[k]!).val < 32 := by
+  sorry
+
+end MCBank
+
 /-! ## Message (de)serialization — `d = 1`, exact 1:1 with the hacspec model.
 
     L5.1 (`deserialize_then_decompress_message_fc`) is stated at the END of this
@@ -4133,5 +4249,7 @@ theorem deserialize_then_decompress_message_fc
     rw [hlane]; split <;> omega
   rw [i16_val_of_toNat _ hlt, hlane]
   split <;> simp
+
+
 
 end libcrux_iot_ml_kem.SerializeFc
