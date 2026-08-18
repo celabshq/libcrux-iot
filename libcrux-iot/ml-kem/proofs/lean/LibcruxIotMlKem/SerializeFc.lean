@@ -3796,6 +3796,115 @@ private theorem pk_chunk_len_384 (public_key : Slice Std.U8) (K : Std.Usize)
   have h : (i + 1) * 384 ≤ K.val * 384 := by apply Nat.mul_le_mul_right; omega
   omega
 
+/-- Literal `Usize` division, in the shape the two `BYTES_PER_RING_ELEMENT`
+    constants (impl and hacspec) need. The L5.6 bank has this inline; hoisted
+    here because both sides of this obligation want it. -/
+private theorem usize_div_lit (x y z : Std.Usize) (hy : y.val ≠ 0)
+    (hz : x.val / y.val = z.val) : (x / y : Result Std.Usize) = .ok z := by
+  obtain ⟨q, hq_eq, hq_val⟩ := Std.UScalar.div_spec x (y := y) hy
+  rw [hq_eq]
+  congr 1
+  exact Std.UScalar.eq_of_val_eq (by rw [hq_val, hz])
+
+/-- The hacspec `BYTES_PER_RING_ELEMENT` reduces to `384` (both constants are
+    `irreducible`, so this needs the explicit unfolding). -/
+private theorem hacspec_bpre :
+    (hacspec_ml_kem.parameters.BYTES_PER_RING_ELEMENT : Result Std.Usize)
+      = .ok (384#usize : Std.Usize) := by
+  unfold hacspec_ml_kem.parameters.BYTES_PER_RING_ELEMENT
+    hacspec_ml_kem.parameters.BITS_PER_RING_ELEMENT
+    hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT
+  rw [usize_mul_lit (256#usize : Std.Usize) (12#usize : Std.Usize)
+    (3072#usize : Std.Usize) (by scalar_tac) (by scalar_tac)]
+  simp only [Aeneas.Std.bind_tc_ok]
+  exact usize_div_lit _ _ _ (by scalar_tac) (by scalar_tac)
+
+/-- The impl-side `BYTES_PER_RING_ELEMENT`, same shape. -/
+private theorem impl_bpre :
+    (libcrux_iot_ml_kem.constants.BYTES_PER_RING_ELEMENT : Result Std.Usize)
+      = .ok (384#usize : Std.Usize) := by
+  unfold libcrux_iot_ml_kem.constants.BYTES_PER_RING_ELEMENT
+    libcrux_iot_ml_kem.constants.BITS_PER_RING_ELEMENT
+    libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
+  rw [usize_mul_lit (256#usize : Std.Usize) (12#usize : Std.Usize)
+    (3072#usize : Std.Usize) (by scalar_tac) (by scalar_tac)]
+  simp only [Aeneas.Std.bind_tc_ok]
+  exact usize_div_lit _ _ _ (by scalar_tac) (by scalar_tac)
+
+/-- **`byte_decode` at `d = 12` never fails.** For every 384-byte array `a` (and
+    every slice `b` with the same bytes), `byte_decode 3072 a 12` succeeds and
+    `byte_decode_dyn b 12` reduces to it.
+
+    This is the ONLY fact needed about the decode atom here: it is what makes the
+    `| _ => default` branch of `Spec.t_as_ntt_from_public_key_pure` unreachable,
+    and it is what lets the spec-side `createi` closure and the pure model be
+    identified WITHOUT any bit-level reasoning. Proved from the file's own L5.7
+    spec bank (`byte_decode_generic_12_get` + `byte_decode_closure_eq`), which are
+    both unconditional. -/
+private theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 384#usize)
+    (hab : a.val = b.val) :
+    ∃ q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
+      hacspec_ml_kem.serialize.byte_decode_dyn b 12#usize = .ok q
+      ∧ hacspec_ml_kem.serialize.byte_decode (D32 := 384#usize) 3072#usize a 12#usize
+          = .ok q := by
+  have halen : a.val.length = 384 := by have := a.property; simpa using this
+  have hb : b.val.length = 384 := by rw [← hab]; exact halen
+  obtain ⟨decoded, hdec, _⟩ := byte_decode_generic_12_get a
+  have e2 : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have e4 : ((256#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (3072#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  have hslice : (Aeneas.Std.lift (Aeneas.Std.Array.to_slice a) : Result (Slice Std.U8))
+      = .ok ⟨a.val, by scalar_tac⟩ := by
+    simp [Aeneas.Std.lift, Aeneas.Std.Array.to_slice]
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
+      (T := hacspec_ml_kem.parameters.FieldElement)
+      (256#usize : Std.Usize)
+      (hacspec_ml_kem.serialize.byte_decode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        384#usize 3072#usize)
+      decoded
+      (fun k => ({ val := u16OfNat ((decoded.val[k]!).val % 3329) } :
+                  hacspec_ml_kem.parameters.FieldElement))
+      (fun k hk => byte_decode_closure_eq decoded k (by simpa using hk))
+  have hbd : hacspec_ml_kem.serialize.byte_decode (D32 := 384#usize) 3072#usize a 12#usize
+      = .ok ⟨(List.range (256#usize : Std.Usize).val).map
+               (fun k => ({ val := u16OfNat ((decoded.val[k]!).val % 3329) } :
+                           hacspec_ml_kem.parameters.FieldElement)),
+             by simp⟩ := by
+    unfold hacspec_ml_kem.serialize.byte_decode
+    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+      le_refl, if_true, Aeneas.Std.bind_tc_ok, hslice,
+      slice_len_384 ⟨a.val, by scalar_tac⟩ halen, e2, e4, hdec,
+      hacspec_ml_kem.parameters.createi, hfn]
+  refine ⟨_, ?_, hbd⟩
+  have hl := slice_len_eq_384 b hb
+  have hlen := slice_len_384 b hb
+  have haeq : a = (⟨b.val, by rw [hb]; scalar_tac⟩ : Std.Array Std.U8 384#usize) :=
+    Subtype.ext hab
+  unfold hacspec_ml_kem.serialize.byte_decode_dyn
+  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+    le_refl, if_true, Aeneas.Std.bind_tc_ok, hlen, e2]
+  show (do
+      let r ←
+        CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+          (384#usize : Std.Usize) b
+      let a' ←
+        CoreModels.core.result.Result.unwrap
+          CoreModels.core.array.TryFromSliceError.Insts.CoreFmtDebug r
+      hacspec_ml_kem.serialize.byte_decode (D32 := 384#usize) 3072#usize a' 12#usize) = _
+  have htry :
+      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+          (384#usize : Std.Usize) b
+        = .ok (CoreModels.core.result.Result.Ok
+            (⟨b.val, by rw [hb]; scalar_tac⟩ : Std.Array Std.U8 384#usize)) := by
+    unfold
+      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+    rw [dif_pos hl]
+  rw [htry]
+  simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
+  rw [haeq] at hbd
+  exact hbd
+
 end L55Bank
 
 /-! ## Public-key deserialization — exact 1:1 with the hacspec model. -/
