@@ -3584,6 +3584,11 @@ theorem deserialize_then_decompress_message_fc
   -- notably `compute_message_fc`, whose precondition this is meant to satisfy.
   --   `hmsg` : msglane => lane .bv.toNat = if sliceBit .. then 1665 else 0
   -- so every lane is 0 or 1665; both are < 2^15, so .val = .bv.toNat and natAbs ≤ 1665.
-  sorry
+  intro chunk hchunk ℓ hℓ
+  have hlane := hmsg chunk hchunk ℓ hℓ
+  have hlt : ((p.coefficients.val[chunk]!).elements.val[ℓ]!).bv.toNat < 4096 := by
+    rw [hlane]; split <;> omega
+  rw [i16_val_of_toNat _ hlt, hlane]
+  split <;> simp
 
 end libcrux_iot_ml_kem.SerializeFc
