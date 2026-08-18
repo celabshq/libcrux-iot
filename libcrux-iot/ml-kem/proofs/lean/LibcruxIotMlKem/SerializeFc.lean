@@ -2551,8 +2551,8 @@ theorem bitSum_laneBit_window (d : Nat) (hd : 4 ≤ d) (L : Nat → Nat)
     What the `d = 12` bank (`:290`–`:413`) does not already provide, in EXISTENTIAL
     form: aeneas's `<<<` / `>>>` return a `Result` whose payload is pinned only by its
     `.val`, and the apex's own conclusion is existential, so there is no reason to name
-    the payload (which is what forced `shr8`/`u8_shr_ok` at `:3671` into a `BitVec`
-    definition). Everything here is `Nat`, per the bitpack recipe's representation rule. -/
+    the payload (which is what forced `shr8` (`:3879`) / `u8_shr_ok` (`:3893`) into a
+    `BitVec` def). Everything here is `Nat`, per the bitpack recipe's representation rule. -/
 
 /-- A byte widened to `I16` is value-preserving: no byte reaches the sign bit. -/
 private theorem c16_val_nat (x : Std.U8) : (c16 x).val = (x.val : Int) := by
@@ -2612,11 +2612,13 @@ private theorem lane_or_val (zh zl : Std.U8) (hi lo e : Nat)
     (zh ||| zl).val = hi * 2 ^ e + lo := by
   rw [Std.UScalar.val_or, hzh, hzl, or_shl_add _ _ _ hlo]
 
-/-- Every 5-bit window is a 5-bit number — this is the bound conjunct's whole content,
-    read off `decw`'s trailing `% 2 ^ n`. -/
-private theorem decw_lt5 (l : List Std.U8) (m : Nat) : decw l m 5 < 32 := by
-  simp only [decw, show (2:Nat) ^ 5 = 32 from rfl]
-  omega
+/-- Every `n`-bit window is an `n`-bit number — this is the bound conjunct's whole
+    content, read off `decw`'s trailing `% 2 ^ n`. Stated GENERIC in `n`, not at the
+    `n = 5` this apex happens to need, so the `d = 10` and `d = 11` apexes draw their
+    `< 1024` / `< 2048` bound conjuncts from this same lemma rather than restating it. -/
+private theorem decw_lt (l : List Std.U8) (m n : Nat) : decw l m n < 2 ^ n := by
+  simp only [decw]
+  exact Nat.mod_lt _ (Nat.two_pow_pos n)
 
 /-- Out-of-range reads are zero — this is what lets the `k = 5, 6, 7` windows, whose
     3-byte frame runs past the end of an exactly-5-byte slice, still be `decw` reads. -/
@@ -2734,7 +2736,7 @@ theorem deserialize_5_int_lanes_eq (bytes : Slice Std.U8) (h_len : bytes.length 
     have key : ∀ v : Std.I16, v.val = (decw bytes.val (5 * k) 5 : Int) →
         v.val = (bitSum (fun t => sliceBit bytes.val (5 * k + t)) 5 : Int) ∧ v.val < 32 := by
       intro v h
-      have hbw := decw_lt5 bytes.val (5 * k)
+      have hbw : decw bytes.val (5 * k) 5 < 32 := decw_lt bytes.val (5 * k) 5
       rw [bitSum_sliceBit_window bytes.val (5 * k) 5 (by omega)]
       exact ⟨h, by omega⟩
     -- `decw` at the eight offsets, with the 3-byte frame's base index and shift
