@@ -79,12 +79,12 @@ impl<T: AesCipherState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE
     #[inline]
     fn aes_ctr_xor_blocks(&self, ctr: u32, input: &mut [u8]) {
         assert!(input.len().is_multiple_of(AES_BLOCK_LEN));
-        // If input.len() / AES_BLOCK_LEN == u32::MAX - 1 and we start with
+        // If input.len() / AES_BLOCK_LEN == u32::MAX and we start with
         // ctr == 2 then we'll wrap to 0 below and we'll repeat the initial key
         // block
         // Note that every entry point checks for the input length. Hence we
         // only have a debug assert here.
-        assert!(input.len() / AES_BLOCK_LEN < (u32::MAX - 1) as usize);
+        assert!(input.len() / AES_BLOCK_LEN < u32::MAX as usize);
 
         let blocks = input.len() / AES_BLOCK_LEN;
         for i in 0..blocks {
