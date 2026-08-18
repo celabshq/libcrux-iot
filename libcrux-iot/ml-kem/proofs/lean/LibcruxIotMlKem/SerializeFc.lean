@@ -5099,6 +5099,92 @@ theorem compress_barrett_eq (x d : Nat) (hx : x < 3329) (hd : d < 12) :
   rw [show 2 * x * 2 ^ d = 2 * (x * 2 ^ d) from by ring]
   exact key _ hm
 
+/-! ### Scaffolding for the u64 magic-multiply IMPL seam.
+
+    The seam below is a straight-line `Result` walk, not an mvcgen goal, so each of the
+    `U64` operations gets an `∃ z, … = .ok z ∧ z.val = …` lemma in exactly the shape
+    M-E's `I32` bank uses (`:4737` ff). All of them are stated on the `Nat` view
+    (`.val`), never on `.bv`: that keeps `UScalarTy.U64.numBits` out of every rewrite
+    motive (the dependent-`BitVec`-width trap) and lets the no-wrap side conditions be
+    ordinary `Nat.mod_eq_of_lt`. `2 ^ d` is an ATOM throughout (skill §6). -/
+
+/-- `UScalar.size` is `irreducible_def`, so the word modulus needs one named unfolding. -/
+private theorem u64_size_eq : Std.UScalar.size .U64 = 2 ^ 64 := by
+  rw [Std.UScalar.size]; rfl
+
+/-- `x <<< s` on `U64` by a `U8` amount is `x · 2 ^ s` mod the word size, for `s < 64`. -/
+private theorem u64_shl_ok (x : Std.U64) (s : Std.U8) (hs : s.val < 64) :
+    ∃ z : Std.U64, (x <<< s : Result Std.U64) = Result.ok z
+      ∧ z.val = (x.val * 2 ^ s.val) % 2 ^ 64 := by
+  refine ⟨⟨x.bv <<< s.val⟩, ?_, ?_⟩
+  · show Std.UScalar.shiftLeft_UScalar _ _ = _
+    unfold Std.UScalar.shiftLeft_UScalar Std.UScalar.shiftLeft
+    rw [if_pos (show s.val < Std.UScalarTy.U64.numBits by simpa using hs)]
+    rfl
+  · show (x.bv <<< s.val).toNat = _
+    rw [BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
+    rfl
+
+/-- **Shift-is-division.** The logical shift right on `U64` by a non-negative `I32`
+    amount is floor division by `2 ^ k` on the `Nat` view. -/
+private theorem u64_shr_ok (x : Std.U64) (k : Std.I32) (hk0 : 0 ≤ k.val) (hk : k.val < 64) :
+    ∃ z : Std.U64, (x >>> k : Result Std.U64) = Result.ok z
+      ∧ z.val = x.val / 2 ^ k.val.toNat := by
+  refine ⟨⟨x.bv >>> k.toNat⟩, ?_, ?_⟩
+  · show Std.UScalar.shiftRight_IScalar _ _ = _
+    unfold Std.UScalar.shiftRight_IScalar Std.UScalar.shiftRight
+    rw [if_pos hk0, if_pos (show k.toNat < Std.UScalarTy.U64.numBits by scalar_tac)]
+    rfl
+  · show (x.bv >>> k.toNat).toNat = _
+    have h : k.toNat = k.val.toNat := rfl
+    rw [h, BitVec.toNat_ushiftRight, Nat.shiftRight_eq_div_pow]
+    rfl
+
+private theorem u64_wadd_ok (x y : Std.U64) (hb : x.val + y.val < 2 ^ 64) :
+    ∃ z : Std.U64, CoreModels.core.num.U64.wrapping_add x y = Result.ok z
+      ∧ z.val = x.val + y.val := by
+  refine ⟨Std.U64.wrapping_add x y, rfl, ?_⟩
+  rw [Aeneas.Std.U64.wrapping_add_val_eq, u64_size_eq]
+  exact Nat.mod_eq_of_lt hb
+
+private theorem u64_wmul_ok (x y : Std.U64) (hb : x.val * y.val < 2 ^ 64) :
+    ∃ z : Std.U64, CoreModels.core.num.U64.wrapping_mul x y = Result.ok z
+      ∧ z.val = x.val * y.val := by
+  refine ⟨Std.U64.wrapping_mul x y, rfl, ?_⟩
+  rw [Aeneas.Std.U64.wrapping_mul_val_eq, u64_size_eq]
+  exact Nat.mod_eq_of_lt hb
+
+/-- The `libcrux_secrets` `U16 → U64` cast is the identity on values (widening). -/
+private theorem cc_as_u64_ok (x : Std.U16) :
+    ∃ z : Std.U64, libcrux_secrets.U16.Insts.Libcrux_secretsIntCastOps.as_u64 x = Result.ok z
+      ∧ z.val = x.val := by
+  refine ⟨Std.UScalar.cast .U64 x, rfl, ?_⟩
+  rw [Std.UScalar.cast_val_eq]
+  exact Nat.mod_eq_of_lt (by scalar_tac)
+
+/-- The `U64 → U32` cast is FAITHFUL exactly below `2 ^ 32`; this is the first of the
+    seam's two truncation obligations. -/
+private theorem cc_as_u32_ok (x : Std.U64) (h : x.val < 2 ^ 32) :
+    ∃ z : Std.U32, libcrux_secrets.U64.Insts.Libcrux_secretsIntCastOps.as_u32 x = Result.ok z
+      ∧ z.val = x.val := by
+  refine ⟨Std.UScalar.cast .U32 x, rfl, ?_⟩
+  rw [Std.UScalar.cast_val_eq]
+  exact Nat.mod_eq_of_lt (by simpa using h)
+
+/-- The `U32 → I16` cast is FAITHFUL exactly below `2 ^ 15` — the second truncation
+    obligation, and the one the `< 2 ^ d` mask bound is what buys. -/
+private theorem cc_as_i16_ok (x : Std.U32) (h : x.val < 2 ^ 15) :
+    ∃ z : Std.I16, libcrux_secrets.U32.Insts.Libcrux_secretsIntCastOps.as_i16 x = Result.ok z
+      ∧ z.val = (x.val : Int) := by
+  refine ⟨Std.UScalar.hcast .I16 x, rfl, ?_⟩
+  rw [Std.UScalar.hcast_val_eq]
+  show Int.bmod (x.val : Int) (2 ^ (16 : Nat)) = _
+  apply Aeneas.Arith.Int.bmod_pow2_eq_of_inBounds' 16 _ (by decide) <;>
+    (rw [show ((2 : Int) ^ (16 - 1)) = 2 ^ 15 from by norm_num]
+     have : (x.val : Int) < 2 ^ 15 := by exact_mod_cast h
+     have : (0 : Int) ≤ (x.val : Int) := Int.natCast_nonneg _
+     omega)
+
 /-- **M-C′(2) — the IMPL seam.** `compress_ciphertext_coefficient` in closed `Nat` form.
     Carries the u64 no-wrap obligation (`wrapping_add`/`wrapping_mul`: worst case
     `(65535·2^11 + 1664)·10321340 ≈ 1.39e15 < 2^64`), the `>>> 35` as division, and
@@ -5115,7 +5201,55 @@ theorem compress_ciphertext_coefficient_eq (d : Std.U8) (fe : Std.U16) (hd : d.v
           = .ok r
       ∧ (r.val).toNat = (((fe.val * 2 ^ d.val + 1664) * 10321340) / 2 ^ 35) % 2 ^ d.val
       ∧ 0 ≤ r.val ∧ r.val < 2 ^ d.val := by
-  sorry
+  -- `2 ^ d.val` is an ATOM: these two facts are all that is ever needed about it.
+  have hP2 : (2 : Nat) ^ d.val ≤ 2048 := by
+    calc (2 : Nat) ^ d.val ≤ 2 ^ 11 := Nat.pow_le_pow_right (by omega) (by omega)
+      _ = 2048 := by norm_num
+  have hP1 : 1 ≤ (2 : Nat) ^ d.val := Nat.one_le_two_pow
+  have hfv : fe.val ≤ 65535 := by scalar_tac
+  -- Name the shifted input.  Once `n` is a bare local constant every remaining side
+  -- condition is LINEAR, so `omega` discharges the whole no-wrap chain and no nonlinear
+  -- arithmetic tactic is needed anywhere; the one nonlinear step is `Nat.mul_le_mul` below.
+  obtain ⟨n, hn⟩ : ∃ n : Nat, fe.val * 2 ^ d.val = n := ⟨_, rfl⟩
+  have hN : n ≤ 134215680 := by
+    rw [← hn]
+    calc fe.val * 2 ^ d.val ≤ 65535 * 2048 := Nat.mul_le_mul hfv hP2
+      _ = 134215680 := by norm_num
+  rw [hn]
+  -- the literal moduli, so `omega` sees numerals rather than powers
+  have e64 : (2 : Nat) ^ 64 = 18446744073709551616 := by norm_num
+  have e35 : (2 : Nat) ^ 35 = 34359738368 := by norm_num
+  have e32 : (2 : Nat) ^ 32 = 4294967296 := by norm_num
+  have e15 : (2 : Nat) ^ 15 = 32768 := by norm_num
+  have c1664 : ((1664#u64 : Std.U64)).val = 1664 := by scalar_tac
+  have cmag : ((10321340#u64 : Std.U64)).val = 10321340 := by scalar_tac
+  have c35 : ((35#i32 : Std.I32)).val = 35 := by scalar_tac
+  -- the straight-line body, in order
+  obtain ⟨v0, e0, h0v⟩ := cc_as_u64_ok fe
+  obtain ⟨v1, e1, h1v⟩ := u64_shl_ok v0 d (by omega)
+  rw [h0v, hn, e64] at h1v
+  have h1 : v1.val = n := by omega
+  obtain ⟨v2, e2, h2v⟩ := u64_wadd_ok v1 1664#u64 (by rw [h1, c1664, e64]; omega)
+  rw [h1, c1664] at h2v
+  obtain ⟨v3, e3, h3v⟩ := u64_wmul_ok v2 10321340#u64 (by rw [h2v, cmag, e64]; omega)
+  rw [h2v, cmag] at h3v
+  obtain ⟨v4, e4, h4v⟩ := u64_shr_ok v3 35#i32 (by rw [c35]; norm_num) (by rw [c35]; norm_num)
+  rw [h3v, show ((35#i32 : Std.I32)).val.toNat = 35 from by rw [c35]; rfl] at h4v
+  obtain ⟨v5, e5, h5v⟩ := cc_as_u32_ok v4 (by rw [h4v, e35, e32]; omega)
+  rw [h4v] at h5v
+  -- the mask, from the tree's existing L0.1 `@[spec]`
+  obtain ⟨v6, e6, hlt6, h6v⟩ := triple_exists_ok_fc
+    (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.get_n_least_significant_bits_spec
+      d v5 (by omega))
+  rw [h5v] at h6v
+  -- the closing `.as_i16()` is faithful because the mask already put us below `2 ^ 15`
+  obtain ⟨r, er, hrv⟩ := cc_as_i16_ok v6 (by rw [e15]; omega)
+  refine ⟨r, ?_, ?_, ?_, ?_⟩
+  · unfold libcrux_iot_ml_kem.vector.portable.compress.compress_ciphertext_coefficient
+    simp only [e0, Aeneas.Std.bind_tc_ok, e1, e2, e3, e4, e5, e6, er]
+  · rw [hrv, Int.toNat_natCast]; exact h6v
+  · rw [hrv]; exact Int.natCast_nonneg _
+  · rw [hrv]; exact_mod_cast hlt6
 
 /-- **M-C′(3) — the SPEC seam.** `compress.compress_d` in closed `Nat` form. The lone
     `massert (to_bit_size < 12)` discharges from `hd`; `FieldElement.new` is total.
