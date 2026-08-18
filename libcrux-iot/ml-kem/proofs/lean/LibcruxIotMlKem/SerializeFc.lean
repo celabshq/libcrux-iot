@@ -1774,7 +1774,15 @@ theorem compress_then_serialize_message_fc
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (serialized : Slice Std.U8)
     (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (h_len : serialized.length = 32) :
+    (h_len : serialized.length = 32)
+    -- ENCODE precondition, machine-falsified before adding: without it this statement is
+    -- FALSE. `byte_encode` reads a canonicalised `FieldElement.val` while the impl's
+    -- `to_unsigned_field_modulus` adds q AT MOST ONCE, so an unreduced lane diverges.
+    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    -- Counterexample without h_bnd (evaluated on the extracted impl): lane 4162 ->
+    -- impl bytes [0,0,0,0]; canon(4162)=833, Compress_1(833)=1 so spec byte0=1.
+    -- Tight: 3328 agrees, 3329 already diverges. Mirrored at -4162.
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.compress_then_serialize_message
       (vectortraitsOperationsInst := portable_ops_inst)
@@ -1979,8 +1987,15 @@ theorem deserialize_then_decompress_ring_element_v_fc
     ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_v
                   serialized V_COMPRESSION_FACTOR
                 = .ok (lift_poly p)
+                -- 3328, NOT upstream's 4095. 4095 is a DELIBERATELY WEAKENED dispatcher
+                -- bound (`is_bounded_poly_higher(result, 3328, 4095)`) introduced to fit
+                -- UPSTREAM's `compute_message`, which requires 4095. iot's
+                -- `compute_message_fc` requires `natAbs ≤ 3328` (Matrix/ComputeMessage/
+                -- FC.lean:119), so 4095 would be TRUE BUT USELESS FOR COMPOSITION.
+                -- Tight bound measured end-to-end on the extracted impl: max lane is
+                -- 3121 (dv=4) / 3225 (dv=5), so 3328 is sound and dischargeable.
                 ∧ (∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
-                    ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 4095) ⌝ ⦄ := by
+                    ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) ⌝ ⦄ := by
   sorry
 
 /-! ### PROVER bank toward the POSITIVE L5.3 proof.
@@ -2176,7 +2191,14 @@ theorem deserialize_ring_elements_reduced_fc
       K public_key deserialized_pk
     ⦃ ⇓ p => ⌜ p.length = K.val
                 ∧ hacspec_ml_kem.serialize.deserialize_ring_elements_reduced K public_key
-                  = .ok (lift_vec_slice p K) ⌝ ⦄ := by
+                  = .ok (lift_vec_slice p K)
+                -- The K-fold apex must re-export the canonicality its own per-element
+                -- leaf already asserts (Serialize.lean:53, the A2 axiom): the impl runs
+                -- `cond_subtract_3329`, and downstream matrix consumers bind `≤ 3328`.
+                -- Dropping it here made the apex true but undischargeable for them.
+                ∧ (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                    (((p.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
+                      ≤ 3328) ⌝ ⦄ := by
   sorry
 
 /-! ## Uncompressed ring elements — `d = 12`, no compression step.
@@ -2196,7 +2218,17 @@ theorem serialize_uncompressed_ring_element_fc
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (serialized : Slice Std.U8)
-    (h_len : serialized.length = 384) :
+    (h_len : serialized.length = 384)
+    -- ENCODE precondition, machine-falsified before adding: without it this statement is
+    -- FALSE. `byte_encode` reads a canonicalised `FieldElement.val` while the impl's
+    -- `to_unsigned_field_modulus` adds q AT MOST ONCE, so an unreduced lane diverges.
+    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    -- Counterexample without h_bnd (evaluated on the extracted impl): lane 3400 ->
+    -- impl bytes [72,13,0] (payload 0xD48); spec byte_encode of canon(3400)=71 -> [71,0,0].
+    -- Tight: 3329 diverges, 3328 agrees. This is the `hbnd` the file's own prover bank
+    -- already carries at L1601 -- the hypothesis was present in the PROOF and missing
+    -- from the STATEMENT, which is why this obligation blocked twice ($71.82).
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.serialize_uncompressed_ring_element
       (vectortraitsOperationsInst := portable_ops_inst)
