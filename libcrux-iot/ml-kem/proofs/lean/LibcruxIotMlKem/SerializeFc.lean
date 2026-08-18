@@ -906,10 +906,53 @@ section L56Bank
 
 open Aeneas.Std
 
+/-! ### `BitVec 16` primitives.
+
+    These three are the PRIMITIVES of all 16-bit sign/mask reasoning in this file: they
+    are stated on bare `BitVec 16`, so they serve both the `I16` plumbing directly below
+    and the `U16` sign-mask bank of M-D (`section MDBank`), which reaches back for them
+    rather than restating them. The `Std.I16` forms below are one-line corollaries. -/
+
+private theorem toNat16_lt (x : BitVec 16) : x.toNat < 65536 := by
+  have h := x.isLt
+  simp only [show (2:Nat) ^ 16 = 65536 from rfl] at h
+  exact h
+
+private theorem msb16_iff (x : BitVec 16) : x.msb = false ↔ x.toNat < 32768 := by
+  rw [BitVec.msb_eq_false_iff_two_mul_lt]
+  simp only [show (2:Nat) ^ 16 = 65536 from rfl]
+  omega
+
+/-- The sign mask, as a `BitVec`: `>>> 15` on a 16-bit word is `allOnes` or `0`. -/
+private theorem sshr15_bv (b : BitVec 16) :
+    b.sshiftRight 15 = if b.msb then BitVec.allOnes 16 else 0#16 := by
+  have hlt := toNat16_lt b
+  rcases Bool.eq_false_or_eq_true b.msb with hm | hm
+  · -- `msb = true`: the shift is `~~~((~~~b) >>> 15)` and the inner shift vanishes
+    have hn : ¬ (b.toNat < 32768) := fun hc => by
+      rw [(msb16_iff b).mpr hc] at hm; exact Bool.noConfusion hm
+    rw [hm, if_pos rfl, BitVec.sshiftRight_eq_of_msb_true hm]
+    have hnot : (~~~b).toNat = 65535 - b.toNat := by rw [BitVec.toNat_not]
+    have hz : (~~~b) >>> 15 = 0#16 := by
+      apply BitVec.eq_of_toNat_eq
+      rw [BitVec.toNat_ushiftRight, hnot, Nat.shiftRight_eq_div_pow]
+      simp only [show (2:Nat) ^ 15 = 32768 from rfl]
+      show (65535 - b.toNat) / 32768 = (0#16 : BitVec 16).toNat
+      rw [Nat.div_eq_of_lt (by omega)]; rfl
+    rw [hz]; rfl
+  · -- `msb = false`: a logical shift, and `b.toNat < 2 ^ 15`
+    have hn := (msb16_iff b).mp hm
+    rw [hm]
+    simp only [Bool.false_eq_true, if_false]
+    apply BitVec.eq_of_toNat_eq
+    rw [BitVec.toNat_sshiftRight_of_msb_false hm, Nat.shiftRight_eq_div_pow]
+    simp only [show (2:Nat) ^ 15 = 32768 from rfl]
+    show b.toNat / 32768 = (0#16 : BitVec 16).toNat
+    rw [Nat.div_eq_of_lt (by omega)]; rfl
+
 /-! ### `I16` sign/`bv` plumbing. -/
 
-private theorem i16_toNat_lt (x : Std.I16) : x.bv.toNat < 65536 := by
-  have h := x.bv.isLt; simpa using h
+private theorem i16_toNat_lt (x : Std.I16) : x.bv.toNat < 65536 := toNat16_lt x.bv
 
 /-- Sign case analysis for an `I16`: msb, `bv.toNat` range, and `.val`, together.
     Stated as a disjunction so callers get all three facts from one `rcases`. -/
@@ -929,29 +972,15 @@ private theorem i16_msb_cases (x : Std.I16) :
     · exact absurd (hmsb.mp h) hc
 
 private theorem msb_false_of_toNat_lt (x : Std.I16) (h : x.bv.toNat < 4096) :
-    x.bv.msb = false := by
-  rw [BitVec.msb_eq_false_iff_two_mul_lt]
-  simp only [show (2:Nat) ^ 16 = 65536 from rfl]; omega
+    x.bv.msb = false := (msb16_iff x.bv).mpr (by omega)
 
-/-- Arithmetic shift right by 15 on an `I16` is the sign mask. -/
+/-- Arithmetic shift right by 15 on an `I16` is the sign mask. The `toNat` shadow of the
+    primitive `sshr15_bv`; the `BitVec` equation is the stronger form, so keep new work on
+    that one. -/
 private theorem sshr15_toNat (x : Std.I16) :
     (x.bv.sshiftRight 15).toNat = if x.bv.msb then 65535 else 0 := by
-  have hlt := i16_toNat_lt x
-  rcases i16_msb_cases x with ⟨hm, hn, _⟩ | ⟨hm, hn, _⟩
-  · rw [hm, if_pos rfl, BitVec.sshiftRight_eq_of_msb_true hm]
-    have hnot : (~~~x.bv).toNat = 65535 - x.bv.toNat := by rw [BitVec.toNat_not]
-    have hz : (~~~x.bv) >>> 15 = 0#16 := by
-      apply BitVec.eq_of_toNat_eq
-      rw [BitVec.toNat_ushiftRight, hnot, Nat.shiftRight_eq_div_pow]
-      simp only [show (2:Nat) ^ 15 = 32768 from rfl]
-      show (65535 - x.bv.toNat) / 32768 = (0#16 : BitVec 16).toNat
-      rw [Nat.div_eq_of_lt (by omega)]; rfl
-    rw [hz]; rfl
-  · rw [hm]
-    simp only [Bool.false_eq_true, if_false]
-    rw [BitVec.toNat_sshiftRight_of_msb_false hm, Nat.shiftRight_eq_div_pow]
-    simp only [show (2:Nat) ^ 15 = 32768 from rfl]
-    exact Nat.div_eq_of_lt hn
+  rw [sshr15_bv]
+  split <;> simp
 
 /-- The sign mask AND `q`: `q` when the lane is negative, `0` otherwise. -/
 private theorem and3329_toNat (x : Std.I16) :
@@ -5392,26 +5421,11 @@ private theorem cmc_seam (fe : Std.U16) :
 
     Three facts do all the work, and none of them is bit-packing: an arithmetic shift by
     `15` is `allOnes`-or-`0` (`sshr15_bv`), `allOnes ^^^ ·` is complement, and `allOnes
-    &&& 1 = 1`. Everything after that is `Nat` interval arithmetic under `omega`. -/
+    &&& 1 = 1`. Everything after that is `Nat` interval arithmetic under `omega`.
 
-private theorem msb16_iff (x : BitVec 16) : x.msb = false ↔ x.toNat < 32768 := by
-  rw [BitVec.msb_eq_false_iff_two_mul_lt]
-  simp only [show (2:Nat) ^ 16 = 65536 from rfl]
-  omega
-
-private theorem toNat16_lt (x : BitVec 16) : x.toNat < 65536 := by
-  have h := x.isLt
-  simp only [show (2:Nat) ^ 16 = 65536 from rfl] at h
-  exact h
-
-/-- The sign mask, as a `BitVec`: `>>> 15` on a 16-bit word is `allOnes` or `0`. -/
-private theorem sshr15_bv (b : BitVec 16) :
-    b.sshiftRight 15 = if b.msb then BitVec.allOnes 16 else 0#16 := by
-  have h : (b.sshiftRight 15).toNat = if b.msb then 65535 else 0 :=
-    sshr15_toNat (⟨b⟩ : Std.I16)
-  apply BitVec.eq_of_toNat_eq
-  rw [h]
-  split <;> simp
+    `toNat16_lt` / `msb16_iff` / `sshr15_bv` are NOT restated here: they are the shared
+    `BitVec 16` primitives declared once at the head of `section L56Bank`, from which the
+    `Std.I16` forms `i16_toNat_lt` / `sshr15_toNat` are corollaries. -/
 
 /-- `mask ^^^ shifted`: the "absolute value minus one" step, at the `toNat` level. -/
 private theorem xor_mask_toNat (b : BitVec 16) :
@@ -5421,19 +5435,24 @@ private theorem xor_mask_toNat (b : BitVec 16) :
   · rw [BitVec.allOnes_xor, BitVec.toNat_not]
   · rw [BitVec.zero_xor]
 
-/-- The SECOND mask: `(p - 832) >>> 15 &&& 1` is the indicator of `p < 832`, for any `p`
-    already known to sit in the nonnegative half. This is the step that turns a sign bit
-    into a `0`/`1` value, and it is where the `&&& 1` earns its keep. -/
-private theorem mask_sub_step (p : BitVec 16) (hp : p.toNat < 32768) :
-    ((p - (832#16)).sshiftRight 15) &&& (1#16) = if p.toNat < 832 then 1#16 else 0#16 := by
-  have hirn : (p - (832#16)).toNat = (65536 - 832 + p.toNat) % 65536 := by
-    rw [BitVec.toNat_sub, show ((832#16 : BitVec 16)).toNat = 832 from rfl,
-      show (2:Nat) ^ 16 = 65536 from rfl]
-  have hiff := msb16_iff (p - (832#16))
+/-- The SECOND mask: `(p - t) >>> 15 &&& 1` is the indicator of `p < t`, for any `p`
+    already known to sit in the nonnegative half and any threshold `t` in it too. This is
+    the step that turns a sign bit into a `0`/`1` value, and it is where the `&&& 1` earns
+    its keep.
+
+    GENERIC in the threshold `t`: nothing here is specific to the `d = 1` half-width
+    `832`, so another `d`, or an `abs`-style clamp at a different bound, instantiates this
+    instead of restating it. The `t = 832#16` instance is `mask_sub_step_832` below. -/
+private theorem mask_sub_step (p t : BitVec 16) (hp : p.toNat < 32768)
+    (ht : t.toNat ≤ 32768) :
+    ((p - t).sshiftRight 15) &&& (1#16) = if p.toNat < t.toNat then 1#16 else 0#16 := by
+  have hirn : (p - t).toNat = (65536 - t.toNat + p.toNat) % 65536 := by
+    rw [BitVec.toNat_sub, show (2:Nat) ^ 16 = 65536 from rfl]
+  have hiff := msb16_iff (p - t)
   rw [sshr15_bv]
-  by_cases hc : p.toNat < 832
-  · have hm : (p - (832#16)).msb = true := by
-      rcases Bool.eq_false_or_eq_true (p - (832#16)).msb with h | h
+  by_cases hc : p.toNat < t.toNat
+  · have hm : (p - t).msb = true := by
+      rcases Bool.eq_false_or_eq_true (p - t).msb with h | h
       · exact h
       · exfalso
         have h1 := hiff.mp h
@@ -5441,11 +5460,18 @@ private theorem mask_sub_step (p : BitVec 16) (hp : p.toNat < 32768) :
         omega
     rw [hm, if_pos hc]
     simp only [if_true, BitVec.allOnes_and]
-  · have hm : (p - (832#16)).msb = false := by
+  · have hm : (p - t).msb = false := by
       rw [hiff, hirn, Nat.mod_eq_sub_mod (by omega), Nat.mod_eq_of_lt (by omega)]
       omega
     rw [hm, if_neg hc]
     simp only [Bool.false_eq_true, if_false, BitVec.zero_and]
+
+/-- The `t = 832#16` instance of `mask_sub_step`, with the threshold literal reduced.
+    The ONLY place `832` is hard-coded in this bank. -/
+private theorem mask_sub_step_832 (p : BitVec 16) (hp : p.toNat < 32768) :
+    ((p - (832#16)).sshiftRight 15) &&& (1#16) = if p.toNat < 832 then 1#16 else 0#16 := by
+  have h832 : ((832#16 : BitVec 16)).toNat = 832 := rfl
+  rw [mask_sub_step p (832#16) hp (by rw [h832]; omega), h832]
 
 private theorem cmcBv_eq (b : BitVec 16) :
     cmcBv b = if 833 ≤ b.toNat ∧ b.toNat ≤ 2496 then 1#16 else 0#16 := by
@@ -5482,7 +5508,7 @@ private theorem cmcBv_eq (b : BitVec 16) :
       simp only [Bool.false_eq_true, if_false]
       omega
   unfold cmcBv
-  rw [mask_sub_step _ hmain.1]
+  rw [mask_sub_step_832 _ hmain.1]
   simp only [hmain.2]
 
 /-- **M-D(1) — the IMPL seam.** The branch-free double-sign-mask computes the interval
