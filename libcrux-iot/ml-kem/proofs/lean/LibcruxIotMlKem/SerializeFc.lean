@@ -2456,6 +2456,80 @@ theorem bitSum_sliceBit_window (l : List Std.U8) (m n : Nat) (hn : n ≤ 17) :
     bitSum_shift]
   rfl
 
+/-! ### The ENCODE-direction window: three consecutive `d`-bit lanes
+
+    `natBit_win` (`:2401`) with the byte width 8 replaced by the LANE width `d`: bit
+    `u` of the packed 3-lane word `L q ++ L (q+1) ++ L (q+2)` is bit `u % d` of lane
+    `q + u / d`, for every `u < 3 * d`. Same two applications of the
+    `natBit_lo`/`natBit_hi` pair, so the encode direction costs no new bit algebra —
+    only the split width changes from 8 to `d`. As in `natBit_win`, only the two LOW
+    lanes need the field bound: nothing above lane `q + 2` is ever read. -/
+private theorem natBit_lane_win (d : Nat) (hdpos : 0 < d) (L : Nat → Nat) (q : Nat)
+    (h0 : L q < 2 ^ d) (h1 : L (q + 1) < 2 ^ d) (u : Nat) (hu : u < 3 * d) :
+    natBit (L q + 2 ^ d * (L (q + 1) + 2 ^ d * L (q + 2))) u
+      = natBit (L (q + u / d)) (u % d) := by
+  -- `% d` by a VARIABLE modulus is out of `omega`'s reach, so the one shift fact the
+  -- three branches share is proved once, by `Nat.add_mul_mod_self_left`.
+  have hmod : ∀ x : Nat, (d + x) % d = x % d := fun x => by
+    rw [show d + x = x + d * 1 by ring, Nat.add_mul_mod_self_left]
+  rcases Nat.lt_or_ge u d with hc | hc
+  · -- lane `q`: the bit is below the first split
+    rw [natBit_lo _ _ _ _ hc, Nat.div_eq_of_lt hc, Nat.mod_eq_of_lt hc, Nat.add_zero]
+  · obtain ⟨u1, hu1⟩ : ∃ u1, u = d + u1 := ⟨u - d, by omega⟩
+    subst hu1
+    rw [natBit_hi _ _ _ _ h0]
+    rcases Nat.lt_or_ge u1 d with hc2 | hc2
+    · -- lane `q + 1`
+      rw [natBit_lo _ _ _ _ hc2,
+        show (d + u1) / d = 1 from Nat.div_eq_of_lt_le (by omega) (by omega),
+        hmod, Nat.mod_eq_of_lt hc2]
+    · -- lane `q + 2`; `hu` is what bounds the read to THREE lanes
+      obtain ⟨u2, hu2⟩ : ∃ u2, u1 = d + u2 := ⟨u1 - d, by omega⟩
+      subst hu2
+      rw [natBit_hi _ _ _ _ h1,
+        show (d + (d + u2)) / d = 2 from Nat.div_eq_of_lt_le (by omega) (by omega),
+        hmod, hmod, Nat.mod_eq_of_lt (show u2 < d by omega)]
+
+/-- M-C(2) with the byte offset pre-split as `m = d * q + r`. Stated this way so the
+    quotient and remainder are VARIABLES: `8 * n / d` and `8 * n % d` are division by
+    a variable modulus, which `omega` cannot see through, whereas everything below is
+    linear in `q` and `r`. -/
+private theorem bitSum_laneBit_window_aux (d q r : Nat) (hd : 4 ≤ d) (hrlt : r < d)
+    (L : Nat → Nat) (hL : ∀ i, L i < 2 ^ d) (m : Nat) (hm : m = d * q + r) :
+    bitSum (fun t => natBit (L ((m + t) / d)) ((m + t) % d)) 8
+      = (L q / 2 ^ r + L (q + 1) * 2 ^ (d - r) + L (q + 2) * 2 ^ (2 * d - r)) % 256 := by
+  have hdpos : 0 < d := by omega
+  -- (1) each of the 8 bits read at offset `m` is a bit of the 3-lane window at `q`.
+  -- `r + t ≤ (d - 1) + 7 < 3 * d` is where `hd : 4 ≤ d` is load-bearing: at `d = 3`
+  -- the eighth bit would fall in a FOURTH lane, which the window does not contain.
+  have hkey : ∀ t, t < 8 →
+      natBit (L ((m + t) / d)) ((m + t) % d)
+        = natBit (L q + 2 ^ d * (L (q + 1) + 2 ^ d * L (q + 2))) (r + t) := by
+    intro t ht
+    rw [show m + t = d * q + (r + t) by rw [hm]; ring,
+      Nat.mul_add_div hdpos, Nat.mul_add_mod,
+      natBit_lane_win d hdpos L q (hL q) (hL (q + 1)) (r + t) (by omega)]
+  rw [bitSum_congr _
+      (fun t => natBit (L q + 2 ^ d * (L (q + 1) + 2 ^ d * L (q + 2))) (r + t)) 8 hkey,
+    bitSum_shift]
+  -- (2) the window divided by `2 ^ r` IS the impl's three-term sum: `2 ^ r` divides
+  -- both high lane weights (`r < d`), so the division distributes exactly.
+  have hsplit : L q + 2 ^ d * (L (q + 1) + 2 ^ d * L (q + 2))
+      = L q + 2 ^ r * (2 ^ (d - r) * L (q + 1) + 2 ^ (2 * d - r) * L (q + 2)) := by
+    have e1 : (2:Nat) ^ d = 2 ^ r * 2 ^ (d - r) := by
+      rw [← Nat.pow_add]; congr 1; omega
+    have e2 : (2:Nat) ^ d * 2 ^ d = 2 ^ r * 2 ^ (2 * d - r) := by
+      rw [← Nat.pow_add, ← Nat.pow_add]; congr 1; omega
+    calc L q + 2 ^ d * (L (q + 1) + 2 ^ d * L (q + 2))
+        = L q + (2 ^ d * L (q + 1) + 2 ^ d * 2 ^ d * L (q + 2)) := by ring
+      _ = L q + (2 ^ r * 2 ^ (d - r) * L (q + 1)
+            + 2 ^ r * 2 ^ (2 * d - r) * L (q + 2)) := by rw [e2, e1]
+      _ = L q + 2 ^ r * (2 ^ (d - r) * L (q + 1) + 2 ^ (2 * d - r) * L (q + 2)) := by ring
+  rw [hsplit, Nat.add_mul_div_left _ _ (Nat.two_pow_pos r),
+    show (2:Nat) ^ 8 = 256 from rfl,
+    show L q / 2 ^ r + (2 ^ (d - r) * L (q + 1) + 2 ^ (2 * d - r) * L (q + 2))
+        = L q / 2 ^ r + L (q + 1) * 2 ^ (d - r) + L (q + 2) * 2 ^ (2 * d - r) by ring]
+
 /-- **M-C(2) — the generic ENCODE group law.** Byte `n` of the `d`-bit lane stream is
     a 3-lane read. The encode counterpart of M-C(1), and the general-`d` form of
     `bitSum_encBit_eq_encByte` (`:1673`, which is `d = 12` only). Stated over an
@@ -2467,7 +2541,10 @@ theorem bitSum_laneBit_window (d : Nat) (hd : 4 ≤ d) (L : Nat → Nat)
       = (L (8 * n / d) / 2 ^ (8 * n % d)
           + L (8 * n / d + 1) * 2 ^ (d - 8 * n % d)
           + L (8 * n / d + 2) * 2 ^ (2 * d - 8 * n % d)) % 256 := by
-  sorry
+  -- the whole content is the aux above; here we only supply the division identity
+  -- `8 * n = d * (8 * n / d) + 8 * n % d` that names the window's base lane.
+  exact bitSum_laneBit_window_aux d (8 * n / d) (8 * n % d) hd
+    (Nat.mod_lt _ (by omega)) L hL (8 * n) (Nat.div_add_mod (8 * n) d).symm
 
 /-- **M-C(3) — the impl seam at `d = 5`, the APEX of this bank.** `deserialize_5_int`
     turns 5 bytes into 8 lanes through a chain of `&&&` / `|||` / `<<<` / `>>>`; this
