@@ -18,7 +18,7 @@ const KEY_LEN: usize = AES_BLOCK_LEN;
 impl<T: GF128FieldElement> GF128State<T> {
     #[inline]
     pub(crate) fn init(key: &[u8]) -> Self {
-        debug_assert!(key.len() == KEY_LEN);
+        assert!(key.len() == KEY_LEN);
 
         Self {
             accumulator: T::zero(),
@@ -28,7 +28,7 @@ impl<T: GF128FieldElement> GF128State<T> {
 
     #[inline]
     pub(crate) fn update(&mut self, block: &[u8]) {
-        debug_assert!(block.len() == KEY_LEN);
+        assert!(block.len() == KEY_LEN);
 
         let block_elem = T::load_element(block);
         self.accumulator.add(&block_elem);
@@ -37,7 +37,7 @@ impl<T: GF128FieldElement> GF128State<T> {
 
     #[inline]
     pub(crate) fn update_last(&mut self, partial_block: &[u8]) {
-        debug_assert!(partial_block.len() < 16);
+        assert!(partial_block.len() < 16);
 
         let mut block = [0u8; 16];
         block[0..partial_block.len()].copy_from_slice(partial_block);
@@ -67,7 +67,7 @@ impl<T: GF128FieldElement> GF128State<T> {
 
     #[inline]
     pub(crate) fn emit(&self, out: &mut [u8]) {
-        debug_assert!(out.len() == 16);
+        assert!(out.len() == 16);
 
         self.accumulator.store_element(out);
     }

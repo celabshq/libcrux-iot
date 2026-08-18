@@ -467,21 +467,21 @@ impl crate::platform::AesCipherState for State {
 
     #[inline]
     fn load_block(&mut self, b: &[u8]) {
-        debug_assert!(b.len() == 16);
+        assert!(b.len() == 16);
 
         transpose_u8x16(b.try_into().unwrap(), self);
     }
 
     #[inline]
     fn store_block(&self, out: &mut [u8]) {
-        debug_assert!(out.len() == AES_BLOCK_LEN, "out.len() = {}", out.len());
+        assert!(out.len() == AES_BLOCK_LEN, "out.len() = {}", out.len());
 
         transpose_u16x8(self, out);
     }
 
     #[inline]
     fn xor_block(&self, input: &mut [u8]) {
-        debug_assert!(input.len() <= AES_BLOCK_LEN);
+        assert!(input.len() <= AES_BLOCK_LEN);
 
         let mut block = [0u8; AES_BLOCK_LEN];
         self.store_block(&mut block);

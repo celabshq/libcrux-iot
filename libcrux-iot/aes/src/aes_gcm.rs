@@ -42,15 +42,15 @@ where
     }
 
     fn set_nonce(&mut self, nonce: &[u8]) {
-        debug_assert!(nonce.len() == NONCE_LEN);
+        assert!(nonce.len() == NONCE_LEN);
 
         self.aes_state.aes_ctr_set_nonce(nonce);
         self.aes_state.aes_ctr_key_block(1, &mut self.tag_mix);
     }
 
     fn encrypt(&mut self, aad: Aad, plaintext: &mut [u8], tag: &mut [u8]) {
-        debug_assert!(plaintext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
-        debug_assert!(tag.len() == TAG_LEN);
+        assert!(plaintext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
+        assert!(tag.len() == TAG_LEN);
 
         self.aes_state.aes_ctr_update(2, plaintext);
 
@@ -71,8 +71,8 @@ where
     }
 
     fn decrypt(&mut self, aad: Aad, ciphertext: &mut [u8], tag: &[u8]) -> Result<(), DecryptError> {
-        debug_assert!(ciphertext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
-        debug_assert!(tag.len() == TAG_LEN);
+        assert!(ciphertext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
+        assert!(tag.len() == TAG_LEN);
 
         let aad_len = aad.len();
         self.gcm_state.update_padded(aad);

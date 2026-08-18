@@ -8,14 +8,14 @@ fn zero() -> FieldElement {
 
 #[inline]
 fn load_element(bytes: &[u8]) -> FieldElement {
-    debug_assert!(bytes.len() == 16);
+    assert!(bytes.len() == 16);
 
     u128::from_be_bytes(bytes.try_into().unwrap())
 }
 
 #[inline]
 fn store_element(element: &FieldElement, bytes: &mut [u8]) {
-    debug_assert!(bytes.len() == 16);
+    assert!(bytes.len() == 16);
     bytes.copy_from_slice(&u128::to_be_bytes(*element));
 }
 
@@ -26,7 +26,7 @@ fn add(element: &FieldElement, other: &FieldElement) -> FieldElement {
 
 #[inline]
 fn ith_bit_mask(elem: &FieldElement, i: usize) -> FieldElement {
-    debug_assert!(i < 128);
+    assert!(i < 128);
 
     let bit: u16 = ((elem >> (127 - i)) as u16) & 0x1;
     let bit_mask16 = (!bit).wrapping_add(1);
@@ -46,7 +46,7 @@ fn mul_x(elem: &mut FieldElement) {
 
 #[inline]
 fn mul_step(x: &FieldElement, y: &mut FieldElement, i: usize, result: &mut FieldElement) {
-    debug_assert!(i < 128);
+    assert!(i < 128);
     let mask = ith_bit_mask(x, i);
     *result ^= *y & mask;
     mul_x(y);

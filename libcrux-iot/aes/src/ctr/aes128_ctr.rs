@@ -18,9 +18,9 @@ impl<T: AesCipherState, const CTR_LEN: usize, const NONCE_START: usize>
 {
     #[inline]
     pub(crate) fn init(key: &[u8], nonce: &[u8]) -> Self {
-        debug_assert_eq!(nonce.len(), NONCE_LEN);
-        debug_assert_eq!(key.len(), GCM_KEY_LEN);
-        debug_assert!(CTR_LEN <= 8 && CTR_LEN > 1);
+        assert_eq!(nonce.len(), NONCE_LEN);
+        assert_eq!(key.len(), GCM_KEY_LEN);
+        assert!(CTR_LEN <= 8 && CTR_LEN > 1);
 
         let mut ctr_nonce = [0u8; 16];
         if NONCE_START == 1 {
@@ -55,7 +55,7 @@ impl<T: AesCipherState> super::GcmInit
 /// 128 - Key expansion
 #[inline]
 fn key_expansion<T: AesCipherState>(key: &[u8]) -> ExtendedKey<T, NUM_KEYS> {
-    debug_assert!(key.len() == GCM_KEY_LEN);
+    assert!(key.len() == GCM_KEY_LEN);
 
     let mut keyex = from_fn(|_| T::new());
     keyex[0].load_block(key);

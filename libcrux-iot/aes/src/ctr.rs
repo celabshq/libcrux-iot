@@ -42,14 +42,14 @@ impl<T: AesCipherState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE
 {
     #[inline]
     pub(crate) fn aes_ctr_set_nonce(&mut self, nonce: &[u8]) {
-        debug_assert!(nonce.len() == crate::NONCE_LEN);
+        assert!(nonce.len() == crate::NONCE_LEN);
 
         self.ctr_nonce[NONCE_START..crate::NONCE_LEN + NONCE_START].copy_from_slice(nonce);
     }
 
     #[inline]
     pub(crate) fn aes_ctr_key_block(&self, ctr: u32, out: &mut [u8]) {
-        debug_assert!(out.len() == AES_BLOCK_LEN);
+        assert!(out.len() == AES_BLOCK_LEN);
 
         let mut st_init = self.ctr_nonce;
         st_init[CTR_NONCE_LEN - CTR_LEN..].copy_from_slice(&ctr.to_be_bytes()[4 - CTR_LEN..]);
@@ -64,7 +64,7 @@ impl<T: AesCipherState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE
 
     #[inline]
     fn aes_ctr_xor_block(&self, ctr: u32, input: &mut [u8]) {
-        debug_assert!(input.len() <= AES_BLOCK_LEN);
+        assert!(input.len() <= AES_BLOCK_LEN);
 
         let mut st_init = self.ctr_nonce;
         st_init[CTR_NONCE_LEN - CTR_LEN..].copy_from_slice(&ctr.to_be_bytes()[4 - CTR_LEN..]);
@@ -78,13 +78,13 @@ impl<T: AesCipherState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE
 
     #[inline]
     fn aes_ctr_xor_blocks(&self, ctr: u32, input: &mut [u8]) {
-        debug_assert!(input.len().is_multiple_of(AES_BLOCK_LEN));
+        assert!(input.len().is_multiple_of(AES_BLOCK_LEN));
         // If input.len() / AES_BLOCK_LEN == u32::MAX - 1 and we start with
         // ctr == 2 then we'll wrap to 0 below and we'll repeat the initial key
         // block
         // Note that every entry point checks for the input length. Hence we
         // only have a debug assert here.
-        debug_assert!(input.len() / AES_BLOCK_LEN < (u32::MAX - 1) as usize);
+        assert!(input.len() / AES_BLOCK_LEN < (u32::MAX - 1) as usize);
 
         let blocks = input.len() / AES_BLOCK_LEN;
         for i in 0..blocks {
@@ -98,7 +98,7 @@ impl<T: AesCipherState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE
 
     #[inline]
     pub(crate) fn aes_ctr_update(&self, ctr: u32, input: &mut [u8]) {
-        debug_assert!(input.len() / AES_BLOCK_LEN < u32::MAX as usize);
+        assert!(input.len() / AES_BLOCK_LEN < u32::MAX as usize);
 
         let blocks = input.len() / AES_BLOCK_LEN;
         self.aes_ctr_xor_blocks(ctr, &mut input[0..blocks * AES_BLOCK_LEN]);

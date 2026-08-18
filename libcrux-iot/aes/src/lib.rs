@@ -948,7 +948,7 @@ macro_rules! pub_crate_mod {
                 plaintext: &mut [u8],
                 tag: &mut [u8],
             ) -> Result<(), EncryptError> {
-                debug_assert!(key.len() == $key_len);
+                assert!(key.len() == $key_len);
                 crate::length_check::<$ptxt_limit, $aad_limit, Aad>(plaintext, &aad)?;
                 crate::encrypt::<Aad, State>(key, nonce, aad, plaintext, tag)
             }
@@ -962,7 +962,7 @@ macro_rules! pub_crate_mod {
                 ciphertext: &mut [u8],
                 tag: &[u8],
             ) -> Result<(), DecryptError> {
-                debug_assert!(key.len() == $key_len);
+                assert!(key.len() == $key_len);
                 crate::length_check::<$ptxt_limit, $aad_limit, Aad>(ciphertext, &aad)?;
                 crate::decrypt::<Aad, State>(key, nonce, aad, ciphertext, tag)
             }

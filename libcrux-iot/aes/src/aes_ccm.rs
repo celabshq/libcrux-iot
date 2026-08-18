@@ -39,7 +39,7 @@ where
     /// Set the nonce for the AES-CTR and authentication
     /// states.
     fn set_nonce(&mut self, nonce: &[u8]) {
-        debug_assert!(nonce.len() == NONCE_LEN);
+        assert!(nonce.len() == NONCE_LEN);
 
         self.aes_state.aes_ctr_set_nonce(nonce);
         self.accumulator[1..1 + NONCE_LEN].copy_from_slice(nonce);
@@ -47,7 +47,7 @@ where
 
     /// Encrypt and authenticate AAD and plaintext.
     fn encrypt(&mut self, aad: Aad, plaintext: &mut [u8], tag: &mut [u8]) {
-        debug_assert_eq!(tag.len(), TAG_LEN);
+        assert_eq!(tag.len(), TAG_LEN);
 
         // fill accumulator with CBC-MAC of AAD and plaintext
         self.ccm_update_aad(aad, plaintext.len());
@@ -66,7 +66,7 @@ where
     /// Verify authentication tag, and if valid decrypt
     /// plaintext from ciphertext.
     fn decrypt(&mut self, aad: Aad, ciphertext: &mut [u8], tag: &[u8]) -> Result<(), DecryptError> {
-        debug_assert_eq!(tag.len(), TAG_LEN);
+        assert_eq!(tag.len(), TAG_LEN);
 
         // Feed accumulator with AAD.
         self.ccm_update_aad(aad, ciphertext.len());
@@ -130,9 +130,9 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AesCipherState>
 
         // `MSG_ENC_LEN` is 3, so this should always be the
         // case.
-        debug_assert!(MSG_ENC_LEN <= USIZE_LEN);
-        debug_assert!(MSG_ENC_LEN <= AES_BLOCK_LEN);
-        debug_assert_eq!(15 - MSG_ENC_LEN, NONCE_LEN);
+        assert!(MSG_ENC_LEN <= USIZE_LEN);
+        assert!(MSG_ENC_LEN <= AES_BLOCK_LEN);
+        assert_eq!(15 - MSG_ENC_LEN, NONCE_LEN);
         let aad_len = aad.len();
 
         // Byte 0 of initial accumulator value:
@@ -297,7 +297,7 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AesCipherState>
     ///
     /// self.accumulator = AES(self.accumulator ^ pad(input))
     fn accumulate(&mut self, input: &[u8]) {
-        debug_assert!(input.len() <= AES_BLOCK_LEN);
+        assert!(input.len() <= AES_BLOCK_LEN);
         for j in 0..input.len() {
             self.accumulator[j] ^= input[j];
         }
