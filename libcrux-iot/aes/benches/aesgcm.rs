@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput};
+use libcrux_secrets::{Classify, ClassifyRef};
 
 pub fn randombytes<const LEN: usize>() -> [u8; LEN] {
     let mut bytes = [0u8; LEN];
@@ -47,12 +48,19 @@ macro_rules! impl_comp {
                                 let mut ciphertext = vec![0; *payload_size];
                                 use libcrux_iot_aes::$fun::portable::{$portable, Key, Nonce, Tag};
 
-                                let k: Key<$portable> = key.into();
-                                let nonce: Nonce<$portable> = nonce.into();
-                                let mut tag: Tag<$portable> = [0; libcrux_iot_aes::TAG_LEN].into();
+                                let k: Key<$portable> = key.classify().into();
+                                let nonce: Nonce<$portable> = nonce.classify().into();
+                                let mut tag: Tag<$portable> =
+                                    [0; libcrux_iot_aes::TAG_LEN].classify().into();
 
-                                k.encrypt(&mut ciphertext, &mut tag, &nonce, &aad, &payload)
-                                    .unwrap();
+                                k.encrypt(
+                                    &mut ciphertext,
+                                    &mut tag,
+                                    &nonce,
+                                    &aad,
+                                    payload.classify_ref(),
+                                )
+                                .unwrap();
                             },
                             BatchSize::SmallInput,
                         )
