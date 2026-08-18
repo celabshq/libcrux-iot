@@ -5377,6 +5377,114 @@ end MCPBank
 
 section MDBank
 
+/-- The whole branch-free body of `compress_message_coefficient`, as a total
+    `BitVec 16 → BitVec 16` function. Every step of the impl is total (wrapping
+    subtraction, an arithmetic shift by a closed in-range amount, xor, and), so the
+    `Result` monad never fails and the seam below is a `rfl`-level identity. -/
+private def cmcBv (b : BitVec 16) : BitVec 16 :=
+  (((((1664#16) - b).sshiftRight 15 ^^^ ((1664#16) - b)) - (832#16)).sshiftRight 15) &&& (1#16)
+
+private theorem cmc_seam (fe : Std.U16) :
+    libcrux_iot_ml_kem.vector.portable.compress.compress_message_coefficient fe
+      = .ok (c8 ⟨cmcBv fe.bv⟩) := rfl
+
+/-! ### The pure `BitVec 16` sign-mask algebra.
+
+    Three facts do all the work, and none of them is bit-packing: an arithmetic shift by
+    `15` is `allOnes`-or-`0` (`sshr15_bv`), `allOnes ^^^ ·` is complement, and `allOnes
+    &&& 1 = 1`. Everything after that is `Nat` interval arithmetic under `omega`. -/
+
+private theorem msb16_iff (x : BitVec 16) : x.msb = false ↔ x.toNat < 32768 := by
+  rw [BitVec.msb_eq_false_iff_two_mul_lt]
+  simp only [show (2:Nat) ^ 16 = 65536 from rfl]
+  omega
+
+private theorem toNat16_lt (x : BitVec 16) : x.toNat < 65536 := by
+  have h := x.isLt
+  simp only [show (2:Nat) ^ 16 = 65536 from rfl] at h
+  exact h
+
+/-- The sign mask, as a `BitVec`: `>>> 15` on a 16-bit word is `allOnes` or `0`. -/
+private theorem sshr15_bv (b : BitVec 16) :
+    b.sshiftRight 15 = if b.msb then BitVec.allOnes 16 else 0#16 := by
+  have h : (b.sshiftRight 15).toNat = if b.msb then 65535 else 0 :=
+    sshr15_toNat (⟨b⟩ : Std.I16)
+  apply BitVec.eq_of_toNat_eq
+  rw [h]
+  split <;> simp
+
+/-- `mask ^^^ shifted`: the "absolute value minus one" step, at the `toNat` level. -/
+private theorem xor_mask_toNat (b : BitVec 16) :
+    ((b.sshiftRight 15) ^^^ b).toNat = if b.msb then 65535 - b.toNat else b.toNat := by
+  rw [sshr15_bv b]
+  split
+  · rw [BitVec.allOnes_xor, BitVec.toNat_not]
+  · rw [BitVec.zero_xor]
+
+/-- The SECOND mask: `(p - 832) >>> 15 &&& 1` is the indicator of `p < 832`, for any `p`
+    already known to sit in the nonnegative half. This is the step that turns a sign bit
+    into a `0`/`1` value, and it is where the `&&& 1` earns its keep. -/
+private theorem mask_sub_step (p : BitVec 16) (hp : p.toNat < 32768) :
+    ((p - (832#16)).sshiftRight 15) &&& (1#16) = if p.toNat < 832 then 1#16 else 0#16 := by
+  have hirn : (p - (832#16)).toNat = (65536 - 832 + p.toNat) % 65536 := by
+    rw [BitVec.toNat_sub, show ((832#16 : BitVec 16)).toNat = 832 from rfl,
+      show (2:Nat) ^ 16 = 65536 from rfl]
+  have hiff := msb16_iff (p - (832#16))
+  rw [sshr15_bv]
+  by_cases hc : p.toNat < 832
+  · have hm : (p - (832#16)).msb = true := by
+      rcases Bool.eq_false_or_eq_true (p - (832#16)).msb with h | h
+      · exact h
+      · exfalso
+        have h1 := hiff.mp h
+        rw [hirn, Nat.mod_eq_of_lt (by omega)] at h1
+        omega
+    rw [hm, if_pos hc]
+    simp only [if_true, BitVec.allOnes_and]
+  · have hm : (p - (832#16)).msb = false := by
+      rw [hiff, hirn, Nat.mod_eq_sub_mod (by omega), Nat.mod_eq_of_lt (by omega)]
+      omega
+    rw [hm, if_neg hc]
+    simp only [Bool.false_eq_true, if_false, BitVec.zero_and]
+
+private theorem cmcBv_eq (b : BitVec 16) :
+    cmcBv b = if 833 ≤ b.toNat ∧ b.toNat ≤ 2496 then 1#16 else 0#16 := by
+  have hb := toNat16_lt b
+  have hs65 := toNat16_lt ((1664#16) - b)
+  -- the wrapped difference `1664 - b`, as a linear fact `omega` can use directly
+  have hsn : ((1664#16) - b).toNat = (65536 - b.toNat + 1664) % 65536 := by
+    rw [BitVec.toNat_sub, show ((1664#16 : BitVec 16)).toNat = 1664 from rfl,
+      show (2:Nat) ^ 16 = 65536 from rfl]
+  have hsv : ((1664#16) - b).toNat + b.toNat = 1664
+      ∨ ((1664#16) - b).toNat + b.toNat = 67200 := by
+    rcases Nat.lt_or_ge b.toNat 1665 with hc | hc
+    · left
+      rw [hsn, Nat.mod_eq_sub_mod (by omega), Nat.mod_eq_of_lt (by omega)]
+      omega
+    · right
+      rw [hsn, Nat.mod_eq_of_lt (by omega)]
+      omega
+  -- `positive`: the sign-folded magnitude. BOTH facts we need come out of ONE case split.
+  have hmain : (((1664#16) - b).sshiftRight 15 ^^^ ((1664#16) - b)).toNat < 32768
+      ∧ ((((1664#16) - b).sshiftRight 15 ^^^ ((1664#16) - b)).toNat < 832
+          ↔ (833 ≤ b.toNat ∧ b.toNat ≤ 2496)) := by
+    have hmsb := msb16_iff ((1664#16) - b)
+    rw [xor_mask_toNat]
+    rcases Bool.eq_false_or_eq_true ((1664#16) - b).msb with h | h
+    · have hge : ¬ (((1664#16) - b).toNat < 32768) := by
+        intro hc
+        rw [hmsb.mpr hc] at h
+        exact Bool.noConfusion h
+      rw [h, if_pos rfl]
+      omega
+    · have hlt := hmsb.mp h
+      rw [h]
+      simp only [Bool.false_eq_true, if_false]
+      omega
+  unfold cmcBv
+  rw [mask_sub_step _ hmain.1]
+  simp only [hmain.2]
+
 /-- **M-D(1) — the IMPL seam.** The branch-free double-sign-mask computes the interval
     indicator `1 iff 833 ≤ fe ≤ 2496`.
 
@@ -5387,7 +5495,10 @@ section MDBank
 theorem compress_message_coefficient_eq (fe : Std.U16) :
     libcrux_iot_ml_kem.vector.portable.compress.compress_message_coefficient fe
       = .ok (u8OfNat (if 833 ≤ fe.val ∧ fe.val ≤ 2496 then 1 else 0)) := by
-  sorry
+  rw [cmc_seam, cmcBv_eq, show fe.bv.toNat = fe.val from rfl]
+  by_cases hk : 833 ≤ fe.val ∧ fe.val ≤ 2496
+  · rw [if_pos hk, if_pos hk]; rfl
+  · rw [if_neg hk, if_neg hk]; rfl
 
 /-- **M-D(2) — the PURE bridge.** The spec's `d = 1` closed form (from M-C′(3)
     `compress_d_gen_eq`, which is generic in `d < 12` and so already covers `d = 1`) IS
@@ -5398,7 +5509,11 @@ theorem compress_message_coefficient_eq (fe : Std.U16) :
 theorem compress_1_threshold_eq (x : Nat) (hx : x < 3329) :
     ((2 * x * 2 ^ 1 + 3329) / 6658) % 2 ^ 1
       = (if 833 ≤ x ∧ x ≤ 2496 then 1 else 0) := by
-  sorry
+  -- `(4x + 3329) / 6658 ∈ {0, 1, 2}` under `hx`, and only the middle quotient is odd:
+  -- `q = 0` for `x ≤ 832`, `q = 1` for `833 ≤ x ≤ 2496`, `q = 2` for `2497 ≤ x ≤ 3328`.
+  -- Without `hx` the first `q = 3` lands at `x = 4162`, which is odd again — the
+  -- counterexample `AMENDMENTS 2` records for L5.2.
+  split <;> omega
 
 end MDBank
 
