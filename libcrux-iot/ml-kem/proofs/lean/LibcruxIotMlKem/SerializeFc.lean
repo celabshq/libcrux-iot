@@ -3229,77 +3229,6 @@ theorem compress_then_serialize_ring_element_v_fc
                   ∧ ∀ ℓ : Nat, ℓ < C2_LEN.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
   sorry
 
-/-! ## Public-key deserialization — exact 1:1 with the hacspec model. -/
-
-/-- L5.5 — `serialize.deserialize_ring_elements_reduced`.
-
-    Rank-K public-key decode: K consecutive 384-byte chunks, each `ByteDecode_12`
-    then reduced to canonical residues. This is the vector-level apex that
-    assembles `Serialize.deserialize_to_reduced_ring_element_fc` (currently the A2
-    axiom) K times. The impl threads a caller-provided `deserialized_pk` slice and
-    returns it; the spec returns a fresh rank-K array, so the impl result is
-    compared through `lift_vec_slice`. -/
-@[spec]
-theorem deserialize_ring_elements_reduced_fc
-    (K : Std.Usize)
-    (public_key : Slice Std.U8)
-    (deserialized_pk : Slice
-        (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
-          libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
-    (h_pk_len : public_key.length = K.val * 384)
-    (h_out_len : deserialized_pk.length = K.val) :
-    ⦃ ⌜ True ⌝ ⦄
-    libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced
-      (vectortraitsOperationsInst := portable_ops_inst)
-      K public_key deserialized_pk
-    ⦃ ⇓ p => ⌜ p.length = K.val
-                ∧ hacspec_ml_kem.serialize.deserialize_ring_elements_reduced K public_key
-                  = .ok (lift_vec_slice p K)
-                -- The K-fold apex must re-export the canonicality its own per-element
-                -- leaf already asserts (Serialize.lean:53, the A2 axiom): the impl runs
-                -- `cond_subtract_3329`, and downstream matrix consumers bind `≤ 3328`.
-                -- Dropping it here made the apex true but undischargeable for them.
-                ∧ (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
-                    (((p.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
-                      ≤ 3328) ⌝ ⦄ := by
-  sorry
-
-/-! ## Uncompressed ring elements — `d = 12`, no compression step.
-
-    `BITS_PER_COEFFICIENT = 12`, so these are plain `ByteEncode_12` / `ByteDecode_12`
-    with no `Compress`/`Decompress` in the chain. The slice-shaped hacspec variants
-    (`byte_encode_into`, `byte_decode_dyn`) match the impl's slice plumbing directly,
-    so no container conversion is needed. -/
-
-/-- L5.6 — `serialize.serialize_uncompressed_ring_element` (= `ByteEncode_12`).
-
-    The impl returns `(scratch', serialized')`; the byte content of interest is
-    `p.2`, which `byte_encode_into` produces from the same `out` slice. -/
-@[spec]
-theorem serialize_uncompressed_ring_element_fc
-    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
-            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (serialized : Slice Std.U8)
-    (h_len : serialized.length = 384)
-    -- ENCODE precondition, machine-falsified before adding: without it this statement is
-    -- FALSE. `byte_encode` reads a canonicalised `FieldElement.val` while the impl's
-    -- `to_unsigned_field_modulus` adds q AT MOST ONCE, so an unreduced lane diverges.
-    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
-        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
-    -- Counterexample without h_bnd (evaluated on the extracted impl): lane 3400 ->
-    -- impl bytes [72,13,0] (payload 0xD48); spec byte_encode of canon(3400)=71 -> [71,0,0].
-    -- Tight: 3329 diverges, 3328 agrees. This is the `hbnd` the file's own prover bank
-    -- already carries at L1601 -- the hypothesis was present in the PROOF and missing
-    -- from the STATEMENT, which is why this obligation blocked twice ($71.82).
-    ⦃ ⌜ True ⌝ ⦄
-    libcrux_iot_ml_kem.serialize.serialize_uncompressed_ring_element
-      (vectortraitsOperationsInst := portable_ops_inst)
-      re scratch serialized
-    ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.byte_encode_into (lift_poly re) 12#usize serialized
-                = .ok p.2 ⌝ ⦄ := by
-  sorry
-
 /-! ## PROVER bank for L5.7, part 2 — the SPEC-side decode chain.
 
     Ported from `Hacspec_ml_kem.Commute.Serialize_bits.fst`: the ladder
@@ -3819,6 +3748,126 @@ private theorem byte_decode_dyn_12_eq (b : Slice Std.U8) (hb : b.val.length = 38
   exact byte_decode_12_eq _ p hp
 
 end L57Bank2
+
+/-! ## PROVER bank for L5.5 — the rank-K public-key decode apex.
+
+    Two halves, in the file's established shape.
+
+    * SPEC side (`spec_deser_pk_eq`): the hacspec `deserialize_ring_elements_reduced`
+      IS `vector_decode_12`, i.e. a `createi RANK` whose closure `byte_decode`s the
+      384-byte window `[i*384, i*384+384)` of the public key. That window is exactly
+      `Spec.pk_chunk public_key i`, so the whole `createi` collapses to
+      `Spec.t_as_ntt_from_public_key_pure` — the very definition the A2 axiom's post
+      is stated against. NO bit-level reasoning enters: the per-window decode stays
+      the `byte_decode_dyn` atom and the only fact needed about it is that it
+      SUCCEEDS on a 384-byte slice, which `byte_decode_dyn_12_ok` reads off the
+      file's own L5.7 banks (`deserialize_uncompressed_impl_fc` + `byte_decode_dyn_12_eq`).
+    * IMPL side (`deser_pk_loop_fc` / `deser_pk_impl_fc`): the
+      `Enumerate (ChunksExact 384)` loop, through the K10/K1 keystone
+      `Matrix.ComputeRingElementV.Impl.loop_chunks_exact_pk_spec` at `cs = 384`
+      (the exemplar: the suffix relation it threads is precisely the A2 axiom's
+      `h_chunk_eq` hypothesis), with the A2 leaf
+      `Serialize.deserialize_to_reduced_ring_element_fc` discharging each chunk.
+      The invariant is the written prefix `pkInv`; no undone-cells conjunct is
+      needed because the post only speaks about indices `< K`. -/
+
+section L55Bank
+
+open libcrux_iot_ml_kem.Util.CreateI
+
+/-! ### Spec side. -/
+
+/-- `⟨BitVec.ofNat _ k⟩.val = k` for any in-range `k`. The `L57Bank2` companion
+    `usize_ofNat_val` is pinned at the platform-independent `2 ^ 32`; here `k`
+    ranges over `< K` with only `K * 384 ≤ Usize.max` known, so the bound has to
+    be the machine one. -/
+private theorem usize_ofNat_val_le (k : Nat) (h : k ≤ Std.Usize.max) :
+    ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k := by
+  show (BitVec.ofNat _ k).toNat = k
+  simp only [BitVec.toNat_ofNat]
+  exact Nat.mod_eq_of_lt (by scalar_tac)
+
+/-- `Spec.pk_chunk` delivers a FULL 384-byte window at every `i < K`. -/
+private theorem pk_chunk_len_384 (public_key : Slice Std.U8) (K : Std.Usize)
+    (h_pk : public_key.val.length = K.val * 384) (i : Nat) (hi : i < K.val) :
+    (Spec.pk_chunk public_key i).val.length = 384 := by
+  show ((public_key.val.drop (i * 384)).take 384).length = 384
+  rw [List.length_take, List.length_drop, h_pk]
+  have h : (i + 1) * 384 ≤ K.val * 384 := by apply Nat.mul_le_mul_right; omega
+  omega
+
+end L55Bank
+
+/-! ## Public-key deserialization — exact 1:1 with the hacspec model. -/
+
+/-- L5.5 — `serialize.deserialize_ring_elements_reduced`.
+
+    Rank-K public-key decode: K consecutive 384-byte chunks, each `ByteDecode_12`
+    then reduced to canonical residues. This is the vector-level apex that
+    assembles `Serialize.deserialize_to_reduced_ring_element_fc` (currently the A2
+    axiom) K times. The impl threads a caller-provided `deserialized_pk` slice and
+    returns it; the spec returns a fresh rank-K array, so the impl result is
+    compared through `lift_vec_slice`. -/
+@[spec]
+theorem deserialize_ring_elements_reduced_fc
+    (K : Std.Usize)
+    (public_key : Slice Std.U8)
+    (deserialized_pk : Slice
+        (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+          libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (h_pk_len : public_key.length = K.val * 384)
+    (h_out_len : deserialized_pk.length = K.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced
+      (vectortraitsOperationsInst := portable_ops_inst)
+      K public_key deserialized_pk
+    ⦃ ⇓ p => ⌜ p.length = K.val
+                ∧ hacspec_ml_kem.serialize.deserialize_ring_elements_reduced K public_key
+                  = .ok (lift_vec_slice p K)
+                -- The K-fold apex must re-export the canonicality its own per-element
+                -- leaf already asserts (Serialize.lean:53, the A2 axiom): the impl runs
+                -- `cond_subtract_3329`, and downstream matrix consumers bind `≤ 3328`.
+                -- Dropping it here made the apex true but undischargeable for them.
+                ∧ (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                    (((p.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
+                      ≤ 3328) ⌝ ⦄ := by
+  sorry
+
+/-! ## Uncompressed ring elements — `d = 12`, no compression step.
+
+    `BITS_PER_COEFFICIENT = 12`, so these are plain `ByteEncode_12` / `ByteDecode_12`
+    with no `Compress`/`Decompress` in the chain. The slice-shaped hacspec variants
+    (`byte_encode_into`, `byte_decode_dyn`) match the impl's slice plumbing directly,
+    so no container conversion is needed. -/
+
+/-- L5.6 — `serialize.serialize_uncompressed_ring_element` (= `ByteEncode_12`).
+
+    The impl returns `(scratch', serialized')`; the byte content of interest is
+    `p.2`, which `byte_encode_into` produces from the same `out` slice. -/
+@[spec]
+theorem serialize_uncompressed_ring_element_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (serialized : Slice Std.U8)
+    (h_len : serialized.length = 384)
+    -- ENCODE precondition, machine-falsified before adding: without it this statement is
+    -- FALSE. `byte_encode` reads a canonicalised `FieldElement.val` while the impl's
+    -- `to_unsigned_field_modulus` adds q AT MOST ONCE, so an unreduced lane diverges.
+    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    -- Counterexample without h_bnd (evaluated on the extracted impl): lane 3400 ->
+    -- impl bytes [72,13,0] (payload 0xD48); spec byte_encode of canon(3400)=71 -> [71,0,0].
+    -- Tight: 3329 diverges, 3328 agrees. This is the `hbnd` the file's own prover bank
+    -- already carries at L1601 -- the hypothesis was present in the PROOF and missing
+    -- from the STATEMENT, which is why this obligation blocked twice ($71.82).
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.serialize_uncompressed_ring_element
+      (vectortraitsOperationsInst := portable_ops_inst)
+      re scratch serialized
+    ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.byte_encode_into (lift_poly re) 12#usize serialized
+                = .ok p.2 ⌝ ⦄ := by
+  sorry
 
 /-- L5.7 — `serialize.deserialize_to_uncompressed_ring_element` (= `ByteDecode_12`).
 
