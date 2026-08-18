@@ -205,24 +205,56 @@ def lift_matrix_from_slice
         (by simp)))
     (by simp)
 
+/-- The `i`-th `BYTES_PER_RING_ELEMENT = 384` byte chunk of a public key, i.e. the
+    byte span `[i*384, i*384+384)`. Matches the `chunks_exact` the impl performs and
+    the `h_chunk_eq : chunk[ℓ] = public_key[i*384 + ℓ]` hypothesis of the
+    `deserialize_to_reduced_ring_element_fc` obligation. Out of range yields a short
+    (or empty) slice, on which `byte_decode_dyn`'s length `massert` fails — see below. -/
+def Spec.pk_chunk (public_key : Slice Std.U8) (i : Nat) : Slice Std.U8 :=
+  ⟨(public_key.val.drop (i * 384)).take 384, by
+    have h : ((public_key.val.drop (i * 384)).take 384).length ≤ 384 := by
+      simp [List.length_take]
+    exact le_trans h (by scalar_tac)⟩
+
 /-- Pure projection of the public-key deserialization producing
-    `t_as_ntt : Array (Array FE 256) K`. The impl `matrix.compute_ring_element_v`
-    consumes `public_key : Slice U8` via `chunks_exact public_key
-    BYTES_PER_RING_ELEMENT`, deserializing each chunk into a ring element.
-    Used by L7.3's locked post. Declared `opaque` here; the explicit
-    deserialization spec is a pending obligation paralleling
-    `Spec.sample_matrix_A_pure`. -/
-noncomputable opaque Spec.t_as_ntt_from_public_key_pure
+    `t_as_ntt : Array (Array FE 256) K`: chunk `public_key` into 384-byte ring
+    elements and decode each with the hacspec `byte_decode_dyn` at `d = 12`.
+    Used by L7.3's locked post.
+
+    WAS `noncomputable opaque` with NO defining equation and NO characterising
+    axiom (2026-08-18). That was a stub, not a necessity: its docstring claimed a
+    parallel to `Spec.sample_matrix_A_pure`, but that one is genuinely SHAKE-blocked
+    whereas this one is definable from `byte_decode_dyn` — which is total, computable,
+    and already tied to the impl by the closed
+    `deserialize_to_uncompressed_ring_element_fc`. Left opaque, the
+    `deserialize_to_reduced_ring_element_fc` axiom read "impl deserialize = an
+    uninterpreted function of the public key", i.e. it was neither provable nor
+    refutable and tied the impl to nothing; `compute_ring_element_v_fc` inherited
+    that, claiming only agreement against SOME unspecified vector. Defining it here
+    STRENGTHENS both, and is what makes the lift computable.
+
+    The `| _ => default` branch is UNREACHABLE at every call site: `byte_decode_dyn`
+    at `d = 12` asserts `len = 32 * 12 = 384`, `pk_chunk` delivers exactly 384 bytes
+    whenever `i < K`, and every consumer carries
+    `h_pk_len : public_key.length = K.val * 384`. It exists only to make the
+    definition total at the non-`Result` return type the locked statements use. -/
+def Spec.t_as_ntt_from_public_key_pure
     (public_key : Slice Std.U8) (K : Std.Usize) :
-    Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K
+    Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
+  ⟨(List.range K.val).map (fun i =>
+      match hacspec_ml_kem.serialize.byte_decode_dyn (Spec.pk_chunk public_key i) 12#usize with
+      | .ok p => p
+      | _     => default),
+   by simp⟩
 
 /-- Public-key-bytes lift wrapping `Spec.t_as_ntt_from_public_key_pure`.
     The impl `matrix.compute_ring_element_v` deserializes `public_key` into
     a vector of ring elements; the hacspec spec receives this vector
     pre-deserialized as its first argument. -/
--- Genuinely noncomputable: reaches the SHAKE-opaque sampling / axiomatised
--- deserialize chain. The rest of the Spec layer is computable.
-noncomputable def lift_t_as_ntt_from_public_key
+-- Computable since 2026-08-18 (see the note on the definition above). The only
+-- remaining noncomputable defs in the Spec layer are the genuinely SHAKE-blocked
+-- `Spec.sample_matrix_A_pure` / `lift_matrix_from_seed`.
+def lift_t_as_ntt_from_public_key
     (public_key : Slice Std.U8) (K : Std.Usize) :
     Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
   Spec.t_as_ntt_from_public_key_pure public_key K
