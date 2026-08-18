@@ -4630,6 +4630,37 @@ end L51Bank
 
 section MEBank
 
+/-! ### Scaffolding for the general-`d` spec side.
+
+    The `d = 1` proof (`:4461`) got `two_pow_bit_size` by `rfl` because `2 ^ 1` is a
+    closed scalar. At a general `d` the `U32.pow` call has to be discharged
+    symbolically, which needs the `UScalar.tryMk` success lemma the tree does not
+    yet carry. `2 ^ d.val` is kept an ATOM throughout — never a closed large
+    scalar (the skill §6 pitfall). -/
+
+/-- `UScalar.tryMk` at `U32` succeeds and is faithful strictly below `2 ^ 32`. -/
+private theorem u32_tryMk_ok (x : Nat) (hx : x < 2 ^ 32) :
+    ∃ z : Std.U32, Std.UScalar.tryMk .U32 x = .ok z ∧ z.val = x := by
+  have hb : Std.UScalar.inBounds .U32 x := by
+    simpa [Std.UScalarTy.numBits] using hx
+  have hm := Std.UScalar.tryMk_eq .U32 x
+  revert hm
+  cases h : Std.UScalar.tryMk .U32 x with
+  | ok z => intro hm; exact ⟨z, rfl, hm.1⟩
+  | fail e => intro hm; exact absurd hb hm
+  | div => intro hm; exact hm.elim
+
+/-- `2u32.pow n = 2 ^ n`, symbolically, for any exponent below the word size. -/
+private theorem u32_pow_two_ok (n : Std.U32) (hn : n.val < 32) :
+    ∃ z : Std.U32, CoreModels.core.num.U32.pow 2#u32 n = .ok z ∧ z.val = 2 ^ n.val := by
+  have h2 : ((2#u32 : Std.U32)).val = 2 := by scalar_tac
+  have hlt : (2:Nat) ^ n.val < 2 ^ 32 := Nat.pow_lt_pow_right (by omega) hn
+  obtain ⟨z, hz, hzv⟩ := u32_tryMk_ok (2 ^ n.val) hlt
+  refine ⟨z, ?_, hzv⟩
+  have hunf : CoreModels.core.num.U32.pow 2#u32 n
+      = Std.UScalar.tryMk .U32 (((2#u32 : Std.U32)).val ^ n.val) := rfl
+  rw [hunf, h2, hz]
+
 /-- **M-E(1) — the SPEC side at a general `d`.** `Decompress_d(x) = (2x·q + 2^d) / 2^(d+1)`.
     Generalises `decompress_d_1_eq` (`:4461`) off `d = 1`, where the value set is `{0,1665}`
     and no rounding argument is needed. The two `massert`s discharge from `hd` and `hfe`;
@@ -4638,7 +4669,59 @@ theorem decompress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : S
     (hd : d.val < 12) (hfe : fe.val.val < 2 ^ d.val) :
     hacspec_ml_kem.compress.decompress_d fe d
       = .ok { val := u16OfNat ((2 * fe.val.val * 3329 + 2 ^ d.val) / 2 ^ (d.val + 1)) } := by
-  sorry
+  -- `2 ^ d.val` stays an atom; these are the only two facts we ever need about it.
+  have hq_le : (2:Nat) ^ d.val ≤ 2048 := by
+    calc (2:Nat) ^ d.val ≤ 2 ^ 11 := Nat.pow_le_pow_right (by omega) (by omega)
+      _ = 2048 := by norm_num
+  have hq_pos : 1 ≤ (2:Nat) ^ d.val := Nat.one_le_two_pow
+  -- the two `massert`s
+  obtain ⟨t2, hshl, hshlv⟩ := u16_shl_one_ok d (by omega)
+  have hass1 : (d < (12#usize : Std.Usize)) := by scalar_tac
+  have hass2 : fe.val < t2 := by
+    have : fe.val.val < t2.val := by rw [hshlv]; exact hfe
+    scalar_tac
+  -- the casts
+  have hcd : (Std.UScalar.cast .U32 d).val = d.val := by
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have hc3329 : Std.UScalar.cast .U32 (3329#u16 : Std.U16) = (3329#u32 : Std.U32) := by
+    refine Std.UScalar.eq_of_val_eq ?_
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have hcfe : (Std.UScalar.cast .U32 fe.val).val = fe.val.val := by
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have h2 : ((2#u32 : Std.U32)).val = 2 := by scalar_tac
+  have h3329 : ((3329#u32 : Std.U32)).val = 3329 := by scalar_tac
+  have hfelt : fe.val.val < 65536 := by scalar_tac
+  have hmax : Std.U32.max = 4294967295 := by scalar_tac
+  -- the straight-line body, in order
+  obtain ⟨tp, hpow, htpv⟩ := u32_pow_two_ok (Std.UScalar.cast .U32 d) (by rw [hcd]; omega)
+  rw [hcd] at htpv
+  obtain ⟨i3, hi3, hi3v⟩ := u32_mul_ok 2#u32 (Std.UScalar.cast .U32 fe.val) (by
+    rw [hcfe, h2]; omega)
+  obtain ⟨i5, hi5, hi5v⟩ := u32_mul_ok i3 3329#u32 (by
+    rw [hi3v, hcfe, h2, h3329]; omega)
+  obtain ⟨num, hnum, hnumv⟩ := u32_add_ok i5 tp (by
+    rw [hi5v, hi3v, hcfe, h2, h3329, htpv]; omega)
+  obtain ⟨i6, hi6, hi6v⟩ := u32_mul_ok tp 2#u32 (by rw [htpv, h2]; omega)
+  obtain ⟨dec, hdec, hdecv⟩ := u32_div_ok num i6 (by rw [hi6v, htpv, h2]; omega)
+  -- the rounding formula, and the `< 3329` that makes the `as U16` cast faithful
+  have hdecv' : dec.val = (2 * fe.val.val * 3329 + 2 ^ d.val) / 2 ^ (d.val + 1) := by
+    rw [hdecv, hnumv, hi5v, hi3v, hcfe, h3329, htpv, hi6v, htpv, h2, pow_succ]
+  have hdlt : dec.val < 3329 := by
+    rw [hdecv', pow_succ]
+    refine Nat.div_lt_of_lt_mul ?_
+    omega
+  have hfinal : Std.UScalar.cast .U16 dec
+      = u16OfNat ((2 * fe.val.val * 3329 + 2 ^ d.val) / 2 ^ (d.val + 1)) := by
+    refine Std.UScalar.eq_of_val_eq ?_
+    rw [Std.UScalar.cast_val_eq, u16OfNat_val _ (by rw [← hdecv']; scalar_tac), hdecv']
+    have h16 : (Std.UScalarTy.U16).numBits = 16 := rfl
+    rw [h16]
+    exact Nat.mod_eq_of_lt (by omega)
+  unfold hacspec_ml_kem.compress.decompress_d
+  simp only [Aeneas.Std.massert, hacspec_ml_kem.parameters.FIELD_MODULUS,
+    hacspec_ml_kem.parameters.FieldElement.new, Aeneas.Std.lift,
+    Aeneas.Std.bind_tc_ok, hshl, if_pos hass1, if_pos hass2, hc3329, hpow,
+    hi3, hi5, hnum, hi6, hdec, hfinal]
 
 /-- **M-E(2) — the IMPL side at a general `d`, the APEX of this bank.** The 16-lane loop
     of `decompress_ciphertext_coefficient` computes, per lane,
