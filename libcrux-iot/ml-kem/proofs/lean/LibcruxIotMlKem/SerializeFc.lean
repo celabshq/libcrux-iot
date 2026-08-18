@@ -5331,6 +5331,77 @@ theorem compress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : Std
 
 end MCPBank
 
+/-! ## M-D — COMPRESS at `d = 1`: the branch-free THRESHOLD (kind K8).
+
+    THE EXEMPLAR for the second kind the readiness map records as having no precedent.
+    The nearest article is ml-dsa `Rounding.lean:121 xor_clamp_val`, and the delta is
+    real: ml-dsa's clamp targets a BOUND, whereas this one has to land an interval
+    TRICHOTOMY — and it is `I16`, not `I32`.
+
+    ## Why this bank is only TWO statements
+
+    Because M-C′(3) `compress_d_gen_eq` is generic in `d < 12`, it already covers the
+    SPEC side at `d = 1` — no separate spec statement is needed. What remains is the
+    impl seam and the arithmetic bridge between the spec's closed form at `d = 1` and the
+    threshold predicate the impl actually computes.
+
+    ## What the impl does
+
+    `compress_message_coefficient` (`Funs.lean`, from `compress.rs:28–56`) is branch-free
+    via a DOUBLE sign-mask:
+        shifted   = 1664 - fe                      (I16 wrapping_sub)
+        mask      = shifted >>> 15                 (-1 if negative, else 0)
+        positive  = mask ^^^ shifted               (|shifted| - 1 if negative, else shifted)
+        inRange   = positive - 832
+        result    = (inRange >>> 15) &&& 1         (1 iff positive < 832)
+    i.e. `1` exactly when `833 ≤ fe ≤ 2496`. The F* source gives that trichotomy verbatim
+    (`compress.rs` ~28–56 — NOT 101–124, per amendment A4).
+
+    ## Where the bound goes — measured, and it lands in exactly one place again
+
+    IMPL SEAM: UNCONDITIONAL. Checked over ALL 65536 `u16` values, not merely `x < 3329`:
+    the double-mask identity holds everywhere, so no hypothesis is carried.
+
+    PURE BRIDGE: needs `x < 3329`, and it is load-bearing. First counterexample at
+    **x = 4162** — which is EXACTLY the counterexample `AMENDMENTS 2` records for L5.2
+    ("CE lane 4162: impl `[0,0,0,0]`, spec byte0 `1`"). That is not a coincidence and it
+    is worth stating: L5.2's missing `h_bnd` and this bridge's `hx` are the SAME bound,
+    witnessed by the SAME value, arrived at independently. Closing this bridge is
+    therefore precisely what makes L5.2's restated bound dischargeable.
+
+    ## Falsified before locking (`references/mlkem-falsify-harness.lean`)
+    Impl seam: EXHAUSTIVE over `x < 3329`, then EXHAUSTIVE over all 65536 `u16` values.
+    Pure bridge: EXHAUSTIVE over `x < 3329`, plus the four named boundary values
+    832 / 833 / 2496 / 2497, plus the first-counterexample search that produced 4162.
+    Zero counterexamples inside the stated domains. -/
+
+section MDBank
+
+/-- **M-D(1) — the IMPL seam.** The branch-free double-sign-mask computes the interval
+    indicator `1 iff 833 ≤ fe ≤ 2496`.
+
+    UNCONDITIONAL in `fe`, which is measured over the whole `u16` range and not assumed —
+    the masks are total. This is the K8 content: `xor_clamp_val` (ml-dsa
+    `Rounding.lean:121`) is the nearest template and targets a bound rather than an
+    interval, so it is a shape to COPY, never to import. -/
+theorem compress_message_coefficient_eq (fe : Std.U16) :
+    libcrux_iot_ml_kem.vector.portable.compress.compress_message_coefficient fe
+      = .ok (u8OfNat (if 833 ≤ fe.val ∧ fe.val ≤ 2496 then 1 else 0)) := by
+  sorry
+
+/-- **M-D(2) — the PURE bridge.** The spec's `d = 1` closed form (from M-C′(3)
+    `compress_d_gen_eq`, which is generic in `d < 12` and so already covers `d = 1`) IS
+    the threshold predicate.
+
+    `hx` is load-bearing: first counterexample `x = 4162`, the same witness `AMENDMENTS 2`
+    records for L5.2's missing bound. -/
+theorem compress_1_threshold_eq (x : Nat) (hx : x < 3329) :
+    ((2 * x * 2 ^ 1 + 3329) / 6658) % 2 ^ 1
+      = (if 833 ≤ x ∧ x ≤ 2496 then 1 else 0) := by
+  sorry
+
+end MDBank
+
 /-- L5.1 — `serialize.deserialize_then_decompress_message`.
 
     FIPS-203 message decode: 32 bytes → 256 coefficients, each bit `b` mapped to
