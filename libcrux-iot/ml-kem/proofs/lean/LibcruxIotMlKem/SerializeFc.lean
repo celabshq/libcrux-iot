@@ -2546,6 +2546,85 @@ theorem bitSum_laneBit_window (d : Nat) (hd : 4 ≤ d) (L : Nat → Nat)
   exact bitSum_laneBit_window_aux d (8 * n / d) (8 * n % d) hd
     (Nat.mod_lt _ (by omega)) L hL (8 * n) (Nat.div_add_mod (8 * n) d).symm
 
+/-! ### Impl-side toolkit for `deserialize_5_int`
+
+    What the `d = 12` bank (`:290`–`:413`) does not already provide, in EXISTENTIAL
+    form: aeneas's `<<<` / `>>>` return a `Result` whose payload is pinned only by its
+    `.val`, and the apex's own conclusion is existential, so there is no reason to name
+    the payload (which is what forced `shr8`/`u8_shr_ok` at `:3671` into a `BitVec`
+    definition). Everything here is `Nat`, per the bitpack recipe's representation rule. -/
+
+/-- A byte widened to `I16` is value-preserving: no byte reaches the sign bit. -/
+private theorem c16_val_nat (x : Std.U8) : (c16 x).val = (x.val : Int) := by
+  have hx : x.val < 256 := by scalar_tac
+  rw [i16_val_of_toNat _ (by rw [c16_bv_toNat]; omega), c16_bv_toNat]
+
+/-- `&&& (2 ^ k - 1)` is `% 2 ^ k`, at the `U8` level. The `d = 12` bank has this only
+    at the two hard-coded masks 15 and 255 (`:348`, `:353`); `deserialize_5_int` uses
+    five different masks (31, 3, 15, 1, 7), so it is worth stating once in `k`. -/
+private theorem u8_and_mask_val (x c : Std.U8) (k : Nat) (hc : c.val = 2 ^ k - 1) :
+    (x &&& c).val = x.val % 2 ^ k := by
+  rw [Std.UScalar.val_and, hc, Nat.and_two_pow_sub_one_eq_mod]
+
+/-- The no-overflow side condition of every `<<<` in `deserialize_5_int`: a `k`-bit
+    field shifted left by `e` stays in a byte as soon as `2 ^ k * 2 ^ e ≤ 256`. -/
+private theorem u8_and_shl_bound (x c : Std.U8) (k e : Nat) (hc : c.val = 2 ^ k - 1)
+    (h : 2 ^ k * 2 ^ e ≤ 256) : (x &&& c).val * 2 ^ e < 256 := by
+  rw [u8_and_mask_val x c k hc]
+  exact lt_of_lt_of_le
+    ((Nat.mul_lt_mul_right (Nat.two_pow_pos e)).mpr (Nat.mod_lt _ (Nat.two_pow_pos k))) h
+
+/-- `x <<< t` at a literal `I32` shift, kept symbolic as `* 2 ^ k`. -/
+private theorem u8_shl_lit (x : Std.U8) (t : Std.I32) (k : Nat)
+    (htv : t.val = (k : Int)) (hk : k < 8) (hx : x.val * 2 ^ k < 256) :
+    ∃ z : Std.U8, (x <<< t : Result Std.U8) = .ok z ∧ z.val = x.val * 2 ^ k := by
+  have h0 : (0:Int) ≤ t.val := by rw [htv]; exact Int.natCast_nonneg k
+  have hkn : t.toNat = k := by
+    show t.val.toNat = k
+    rw [htv]; exact Int.toNat_natCast k
+  obtain ⟨z, hz, hzv⟩ :=
+    u8_shl_iscalar x t h0 (by rw [htv]; exact_mod_cast hk) (by rw [hkn]; exact hx)
+  exact ⟨z, hz, by rw [hzv, hkn]⟩
+
+/-- `x >>> t` at a literal `I32` shift, kept symbolic as `/ 2 ^ k`. -/
+private theorem u8_shr_lit (x : Std.U8) (t : Std.I32) (k : Nat)
+    (htv : t.val = (k : Int)) (hk : k < 8) :
+    ∃ z : Std.U8, (x >>> t : Result Std.U8) = .ok z ∧ z.val = x.val / 2 ^ k := by
+  have h0 : (0:Int) ≤ t.val := by rw [htv]; exact Int.natCast_nonneg k
+  have hkn : Std.IScalar.toNat t = k := by
+    show t.val.toNat = k
+    rw [htv]; exact Int.toNat_natCast k
+  obtain ⟨z, hz, hzv, _⟩ :=
+    Std.WP.spec_imp_exists
+      (Std.UScalar.ShiftRight_IScalar_spec (ty0 := .U8) x t h0
+        (by rw [htv]; exact_mod_cast hk))
+  exact ⟨z, hz, by rw [hzv, hkn, Nat.shiftRight_eq_div_pow]⟩
+
+/-- The recipe's `or_shift_eq_add` in the orientation the impl writes it (high field
+    first). "OR == + when the fields are disjoint". -/
+private theorem or_shl_add (hi lo i : Nat) (h : lo < 2 ^ i) :
+    (hi * 2 ^ i) ||| lo = hi * 2 ^ i + lo := by
+  rw [Nat.or_comm, enc_or_shift_eq_add h]
+
+/-- One straddling lane of `deserialize_5_int`: `(hi_field << e) ||| (lo >> s)`. -/
+private theorem lane_or_val (zh zl : Std.U8) (hi lo e : Nat)
+    (hzh : zh.val = hi * 2 ^ e) (hzl : zl.val = lo) (hlo : lo < 2 ^ e) :
+    (zh ||| zl).val = hi * 2 ^ e + lo := by
+  rw [Std.UScalar.val_or, hzh, hzl, or_shl_add _ _ _ hlo]
+
+/-- Every 5-bit window is a 5-bit number — this is the bound conjunct's whole content,
+    read off `decw`'s trailing `% 2 ^ n`. -/
+private theorem decw_lt5 (l : List Std.U8) (m : Nat) : decw l m 5 < 32 := by
+  simp only [decw, show (2:Nat) ^ 5 = 32 from rfl]
+  omega
+
+/-- Out-of-range reads are zero — this is what lets the `k = 5, 6, 7` windows, whose
+    3-byte frame runs past the end of an exactly-5-byte slice, still be `decw` reads. -/
+private theorem u8_oob (l : List Std.U8) (i : Nat) (h : l.length ≤ i) :
+    (l[i]! : Std.U8).val = 0 := by
+  rw [getElem!_neg l i (by omega)]
+  rfl
+
 /-- **M-C(3) — the impl seam at `d = 5`, the APEX of this bank.** `deserialize_5_int`
     turns 5 bytes into 8 lanes through a chain of `&&&` / `|||` / `<<<` / `>>>`; this
     says each lane is exactly the corresponding 5-bit window of the spec bit stream.
@@ -2576,7 +2655,134 @@ theorem deserialize_5_int_lanes_eq (bytes : Slice Std.U8) (h_len : bytes.length 
             -- Implied by the equality via `bitSum_lt` (:91) — costs the prover a line
             -- here and saves the consumer from re-deriving it.
             ∧ (([v0, v1, v2, v3, v4, v5, v6, v7] : List Std.I16)[k]!).val < 32 := by
-  sorry
+  have hlen : bytes.val.length = 5 := h_len
+  have hb0 := u8_val_lt bytes.val 0
+  have hb1 := u8_val_lt bytes.val 1
+  have hb2 := u8_val_lt bytes.val 2
+  have hb3 := u8_val_lt bytes.val 3
+  have hb4 := u8_val_lt bytes.val 4
+  -- the two zero-padded reads the `k = 5, 6, 7` windows make past the end
+  have hoob5 : (bytes.val[5]! : Std.U8).val = 0 := u8_oob _ _ (by omega)
+  have hoob6 : (bytes.val[6]! : Std.U8).val = 0 := u8_oob _ _ (by omega)
+  have hi0 : Slice.index_usize bytes 0#usize = .ok bytes.val[0]! :=
+    slice_index_usize_eq bytes 0#usize (by simp [hlen])
+  have hi1 : Slice.index_usize bytes 1#usize = .ok bytes.val[1]! :=
+    slice_index_usize_eq bytes 1#usize (by simp [hlen])
+  have hi2 : Slice.index_usize bytes 2#usize = .ok bytes.val[2]! :=
+    slice_index_usize_eq bytes 2#usize (by simp [hlen])
+  have hi3 : Slice.index_usize bytes 3#usize = .ok bytes.val[3]! :=
+    slice_index_usize_eq bytes 3#usize (by simp [hlen])
+  have hi4 : Slice.index_usize bytes 4#usize = .ok bytes.val[4]! :=
+    slice_index_usize_eq bytes 4#usize (by simp [hlen])
+  -- the seven right shifts: `y<byte><amount>`
+  obtain ⟨y05, hy05, hy05v⟩ := u8_shr_lit bytes.val[0]! 5#i32 5 (by simp) (by omega)
+  obtain ⟨y12, hy12, hy12v⟩ := u8_shr_lit bytes.val[1]! 2#i32 2 (by simp) (by omega)
+  obtain ⟨y17, hy17, hy17v⟩ := u8_shr_lit bytes.val[1]! 7#i32 7 (by simp) (by omega)
+  obtain ⟨y24, hy24, hy24v⟩ := u8_shr_lit bytes.val[2]! 4#i32 4 (by simp) (by omega)
+  obtain ⟨y31, hy31, hy31v⟩ := u8_shr_lit bytes.val[3]! 1#i32 1 (by simp) (by omega)
+  obtain ⟨y36, hy36, hy36v⟩ := u8_shr_lit bytes.val[3]! 6#i32 6 (by simp) (by omega)
+  obtain ⟨y43, hy43, hy43v⟩ := u8_shr_lit bytes.val[4]! 3#i32 3 (by simp) (by omega)
+  -- the four left shifts, one per straddling lane; `s<lane>`
+  obtain ⟨s1, hs1, hs1v⟩ := u8_shl_lit (bytes.val[1]! &&& 3#u8) 3#i32 3 (by simp) (by omega)
+    (u8_and_shl_bound _ _ 2 3 rfl (by norm_num))
+  obtain ⟨s3, hs3, hs3v⟩ := u8_shl_lit (bytes.val[2]! &&& 15#u8) 1#i32 1 (by simp) (by omega)
+    (u8_and_shl_bound _ _ 4 1 rfl (by norm_num))
+  obtain ⟨s4, hs4, hs4v⟩ := u8_shl_lit (bytes.val[3]! &&& 1#u8) 4#i32 4 (by simp) (by omega)
+    (u8_and_shl_bound _ _ 1 4 rfl (by norm_num))
+  obtain ⟨s6, hs6, hs6v⟩ := u8_shl_lit (bytes.val[4]! &&& 7#u8) 2#i32 2 (by simp) (by omega)
+    (u8_and_shl_bound _ _ 3 2 rfl (by norm_num))
+  refine ⟨c16 (bytes.val[0]! &&& 31#u8), c16 (s1 ||| y05), c16 (y12 &&& 31#u8),
+    c16 (s3 ||| y17), c16 (s4 ||| y24), c16 (y31 &&& 31#u8), c16 (s6 ||| y36),
+    c16 y43, ?_, ?_⟩
+  · -- the straight-line body walk: every step is one of the four facts above
+    simp only [libcrux_iot_ml_kem.vector.portable.serialize.deserialize_5_int,
+      hi0, hi1, hi2, hi3, hi4, hy05, hy12, hy17, hy24, hy31, hy36, hy43,
+      hs1, hs3, hs4, hs6, as_i16_eq, Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  · -- the spec side. Every lane is a pure ℕ expression in the five bytes; M-C(1)
+    -- turns the bit stream into `decw`, and each of the eight identities is then
+    -- linear-with-division, i.e. `omega`'s territory.
+    intro k hk
+    -- the eight lane values, in ℕ, powers kept symbolic
+    have n0 : (bytes.val[0]! &&& 31#u8).val = bytes.val[0]!.val % 2 ^ 5 :=
+      u8_and_mask_val _ _ 5 rfl
+    have f1 : s1.val = bytes.val[1]!.val % 2 ^ 2 * 2 ^ 3 := by
+      rw [hs1v, u8_and_mask_val _ _ 2 rfl]
+    have f3 : s3.val = bytes.val[2]!.val % 2 ^ 4 * 2 ^ 1 := by
+      rw [hs3v, u8_and_mask_val _ _ 4 rfl]
+    have f4 : s4.val = bytes.val[3]!.val % 2 ^ 1 * 2 ^ 4 := by
+      rw [hs4v, u8_and_mask_val _ _ 1 rfl]
+    have f6 : s6.val = bytes.val[4]!.val % 2 ^ 3 * 2 ^ 2 := by
+      rw [hs6v, u8_and_mask_val _ _ 3 rfl]
+    have n1 : (s1 ||| y05).val
+        = bytes.val[1]!.val % 2 ^ 2 * 2 ^ 3 + bytes.val[0]!.val / 2 ^ 5 :=
+      lane_or_val _ _ _ _ 3 f1 hy05v (by omega)
+    have n2 : (y12 &&& 31#u8).val = bytes.val[1]!.val / 2 ^ 2 % 2 ^ 5 := by
+      rw [u8_and_mask_val _ _ 5 rfl, hy12v]
+    have n3 : (s3 ||| y17).val
+        = bytes.val[2]!.val % 2 ^ 4 * 2 ^ 1 + bytes.val[1]!.val / 2 ^ 7 :=
+      lane_or_val _ _ _ _ 1 f3 hy17v (by omega)
+    have n4 : (s4 ||| y24).val
+        = bytes.val[3]!.val % 2 ^ 1 * 2 ^ 4 + bytes.val[2]!.val / 2 ^ 4 :=
+      lane_or_val _ _ _ _ 4 f4 hy24v (by omega)
+    have n5 : (y31 &&& 31#u8).val = bytes.val[3]!.val / 2 ^ 1 % 2 ^ 5 := by
+      rw [u8_and_mask_val _ _ 5 rfl, hy31v]
+    have n6 : (s6 ||| y36).val
+        = bytes.val[4]!.val % 2 ^ 3 * 2 ^ 2 + bytes.val[3]!.val / 2 ^ 6 :=
+      lane_or_val _ _ _ _ 2 f6 hy36v (by omega)
+    -- the closer: the bound conjunct is the window's own `% 2 ^ 5`, so it comes free
+    -- from the equality rather than from a second argument about the impl.
+    have key : ∀ v : Std.I16, v.val = (decw bytes.val (5 * k) 5 : Int) →
+        v.val = (bitSum (fun t => sliceBit bytes.val (5 * k + t)) 5 : Int) ∧ v.val < 32 := by
+      intro v h
+      have hbw := decw_lt5 bytes.val (5 * k)
+      rw [bitSum_sliceBit_window bytes.val (5 * k) 5 (by omega)]
+      exact ⟨h, by omega⟩
+    -- `decw` at the eight offsets, with the 3-byte frame's base index and shift
+    -- computed. Kept SEPARATE from the `omega` steps below: `norm_num` rewrites
+    -- `l[i]!` to `l[i]?.getD default`, and if that happened inside an `omega` goal
+    -- the byte atoms would stop matching the `hb*`/`hoob*` hypotheses.
+    have d0 : decw bytes.val (5 * 0) 5
+        = (bytes.val[0]!.val + 256 * bytes.val[1]!.val + 65536 * bytes.val[2]!.val)
+            % 32 := by norm_num [decw]
+    have d1 : decw bytes.val (5 * 1) 5
+        = (bytes.val[0]!.val + 256 * bytes.val[1]!.val + 65536 * bytes.val[2]!.val)
+            / 32 % 32 := by norm_num [decw]
+    have d2 : decw bytes.val (5 * 2) 5
+        = (bytes.val[1]!.val + 256 * bytes.val[2]!.val + 65536 * bytes.val[3]!.val)
+            / 4 % 32 := by norm_num [decw]
+    have d3 : decw bytes.val (5 * 3) 5
+        = (bytes.val[1]!.val + 256 * bytes.val[2]!.val + 65536 * bytes.val[3]!.val)
+            / 128 % 32 := by norm_num [decw]
+    have d4 : decw bytes.val (5 * 4) 5
+        = (bytes.val[2]!.val + 256 * bytes.val[3]!.val + 65536 * bytes.val[4]!.val)
+            / 16 % 32 := by norm_num [decw]
+    have d5 : decw bytes.val (5 * 5) 5
+        = (bytes.val[3]!.val + 256 * bytes.val[4]!.val + 65536 * bytes.val[5]!.val)
+            / 2 % 32 := by norm_num [decw]
+    have d6 : decw bytes.val (5 * 6) 5
+        = (bytes.val[3]!.val + 256 * bytes.val[4]!.val + 65536 * bytes.val[5]!.val)
+            / 64 % 32 := by norm_num [decw]
+    have d7 : decw bytes.val (5 * 7) 5
+        = (bytes.val[4]!.val + 256 * bytes.val[5]!.val + 65536 * bytes.val[6]!.val)
+            / 8 % 32 := by norm_num [decw]
+    refine key _ ?_
+    interval_cases k
+    · show (c16 (bytes.val[0]! &&& 31#u8)).val = _
+      rw [c16_val_nat, n0, d0]; omega
+    · show (c16 (s1 ||| y05)).val = _
+      rw [c16_val_nat, n1, d1]; omega
+    · show (c16 (y12 &&& 31#u8)).val = _
+      rw [c16_val_nat, n2, d2]; omega
+    · show (c16 (s3 ||| y17)).val = _
+      rw [c16_val_nat, n3, d3]; omega
+    · show (c16 (s4 ||| y24)).val = _
+      rw [c16_val_nat, n4, d4]; omega
+    · show (c16 (y31 &&& 31#u8)).val = _
+      rw [c16_val_nat, n5, d5]; omega
+    · show (c16 (s6 ||| y36)).val = _
+      rw [c16_val_nat, n6, d6]; omega
+    · show (c16 y43).val = _
+      rw [c16_val_nat, hy43v, d7]; omega
 
 end MCBank
 
