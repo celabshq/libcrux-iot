@@ -4723,6 +4723,243 @@ theorem decompress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : S
     Aeneas.Std.bind_tc_ok, hshl, if_pos hass1, if_pos hass2, hc3329, hpow,
     hi3, hi5, hnum, hi6, hdec, hfinal]
 
+/-! ### Scaffolding for the general-`d` IMPL side.
+
+    Aeneas ships `@[step]` shift specs for `UScalar` only, so the three `I32` bit
+    operations the Rust performs (`x <<< 1`, `1 <<< d`, `x >>> (d+1)`) need `.val`
+    lemmas here. All three are stated on the balanced-`Int` view (`.val`), never on
+    `.bv.toNat`: that keeps `IScalarTy.I32.numBits` out of every rewrite motive (the
+    dependent-`BitVec`-width trap) and lets `Aeneas.Arith.Int.bmod_pow2_eq_of_inBounds'`
+    discharge the no-wrap side conditions with the word size as an ordinary argument.
+    `2 ^ d` is an ATOM throughout — never a closed large scalar (skill §6). -/
+
+/-- `x <<< k` on `I32` is `x · 2 ^ k` balanced-mod the word size, for `k < 31`. -/
+private theorem shiftLeft_val_i32 (x : Std.I32) (k : Nat) (hk : k < 31) :
+    (⟨x.bv <<< k⟩ : Std.I32).val = (x.val * 2 ^ k).bmod (2 ^ 32) := by
+  show (x.bv <<< k).toInt = _
+  rw [BitVec.shiftLeft_eq_mul_twoPow, BitVec.toInt_mul, BitVec.toInt_twoPow,
+    if_neg (by omega), if_neg (by omega)]
+  rfl
+
+/-- `1 <<< k = 2 ^ k` on `I32`, for `k < 31` (no sign flip). -/
+private theorem one_shiftLeft_val_i32 (k : Nat) (hk : k < 31) :
+    (⟨(1#i32 : Std.I32).bv <<< k⟩ : Std.I32).val = (2 : Int) ^ k := by
+  rw [shiftLeft_val_i32 _ k hk]
+  have h1 : ((1#i32 : Std.I32)).val = 1 := by scalar_tac
+  rw [h1, one_mul]
+  apply Aeneas.Arith.Int.bmod_pow2_eq_of_inBounds' 32 _ (by decide)
+  · rw [show ((2 : Int) ^ (32 - 1)) = 2 ^ 31 from by norm_num]
+    exact le_trans (by norm_num) (pow_nonneg (by norm_num) k)
+  · rw [show ((2 : Int) ^ (32 - 1)) = 2 ^ 31 from by norm_num]
+    exact pow_lt_pow_right₀ (by norm_num) hk
+
+/-- `1#i32 <<< d` at the `Result` level. Total for `0 ≤ d < 31`. -/
+private theorem i32_one_shl_ok (d : Std.I32) (hd0 : 0 ≤ d.val) (hd : d.val < 31) :
+    ∃ z : Std.I32, ((1#i32 : Std.I32) <<< d : Result Std.I32) = Result.ok z
+      ∧ z.val = (2 : Int) ^ d.val.toNat := by
+  refine ⟨⟨(1#i32 : Std.I32).bv <<< d.toNat⟩, ?_, ?_⟩
+  · show Std.IScalar.shiftLeft_IScalar _ _ = _
+    unfold Std.IScalar.shiftLeft_IScalar Std.IScalar.shiftLeft
+    rw [if_pos hd0, if_pos (by scalar_tac : d.toNat < Std.IScalarTy.I32.numBits)]
+    rfl
+  · have h : d.toNat = d.val.toNat := rfl
+    rw [h]; exact one_shiftLeft_val_i32 _ (by omega)
+
+/-- `x <<< 1#i32` at the `Result` level; faithful under the no-wrap bound. -/
+private theorem i32_shl_one_ok (x : Std.I32)
+    (hlb : -(2 ^ 31 : Int) ≤ 2 * x.val) (hub : 2 * x.val < 2 ^ 31) :
+    ∃ z : Std.I32, (x <<< (1#i32 : Std.I32) : Result Std.I32) = Result.ok z
+      ∧ z.val = 2 * x.val := by
+  refine ⟨⟨x.bv <<< 1⟩, rfl, ?_⟩
+  rw [shiftLeft_val_i32 _ 1 (by omega), show x.val * 2 ^ 1 = 2 * x.val from by ring]
+  apply Aeneas.Arith.Int.bmod_pow2_eq_of_inBounds' 32 _ (by decide) <;>
+    (rw [show ((2 : Int) ^ (32 - 1)) = 2 ^ 31 from by norm_num]; omega)
+
+/-- **Shift-is-division.** The arithmetic shift right on `I32` is floor division by
+    `2 ^ k` on the balanced-`Int` view — for negative inputs too, which is why the
+    statement needs no sign hypothesis. -/
+private theorem i32_shr_ok (x k : Std.I32) (hk0 : 0 ≤ k.val) (hk : k.val < 32) :
+    ∃ z : Std.I32, (x >>> k : Result Std.I32) = Result.ok z
+      ∧ z.val = x.val / (2 : Int) ^ k.val.toNat := by
+  refine ⟨⟨x.bv.sshiftRight k.toNat⟩, ?_, ?_⟩
+  · show Std.IScalar.shiftRight_IScalar _ _ = _
+    unfold Std.IScalar.shiftRight_IScalar Std.IScalar.shiftRight
+    rw [if_pos hk0, if_pos (by scalar_tac : k.toNat < Std.IScalarTy.I32.numBits)]
+  · show (⟨x.bv.sshiftRight k.toNat⟩ : Std.I32).val = _
+    have h : k.toNat = k.val.toNat := rfl
+    rw [h]
+    show (x.bv.sshiftRight k.val.toNat).toInt = _
+    rw [BitVec.toInt_sshiftRight, Int.shiftRight_eq_div_pow]; norm_cast
+
+private theorem i32_add_one_ok (d : Std.I32) (hd0 : 0 ≤ d.val) (hd : d.val < 12) :
+    ∃ z : Std.I32, (d + (1#i32 : Std.I32) : Result Std.I32) = Result.ok z
+      ∧ z.val = d.val + 1 := by
+  obtain ⟨z, hz, hv, _⟩ :=
+    Std.WP.spec_imp_exists
+      (Std.IScalar.add_bv_spec (x := d) (y := (1#i32 : Std.I32)) (by scalar_tac) (by scalar_tac))
+  exact ⟨z, hz, by rw [hv]; scalar_tac⟩
+
+private theorem i32_wmul_ok (x y : Std.I32)
+    (hlb : -(2 ^ 31 : Int) ≤ x.val * y.val) (hub : x.val * y.val < 2 ^ 31) :
+    ∃ z : Std.I32, CoreModels.core.num.I32.wrapping_mul x y = Result.ok z
+      ∧ z.val = x.val * y.val := by
+  refine ⟨Std.I32.wrapping_mul x y, rfl, ?_⟩
+  rw [Aeneas.Std.I32.wrapping_mul_val_eq]
+  apply Aeneas.Arith.Int.bmod_pow2_eq_of_inBounds' 32 _ (by decide) <;>
+    (rw [show ((2 : Int) ^ (32 - 1)) = 2 ^ 31 from by norm_num]; omega)
+
+private theorem i32_wadd_ok (x y : Std.I32)
+    (hlb : -(2 ^ 31 : Int) ≤ x.val + y.val) (hub : x.val + y.val < 2 ^ 31) :
+    ∃ z : Std.I32, CoreModels.core.num.I32.wrapping_add x y = Result.ok z
+      ∧ z.val = x.val + y.val := by
+  refine ⟨Std.I32.wrapping_add x y, rfl, ?_⟩
+  rw [Aeneas.Std.I32.wrapping_add_val_eq]
+  apply Aeneas.Arith.Int.bmod_pow2_eq_of_inBounds' 32 _ (by decide) <;>
+    (rw [show ((2 : Int) ^ (32 - 1)) = 2 ^ 31 from by norm_num]; omega)
+
+/-- The `libcrux_secrets` `I16 → I32` cast is the identity on values (widening). -/
+private theorem as_i32_ok (x : Std.I16) :
+    ∃ z : Std.I32, libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 x = Result.ok z
+      ∧ z.val = x.val := by
+  refine ⟨Std.IScalar.cast .I32 x, rfl, ?_⟩
+  simp [Std.IScalar.val_mod_pow_greater_numBits]
+
+/-- The `libcrux_secrets` `I32 → I16` cast never fails; faithfulness is separate. -/
+private theorem dcc_as_i16_eq (x : Std.I32) :
+    libcrux_secrets.I32.Insts.Libcrux_secretsIntCastOps.as_i16 x
+      = Result.ok (Std.IScalar.cast .I16 x) := rfl
+
+/-- `.as_i16()` is FAITHFUL exactly when the `I32` value already fits in `I16`. This is
+    the third of M-E(2)'s three obligations; without it the truncation is the source of
+    the negative-control counterexamples (`-16026`) the falsify harness produced. -/
+private theorem cast_i16_val_noov (x : Std.I32)
+    (hlb : -(2 ^ 15 : Int) ≤ x.val) (hub : x.val < 2 ^ 15) :
+    (Std.IScalar.cast .I16 x).val = x.val := by
+  rw [Std.IScalar.cast_val_eq]
+  show Int.bmod x.val (2 ^ 16) = x.val
+  apply Aeneas.Arith.Int.bmod_pow2_eq_of_inBounds' 16 _ (by decide) <;>
+    (rw [show ((2 : Int) ^ (16 - 1)) = 2 ^ 15 from by norm_num]; omega)
+
+private theorem classify_eq {T : Type} (x : T) :
+    libcrux_secrets.traits.Classify.Blanket.classify x = Result.ok x := rfl
+
+private theorem field_modulus_val :
+    (libcrux_iot_ml_kem.vector.traits.FIELD_MODULUS : Std.I16).val = 3329 := by
+  unfold libcrux_iot_ml_kem.vector.traits.FIELD_MODULUS; rfl
+
+/-- The per-lane body of `decompress_ciphertext_coefficient`, factored out of the loop
+    so the 16-lane plumbing can be discharged by the tree's `elementwise_unary_spec`.
+    Definitionally the extracted body modulo `Result` bind-associativity — see
+    `dcc_body_eq`. -/
+private def dcc_per_elem (d : Std.I32) (x : Std.I16) : Result Std.I16 := do
+  let i2 ← libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 x
+  let i3 ←
+    libcrux_secrets.traits.Classify.Blanket.classify
+      libcrux_iot_ml_kem.vector.traits.FIELD_MODULUS
+  let i4 ← libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 i3
+  let decompressed ← CoreModels.core.num.I32.wrapping_mul i2 i4
+  let i5 ← decompressed <<< (1#i32 : Std.I32)
+  let i6 ← (1#i32 : Std.I32) <<< d
+  let decompressed1 ← CoreModels.core.num.I32.wrapping_add i5 i6
+  let i7 ← d + (1#i32 : Std.I32)
+  let decompressed2 ← decompressed1 >>> i7
+  libcrux_secrets.I32.Insts.Libcrux_secretsIntCastOps.as_i16 decompressed2
+
+/-- Per-lane post. The `0 ≤ x ∧ x < 2 ^ d` guard is carried INSIDE the predicate because
+    `elementwise_unary_spec` demands an unconditional per-element Triple: the body is
+    total for every `I16` lane (no `I32` wrap is possible at any `d < 31`), but its VALUE
+    is only the rounding formula on in-range lanes. -/
+private def dcc_P (d : Std.I32) (x r : Std.I16) : Prop :=
+  0 ≤ x.val → x.val < 2 ^ d.val.toNat →
+    r.val.toNat = (2 * x.val.toNat * 3329 + 2 ^ d.val.toNat) / 2 ^ (d.val.toNat + 1)
+      ∧ 0 ≤ r.val ∧ r.val < 3329
+
+/-- **The per-lane keystone.** Straight-line walk of the ten-operation body: every step
+    is `.ok` for EVERY `I16` lane, in range or not (worst case `|lane| = 32768`,
+    `d = 11`: `2 · 32768 · 3329 + 2 ^ 11 = 218,171,392 < 2 ^ 31`), and the value is the
+    FIPS-203 rounding formula on lanes below `2 ^ d`. The split matters: totality is
+    what `elementwise_unary_spec` needs unconditionally, correctness is what `hlane`
+    buys — out of range the closing `.as_i16()` truncates and the formula is FALSE
+    (the falsify harness's negative control). -/
+private theorem dcc_per_elem_ok (d : Std.I32) (hd0 : 0 ≤ d.val) (hd : d.val < 12)
+    (x : Std.I16) :
+    ∃ r : Std.I16, dcc_per_elem d x = Result.ok r ∧ dcc_P d x r := by
+  have hDv : ((d.val.toNat : Nat) : Int) = d.val := Int.toNat_of_nonneg hd0
+  have hPle : (2 : Int) ^ d.val.toNat ≤ 2048 := by
+    calc (2 : Int) ^ d.val.toNat ≤ 2 ^ 11 := pow_le_pow_right₀ (by norm_num) (by omega)
+      _ = 2048 := by norm_num
+  have hPpos : (0 : Int) < 2 ^ d.val.toNat := by positivity
+  have hxlb : (-32768 : Int) ≤ x.val := by scalar_tac
+  have hxub : x.val ≤ 32767 := by scalar_tac
+  obtain ⟨v2, e2, h2v⟩ := as_i32_ok x
+  obtain ⟨v4, e4, h4v⟩ := as_i32_ok libcrux_iot_ml_kem.vector.traits.FIELD_MODULUS
+  rw [field_modulus_val] at h4v
+  obtain ⟨vm, em, hmv⟩ := i32_wmul_ok v2 v4 (by rw [h2v, h4v]; omega) (by rw [h2v, h4v]; omega)
+  rw [h2v, h4v] at hmv
+  obtain ⟨v5, e5, h5v⟩ := i32_shl_one_ok vm (by rw [hmv]; omega) (by rw [hmv]; omega)
+  rw [hmv] at h5v
+  obtain ⟨v6, e6, h6v⟩ := i32_one_shl_ok d hd0 (by omega)
+  obtain ⟨va, ea, hav⟩ := i32_wadd_ok v5 v6 (by rw [h5v, h6v]; omega) (by rw [h5v, h6v]; omega)
+  rw [h5v, h6v] at hav
+  obtain ⟨v7, e7, h7v⟩ := i32_add_one_ok d hd0 hd
+  obtain ⟨v8, e8, h8v⟩ := i32_shr_ok va v7 (by omega) (by omega)
+  have hexp : v7.val.toNat = d.val.toNat + 1 := by omega
+  rw [hexp, hav] at h8v
+  refine ⟨Std.IScalar.cast .I16 v8, ?_, ?_⟩
+  · unfold dcc_per_elem
+    simp only [e2, Aeneas.Std.bind_tc_ok, classify_eq, e4, em, e5, e6, ea, e7, e8, dcc_as_i16_eq]
+  · unfold dcc_P
+    intro hx0 hxlt
+    have hxn : ((x.val.toNat : Nat) : Int) = x.val := Int.toNat_of_nonneg hx0
+    have hNlt : x.val.toNat < 2 ^ d.val.toNat := by
+      have h : ((x.val.toNat : Nat) : Int) < (((2 : Nat) ^ d.val.toNat : Nat) : Int) := by
+        rw [hxn]; push_cast; exact hxlt
+      exact_mod_cast h
+    have hPnle : (2 : Nat) ^ d.val.toNat ≤ 2048 := by
+      calc (2 : Nat) ^ d.val.toNat ≤ 2 ^ 11 := Nat.pow_le_pow_right (by omega) (by omega)
+        _ = 2048 := by norm_num
+    have hqlt :
+        (2 * x.val.toNat * 3329 + 2 ^ d.val.toNat) / 2 ^ (d.val.toNat + 1) < 3329 := by
+      refine Nat.div_lt_of_lt_mul ?_
+      rw [show (2 : Nat) ^ (d.val.toNat + 1) = 2 * 2 ^ d.val.toNat from by rw [pow_succ]; ring]
+      omega
+    have hnum : (2 : Int) * (x.val * 3329) + 2 ^ d.val.toNat
+        = ((2 * x.val.toNat * 3329 + 2 ^ d.val.toNat : Nat) : Int) := by
+      push_cast [hxn]; ring
+    have hden : (2 : Int) ^ (d.val.toNat + 1) = (((2 : Nat) ^ (d.val.toNat + 1) : Nat) : Int) := by
+      push_cast; ring
+    have hv8q : v8.val
+        = (((2 * x.val.toNat * 3329 + 2 ^ d.val.toNat) / 2 ^ (d.val.toNat + 1) : Nat) : Int) := by
+      rw [h8v, hnum, hden]
+      exact_mod_cast rfl
+    -- name the Nat quotient so `omega` sees a plain `Nat` atom, not a cast division
+    set q : Nat := (2 * x.val.toNat * 3329 + 2 ^ d.val.toNat) / 2 ^ (d.val.toNat + 1) with hqdef
+    clear_value q
+    have hcast : (Std.IScalar.cast .I16 v8).val = v8.val :=
+      cast_i16_val_noov v8 (by rw [hv8q]; omega) (by rw [hv8q]; omega)
+    refine ⟨?_, ?_, ?_⟩
+    · rw [hcast, hv8q]; omega
+    · rw [hcast, hv8q]; omega
+    · rw [hcast, hv8q]; exact_mod_cast hqlt
+
+/-- The extracted loop body IS `unary_loop_body dcc_per_elem`, modulo `Result`
+    bind-associativity (the extraction inlines the ten operations where the reusable
+    combinator calls one `per_elem`). -/
+private theorem dcc_body_eq (d : Std.I32) :
+    (fun (p : (CoreModels.core.ops.range.Range Std.Usize)
+          × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) =>
+      libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient_loop.body
+        d p.1 p.2)
+    = (fun p =>
+        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body
+          (dcc_per_elem d) p.1 p.2) := by
+  funext p
+  rcases p with ⟨iter1, vec1⟩
+  unfold libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient_loop.body
+  unfold libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body dcc_per_elem
+  simp only [Aeneas.Std.bind_assoc_eq]
+  rfl
+
 /-- **M-E(2) — the IMPL side at a general `d`, the APEX of this bank.** The 16-lane loop
     of `decompress_ciphertext_coefficient` computes, per lane,
     `((lane · 3329) <<< 1 + (1 <<< d)) >>> (d+1)` in `I32` and truncates back to `I16`.
@@ -4751,7 +4988,24 @@ theorem decompress_ciphertext_coefficient_gen_fc (d : Std.I32)
                         / 2 ^ (d.val.toNat + 1)
                   ∧ 0 ≤ (r.elements.val[i]!).val
                   ∧ (r.elements.val[i]!).val < 3329 ⌝ ⦄ := by
-  sorry
+  unfold libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient
+  unfold libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient_loop
+  have h_field : libcrux_iot_ml_kem.vector.traits.FIELD_ELEMENTS_IN_VECTOR
+                  = (16#usize : Std.Usize) := by
+    unfold libcrux_iot_ml_kem.vector.traits.FIELD_ELEMENTS_IN_VECTOR; rfl
+  rw [h_field, dcc_body_eq d]
+  apply Std.Do.Triple.of_entails_right _
+    (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.elementwise_unary_spec
+      (dcc_per_elem d) (dcc_P d)
+      (fun y => by
+        obtain ⟨r, hr, hP⟩ := dcc_per_elem_ok d hd0 hd y
+        exact triple_of_ok_fc hr hP)
+      a)
+  rw [PostCond.entails_noThrow]
+  intro r hh j hj
+  obtain ⟨rj, _hr, h_acc, h_P⟩ := hh j hj
+  rw [h_acc]
+  exact h_P (hlane j hj).1 (hlane j hj).2
 
 end MEBank
 
