@@ -24,12 +24,14 @@ and **this same file proves its negation** (`specreq_L53_refuted_at_dv_zero`). A
 caller-shaped Triple at the refuted instance `dv = 0` closes with a bare `mvcgen`
 and compiles with no error or warning; the only signal is `#print axioms`.
 
-So the sorried `@[spec]` theorems below must be **restated**, not proved:
-  * `deserialize_then_decompress_ring_element_v_fc`   (refuted at dv = 0 and dv = 4)
-  * `compress_then_serialize_ring_element_v_fc`       (refuted)
-  * `serialize_uncompressed_ring_element_fc`          (missing `is_bounded_poly 3328`)
-  * `compress_then_serialize_message_fc`              (missing `is_bounded_poly 3328`)
-  * `deserialize_ring_elements_reduced_fc`            (leaf is the A2 axiom)
+**UPDATED 2026-08-18.** All five were RESTATED (the refutations above are why the
+hypotheses exist; they do not refute the current statements), and three have since been
+closed and are asserted below. Current state:
+  * `deserialize_ring_elements_reduced_fc`            CLOSED — leaf is the A2 axiom, by design
+  * `serialize_uncompressed_ring_element_fc`          CLOSED — axiom-clean
+  * `compress_then_serialize_message_fc`              CLOSED — axiom-clean
+  * `deserialize_then_decompress_ring_element_v_fc`   open, restated with is_rank / dv / len
+  * `compress_then_serialize_ring_element_v_fc`       open, restated with is_rank / dv / len / bound
 
 This module asserts the sorry-freedom of what IS closed, so those results cannot
 silently regress while the open ones are being restated.
@@ -61,12 +63,26 @@ def elabAssertNoSorry : CommandElab := fun stx => do
 /-! ## Closed INC-1 obligations (kernel-verified axiom-clean) -/
 #assert_no_sorry libcrux_iot_ml_kem.SerializeFc.deserialize_to_uncompressed_ring_element_fc
 #assert_no_sorry libcrux_iot_ml_kem.SerializeFc.deserialize_then_decompress_message_fc
+-- Phase 3 closes. `deserialize_ring_elements_reduced_fc` rests on the A2 axiom by design
+-- (that is its declared allowlist, not a gap); this assertion is about sorry-freedom only,
+-- which is exactly the property that must not regress while L5.3/L5.4 are worked on.
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.deserialize_ring_elements_reduced_fc
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.serialize_uncompressed_ring_element_fc
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.compress_then_serialize_message_fc
 
 /-! ## Kind exemplars the campaign's readiness gate depends on.
     If one of these acquires a `sorry`, every "FULL" verdict resting on it is void. -/
 #assert_no_sorry libcrux_iot_ml_kem.Util.CreateI.createi_pure_eq
 #assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl.loop_chunks_exact_enumerate_spec
 #assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl.loop_chunks_exact_pk_spec
+-- The exemplars Phase 3 has actually consumed (kernel-verified, not self-reported):
+-- M-B(1,2) carry L5.6, M-D(1,2) carry L5.2. If one of these acquires a `sorry`, the
+-- obligation resting on it is void even though its own `#assert_no_sorry` still passes
+-- from a stale build.
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.byte_encode_12_eq
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.byte_encode_into_12_eq
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.compress_message_coefficient_eq
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.compress_1_threshold_eq
 
 /-! ## Matrix apexes (already `#guard_msgs`-guarded in their own files; this adds
     a sorry-freedom assertion that survives a `#guard_msgs` message drift). -/
