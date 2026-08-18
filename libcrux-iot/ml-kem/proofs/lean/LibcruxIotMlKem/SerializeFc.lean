@@ -4351,7 +4351,26 @@ theorem serialize_uncompressed_ring_element_fc
       re scratch serialized
     ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.byte_encode_into (lift_poly re) 12#usize serialized
                 = .ok p.2 ⌝ ⦄ := by
-  sorry
+  -- Impl side: the 16-chunk `0..16` range loop writes `encByte re` into all 384 bytes.
+  have hlen' : serialized.val.length = 384 := h_len
+  obtain ⟨p, hp_eq, hp⟩ :=
+    triple_exists_ok_fc (serialize_uncompressed_impl_fc re h_bnd scratch serialized hlen')
+  obtain ⟨hp_len, hp_get⟩ := (holds_ok _).mp hp
+  -- Spec side: M-B(2), stated at exactly this post's `byte_encode_into … = .ok _`.
+  obtain ⟨s, hs_eq, hs_len, hs_get⟩ := byte_encode_into_12_eq re serialized h_len
+  refine triple_of_ok_fc hp_eq ?_
+  rw [hs_eq]
+  -- Both slices are 384 bytes and byte `n` of each is `encByte re n`, so they are equal.
+  have hs_len' : s.val.length = 384 := hs_len
+  have hsp : s = p.2 := by
+    apply Subtype.ext
+    refine List.ext_getElem (by rw [hs_len', hp_len]) ?_
+    intro n h1 h2
+    have hn : n < 384 := by rw [hs_len'] at h1; exact h1
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [← getElem!_pos s.val n h1, ← getElem!_pos p.2.val n h2,
+      hs_get n hn, hp_get n (by scalar_tac)]
+  rw [hsp]
 
 /-- L5.7 — `serialize.deserialize_to_uncompressed_ring_element` (= `ByteDecode_12`).
 
