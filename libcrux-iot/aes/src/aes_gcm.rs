@@ -4,25 +4,25 @@ use crate::{
     aes::AES_BLOCK_LEN,
     ctr::{AesCtrContext, GcmInit, AES_GCM_CTR_LEN, AES_GCM_NONCE_START},
     gf128::GF128State,
-    platform::{AESState, GF128FieldElement},
+    platform::{AesCipherState, GF128FieldElement},
     DecryptError, NONCE_LEN, TAG_LEN,
 };
 
 /// The AES-GCM state, generic over the platform AES implementation (`T`),
 /// the GF(2^128) field element implementation (`U`), and the number of
 /// round keys (`NUM_KEYS`: 11 for AES-128, 15 for AES-256).
-pub(crate) struct State<T: AESState, U: GF128FieldElement, const NUM_KEYS: usize> {
+pub(crate) struct AesGcmState<T: AesCipherState, U: GF128FieldElement, const NUM_KEYS: usize> {
     pub(crate) aes_state: AesCtrContext<T, NUM_KEYS, AES_GCM_CTR_LEN, AES_GCM_NONCE_START>,
     pub(crate) gcm_state: GF128State<U>,
     pub(crate) tag_mix: [u8; TAG_LEN],
 }
 
 impl<
-        T: AESState,
+        T: AesCipherState,
         U: GF128FieldElement,
         const NUM_KEYS: usize,
         Aad: core::iter::ExactSizeIterator<Item = u8>,
-    > super::AeadState<Aad> for State<T, U, NUM_KEYS>
+    > super::AeadState<Aad> for AesGcmState<T, U, NUM_KEYS>
 where
     AesCtrContext<T, NUM_KEYS, AES_GCM_CTR_LEN, AES_GCM_NONCE_START>: GcmInit,
 {

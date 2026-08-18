@@ -7,13 +7,13 @@ use crate::{
     aes::*,
     aes_gcm_256::KEY_LEN,
     ctr::{AES_CCM_CTR_LEN, AES_CCM_NONCE_START},
-    platform::AESState,
+    platform::AesCipherState,
     NONCE_LEN,
 };
 
 pub(crate) const NUM_KEYS: usize = 15;
 
-impl<T: AESState, const CTR_LEN: usize, const NONCE_START: usize>
+impl<T: AesCipherState, const CTR_LEN: usize, const NONCE_START: usize>
     AesCtrContext<T, NUM_KEYS, CTR_LEN, NONCE_START>
 {
     #[inline]
@@ -36,7 +36,7 @@ impl<T: AESState, const CTR_LEN: usize, const NONCE_START: usize>
     }
 }
 
-impl<T: AESState> super::CcmInit
+impl<T: AesCipherState> super::CcmInit
     for AesCtrContext<T, NUM_KEYS, AES_CCM_CTR_LEN, AES_CCM_NONCE_START>
 {
     fn ccm_init(key: &[u8]) -> Self {
@@ -44,7 +44,7 @@ impl<T: AESState> super::CcmInit
     }
 }
 
-impl<T: AESState> super::GcmInit
+impl<T: AesCipherState> super::GcmInit
     for AesCtrContext<T, NUM_KEYS, AES_GCM_CTR_LEN, AES_GCM_NONCE_START>
 {
     fn gcm_init(key: &[u8]) -> Self {
@@ -54,7 +54,7 @@ impl<T: AESState> super::GcmInit
 
 /// 256 - Key expansion
 #[inline]
-fn key_expansion<T: AESState>(key: &[u8]) -> ExtendedKey<T, NUM_KEYS> {
+fn key_expansion<T: AesCipherState>(key: &[u8]) -> ExtendedKey<T, NUM_KEYS> {
     debug_assert!(key.len() == KEY_LEN);
 
     let mut keyex = from_fn(|_| T::new());
@@ -62,7 +62,7 @@ fn key_expansion<T: AESState>(key: &[u8]) -> ExtendedKey<T, NUM_KEYS> {
     keyex[1].load_block(&key[16..32]);
 
     macro_rules! expansion_step256 {
-        ($i:expr,$rcon:expr) => {
+        ($i:expr, $rcon:expr) => {
             // // Split at $i to get the one we currently look at and the previous
             // // blocks.
             // let (prev, current) = keyex.split_at_mut($i);

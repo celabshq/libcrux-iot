@@ -3,7 +3,7 @@
 pub(crate) mod portable;
 
 /// The AES state.
-pub(crate) trait AESState: Clone + core::fmt::Debug {
+pub(crate) trait AesCipherState: Clone + core::fmt::Debug {
     fn new() -> Self;
     fn load_block(&mut self, b: &[u8]);
     fn store_block(&self, out: &mut [u8]);

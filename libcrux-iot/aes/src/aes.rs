@@ -15,7 +15,7 @@ pub const AES_256_KEY_LEN: usize = 32;
 
 /// The AES block cipher function.
 #[inline]
-pub(crate) fn block_cipher<T: AESState, const NUM_KEYS: usize>(
+pub(crate) fn block_cipher<T: AesCipherState, const NUM_KEYS: usize>(
     st: &mut T,
     keyex: &ExtendedKey<T, NUM_KEYS>,
 ) {

@@ -4,7 +4,7 @@ use core::ops::Range;
 use crate::{
     aes::{block_cipher, AES_BLOCK_LEN},
     ctr::{AesCtrContext, CcmInit, AES_CCM_CTR_LEN, AES_CCM_NONCE_START},
-    platform::AESState,
+    platform::AesCipherState,
     DecryptError, CCM_SHORT_TAG_LEN, NONCE_LEN, TAG_LEN,
 };
 
@@ -19,9 +19,9 @@ const TEN_BYTE_ENCODING_RANGE: Range<usize> = (1 << 32)..usize::MAX;
 impl<
         const TAG_LEN: usize,
         const NUM_KEYS: usize,
-        T: AESState,
+        T: AesCipherState,
         Aad: core::iter::ExactSizeIterator<Item = u8>,
-    > super::AeadState<Aad> for State<TAG_LEN, NUM_KEYS, T>
+    > super::AeadState<Aad> for AesCcmState<TAG_LEN, NUM_KEYS, T>
 where
     AesCtrContext<T, NUM_KEYS, AES_CCM_CTR_LEN, AES_CCM_NONCE_START>: CcmInit,
 {
@@ -103,7 +103,7 @@ where
 const MSG_ENC_LEN: usize = 3;
 
 /// The AES-CCM state.
-pub(crate) struct State<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> {
+pub(crate) struct AesCcmState<const TAG_LEN: usize, const NUM_KEYS: usize, T: AesCipherState> {
     /// Internal AES-CTR state for encryption/decryption.
     pub(crate) aes_state: AesCtrContext<T, NUM_KEYS, AES_CCM_CTR_LEN, 1>,
     /// Internal state for accumulating the authentication tag from AAD and
@@ -111,7 +111,9 @@ pub(crate) struct State<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState
     pub(crate) accumulator: [u8; AES_BLOCK_LEN],
 }
 
-impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NUM_KEYS, T> {
+impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AesCipherState>
+    AesCcmState<TAG_LEN, NUM_KEYS, T>
+{
     /// Update authentication state by accumulating AAD.
     ///
     /// The state needs to be initialized first to set the
@@ -306,10 +308,10 @@ impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> State<TAG_LEN, NU
     }
 }
 
-pub(crate) type AesCcm128State<T> = State<TAG_LEN, 11, T>;
+pub(crate) type AesCcm128State<T> = AesCcmState<TAG_LEN, 11, T>;
 #[allow(non_camel_case_types)]
-pub(crate) type AesCcm128_8_State<T> = State<CCM_SHORT_TAG_LEN, 11, T>;
+pub(crate) type AesCcm128_8_State<T> = AesCcmState<CCM_SHORT_TAG_LEN, 11, T>;
 
-pub(crate) type AesCcm256State<T> = State<TAG_LEN, 15, T>;
+pub(crate) type AesCcm256State<T> = AesCcmState<TAG_LEN, 15, T>;
 #[allow(non_camel_case_types)]
-pub(crate) type AesCcm256_8_State<T> = State<CCM_SHORT_TAG_LEN, 15, T>;
+pub(crate) type AesCcm256_8_State<T> = AesCcmState<CCM_SHORT_TAG_LEN, 15, T>;

@@ -459,7 +459,7 @@ fn key_expansion_step(next: &mut State, prev: &State) {
     next[7] = key_expand1(prev[7], next[7]);
 }
 
-impl crate::platform::AESState for State {
+impl crate::platform::AesCipherState for State {
     #[inline]
     fn new() -> Self {
         new_state()

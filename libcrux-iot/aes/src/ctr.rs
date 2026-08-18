@@ -5,7 +5,7 @@
 //!
 //! This get's instantiated in [`aes128_ctr`] and [`aes256_ctr`].
 
-use crate::{aes::*, platform::AESState};
+use crate::{aes::*, platform::AesCipherState};
 
 #[cfg(test)]
 mod test128;
@@ -28,7 +28,7 @@ pub(crate) const AES_CCM_NONCE_START: usize = 1;
 /// - `CTR_LEN` is how many bytes at the end of `ctr_nonce` are used for the counter
 /// - `NONCE_START` is the index in `ctr_nonce`, where the AEAD nonce begins, i.e. 0 in AES-GCM and 1 in AES-CCM (because the first byte is for flags CCM)
 pub(crate) struct AesCtrContext<
-    T: AESState,
+    T: AesCipherState,
     const NUM_KEYS: usize,
     const CTR_LEN: usize,
     const NONCE_START: usize,
@@ -37,7 +37,7 @@ pub(crate) struct AesCtrContext<
     pub(crate) ctr_nonce: [u8; CTR_NONCE_LEN],
 }
 
-impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START: usize>
+impl<T: AesCipherState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START: usize>
     AesCtrContext<T, NUM_KEYS, CTR_LEN, NONCE_START>
 {
     #[inline]

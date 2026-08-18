@@ -2,7 +2,7 @@
 pub const KEY_LEN: usize = 32;
 
 /// The AES-GCM 256 state
-pub(crate) type State<T, U> = super::aes_gcm::State<T, U, 15>;
+pub(crate) type AesGcm256State<T, U> = super::aes_gcm::AesGcmState<T, U, 15>;
 
 use super::aes_gcm::type_aliases;
 
@@ -30,8 +30,10 @@ type_aliases!(AesGcm256, "AES-GCM 256");
 /// let mut ct = [0; 43];
 /// let mut pt_out = [0; 43];
 ///
-/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref()).unwrap();
-/// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag).unwrap();
+/// k.encrypt(&mut ct, &mut tag, &nonce, b"", pt.classify_ref())
+///     .unwrap();
+/// k.decrypt(pt_out.classify_ref_mut(), &nonce, b"", &ct, &tag)
+///     .unwrap();
 /// assert_eq!(pt, &pt_out);
 /// ```
 pub mod portable {

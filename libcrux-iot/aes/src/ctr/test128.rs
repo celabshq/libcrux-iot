@@ -1,13 +1,13 @@
 use crate::{
     aes_gcm_128::GCM_KEY_LEN,
     ctr::{AesCtrContext, AES_GCM_CTR_LEN, AES_GCM_NONCE_START},
-    platform::{self, AESState},
+    platform::{self, AesCipherState},
     NONCE_LEN,
 };
 
 type AesGcm128CtrContext<T> = AesCtrContext<T, 11, AES_GCM_CTR_LEN, AES_GCM_NONCE_START>;
 
-pub(crate) fn aes128_ctr_xor_block<T: AESState>(
+pub(crate) fn aes128_ctr_xor_block<T: AesCipherState>(
     ctx: &AesGcm128CtrContext<T>,
     ctr: u32,
     buffer: &mut [u8],
@@ -16,7 +16,7 @@ pub(crate) fn aes128_ctr_xor_block<T: AESState>(
     ctx.aes_ctr_xor_block(ctr, buffer);
 }
 
-pub(crate) fn aes128_ctr_encrypt<T: AESState>(
+pub(crate) fn aes128_ctr_encrypt<T: AesCipherState>(
     key: &[u8],
     nonce: &[u8],
     ctr: u32,
