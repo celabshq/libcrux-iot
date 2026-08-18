@@ -2257,7 +2257,43 @@ theorem byte_encode_into_12_eq
         = .ok s
       ∧ s.length = 384
       ∧ ∀ n : Nat, n < 384 → (s.val[n]!).val = encByte re n := by
-  sorry
+  obtain ⟨a, ha, ha_get⟩ := byte_encode_12_eq re
+  have hlen : serialized.val.length = 384 := h_len
+  -- the two `Slice.len` bridges: the caller's buffer and the encoded array's view
+  have hraw : Aeneas.Std.Slice.len serialized = (384#usize : Std.Usize) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [Aeneas.Std.Slice.len_val]
+    show serialized.val.length = ((384#usize : Std.Usize)).val
+    rw [hlen]; scalar_tac
+  have ha_val : (Aeneas.Std.Array.to_slice a).val = a.val := rfl
+  have ha_len : (Aeneas.Std.Array.to_slice a).val.length = 384 := a.property
+  have hraw_a : Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice a)
+      = (384#usize : Std.Usize) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [Aeneas.Std.Slice.len_val]
+    show (Aeneas.Std.Array.to_slice a).val.length = ((384#usize : Std.Usize)).val
+    rw [ha_len]; scalar_tac
+  have hslen : CoreModels.core.slice.Slice.len serialized
+      = .ok (384#usize : Std.Usize) := by
+    simp only [CoreModels.core.slice.Slice.len, hraw]
+    rfl
+  have hmul : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : Result Std.Usize)
+      = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+  -- dispatch: `d ≤ BITS_PER_COEFFICIENT` and `out.len = 32 * d` discharge, and
+  -- `(12#usize).val = 12` selects the `d = 12` branch, which is M-B(1)
+  unfold hacspec_ml_kem.serialize.byte_encode_into
+  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+    le_refl, if_true, Aeneas.Std.bind_tc_ok, hslen, hmul, ha,
+    show ((12#usize : Std.Usize).val) = 12 from rfl,
+    Aeneas.Std.lift]
+  -- `copy_from_slice` returns the source slice outright when the lengths agree
+  refine ⟨Aeneas.Std.Array.to_slice a, ?_, ?_, ?_⟩
+  · unfold CoreModels.core.slice.Slice.copy_from_slice
+    rw [hraw, hraw_a, if_pos rfl]
+  · exact ha_len
+  · intro n hn
+    rw [ha_val]
+    exact ha_get n hn
 
 end L56Bank
 
