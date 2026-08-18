@@ -2359,12 +2359,102 @@ private def decw (l : List Std.U8) (m n : Nat) : Nat :=
   (l[m / 8]!.val + 256 * l[m / 8 + 1]!.val + 65536 * l[m / 8 + 2]!.val)
     / 2 ^ (m % 8) % 2 ^ n
 
+/-! ### Bit-splitting toolkit for a positional sum `a + 2 ^ c * K`
+
+    The two halves of "OR == + when the fields are disjoint" (the recipe's
+    `or_shift_eq_add`), read in the DECODE direction: a bit below the split sees only
+    the low field, a bit at or above the split sees only the high field. Everything
+    below is generic in the split width `c`, so the 8/16 splits of a 3-byte window are
+    two applications of the same pair rather than two hand-rolled arguments. -/
+
+/-- Bits below the split are the low field's bits: the high field contributes a
+    multiple of `2 ^ c`, hence an even multiple of `2 ^ t` for every `t < c`. -/
+private theorem natBit_lo (a K c t : Nat) (ht : t < c) :
+    natBit (a + 2 ^ c * K) t = natBit a t := by
+  have hpos : (0:Nat) < 2 ^ t := Nat.two_pow_pos _
+  obtain ⟨u, hu⟩ : ∃ u, c - t = u + 1 := ⟨c - t - 1, by omega⟩
+  have h2 : (2:Nat) ^ c = 2 ^ t * (2 * 2 ^ u) := by
+    rw [show (2:Nat) * 2 ^ u = 2 ^ (u + 1) by rw [Nat.pow_succ]; exact Nat.mul_comm _ _,
+      ← Nat.pow_add]
+    congr 1; omega
+  have key : (a + 2 ^ c * K) / 2 ^ t = a / 2 ^ t + 2 * (2 ^ u * K) := by
+    rw [h2, show 2 ^ t * (2 * 2 ^ u) * K = 2 ^ t * (2 * (2 ^ u * K)) by
+      simp [Nat.mul_assoc]]
+    exact Nat.add_mul_div_left _ _ hpos
+  simp only [natBit, key, Nat.add_mul_mod_self_left]
+
+/-- Bits at or above the split are the high field's bits: `a < 2 ^ c` is exactly what
+    makes the low field vanish under `/ 2 ^ c`. This is where the field bound is
+    load-bearing — drop it and the low field's overflow leaks upward. -/
+private theorem natBit_hi (a K c t : Nat) (ha : a < 2 ^ c) :
+    natBit (a + 2 ^ c * K) (c + t) = natBit K t := by
+  have hpos : (0:Nat) < 2 ^ c := Nat.two_pow_pos _
+  have key : (a + 2 ^ c * K) / 2 ^ (c + t) = K / 2 ^ t := by
+    rw [Nat.pow_add, ← Nat.div_div_eq_div_mul, Nat.add_mul_div_left _ _ hpos,
+        Nat.div_eq_of_lt ha, Nat.zero_add]
+  simp only [natBit, key]
+
+/-- The 3-byte window, bit by bit: bit `t` of `b0 + 256*b1 + 65536*b2` is bit `t % 8`
+    of byte `t / 8`, for every `t < 24`. Two nested applications of the pair above at
+    `c = 8`. Only the two LOW bytes need a bound: `b2` occupies the top field and
+    nothing above it is ever read. -/
+private theorem natBit_win (b0 b1 b2 t : Nat) (h0 : b0 < 256) (h1 : b1 < 256)
+    (ht : t < 24) :
+    natBit (b0 + 256 * b1 + 65536 * b2) t
+      = natBit (if t < 8 then b0 else if t < 16 then b1 else b2) (t % 8) := by
+  have hW : b0 + 256 * b1 + 65536 * b2 = b0 + 2 ^ 8 * (b1 + 2 ^ 8 * b2) := by
+    simp [Nat.pow_succ]; omega
+  rw [hW]
+  rcases Nat.lt_or_ge t 8 with hc | hc
+  · rw [if_pos hc, natBit_lo _ _ _ _ hc, Nat.mod_eq_of_lt hc]
+  · rw [if_neg (by omega)]
+    obtain ⟨t1, ht1⟩ : ∃ t1, t = 8 + t1 := ⟨t - 8, by omega⟩
+    subst ht1
+    rw [natBit_hi _ _ _ _ (show b0 < 2 ^ 8 by omega)]
+    rcases Nat.lt_or_ge t1 8 with hc2 | hc2
+    · rw [if_pos (by omega), natBit_lo _ _ _ _ hc2]
+      congr 1
+      omega
+    · rw [if_neg (by omega)]
+      obtain ⟨t2, ht2⟩ : ∃ t2, t1 = 8 + t2 := ⟨t1 - 8, by omega⟩
+      subst ht2
+      rw [natBit_hi _ _ _ _ (show b1 < 2 ^ 8 by omega)]
+      congr 1
+      omega
+
 /-- **M-C(1) — the generic DECODE group law.** The spec-side bit stream, windowed at
     any offset, is a 3-byte read. Generalises `bitSum_sliceBit_eq_dec12` (`:274`) off
     `d = 12` and off byte alignment; `n ≤ 17` is tight. -/
 theorem bitSum_sliceBit_window (l : List Std.U8) (m n : Nat) (hn : n ≤ 17) :
     bitSum (fun t => sliceBit l (m + t)) n = decw l m n := by
-  sorry
+  -- every bit the window reads lands in the 3-byte group based at `m / 8`: the read
+  -- starts at bit `m % 8 ≤ 7` and runs `n ≤ 17` bits, so `m % 8 + t ≤ 23 < 24`.
+  -- This is where `hn` is exactly tight — at `n = 18` the last bit is bit 24, the
+  -- FOURTH byte, which `decw`'s window does not contain.
+  have hrlt : m % 8 < 8 := Nat.mod_lt _ (by omega)
+  have hkey : ∀ t, t < n →
+      sliceBit l (m + t)
+        = natBit (l[m / 8]!.val + 256 * l[m / 8 + 1]!.val + 65536 * l[m / 8 + 2]!.val)
+            (m % 8 + t) := by
+    intro t ht
+    simp only [sliceBit]
+    rw [natBit_win _ _ _ _ (u8_val_lt l (m / 8)) (u8_val_lt l (m / 8 + 1))
+      (show m % 8 + t < 24 by omega)]
+    -- which byte of the window bit `m % 8 + t` falls in, and at which offset
+    rcases Nat.lt_or_ge (m % 8 + t) 8 with hc | hc
+    · rw [if_pos hc, show (m + t) / 8 = m / 8 by omega,
+        show (m + t) % 8 = (m % 8 + t) % 8 by omega]
+    · rcases Nat.lt_or_ge (m % 8 + t) 16 with hc2 | hc2
+      · rw [if_neg (by omega), if_pos hc2, show (m + t) / 8 = m / 8 + 1 by omega,
+          show (m + t) % 8 = (m % 8 + t) % 8 by omega]
+      · rw [if_neg (by omega), if_neg (by omega),
+          show (m + t) / 8 = m / 8 + 2 by omega,
+          show (m + t) % 8 = (m % 8 + t) % 8 by omega]
+  rw [bitSum_congr _
+      (fun t => natBit (l[m / 8]!.val + 256 * l[m / 8 + 1]!.val + 65536 * l[m / 8 + 2]!.val)
+        (m % 8 + t)) n hkey,
+    bitSum_shift]
+  rfl
 
 /-- **M-C(2) — the generic ENCODE group law.** Byte `n` of the `d`-bit lane stream is
     a 3-lane read. The encode counterpart of M-C(1), and the general-`d` form of
