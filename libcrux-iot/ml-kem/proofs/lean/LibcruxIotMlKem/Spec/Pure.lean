@@ -736,25 +736,27 @@ theorem polynomial.add_to_ring_element_eq_ok
   rw [h_wrap]
 
 /-- The pure-rem of a U16 by `parameters.FIELD_MODULUS` (= 3329 ≠ 0).
-    A noncomputable wrapper extracting the `.ok` witness from
-    `uscalar_rem_ok_U16`. Used as the pointwise function in
-    `poly_barrett_reduce_eq_ok`. -/
--- NOTE: genuinely noncomputable as written -- it uses `Classical.choose` to extract the
--- `.ok` witness rather than computing `z % 3329` directly. Everything ELSE in the Spec
--- layer is now computable (see the header note); this is the one real holdout, and it
--- could be made computable by defining it directly and reproving `rem_q_U16_eq`.
-private noncomputable def rem_q_U16 (z : Std.U16) : Std.U16 :=
-  have hq_ne : (parameters.FIELD_MODULUS : Std.U16).val ≠ 0 := by
-    unfold parameters.FIELD_MODULUS; decide
-  Classical.choose (uscalar_rem_ok_U16 z parameters.FIELD_MODULUS hq_ne)
+    Defined DIRECTLY as the bitvector remainder, which is exactly the `.ok`
+    payload `Std.UScalar.rem` produces on a nonzero divisor. Used as the
+    pointwise function in `poly_barrett_reduce_eq_ok`. -/
+-- Was `Classical.choose (uscalar_rem_ok_U16 ...)`, i.e. noncomputable purely as an
+-- artefact of extracting the witness instead of naming it. `Std.UScalar.rem x y` is
+-- `ok ⟨BitVec.umod x.bv y.bv⟩` whenever `y.val ≠ 0`, so the witness IS this term and
+-- the definition below is definitionally the same value -- now computable, so the whole
+-- Spec layer evaluates under `#eval`. `uscalar_rem_ok_U16` is still used elsewhere for
+-- its `.val` characterisation; only this wrapper stopped going through it.
+private def rem_q_U16 (z : Std.U16) : Std.U16 :=
+  ⟨BitVec.umod z.bv (parameters.FIELD_MODULUS : Std.U16).bv⟩
 
 private theorem rem_q_U16_eq (z : Std.U16) :
     (z % parameters.FIELD_MODULUS : Result Std.U16) = .ok (rem_q_U16 z) := by
   have hq_ne : (parameters.FIELD_MODULUS : Std.U16).val ≠ 0 := by
     unfold parameters.FIELD_MODULUS; decide
-  unfold rem_q_U16
-  exact (Classical.choose_spec
-    (uscalar_rem_ok_U16 z parameters.FIELD_MODULUS hq_ne)).1
+  have heq : (z % parameters.FIELD_MODULUS : Result Std.U16)
+      = Std.UScalar.rem z parameters.FIELD_MODULUS := rfl
+  rw [heq]
+  unfold Std.UScalar.rem rem_q_U16
+  simp [hq_ne]
 
 /-- Pure-projection side lemma for `polynomial.poly_barrett_reduce` —
     unconditional over ALL inputs.
