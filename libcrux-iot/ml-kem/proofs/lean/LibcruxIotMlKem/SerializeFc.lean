@@ -3063,11 +3063,15 @@ theorem deserialize_then_decompress_ring_element_v_fc
 
 /-! ### PROVER bank toward the POSITIVE L5.3 proof.
 
-    The section above shows the locked L5.3 Triple is FALSE as written, so it is not
-    closable. Everything here is stated UNDER the source's `#[hax_lib::requires]`
-    (`ml-kem/src/serialize.rs` 337-340), i.e. it is what the RE-LOCKED obligation will
-    need; nothing here is used by, weakens, or hypothesises the locked statement,
-    which keeps its `sorry`.
+    HISTORY, so this section is not misread: the section above refuted the ORIGINAL
+    L5.3 statement, which had a `⌜True⌝` pre and no hypotheses. That statement was
+    RESTATED on 2026-08-18 with `h_rank` / `h_cf` / `h_len` transcribed verbatim from
+    the source's `#[hax_lib::requires]` (`ml-kem/src/serialize.rs` 337-340), and the
+    restated form is the live obligation. **The `specreq_L53_*` refutations remain true
+    and remain the REASON those hypotheses exist — they do not refute the current
+    target.** Everything here is stated under the same hypotheses, i.e. it is what the
+    re-locked obligation needs; nothing here weakens or hypothesises the locked
+    statement, which keeps its `sorry` until it is proved.
 
     `specreq_L53_dispatch_eq_d4` (above) is the `d = 4` half of the first rung;
     `L53_dispatch_eq_d5` completes it, and `L53_dispatch_of_pre` is the rung itself:
@@ -3128,7 +3132,9 @@ end L53Bank
 
 /-! ### SPECREQ evidence for L5.4 (`compress_then_serialize_ring_element_v_fc`).
 
-    L5.4 carries the SAME defect as L5.3, and it is the next obligation in the queue.
+    HISTORY, as for L5.3: L5.4's ORIGINAL statement carried the SAME defect, and was
+    RESTATED on 2026-08-18 (see the binders on the theorem itself). The refutation below
+    is why those binders exist; it does NOT refute the current target.
     Its source (`ml-kem/src/serialize.rs` 231-234) carries
 
         #[hax_lib::requires(
@@ -3136,8 +3142,8 @@ end L53Bank
             (V_COMPRESSION_FACTOR == 4 && C2_LEN == 128 ||
                 V_COMPRESSION_FACTOR == 5 && C2_LEN == 160))]
 
-    but the scaffold transcribed only the `out.len() == C2_LEN` conjunct (as the binder
-    `h_len`). `compress_then_serialize_ring_element_v` dispatches on the same
+    but the ORIGINAL scaffold transcribed only the `out.len() == C2_LEN` conjunct (as the
+    binder `h_len`). `compress_then_serialize_ring_element_v` dispatches on the same
     `match V_COMPRESSION_FACTOR as u32 { 4, 5, _ => unreachable!() }`, so
     `V_COMPRESSION_FACTOR = 0` refutes the L5.4 Triple by the identical argument.
 
@@ -3146,7 +3152,9 @@ end L53Bank
     recoverable from the one the scaffold kept. The L5.3 dispatch above was proved with
     the same three-lemma `simp only` normal form, so this cost one rung, not a dispatch.
 
-    This is evidence, not a statement edit: L5.4's `sorry` stands untouched. -/
+    This is evidence, not a statement edit: L5.4's `sorry` stands untouched, and the
+    restatement it motivated was made by the PRINCIPAL-sanctioned scaffold pass, not
+    here. -/
 
 section SpecreqL54
 
