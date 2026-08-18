@@ -5251,6 +5251,15 @@ theorem compress_ciphertext_coefficient_eq (d : Std.U8) (fe : Std.U16) (hd : d.v
   · rw [hrv]; exact Int.natCast_nonneg _
   · rw [hrv]; exact_mod_cast hlt6
 
+/-- `%` on `U32` — the one scalar operation this seam needs that the M-E bank
+    (`:4442` ff) does not already provide, in the same
+    `∃ z, … = .ok z ∧ z.val = …` shape. Total here because the modulus is `2 ^ d`. -/
+private theorem u32_rem_ok (x y : Std.U32) (hy : 0 < y.val) :
+    ∃ z : Std.U32, (x % y : Result Std.U32) = .ok z ∧ z.val = x.val % y.val := by
+  obtain ⟨z, hz, hv⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.rem_spec (ty := .U32) x (y := y) (by omega))
+  exact ⟨z, hz, hv⟩
+
 /-- **M-C′(3) — the SPEC seam.** `compress.compress_d` in closed `Nat` form. The lone
     `massert (to_bit_size < 12)` discharges from `hd`; `FieldElement.new` is total.
     UNCONDITIONAL in `fe` for the same measured reason as M-C′(2). -/
@@ -5258,7 +5267,67 @@ theorem compress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : Std
     (hd : d.val < 12) :
     hacspec_ml_kem.compress.compress_d fe d
       = .ok { val := u16OfNat (((2 * fe.val.val * 2 ^ d.val + 3329) / 6658) % 2 ^ d.val) } := by
-  sorry
+  -- `2 ^ d.val` stays an ATOM: these are the only facts ever needed about it.
+  have hq_le : (2:Nat) ^ d.val ≤ 2048 := by
+    calc (2:Nat) ^ d.val ≤ 2 ^ 11 := Nat.pow_le_pow_right (by omega) (by omega)
+      _ = 2048 := by norm_num
+  have hq_pos : 1 ≤ (2:Nat) ^ d.val := Nat.one_le_two_pow
+  have hfelt : fe.val.val ≤ 65535 := by scalar_tac
+  have hmax : Std.U32.max = 4294967295 := by scalar_tac
+  -- the lone `massert`
+  have hass1 : (d < (12#usize : Std.Usize)) := by scalar_tac
+  -- the casts
+  have hcd : (Std.UScalar.cast .U32 d).val = d.val := by
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have hcfe : (Std.UScalar.cast .U32 fe.val).val = fe.val.val := by
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have hc3329 : Std.UScalar.cast .U32 (3329#u16 : Std.U16) = (3329#u32 : Std.U32) := by
+    refine Std.UScalar.eq_of_val_eq ?_
+    rw [Std.UScalar.cast_val_eq]; scalar_tac
+  have h2 : ((2#u32 : Std.U32)).val = 2 := by scalar_tac
+  have h3329 : ((3329#u32 : Std.U32)).val = 3329 := by scalar_tac
+  -- The ONE nonlinear step: `fe · 2 ^ d` is bounded by the product of the bounds, so
+  -- every no-wrap side condition below is linear in that single atom and `omega` does it.
+  have hprod : fe.val.val * 2 ^ d.val ≤ 134215680 :=
+    calc fe.val.val * 2 ^ d.val ≤ 65535 * 2048 := Nat.mul_le_mul hfelt hq_le
+      _ = 134215680 := by norm_num
+  -- the straight-line body, in order
+  obtain ⟨tp, hpow, htpv⟩ := u32_pow_two_ok (Std.UScalar.cast .U32 d) (by rw [hcd]; omega)
+  rw [hcd] at htpv
+  obtain ⟨i2, hi2, hi2v⟩ := u32_mul_ok (Std.UScalar.cast .U32 fe.val) 2#u32 (by
+    rw [hcfe, h2]; omega)
+  rw [hcfe, h2] at hi2v
+  obtain ⟨i3, hi3, hi3v⟩ := u32_mul_ok i2 tp (by
+    rw [hi2v, htpv, show fe.val.val * 2 * 2 ^ d.val = 2 * (fe.val.val * 2 ^ d.val) from by
+      ring]
+    omega)
+  rw [hi2v, htpv, show fe.val.val * 2 * 2 ^ d.val = 2 * fe.val.val * 2 ^ d.val from by ring]
+    at hi3v
+  obtain ⟨i5, hi5, hi5v⟩ := u32_add_ok i3 3329#u32 (by
+    rw [hi3v, h3329, show 2 * fe.val.val * 2 ^ d.val = 2 * (fe.val.val * 2 ^ d.val) from by
+      ring]
+    omega)
+  rw [hi3v, h3329] at hi5v
+  obtain ⟨i7, hi7, hi7v⟩ := u32_mul_ok 2#u32 3329#u32 (by rw [h2, h3329]; omega)
+  rw [h2, h3329] at hi7v
+  obtain ⟨cmp, hcmp, hcmpv⟩ := u32_div_ok i5 i7 (by rw [hi7v]; omega)
+  rw [hi5v, hi7v] at hcmpv
+  obtain ⟨i8, hi8, hi8v⟩ := u32_rem_ok cmp tp (by rw [htpv]; omega)
+  rw [hcmpv, htpv] at hi8v
+  -- the closing `as U16` is faithful because the mask already put us below `2 ^ d ≤ 2048`
+  have hi8lt : i8.val < 2 ^ d.val := by rw [hi8v]; exact Nat.mod_lt _ (by omega)
+  have hfinal : Std.UScalar.cast .U16 i8
+      = u16OfNat (((2 * fe.val.val * 2 ^ d.val + 3329) / 6658) % 2 ^ d.val) := by
+    refine Std.UScalar.eq_of_val_eq ?_
+    rw [Std.UScalar.cast_val_eq, u16OfNat_val _ (by rw [← hi8v]; scalar_tac), hi8v]
+    have h16 : (Std.UScalarTy.U16).numBits = 16 := rfl
+    rw [h16]
+    exact Nat.mod_eq_of_lt (by omega)
+  unfold hacspec_ml_kem.compress.compress_d
+  simp only [Aeneas.Std.massert, hacspec_ml_kem.parameters.FIELD_MODULUS,
+    hacspec_ml_kem.parameters.FieldElement.new, Aeneas.Std.lift,
+    Aeneas.Std.bind_tc_ok, if_pos hass1, hc3329, hpow,
+    hi2, hi3, hi5, hi7, hcmp, hi8, hfinal]
 
 end MCPBank
 
