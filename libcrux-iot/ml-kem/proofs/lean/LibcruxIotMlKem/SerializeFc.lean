@@ -3905,6 +3905,340 @@ private theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 3
   rw [haeq] at hbd
   exact hbd
 
+/-! ### Spec side — `deserialize_ring_elements_reduced` IS the pure model.
+
+    `deserialize_ring_elements_reduced RANK = vector_decode_12 RANK`, a `createi RANK`
+    whose closure at index `k` slices `[k*384, k*384+384)` — i.e. exactly
+    `Spec.pk_chunk` — and `byte_decode`s it at `d = 12`. `byte_decode_dyn_12_ok`
+    identifies that array-shaped decode with the slice-shaped `byte_decode_dyn` the
+    pure model uses, so the whole `createi` collapses to
+    `Spec.t_as_ntt_from_public_key_pure` with NO bit-level reasoning. -/
+
+/-- Generic `core.slice.Slice.len` bridge (the file's `slice_len_384` is pinned at 384). -/
+private theorem slice_len_gen {T : Type} (sl : Slice T) :
+    CoreModels.core.slice.Slice.len sl = .ok (Aeneas.Std.Slice.len sl) := rfl
+
+/-- The shared-range index `s[a..b]` on a slice, in the shape the `vector_decode_12`
+    closure uses (goes through `SliceIndex.get`, not `.index`). -/
+private theorem slice_range_index_ok {T : Type} [Inhabited T]
+    (s : Slice T) (a b : Std.Usize) (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
+    CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
+        { start := a, «end» := b }
+      = .ok ⟨List.slice a.val b.val s.val, by
+          have := s.val.slice_length_le a.val b.val; scalar_tac⟩ := by
+  have hle : (a ≤ b) := by scalar_tac
+  have hb : (b ≤ Aeneas.Std.Slice.len s) := by
+    have : (Aeneas.Std.Slice.len s).val = s.val.length := Aeneas.Std.Slice.len_val s
+    scalar_tac
+  unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
+    CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
+  rw [if_pos hle]
+  unfold CoreModels.rust_primitives.slice.slice_length
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [if_pos hb]
+  unfold CoreModels.rust_primitives.slice.slice_slice
+  rw [show (Aeneas.Std.Slice.subslice s ⟨a, b⟩)
+      = .ok ⟨List.slice a.val b.val s.val, by
+          have := s.val.slice_length_le a.val b.val; scalar_tac⟩ from by
+    unfold Aeneas.Std.Slice.subslice
+    split
+    · rfl
+    · rename_i hcon
+      exact absurd ⟨h0, h1⟩ hcon]
+  rfl
+
+/-- The `vector_decode_12` closure at index `k` decodes exactly `Spec.pk_chunk pk k`,
+    hence produces the `k`-th cell of the pure model. -/
+private theorem vector_decode_12_closure_eq (K : Std.Usize) (public_key : Slice Std.U8)
+    (h_pk : public_key.val.length = K.val * 384) (k : Nat) (hk : k < K.val) :
+    (hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+        K).call_mut public_key (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      = .ok ((Spec.t_as_ntt_from_public_key_pure public_key K).val[k]!, public_key) := by
+  have hk384' : k * 384 + 384 ≤ K.val * 384 := by
+    have h : (k + 1) * 384 ≤ K.val * 384 := by apply Nat.mul_le_mul_right; omega
+    calc k * 384 + 384 = (k + 1) * 384 := by ring
+      _ ≤ K.val * 384 := h
+  have hKmax : K.val * 384 ≤ Std.Usize.max := by
+    rw [← h_pk]; exact public_key.property
+  have hk384 : k * 384 + 384 ≤ Std.Usize.max := le_trans hk384' hKmax
+  have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
+  have hkval : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
+    usize_ofNat_val_le k (le_trans (Nat.le_trans (Nat.le_mul_of_pos_right k (by omega))
+      (Nat.le_add_right _ 384)) hk384)
+  -- start = k * 384, end = k * 384 + 384
+  obtain ⟨st, hst_eq, hst_val⟩ :=
+    usize_mul_ok_e (⟨BitVec.ofNat _ k⟩ : Std.Usize) (384#usize : Std.Usize)
+      (by rw [hkval, h384]; exact le_trans (Nat.le_add_right _ 384) hk384)
+  rw [hkval, h384] at hst_val
+  obtain ⟨en, hen_eq, hen_val⟩ :=
+    usize_add_ok_e st (384#usize : Std.Usize) (by rw [hst_val, h384]; exact hk384)
+  have hen_val' : en.val = k * 384 + 384 := by
+    rw [hen_val, hst_val, h384]
+  -- the sliced window IS `Spec.pk_chunk`
+  have hchunk_len : (Spec.pk_chunk public_key k).val.length = 384 :=
+    pk_chunk_len_384 public_key K h_pk k hk
+  have hslice_eq : (⟨List.slice st.val en.val public_key.val, by
+        have := public_key.val.slice_length_le st.val en.val; scalar_tac⟩ : Slice Std.U8)
+      = Spec.pk_chunk public_key k := by
+    apply Subtype.ext
+    show List.slice st.val en.val public_key.val
+        = (public_key.val.drop (k * 384)).take 384
+    unfold List.slice
+    rw [hst_val, hen_val']
+    congr 1
+    omega
+  have hidx := slice_range_index_ok public_key st en
+    (by rw [hst_val, hen_val']; omega) (by rw [hen_val', h_pk]; exact hk384')
+  rw [hslice_eq] at hidx
+  -- the array conversion
+  have htry :
+      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+          (384#usize : Std.Usize) (Spec.pk_chunk public_key k)
+        = .ok (CoreModels.core.result.Result.Ok
+            (⟨(Spec.pk_chunk public_key k).val, by rw [hchunk_len]; scalar_tac⟩ :
+              Std.Array Std.U8 384#usize)) := by
+    unfold
+      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+    rw [dif_pos (slice_len_eq_384 _ hchunk_len)]
+  obtain ⟨q, hq_dyn, hq_arr⟩ :=
+    byte_decode_dyn_12_ok (Spec.pk_chunk public_key k)
+      ⟨(Spec.pk_chunk public_key k).val, by rw [hchunk_len]; scalar_tac⟩ rfl
+  have hcell : (Spec.t_as_ntt_from_public_key_pure public_key K).val[k]! = q := by
+    show ((List.range K.val).map (fun i =>
+        match hacspec_ml_kem.serialize.byte_decode_dyn (Spec.pk_chunk public_key i) 12#usize with
+        | .ok p => p
+        | _ => default))[k]! = q
+    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk]
+    simp only [Option.map_some, Option.getD_some, hq_dyn]
+  show (hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+      (RANK := K) public_key (⟨BitVec.ofNat _ k⟩ : Std.Usize)) = _
+  unfold
+    hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+  rw [hacspec_bpre]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hst_eq]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hen_eq]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hidx]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [htry]
+  simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
+  rw [hq_arr]
+  simp only [Aeneas.Std.bind_tc_ok, hcell]
+
+/-- **The spec bridge.** The hacspec rank-K decode is the pure model
+    `Spec.t_as_ntt_from_public_key_pure`, i.e. `lift_t_as_ntt_from_public_key`. -/
+private theorem spec_deser_pk_eq (K : Std.Usize) (public_key : Slice Std.U8)
+    (h_pk : public_key.val.length = K.val * 384) :
+    hacspec_ml_kem.serialize.deserialize_ring_elements_reduced K public_key
+      = .ok (lift_t_as_ntt_from_public_key public_key K) := by
+  have hKmax : K.val * 384 ≤ Std.Usize.max := by
+    rw [← h_pk]; exact public_key.property
+  obtain ⟨tot, htot_eq, htot_val⟩ :=
+    usize_mul_ok_e K (384#usize : Std.Usize) (by scalar_tac)
+  have htot_val' : tot.val = K.val * 384 := by rw [htot_val]; scalar_tac
+  have hlen_eq : Aeneas.Std.Slice.len public_key = tot := by
+    apply Aeneas.Std.UScalar.eq_of_val_eq
+    rw [Aeneas.Std.Slice.len_val, htot_val']
+    exact h_pk
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
+      (T := Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+      K
+      (hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+        K)
+      public_key
+      (fun k => (Spec.t_as_ntt_from_public_key_pure public_key K).val[k]!)
+      (fun k hk => vector_decode_12_closure_eq K public_key h_pk k hk)
+  unfold hacspec_ml_kem.serialize.deserialize_ring_elements_reduced
+    hacspec_ml_kem.serialize.vector_decode_12
+  rw [slice_len_gen public_key]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hacspec_bpre]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [htot_eq]
+  simp only [Aeneas.Std.bind_tc_ok, hlen_eq, Aeneas.Std.massert, eq_self_iff_true, if_true,
+    hacspec_ml_kem.parameters.createi, hfn]
+  -- the two `List.range K` maps agree pointwise
+  congr 1
+  apply Subtype.ext
+  show (List.range K.val).map (fun k => (Spec.t_as_ntt_from_public_key_pure public_key K).val[k]!)
+      = (Spec.t_as_ntt_from_public_key_pure public_key K).val
+  have hval : (Spec.t_as_ntt_from_public_key_pure public_key K).val.length = K.val := by
+    exact (Spec.t_as_ntt_from_public_key_pure public_key K).property
+  refine List.ext_getElem (by simp [hval]) ?_
+  intro n h1 h2
+  rw [List.getElem_map, List.getElem_range]
+  rw [getElem!_pos _ _ (by rw [hval]; simpa using h1)]
+
+/-! ### Impl side — the rank-K `Enumerate (ChunksExact 384)` loop.
+
+    K10/K1 keystone `Matrix.ComputeRingElementV.Impl.loop_chunks_exact_pk_spec` at
+    `cs = 384`: the suffix relation it threads to the step IS the A2 axiom's
+    `h_chunk_eq` hypothesis. The invariant is the written prefix (no
+    undone-cells conjunct: the post only speaks about indices `< K`). -/
+
+/-- Written-prefix invariant for the rank-K decode loop. -/
+private def pkInv (public_key : Slice Std.U8) (K : Std.Usize) (k : Nat)
+    (p : Slice (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                  libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)) : Prop :=
+  p.length = K.val
+  ∧ (∀ i : Nat, i < k →
+      lift_poly (p.val[i]!) = (lift_t_as_ntt_from_public_key public_key K).val[i]!)
+  ∧ (∀ i : Nat, i < k → ∀ c : Nat, c < 16 → ∀ ℓ : Nat, ℓ < 16 →
+      (((p.val[i]!).coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328)
+
+/-- `Slice.index_mut_usize` in closed form (the `Slice` analogue of the file's
+    `array_index_mut16`). -/
+private theorem slice_index_mut_ok {α : Type} [Inhabited α] (v : Slice α) (i : Std.Usize)
+    (h : i.val < v.val.length) :
+    Aeneas.Std.Slice.index_mut_usize v i = .ok (v.val[i.val]!, Aeneas.Std.Slice.set v i) := by
+  simp only [Aeneas.Std.Slice.index_mut_usize,
+    libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.slice_index_usize_ok_eq v i h,
+    Aeneas.Std.bind_tc_ok]
+
+private theorem slice_set_length {α : Type} (v : Slice α) (i : Std.Usize) (x : α) :
+    (Aeneas.Std.Slice.set v i x).length = v.length := by
+  show ((v.val.set i.val x).length) = v.val.length
+  rw [List.length_set]
+
+private theorem slice_set_get {α : Type} [Inhabited α] (v : Slice α) (i : Std.Usize) (x : α)
+    (j : Nat) (hj : j < v.val.length) :
+    (Aeneas.Std.Slice.set v i x).val[j]! = if j = i.val then x else v.val[j]! := by
+  by_cases h : j = i.val
+  · rw [if_pos h]
+    have hs := Aeneas.Std.Slice.getElem!_Nat_set_eq v i j x ⟨h.symm, hj⟩
+    simpa [Aeneas.Std.Slice.getElem!_Nat_eq] using hs
+  · rw [if_neg h]
+    have hs := Aeneas.Std.Slice.getElem!_Nat_set_ne v i j x (fun hc => h hc.symm)
+    simpa [Aeneas.Std.Slice.getElem!_Nat_eq] using hs
+
+open libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl in
+/-- The rank-K loop: after `K` chunks the written prefix covers every index `< K`. -/
+private theorem deser_pk_loop_fc (K : Std.Usize) (public_key : Slice Std.U8)
+    (h_pk_len : public_key.val.length = K.val * 384)
+    (deserialized_pk : Slice
+        (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+          libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (h_out_len : deserialized_pk.length = K.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop
+      (vectortraitsOperationsInst := portable_ops_inst)
+      { iter := { cs := 384#usize, elements := public_key }, count := 0#usize } deserialized_pk
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (pkInv public_key K K.val p)).holds ⌝ ⦄ := by
+  have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
+  have hKmax : K.val * 384 ≤ Std.Usize.max := by rw [← h_pk_len]; exact public_key.property
+  have hK_le : K.val ≤ Std.Usize.max :=
+    le_trans (Nat.le_mul_of_pos_right _ (by omega)) hKmax
+  unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop
+  refine loop_chunks_exact_pk_spec _ deserialized_pk public_key 384#usize K.val
+    (fun k acc => .ok (pkInv public_key K k acc)) (by rw [h384]; omega)
+    (by rw [h384]; simpa [Aeneas.Std.Slice.length] using h_pk_len)
+    ((holds_ok _).mpr ⟨h_out_len, by intro i hi; omega, by intro i hi; omega⟩) ?_
+  intro acc k rest cnt hk hcnt hrest hsuf hinv
+  obtain ⟨hacc_len, hacc_lift, hacc_bnd⟩ := (holds_ok _).mp hinv
+  rw [h384] at hrest
+  simp only [h384] at hsuf
+  by_cases hlt : k < K.val
+  · -- a full 384-byte chunk remains
+    have hrest384 : 384 ≤ rest.length := by
+      rw [hrest]
+      calc (384 : Nat) = 1 * 384 := by ring
+        _ ≤ (K.val - k) * 384 := Nat.mul_le_mul_right 384 (by omega)
+    obtain ⟨chunk, drop, cnt', hnext, hcnt', hclen, hdlen, hcget, hdget⟩ :=
+      enumerate_chunks_next_cont_drop rest 384#usize cnt
+        (by rw [h384]; exact hrest384) (by rw [hcnt]; omega)
+    have hcnt_lt : cnt.val < K.val := by rw [hcnt]; exact hlt
+    have hacc_idx : cnt.val < acc.val.length := by
+      have : acc.val.length = K.val := hacc_len
+      omega
+    -- the chunk sits at byte offset `cnt.val * 384` of the public key
+    have hchunk_pk : ∀ ℓ : Nat, ℓ < 384 →
+        chunk.val[ℓ]! = public_key.val[cnt.val * 384 + ℓ]! := by
+      intro ℓ hℓ
+      rw [hcget ℓ (by rw [h384]; omega), hsuf ℓ, hcnt]
+    have hchunk_len : chunk.length = 384 := by rw [hclen, h384]
+    -- A2: the per-element leaf
+    obtain ⟨te1, hte_eq, hte_lift, hte_bnd⟩ :=
+      triple_exists_ok_fc
+        (libcrux_iot_ml_kem.Serialize.deserialize_to_reduced_ring_element_fc
+          public_key K (acc.val[cnt.val]!) cnt h_pk_len hcnt_lt chunk hchunk_len hchunk_pk)
+    refine triple_of_ok_fc
+      (v := .cont ({ iter := { cs := 384#usize, elements := drop }, count := cnt' },
+                   Aeneas.Std.Slice.set acc cnt te1)) ?_ ?_
+    · show libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
+        portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
+      unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := 384#usize, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.Some (cnt, chunk),
+                 { iter := { cs := 384#usize, elements := drop }, count := cnt' }) from hnext]
+      simp only [Aeneas.Std.bind_tc_ok]
+      show (do
+          let (pre, index_mut_back) ← Aeneas.Std.Slice.index_mut_usize acc cnt
+          let pre1 ← libcrux_iot_ml_kem.serialize.deserialize_to_reduced_ring_element
+            portable_ops_inst chunk pre
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := 384#usize, elements := drop }, count := cnt' } : EnumCE),
+             index_mut_back pre1))) = _
+      rw [slice_index_mut_ok acc cnt hacc_idx]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [hte_eq]
+      rfl
+    · refine ⟨hlt, rfl, (by show cnt'.val = k + 1; rw [hcnt', hcnt]), ?_, ?_, ?_⟩
+      · show drop.length = (K.val - (k + 1)) * (384#usize : Std.Usize).val
+        rw [h384, hdlen, hrest, h384]
+        have hsplit : (K.val - k) = (K.val - (k + 1)) + 1 := by omega
+        rw [hsplit]; ring_nf; omega
+      · intro ℓ
+        simp only [h384]
+        rw [hdget ℓ]
+        simp only [h384]
+        rw [hsuf (384 + ℓ)]
+        have hidx : k * 384 + (384 + ℓ) = (k + 1) * 384 + ℓ := by ring
+        rw [hidx]
+      · refine (holds_ok _).mpr ⟨?_, ?_, ?_⟩
+        · rw [slice_set_length]; exact hacc_len
+        · intro i hi
+          have hilen : i < acc.val.length := by
+            have : acc.val.length = K.val := hacc_len
+            omega
+          rw [slice_set_get acc cnt te1 i hilen]
+          by_cases hik : i = cnt.val
+          · rw [if_pos hik, hik]
+            exact hte_lift
+          · rw [if_neg hik]
+            exact hacc_lift i (by rw [hcnt] at hik; omega)
+        · intro i hi c hc ℓ hℓ
+          have hilen : i < acc.val.length := by
+            have : acc.val.length = K.val := hacc_len
+            omega
+          rw [slice_set_get acc cnt te1 i hilen]
+          by_cases hik : i = cnt.val
+          · rw [if_pos hik]; exact hte_bnd c hc ℓ hℓ
+          · rw [if_neg hik]
+            exact hacc_bnd i (by rw [hcnt] at hik; omega) c hc ℓ hℓ
+  · -- no full chunk remains: k = K, the loop is done
+    have hkK : k = K.val := by omega
+    have hrest0 : rest.length = 0 := by rw [hrest, hkK]; simp
+    refine triple_of_ok_fc (v := .done acc) ?_ ?_
+    · show libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
+        portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
+      unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := 384#usize, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.None,
+                 { iter := { cs := 384#usize, elements := rest }, count := cnt }) from
+          enumerate_chunks_next_done rest 384#usize cnt (by rw [h384, hrest0]; omega)]
+      rfl
+    · refine (holds_ok _).mpr ⟨hacc_len, ?_, ?_⟩
+      · intro i hi; exact hacc_lift i (by omega)
+      · intro i hi; exact hacc_bnd i (by omega)
+
 end L55Bank
 
 /-! ## Public-key deserialization — exact 1:1 with the hacspec model. -/
@@ -3940,7 +4274,48 @@ theorem deserialize_ring_elements_reduced_fc
                 ∧ (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
                     (((p.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
                       ≤ 3328) ⌝ ⦄ := by
-  sorry
+  have h_pk : public_key.val.length = K.val * 384 := h_pk_len
+  obtain ⟨p, hp_eq, hp_holds⟩ :=
+    triple_exists_ok_fc (deser_pk_loop_fc K public_key h_pk deserialized_pk h_out_len)
+  obtain ⟨hp_len, hp_lift, hp_bnd⟩ := (holds_ok _).mp hp_holds
+  -- the impl reduces to the loop: classify_ref / ct_declassify are identities,
+  -- `BYTES_PER_RING_ELEMENT = 384`, and chunks_exact+enumerate is the initial state.
+  refine triple_of_ok_fc (v := p) ?_ ?_
+  · unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced
+    rw [show (libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsClassifyRefSharedASlice.classify_ref
+          libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar public_key)
+        = .ok public_key from rfl]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [impl_bpre]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [show (CoreModels.core.slice.Slice.chunks_exact public_key (384#usize : Std.Usize))
+          = .ok { cs := 384#usize, elements := public_key } from rfl]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [show (CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
+          (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+            Std.U8)
+          { cs := (384#usize : Std.Usize), elements := public_key })
+        = .ok ({ iter := { cs := 384#usize, elements := public_key },
+                 count := 0#usize } :
+                libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl.EnumCE) from rfl]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hp_eq]
+    simp only [Aeneas.Std.bind_tc_ok, libcrux_secrets.mem_requests.ct_declassify]
+  · -- the three post conjuncts
+    refine ⟨hp_len, ?_, hp_bnd⟩
+    have hvec : lift_vec_slice p K = lift_t_as_ntt_from_public_key public_key K := by
+      apply Subtype.ext
+      show (List.range K.val).map (fun i => lift_poly p.val[i]!)
+          = (lift_t_as_ntt_from_public_key public_key K).val
+      have hlen : (lift_t_as_ntt_from_public_key public_key K).val.length = K.val :=
+        (lift_t_as_ntt_from_public_key public_key K).property
+      refine List.ext_getElem (by simp [hlen]) ?_
+      intro n h1 h2
+      rw [List.getElem_map, List.getElem_range]
+      have hn : n < K.val := by simpa using h1
+      rw [hp_lift n hn, getElem!_pos _ _ (by rw [hlen]; exact hn)]
+    rw [hvec]
+    exact spec_deser_pk_eq K public_key h_pk
 
 /-! ## Uncompressed ring elements — `d = 12`, no compression step.
 
