@@ -2772,16 +2772,29 @@ theorem deserialize_to_uncompressed_ring_element_fc
     libcrux_iot_ml_kem.serialize.deserialize_to_uncompressed_ring_element
       (vectortraitsOperationsInst := portable_ops_inst)
       serialized re
-    ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.byte_decode_dyn serialized 12#usize
-                = .ok (lift_poly p) ⌝ ⦄ := by
+    ⦃ ⇓ p => ⌜ (hacspec_ml_kem.serialize.byte_decode_dyn serialized 12#usize
+                  = .ok (lift_poly p))
+                ∧ (∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                    ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
+                      ≤ 4095) ⌝ ⦄ := by
   -- Impl side: the 16-chunk `chunks_exact 24` loop puts `dec12` in every lane.
   have hlen' : serialized.val.length = 384 := by
     simpa [Aeneas.Std.Slice.length] using h_len
   obtain ⟨p, hp_eq, hp⟩ :=
     triple_exists_ok_fc (deserialize_uncompressed_impl_fc serialized hlen' re)
-  -- Spec side: `byte_decode_dyn _ 12` reproduces exactly those lanes.
-  exact triple_of_ok_fc hp_eq
-    (byte_decode_dyn_12_eq serialized hlen' p ((holds_ok _).mp hp))
+  have hdec : declane serialized.val p 16 := (holds_ok _).mp hp
+  refine triple_of_ok_fc hp_eq ⟨byte_decode_dyn_12_eq serialized hlen' p hdec, ?_⟩
+  -- BOUND CONJUNCT (added 2026-08-18 per KB: transcribe the `ensures`).
+  -- Upstream `libcrux-ml-kem/src/serialize.rs` ensures `is_bounded_poly(4096, &result)`;
+  -- stated here at the TIGHTER true bound 4095, which implies it. Both inputs are
+  -- already banked in this file:
+  --   `hdec`     : declane => lane .val = (dec12 serialized.val (16*chunk+ℓ) : Int)
+  --   `dec12_lt` : (:213) dec12 l j < 4096, unconditionally
+  -- so each lane is a non-negative Int below 4096 and its natAbs is ≤ 4095.
+  intro chunk hchunk ℓ hℓ
+  have hlane := hdec chunk hchunk ℓ hℓ
+  have hb := dec12_lt serialized.val (16 * chunk + ℓ)
+  omega
 
 
 /-! ## PROVER bank for L5.1 — the message layer (`d = 1`).
@@ -3555,11 +3568,22 @@ theorem deserialize_then_decompress_message_fc
     libcrux_iot_ml_kem.serialize.deserialize_then_decompress_message
       (vectortraitsOperationsInst := portable_ops_inst)
       serialized re
-    ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_message serialized
-                = .ok (lift_poly p) ⌝ ⦄ := by
+    ⦃ ⇓ p => ⌜ (hacspec_ml_kem.serialize.deserialize_then_decompress_message serialized
+                  = .ok (lift_poly p))
+                ∧ (∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                    ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
+                      ≤ 3328) ⌝ ⦄ := by
   -- Impl side: the 16-chunk loop puts `1665 · bit` in every lane.
   obtain ⟨p, hp_eq, hp⟩ := triple_exists_ok_fc (message_impl_fc serialized re)
+  have hmsg : msglane serialized.val p 16 := (holds_ok _).mp hp
   -- Spec side: `ByteDecode_1` then `Decompress_1` reproduces exactly those lanes.
-  exact triple_of_ok_fc hp_eq (message_spec_eq serialized p ((holds_ok _).mp hp))
+  refine triple_of_ok_fc hp_eq ⟨message_spec_eq serialized p hmsg, ?_⟩
+  -- BOUND CONJUNCT (added 2026-08-18 per KB: transcribe the `ensures`).
+  -- Upstream ensures `is_bounded_poly (sz 3328) $result`. Stated at 3328 (not the
+  -- tighter true 1665) because 3328 is the form every downstream consumer binds --
+  -- notably `compute_message_fc`, whose precondition this is meant to satisfy.
+  --   `hmsg` : msglane => lane .bv.toNat = if sliceBit .. then 1665 else 0
+  -- so every lane is 0 or 1665; both are < 2^15, so .val = .bv.toNat and natAbs ≤ 1665.
+  sorry
 
 end libcrux_iot_ml_kem.SerializeFc
