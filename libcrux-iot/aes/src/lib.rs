@@ -824,19 +824,13 @@ pub(crate) mod implementations {
     pub struct PortableAesCcm256ShortTag;
 }
 
-/// Tag length.
-pub const TAG_LEN: usize = 16;
-
-/// Reduced tag length for AES-CCM, as per [RFC 6655](https://datatracker.ietf.org/doc/html/rfc6655).
-pub const CCM_SHORT_TAG_LEN: usize = 8;
-
-/// Nonce length.
-pub const NONCE_LEN: usize = 12;
+pub(crate) mod constants;
 
 #[doc(inline)]
 pub use aes::AES_128_KEY_LEN;
 #[doc(inline)]
 pub use aes::AES_256_KEY_LEN;
+pub use constants::{CCM_SHORT_TAG_LEN, NONCE_LEN, TAG_LEN};
 pub use libcrux_traits::aead::arrayref::{DecryptError, EncryptError, KeyGenError};
 
 /// Generic AES-based AEAD encrypt.
@@ -873,9 +867,72 @@ pub(crate) fn decrypt<Aad: core::iter::ExactSizeIterator<Item = u8>, S: AeadStat
     st.decrypt(aad, ciphertext, tag)
 }
 
+/// Internal error type for length checks
+enum LengthError {
+    /// The plaintext or ciphertext lengths exceed the AEAD-mode's limit
+    PlaintextCiphertextTooLong,
+    /// The AAD length exceeds the AEAD-modes's limit
+    AadTooLong,
+}
+
+impl From<LengthError> for EncryptError {
+    fn from(value: LengthError) -> Self {
+        match value {
+            LengthError::PlaintextCiphertextTooLong => EncryptError::PlaintextTooLong,
+            LengthError::AadTooLong => EncryptError::AadTooLong,
+        }
+    }
+}
+
+impl From<LengthError> for DecryptError {
+    fn from(value: LengthError) -> Self {
+        match value {
+            LengthError::PlaintextCiphertextTooLong => DecryptError::PlaintextTooLong,
+            LengthError::AadTooLong => DecryptError::AadTooLong,
+        }
+    }
+}
+
+/// Check that AAD and plaintext are within AEAD-mode
+/// specific limits, and that plaintext and ciphertext
+/// buffer lengths agree.
+pub(crate) fn length_check<
+    const PTXT_LIMIT: usize,
+    const AAD_LIMIT: usize,
+    Aad: core::iter::ExactSizeIterator<Item = u8>,
+>(
+    buffer: &[u8],
+    aad: &Aad,
+) -> Result<(), LengthError> {
+    // plaintext length check
+    // AES-CTR has an internal bound of
+    //
+    // (2^32 - 1) * 128,
+    //
+    // but that is higher than either of the limits for of GCM (2^36 - 32) or
+    // CCM (2^24 - 1).
+    if buffer.len() > PTXT_LIMIT {
+        return Err(LengthError::PlaintextCiphertextTooLong);
+    }
+
+    // ensure AAD length is within AEAD-mode-specific limit
+    if aad.len() > AAD_LIMIT {
+        return Err(LengthError::AadTooLong);
+    }
+
+    Ok(())
+}
+
 /// Macro to instantiate the different variants, both 128/256 and platforms.
 macro_rules! pub_crate_mod {
-    ($mod_name:ident, $key_len:literal, $state:ty, $variant_comment:literal) => {
+    (
+        $mod_name:ident,
+        $key_len:literal,
+        $ptxt_limit:expr,
+        $aad_limit:expr,
+        $state:ty,
+        $variant_comment:literal
+    ) => {
         #[doc = $variant_comment]
         pub mod $mod_name {
             use crate::{platform, DecryptError, EncryptError};
@@ -892,6 +949,7 @@ macro_rules! pub_crate_mod {
                 tag: &mut [u8],
             ) -> Result<(), EncryptError> {
                 debug_assert!(key.len() == $key_len);
+                crate::length_check::<$ptxt_limit, $aad_limit, Aad>(plaintext, &aad)?;
                 crate::encrypt::<Aad, State>(key, nonce, aad, plaintext, tag)
             }
 
@@ -905,6 +963,7 @@ macro_rules! pub_crate_mod {
                 tag: &[u8],
             ) -> Result<(), DecryptError> {
                 debug_assert!(key.len() == $key_len);
+                crate::length_check::<$ptxt_limit, $aad_limit, Aad>(ciphertext, &aad)?;
                 crate::decrypt::<Aad, State>(key, nonce, aad, ciphertext, tag)
             }
         }
@@ -912,17 +971,21 @@ macro_rules! pub_crate_mod {
 }
 
 pub mod portable {
-    pub_crate_mod!(aes_gcm_128, 16, crate::aes_gcm_128::AesGcm128State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 128 ");
-    pub_crate_mod!(aes_gcm_256, 32, crate::aes_gcm_256::AesGcm256State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 256 ");
+    pub_crate_mod!(aes_gcm_128, 16, {crate::constants::limits::GCM_PTXT_MAX_LEN}, {crate::constants::limits::GCM_AAD_MAX_LEN}, crate::aes_gcm_128::AesGcm128State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 128 ");
+    pub_crate_mod!(aes_gcm_256, 32, {crate::constants::limits::GCM_PTXT_MAX_LEN},{crate::constants::limits::GCM_AAD_MAX_LEN}, crate::aes_gcm_256::AesGcm256State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 256 ");
     pub_crate_mod!(
         aes_ccm_128,
         16,
+        { crate::constants::limits::CCM_PTXT_MAX_LEN },
+        { crate::constants::limits::CCM_AAD_MAX_LEN },
         crate::aes_ccm::AesCcm128State<platform::portable::State>,
         r"AES-CCM 128 "
     );
     pub_crate_mod!(
         aes_ccm_128_8,
         16,
+        { crate::constants::limits::CCM_PTXT_MAX_LEN },
+        { crate::constants::limits::CCM_AAD_MAX_LEN },
         crate::aes_ccm::AesCcm128_8_State<platform::portable::State>,
         r"AES-CCM 128 (8-octet tag) "
     );
@@ -930,6 +993,8 @@ pub mod portable {
     pub_crate_mod!(
         aes_ccm_256,
         32,
+        { crate::constants::limits::CCM_PTXT_MAX_LEN },
+        { crate::constants::limits::CCM_AAD_MAX_LEN },
         crate::aes_ccm::AesCcm256State<platform::portable::State>,
         r"AES-CCM 256 "
     );
@@ -937,6 +1002,8 @@ pub mod portable {
     pub_crate_mod!(
         aes_ccm_256_8,
         32,
+        { crate::constants::limits::CCM_PTXT_MAX_LEN },
+        { crate::constants::limits::CCM_AAD_MAX_LEN },
         crate::aes_ccm::AesCcm256_8_State<platform::portable::State>,
         r"AES-CCM 256 (8-octet tag) "
     );
