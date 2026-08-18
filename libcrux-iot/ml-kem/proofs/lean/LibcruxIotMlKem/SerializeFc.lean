@@ -5009,6 +5009,103 @@ theorem decompress_ciphertext_coefficient_gen_fc (d : Std.I32)
 
 end MEBank
 
+/-! ## M-C′ — COMPRESS: the magic-multiply proved EXACTLY EQUAL to integer division (K7).
+
+    THE EXEMPLAR for the one kind the readiness map records as having NO precedent
+    anywhere in the three trees. The nearest thing is Barrett
+    (`PerElement.lean:141 barrett_q`), and it is NOT close: **Barrett's post is a
+    congruence plus a bound, never an exact quotient identity.** Compress needs the
+    exact one.
+
+    ## The shape of the problem
+
+    The impl and the spec compute the compressed coefficient by genuinely different
+    routes and both are exact:
+      IMPL (`compress_ciphertext_coefficient`, `Funs.lean:3569`) — a u64 magic-reciprocal
+        multiply: `((x·2^d + 1664) · 10321340) >>> 35`, then mask to `d` bits.
+      SPEC (`compress.compress_d`, hacspec `Funs.lean:50`) — honest integer division:
+        `(2x·2^d + 3329) / 6658`, then `% 2^d`.
+    So this bank is three statements: the two seams that pin each side to its own `Nat`
+    closed form, and the KEYSTONE identity that they are the same number.
+
+    ## MINE, DO NOT PORT
+
+    F* has the mathematics in ONE readable lemma —
+    `Commute.Chunk.fst:4143–4173 lemma_compress_d_barrett_eq` — in two steps, and those
+    two steps are the transferable content (the SMT proof around them is not):
+      (1) write `n = x·2^d + 1664 = 3329q + r`; then `2x·2^d + 3329 = (2r+1) + 6658q`,
+          and `2r+1` is ODD and `< 6658`, so the exact side `= q`;
+      (2) `3329 · 10321340 = 34,359,740,860 > 2^35 = 34,359,738,368`, so
+          `2^35·q ≤ n·10321340 < 2^35·(q+1)`, so the Barrett side `= q`.
+    Reuse `barrett_q` / `barrett_reduce_core` for multiply-shift → `ediv` normalisation,
+    but NOT Barrett's post.
+
+    ## Two measured corrections to the readiness map's statement
+
+    **(a) State it UN-MODDED.** The map writes the identity with `% 2^d` on both sides.
+    Measured: the identity holds WITHOUT the mod — the two quotients are equal as
+    naturals, exhaustively for every `x < 3329` at every `d`. That is also what F*'s
+    two-step argument actually proves (both sides equal the same `q`), and the stronger
+    form composes better: the `% 2^d` then belongs to the two seams, where the impl's
+    `get_n_least_significant_bits` and the spec's `% two_pow_bit_size` each live.
+
+    **(b) It is GENERIC in `d`.** The map states it at `d ∈ {4,5,10,11}`. Swept every
+    `d = 0 … 11` over every `x < 3329`: zero counterexamples. Stated at `d < 12`
+    accordingly — same outcome as M-C and M-E, where per-case statements turned out to be
+    an unnecessary restriction.
+
+    ## Where the `x < 3329` bound goes, and where it does NOT
+
+    It is load-bearing in the KEYSTONE only. Without it the identity fails, first at
+    `x = 14566` (d=10) and `x = 7283` (d=11) — and never anywhere in u16 at d = 4 or 5,
+    which is exactly why a d=4/5-only check would have called the hypothesis decorative.
+    It is DEAD WEIGHT on both seams: measured across the FULL u16 range at every `d < 12`,
+    and exhaustively over all 65536 values at the four ML-KEM widths, both seams hold with
+    no bound at all. So the bound appears exactly once in this bank, where it is real.
+
+    ## Falsified before locking (`references/mlkem-falsify-harness.lean`)
+    Keystone: exhaustive over `x < 3329` × `d = 0..11`. Impl seam and spec seam: exhaustive
+    over all 65536 `u16` values at `d ∈ {4,5,10,11}` plus a stride-7 sweep of the full u16
+    range at every `d < 12`. Zero counterexamples. -/
+
+section MCPBank
+
+/-- **M-C′(1) — THE KEYSTONE (kind K7).** The u64 magic-reciprocal multiply and the
+    honest integer division are the SAME natural number. Stated un-modded and generic in
+    `d`; see the two corrections in the bank docstring. -/
+theorem compress_barrett_eq (x d : Nat) (hx : x < 3329) (hd : d < 12) :
+    ((x * 2 ^ d + 1664) * 10321340) / 2 ^ 35 = (2 * x * 2 ^ d + 3329) / 6658 := by
+  sorry
+
+/-- **M-C′(2) — the IMPL seam.** `compress_ciphertext_coefficient` in closed `Nat` form.
+    Carries the u64 no-wrap obligation (`wrapping_add`/`wrapping_mul`: worst case
+    `(65535·2^11 + 1664)·10321340 ≈ 1.39e15 < 2^64`), the `>>> 35` as division, and
+    `get_n_least_significant_bits d` as `% 2^d`.
+
+    UNCONDITIONAL in `fe` — no `< 3329` — which is measured, not assumed (see the bank
+    docstring). The `0 ≤ · < 2^d` conjunct is the CONSUMER's bound per the amended
+    transcription rule's third check: L5.4 feeds this straight into `byte_encode` at width
+    `d`, and it is literally the `hL : ∀ i, L i < 2 ^ d` hypothesis of
+    `bitSum_laneBit_window` (M-C(2)) — so the two exemplars compose without a gap. -/
+theorem compress_ciphertext_coefficient_eq (d : Std.U8) (fe : Std.U16) (hd : d.val < 12) :
+    ∃ r : Std.I16,
+      libcrux_iot_ml_kem.vector.portable.compress.compress_ciphertext_coefficient d fe
+          = .ok r
+      ∧ (r.val).toNat = (((fe.val * 2 ^ d.val + 1664) * 10321340) / 2 ^ 35) % 2 ^ d.val
+      ∧ 0 ≤ r.val ∧ r.val < 2 ^ d.val := by
+  sorry
+
+/-- **M-C′(3) — the SPEC seam.** `compress.compress_d` in closed `Nat` form. The lone
+    `massert (to_bit_size < 12)` discharges from `hd`; `FieldElement.new` is total.
+    UNCONDITIONAL in `fe` for the same measured reason as M-C′(2). -/
+theorem compress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : Std.Usize)
+    (hd : d.val < 12) :
+    hacspec_ml_kem.compress.compress_d fe d
+      = .ok { val := u16OfNat (((2 * fe.val.val * 2 ^ d.val + 3329) / 6658) % 2 ^ d.val) } := by
+  sorry
+
+end MCPBank
+
 /-- L5.1 — `serialize.deserialize_then_decompress_message`.
 
     FIPS-203 message decode: 32 bytes → 256 coefficients, each bit `b` mapped to
