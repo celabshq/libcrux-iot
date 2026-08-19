@@ -1832,7 +1832,28 @@ end SPKMBank
     search, is what makes this row's SPECREQ the honest answer; (ii) `spkm_core` and every
     lemma above deliberately go through the real strict `Slice.subslice_spec` (via
     `Util.Shared.slice_index_mut_range_strict`) and are clean; (iii) obligations elsewhere
-    that DO list these axioms are vacuous — see the r2 self-report for the list. -/
+    that DO list these axioms are vacuous — see the r2 self-report for the list.
+
+    ## r3 (2026-08-19): re-verified from primary sources; the trust-boundary claim MECHANISED
+    r3 did not take r1/r2's narrative on trust. Re-derived independently: (a)
+    `Slice.subslice`'s definition (`aeneas/.../Std/Slice.lean:293`) is `if start < end ∧ …`,
+    `fail panic` otherwise — counterexample A; (b) the FROZEN extraction
+    (`Extraction/Funs.lean:52`) has `ranked_bytes_per_ring_element rank = (rank * 3072) / 8`,
+    multiplying at the bit count — counterexample B; (c) `#print axioms` on all five banked
+    lemmas: `propext / Classical.choice / Quot.sound`, no more. So both refutations and
+    `spkm_core` stand on this dispatch's allowlist exactly.
+
+    r2's trust-boundary caveat was asserted as "(checked)" with no banked witness; r3 CLOSED
+    that gap by kernel-checking `False` from `Util.SliceSpecs.Slice.subslice_le_eq` at
+    `s = ⟨[], _⟩`, `r = ⟨0,0⟩` (both side conditions `0 ≤ 0`, `0 ≤ 0` discharge by `simp`;
+    the axiom yields `.ok`, the definition `.fail .panic`). Elaborated clean, then REMOVED —
+    a proof of `False` must not sit in the tree. Reproducible in 10 lines; see the r3 report.
+    ⚠ The escalation r2 did not state: `core_models_Slice_Insts_index_RangeUsize_spec` and
+    `core_models_Slice_Insts_index_mut_RangeUsize_spec` (SliceSpecs :206, :269) are BOTH
+    `@[spec]`-tagged, so `hax_mvcgen` selects them AUTOMATICALLY on any slice-range subscript.
+    Inheriting the refutable axiom therefore needs no deliberate citation — which is why
+    `spkm_core` routes around them by hand, and why the blast radius is "every row whose
+    recorded axiom list mentions them", not "every row that meant to use them". -/
 @[spec]
 theorem serialize_public_key_mut_fc
     (K PUBLIC_KEY_SIZE : Std.Usize)
