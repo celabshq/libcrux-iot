@@ -47,379 +47,29 @@ def constants.BYTES_PER_RING_ELEMENT : Result Std.Usize := do
 @[global_simps, irreducible]
 def constants.SHARED_SECRET_SIZE : Std.Usize := 32#usize
 
-/-- [libcrux_iot_ml_kem::polynomial::ZETAS_TIMES_MONTGOMERY_R]
-    Source: 'ml-kem/src/polynomial.rs', lines 5:0-17:2 -/
+/-- [libcrux_iot_ml_kem::vector::traits::FIELD_MODULUS]
+    Source: 'ml-kem/src/vector/traits.rs', lines 4:0-4:36
+    Visibility: public -/
 @[global_simps, irreducible]
-def polynomial.ZETAS_TIMES_MONTGOMERY_R : Array Std.I16 128#usize :=
-  Array.make 128#usize [
-    (-1044)#i16, (-758)#i16, (-359)#i16, (-1517)#i16, 1493#i16, 1422#i16,
-    287#i16, 202#i16, (-171)#i16, 622#i16, 1577#i16, 182#i16, 962#i16,
-    (-1202)#i16, (-1474)#i16, 1468#i16, 573#i16, (-1325)#i16, 264#i16, 383#i16,
-    (-829)#i16, 1458#i16, (-1602)#i16, (-130)#i16, (-681)#i16, 1017#i16,
-    732#i16, 608#i16, (-1542)#i16, 411#i16, (-205)#i16, (-1571)#i16, 1223#i16,
-    652#i16, (-552)#i16, 1015#i16, (-1293)#i16, 1491#i16, (-282)#i16,
-    (-1544)#i16, 516#i16, (-8)#i16, (-320)#i16, (-666)#i16, (-1618)#i16,
-    (-1162)#i16, 126#i16, 1469#i16, (-853)#i16, (-90)#i16, (-271)#i16, 830#i16,
-    107#i16, (-1421)#i16, (-247)#i16, (-951)#i16, (-398)#i16, 961#i16,
-    (-1508)#i16, (-725)#i16, 448#i16, (-1065)#i16, 677#i16, (-1275)#i16,
-    (-1103)#i16, 430#i16, 555#i16, 843#i16, (-1251)#i16, 871#i16, 1550#i16,
-    105#i16, 422#i16, 587#i16, 177#i16, (-235)#i16, (-291)#i16, (-460)#i16,
-    1574#i16, 1653#i16, (-246)#i16, 778#i16, 1159#i16, (-147)#i16, (-777)#i16,
-    1483#i16, (-602)#i16, 1119#i16, (-1590)#i16, 644#i16, (-872)#i16, 349#i16,
-    418#i16, 329#i16, (-156)#i16, (-75)#i16, 817#i16, 1097#i16, 603#i16,
-    610#i16, 1322#i16, (-1285)#i16, (-1465)#i16, 384#i16, (-1215)#i16,
-    (-136)#i16, 1218#i16, (-1335)#i16, (-874)#i16, 220#i16, (-1187)#i16,
-    (-1659)#i16, (-1185)#i16, (-1530)#i16, (-1278)#i16, 794#i16, (-1510)#i16,
-    (-854)#i16, (-870)#i16, 478#i16, (-108)#i16, (-308)#i16, 996#i16, 991#i16,
-    958#i16, (-1460)#i16, 1522#i16, 1628#i16
-    ]
+def vector.traits.FIELD_MODULUS : Std.I16 := 3329#i16
 
-/-- [libcrux_iot_ml_kem::polynomial::zeta]:
-    Source: 'ml-kem/src/polynomial.rs', lines 22:0-24:1
+/-- [libcrux_iot_ml_kem::vector::traits::to_unsigned_representative]:
+    Source: 'ml-kem/src/vector/traits.rs', lines 178:0-185:1
     Visibility: public -/
-def polynomial.zeta (i : Std.Usize) : Result Std.I16 := do
-  Array.index_usize polynomial.ZETAS_TIMES_MONTGOMERY_R i
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_1]: loop body 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 14:4-27:5 -/
-@[rust_loop_body]
-def invert_ntt.invert_ntt_at_layer_1_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i - 1#usize
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
-    let i ← polynomial.zeta zeta_i1
-    let i1 ← zeta_i1 - 1#usize
-    let i2 ← polynomial.zeta i1
-    let i3 ← zeta_i1 - 2#usize
-    let i4 ← polynomial.zeta i3
-    let i5 ← zeta_i1 - 3#usize
-    let i6 ← polynomial.zeta i5
-    let t1 ← vectortraitsOperationsInst.inv_ntt_layer_1_step t i i2 i4 i6
-    let a := index_mut_back t1
-    ok (cont (iter1, i5, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_1]: loop 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 14:4-27:5 -/
-@[rust_loop]
-def invert_ntt.invert_ntt_at_layer_1_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1) => invert_ntt.invert_ntt_at_layer_1_loop.body
-      vectortraitsOperationsInst iter1 zeta_i1 re1)
-    (iter, zeta_i, re)
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_1]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 10:0-28:1 -/
-@[reducible]
-def invert_ntt.invert_ntt_at_layer_1
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  invert_ntt.invert_ntt_at_layer_1_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } zeta_i re
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2]: loop body 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 37:4-49:5 -/
-@[rust_loop_body]
-def invert_ntt.invert_ntt_at_layer_2_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i - 1#usize
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
-    let i ← polynomial.zeta zeta_i1
-    let i1 ← zeta_i1 - 1#usize
-    let i2 ← polynomial.zeta i1
-    let t1 ← vectortraitsOperationsInst.inv_ntt_layer_2_step t i i2
-    let a := index_mut_back t1
-    ok (cont (iter1, i1, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2]: loop 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 37:4-49:5 -/
-@[rust_loop]
-def invert_ntt.invert_ntt_at_layer_2_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1) => invert_ntt.invert_ntt_at_layer_2_loop.body
-      vectortraitsOperationsInst iter1 zeta_i1 re1)
-    (iter, zeta_i, re)
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 33:0-50:1 -/
-@[reducible]
-def invert_ntt.invert_ntt_at_layer_2
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  invert_ntt.invert_ntt_at_layer_2_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } zeta_i re
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3]: loop body 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 59:4-65:5 -/
-@[rust_loop_body]
-def invert_ntt.invert_ntt_at_layer_3_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i - 1#usize
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
-    let i ← polynomial.zeta zeta_i1
-    let t1 ← vectortraitsOperationsInst.inv_ntt_layer_3_step t i
-    let a := index_mut_back t1
-    ok (cont (iter1, zeta_i1, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3]: loop 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 59:4-65:5 -/
-@[rust_loop]
-def invert_ntt.invert_ntt_at_layer_3_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1) => invert_ntt.invert_ntt_at_layer_3_loop.body
-      vectortraitsOperationsInst iter1 zeta_i1 re1)
-    (iter, zeta_i, re)
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 55:0-66:1 -/
-@[reducible]
-def invert_ntt.invert_ntt_at_layer_3
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  invert_ntt.invert_ntt_at_layer_3_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } zeta_i re
-
-/-- [libcrux_iot_ml_kem::vector::traits::montgomery_multiply_fe]:
-    Source: 'ml-kem/src/vector/traits.rs', lines 168:0-170:1
-    Visibility: public -/
-def vector.traits.montgomery_multiply_fe
-  {T : Type} (OperationsInst : vector.traits.Operations T) (v : T)
-  (fer : Std.I16) :
+def vector.traits.to_unsigned_representative
+  {T : Type} (OperationsInst : vector.traits.Operations T) (a : T) (out : T) :
   Result T
   := do
-  OperationsInst.montgomery_multiply_by_constant v fer
-
-/-- [libcrux_iot_ml_kem::invert_ntt::inv_ntt_layer_int_vec_step_reduce]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 70:0-87:1 -/
-def invert_ntt.inv_ntt_layer_int_vec_step_reduce
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (coefficients : Array Vector 16#usize) (a : Std.Usize)
-  (b : Std.Usize) (scratch : Vector) (zeta_r : Std.I16) :
-  Result ((Array Vector 16#usize) × Vector)
-  := do
-  let scratch1 ← Array.index_usize coefficients a
-  let t ← Array.index_usize coefficients b
-  let scratch2 ← vectortraitsOperationsInst.add scratch1 t
-  let scratch3 ← vectortraitsOperationsInst.barrett_reduce scratch2
-  let coefficients1 ← Array.update coefficients a scratch3
-  let scratch4 ← vectortraitsOperationsInst.negate scratch3
-  let t1 ← Array.index_usize coefficients1 b
-  let scratch5 ← vectortraitsOperationsInst.add scratch4 t1
-  let scratch6 ← vectortraitsOperationsInst.add scratch5 t1
-  let scratch7 ←
-    vector.traits.montgomery_multiply_fe vectortraitsOperationsInst scratch6
-      zeta_r
-  let coefficients2 ← Array.update coefficients1 b scratch7
-  ok (coefficients2, scratch7)
+  let a1 ← OperationsInst.shift_right 15#i32 a
+  let a2 ←
+    OperationsInst.bitwise_and_with_constant a1 vector.traits.FIELD_MODULUS
+  OperationsInst.add a2 a
 
 /-- [libcrux_iot_ml_kem::vector::traits::FIELD_ELEMENTS_IN_VECTOR]
     Source: 'ml-kem/src/vector/traits.rs', lines 5:0-5:47
     Visibility: public -/
 @[global_simps, irreducible]
 def vector.traits.FIELD_ELEMENTS_IN_VECTOR : Std.Usize := 16#usize
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop body 1:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 110:8-120:9 -/
-@[rust_loop_body]
-def invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (a_offset : Std.Usize) (b_offset : Std.Usize)
-  (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
-    (polynomial.PolynomialRingElement Vector) × Vector)
-    ((polynomial.PolynomialRingElement Vector) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (re, scratch))
-  | core.option.Option.Some j =>
-    let i ← a_offset + j
-    let i1 ← b_offset + j
-    let i2 ← polynomial.zeta zeta_i
-    let (a, scratch1) ←
-      invert_ntt.inv_ntt_layer_int_vec_step_reduce vectortraitsOperationsInst
-        re.coefficients i i1 scratch i2
-    ok (cont (iter1, { coefficients := a }, scratch1))
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop 1:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 110:8-120:9 -/
-@[rust_loop]
-def invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
-  (a_offset : Std.Usize) (b_offset : Std.Usize) :
-  Result ((polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  loop
-    (fun (iter1, re1, scratch1) =>
-      invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
-      vectortraitsOperationsInst zeta_i a_offset b_offset iter1 re1 scratch1)
-    (iter, re, scratch)
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop body 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 102:4-121:5 -/
-@[rust_loop_body]
-def invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (step_vec : Std.Usize) (iter : core.ops.range.Range Std.Usize)
-  (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
-  (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector) × Vector) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re, scratch))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i - 1#usize
-    let i ← round * 2#usize
-    let a_offset ← i * step_vec
-    let b_offset ← a_offset + step_vec
-    let (re1, scratch1) ←
-      invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0
-        vectortraitsOperationsInst { start := 0#usize, «end» := step_vec }
-        zeta_i1 re scratch a_offset b_offset
-    ok (cont (iter1, zeta_i1, re1, scratch1))
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop 0:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 102:4-121:5 -/
-@[rust_loop]
-def invert_ntt.invert_ntt_at_layer_4_plus_loop0
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
-  (step_vec : Std.Usize) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1, scratch1) =>
-      invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
-      vectortraitsOperationsInst step_vec iter1 zeta_i1 re1 scratch1)
-    (iter, zeta_i, re, scratch)
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 93:0-122:1 -/
-def invert_ntt.invert_ntt_at_layer_4_plus
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
-  (layer : Std.Usize) (scratch : Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  let step ← 1#usize <<< layer
-  let step_vec ← step / vector.traits.FIELD_ELEMENTS_IN_VECTOR
-  let i ← 128#usize >>> layer
-  invert_ntt.invert_ntt_at_layer_4_plus_loop0 vectortraitsOperationsInst
-    { start := 0#usize, «end» := i } zeta_i re scratch step_vec
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_montgomery]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 125:0-143:1 -/
-def invert_ntt.invert_ntt_montgomery
-  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
-  vector.traits.Operations Vector)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
-  Result ((polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  let zeta_i ← constants.COEFFICIENTS_IN_RING_ELEMENT / 2#usize
-  let (zeta_i1, re1) ←
-    invert_ntt.invert_ntt_at_layer_1 vectortraitsOperationsInst zeta_i re
-  let (zeta_i2, re2) ←
-    invert_ntt.invert_ntt_at_layer_2 vectortraitsOperationsInst zeta_i1 re1
-  let (zeta_i3, re3) ←
-    invert_ntt.invert_ntt_at_layer_3 vectortraitsOperationsInst zeta_i2 re2
-  let (zeta_i4, re4, scratch1) ←
-    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i3
-      re3 4#usize scratch
-  let (zeta_i5, re5, scratch2) ←
-    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i4
-      re4 5#usize scratch1
-  let (zeta_i6, re6, scratch3) ←
-    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i5
-      re5 6#usize scratch2
-  let (_, re7, scratch4) ←
-    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i6
-      re6 7#usize scratch3
-  ok (re7, scratch4)
-
-/-- [libcrux_iot_ml_kem::matrix::entry]:
-    Source: 'ml-kem/src/matrix.rs', lines 10:0-22:1 -/
-def matrix.entry
-  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
-  vector.traits.Operations Vector)
-  (matrix : Slice (polynomial.PolynomialRingElement Vector)) (i : Std.Usize)
-  (j : Std.Usize) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let i1 ← core.slice.Slice.len matrix
-  let i2 ← K * K
-  massert (i1 = i2)
-  massert (i < K)
-  massert (j < K)
-  let i3 ← i * K
-  let i4 ← i3 + j
-  Slice.index_usize matrix i4
 
 /-- [libcrux_iot_ml_kem::polynomial::VECTORS_IN_RING_ELEMENT]
     Source: 'ml-kem/src/polynomial.rs', lines 26:0-27:78 -/
@@ -428,90 +78,388 @@ def polynomial.VECTORS_IN_RING_ELEMENT : Result Std.Usize :=
   constants.COEFFICIENTS_IN_RING_ELEMENT /
     vector.traits.FIELD_ELEMENTS_IN_VECTOR
 
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply]: loop body 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 125:8-135:9 -/
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11]: loop body 0:
+    Source: 'ml-kem/src/serialize.rs', lines 162:4-169:5 -/
 @[rust_loop_body]
-def polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop.body
+def serialize.compress_then_serialize_11_loop.body
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (self : polynomial.PolynomialRingElement Vector)
-  (rhs : polynomial.PolynomialRingElement Vector)
-  (iter : core.ops.range.Range Std.Usize)
-  (accumulator : Array Std.I32 256#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
-    256#usize)) (Array Std.I32 256#usize))
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
+    Vector) ((Slice Std.U8) × Vector))
   := do
   let (o, iter1) ←
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
       core.Usize.Insts.CoreIterRangeStep iter
   match o with
-  | core.option.Option.None => ok (done accumulator)
+  | core.option.Option.None => ok (done (serialized, scratch))
   | core.option.Option.Some i =>
-    let t ← Array.index_usize self.coefficients i
-    let t1 ← Array.index_usize rhs.coefficients i
-    let i1 ← i * 16#usize
-    let i2 ← i + 1#usize
-    let i3 ← i2 * 16#usize
+    let t ← Array.index_usize re.coefficients i
+    let scratch1 ←
+      vector.traits.to_unsigned_representative vectortraitsOperationsInst t
+        scratch
+    let scratch2 ← vectortraitsOperationsInst.compress 11#i32 scratch1
+    let i1 ← 22#usize * i
+    let i2 ← i1 + 22#usize
     let (s, index_mut_back) ←
-      core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.Slice.Insts.CoreOpsIndexIndexMut
+      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
         (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.I32)) accumulator { start := i1, «end» := i3 }
-    let i4 ← 4#usize * i
-    let i5 ← 64#usize + i4
-    let i6 ← polynomial.zeta i5
-    let i7 ← 64#usize + i4
-    let i8 ← i7 + 1#usize
-    let i9 ← polynomial.zeta i8
-    let i10 ← 64#usize + i4
-    let i11 ← i10 + 2#usize
-    let i12 ← polynomial.zeta i11
-    let i13 ← 64#usize + i4
-    let i14 ← i13 + 3#usize
-    let i15 ← polynomial.zeta i14
-    let s1 ←
-      vectortraitsOperationsInst.accumulating_ntt_multiply t t1 s i6 i9 i12 i15
-    let accumulator1 := index_mut_back s1
-    ok (cont (iter1, accumulator1))
+        Std.U8) serialized { start := i1, «end» := i2 }
+    let s1 ← vectortraitsOperationsInst.serialize_11 scratch2 s
+    let serialized1 := index_mut_back s1
+    ok (cont (iter1, serialized1, scratch2))
 
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply]: loop 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 125:8-135:9 -/
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11]: loop 0:
+    Source: 'ml-kem/src/serialize.rs', lines 162:4-169:5 -/
 @[rust_loop]
-def polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop
+def serialize.compress_then_serialize_11_loop
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
   Vector) (iter : core.ops.range.Range Std.Usize)
-  (self : polynomial.PolynomialRingElement Vector)
-  (rhs : polynomial.PolynomialRingElement Vector)
-  (accumulator : Array Std.I32 256#usize) :
-  Result (Array Std.I32 256#usize)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
   := do
   loop
-    (fun (iter1, accumulator1) =>
-      polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop.body
-      vectortraitsOperationsInst self rhs iter1 accumulator1)
-    (iter, accumulator)
+    (fun (iter1, serialized1, scratch1) =>
+      serialize.compress_then_serialize_11_loop.body vectortraitsOperationsInst
+      re iter1 serialized1 scratch1)
+    (iter, serialized, scratch)
 
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply]:
-    Source: 'ml-kem/src/polynomial.rs', lines 124:4-136:5 -/
-def polynomial.PolynomialRingElement.accumulating_ntt_multiply
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11]:
+    Source: 'ml-kem/src/serialize.rs', lines 154:0-170:1 -/
+def serialize.compress_then_serialize_11
+  {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  let i ← core.slice.Slice.len serialized
+  massert (i = BLOCK_LEN)
+  let i1 ← polynomial.VECTORS_IN_RING_ELEMENT
+  serialize.compress_then_serialize_11_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := i1 } re serialized scratch
+
+/-- [libcrux_iot_ml_kem::serialize::to_unsigned_field_modulus]:
+    Source: 'ml-kem/src/serialize.rs', lines 11:0-13:1 -/
+def serialize.to_unsigned_field_modulus
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (self : polynomial.PolynomialRingElement Vector)
-  (rhs : polynomial.PolynomialRingElement Vector)
-  (accumulator : Array Std.I32 256#usize) :
-  Result (Array Std.I32 256#usize)
+  Vector) (a : Vector) (out : Vector) :
+  Result Vector
+  := do
+  vector.traits.to_unsigned_representative vectortraitsOperationsInst a out
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10]: loop body 0:
+    Source: 'ml-kem/src/serialize.rs', lines 141:4-148:5 -/
+@[rust_loop_body]
+def serialize.compress_then_serialize_10_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
+    Vector) ((Slice Std.U8) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (serialized, scratch))
+  | core.option.Option.Some i =>
+    let t ← Array.index_usize re.coefficients i
+    let scratch1 ←
+      serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
+    let scratch2 ← vectortraitsOperationsInst.compress 10#i32 scratch1
+    let i1 ← 20#usize * i
+    let i2 ← i1 + 20#usize
+    let (s, index_mut_back) ←
+      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8) serialized { start := i1, «end» := i2 }
+    let s1 ← vectortraitsOperationsInst.serialize_10 scratch2 s
+    let serialized1 := index_mut_back s1
+    ok (cont (iter1, serialized1, scratch2))
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10]: loop 0:
+    Source: 'ml-kem/src/serialize.rs', lines 141:4-148:5 -/
+@[rust_loop]
+def serialize.compress_then_serialize_10_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  loop
+    (fun (iter1, serialized1, scratch1) =>
+      serialize.compress_then_serialize_10_loop.body vectortraitsOperationsInst
+      re iter1 serialized1 scratch1)
+    (iter, serialized, scratch)
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10]:
+    Source: 'ml-kem/src/serialize.rs', lines 134:0-149:1 -/
+def serialize.compress_then_serialize_10
+  {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  let i ← core.slice.Slice.len serialized
+  massert (i = BLOCK_LEN)
+  let i1 ← polynomial.VECTORS_IN_RING_ELEMENT
+  serialize.compress_then_serialize_10_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := i1 } re serialized scratch
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_u]:
+    Source: 'ml-kem/src/serialize.rs', lines 179:0-193:1 -/
+def serialize.compress_then_serialize_ring_element_u
+  {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize) (BLOCK_LEN : Std.Usize)
+  (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  let i ← lift (UScalar.cast .U32 U_COMPRESSION_FACTOR)
+  match i with
+  | 10#uscalar =>
+    serialize.compress_then_serialize_10 BLOCK_LEN vectortraitsOperationsInst
+      re serialized scratch
+  | 11#uscalar =>
+    serialize.compress_then_serialize_11 BLOCK_LEN vectortraitsOperationsInst
+      re serialized scratch
+  | _ => fail panic
+
+/-- [libcrux_iot_ml_kem::ind_cpa::compress_then_serialize_u]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 50:13-50:55 -/
+@[rust_loop_body]
+def ind_cpa.compress_then_serialize_u_loop.body
+  {Vector : Type} {K : Std.Usize} (C1_LEN : Std.Usize) (U_COMPRESSION_FACTOR :
+  Std.Usize) (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.array.iter.IntoIter
+  (polynomial.PolynomialRingElement Vector) K)) (out : Slice Std.U8)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.array.iter.IntoIter (polynomial.PolynomialRingElement Vector) K)) ×
+    (Slice Std.U8) × Vector) ((Slice Std.U8) × Vector))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.array.iter.IntoIter.Insts.CoreIterTraitsIteratorIterator
+      (polynomial.PolynomialRingElement Vector) K) iter
+  match o with
+  | core.option.Option.None => ok (done (out, scratch))
+  | core.option.Option.Some p =>
+    let (i, re) := p
+    let i1 ← C1_LEN / K
+    let i2 ← i * i1
+    let i3 ← i + 1#usize
+    let i4 ← i3 * i1
+    let (s, index_mut_back) ←
+      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8) out { start := i2, «end» := i4 }
+    let (s1, scratch1) ←
+      serialize.compress_then_serialize_ring_element_u U_COMPRESSION_FACTOR
+        BLOCK_LEN vectortraitsOperationsInst re s scratch
+    let out1 := index_mut_back s1
+    ok (cont (iter1, out1, scratch1))
+
+/-- [libcrux_iot_ml_kem::ind_cpa::compress_then_serialize_u]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 50:13-50:55 -/
+@[rust_loop]
+def ind_cpa.compress_then_serialize_u_loop
+  {Vector : Type} {K : Std.Usize} (C1_LEN : Std.Usize) (U_COMPRESSION_FACTOR :
+  Std.Usize) (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.array.iter.IntoIter
+  (polynomial.PolynomialRingElement Vector) K)) (out : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  loop
+    (fun (iter1, out1, scratch1) => ind_cpa.compress_then_serialize_u_loop.body
+      C1_LEN U_COMPRESSION_FACTOR BLOCK_LEN vectortraitsOperationsInst iter1
+      out1 scratch1)
+    (iter, out, scratch)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::compress_then_serialize_u]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 472:0-490:1 -/
+def ind_cpa.compress_then_serialize_u
+  {Vector : Type} {K : Std.Usize} (C1_LEN : Std.Usize) (U_COMPRESSION_FACTOR :
+  Std.Usize) (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (input : Array (polynomial.PolynomialRingElement Vector) K)
+  (out : Slice Std.U8) (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  let ii ←
+    core.Array.Insts.CoreIterTraitsCollectIntoIteratorTIntoIter.into_iter input
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.array.iter.IntoIter.Insts.CoreIterTraitsIteratorIterator
+      (polynomial.PolynomialRingElement Vector) K) ii
+  ind_cpa.compress_then_serialize_u_loop C1_LEN U_COMPRESSION_FACTOR BLOCK_LEN
+    vectortraitsOperationsInst iter out scratch
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5]: loop body 0:
+    Source: 'ml-kem/src/serialize.rs', lines 221:4-228:5 -/
+@[rust_loop_body]
+def serialize.compress_then_serialize_5_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
+    Vector) ((Slice Std.U8) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (serialized, scratch))
+  | core.option.Option.Some i =>
+    let t ← Array.index_usize re.coefficients i
+    let scratch1 ←
+      vector.traits.to_unsigned_representative vectortraitsOperationsInst t
+        scratch
+    let scratch2 ← vectortraitsOperationsInst.compress 5#i32 scratch1
+    let i1 ← 10#usize * i
+    let i2 ← i1 + 10#usize
+    let (s, index_mut_back) ←
+      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8) serialized { start := i1, «end» := i2 }
+    let s1 ← vectortraitsOperationsInst.serialize_5 scratch2 s
+    let serialized1 := index_mut_back s1
+    ok (cont (iter1, serialized1, scratch2))
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5]: loop 0:
+    Source: 'ml-kem/src/serialize.rs', lines 221:4-228:5 -/
+@[rust_loop]
+def serialize.compress_then_serialize_5_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  loop
+    (fun (iter1, serialized1, scratch1) =>
+      serialize.compress_then_serialize_5_loop.body vectortraitsOperationsInst
+      re iter1 serialized1 scratch1)
+    (iter, serialized, scratch)
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5]:
+    Source: 'ml-kem/src/serialize.rs', lines 216:0-229:1 -/
+def serialize.compress_then_serialize_5
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (serialized : Slice Std.U8) (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
   := do
   let i ← polynomial.VECTORS_IN_RING_ELEMENT
-  polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop
-    vectortraitsOperationsInst { start := 0#usize, «end» := i } self rhs
-    accumulator
+  serialize.compress_then_serialize_5_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := i } re serialized scratch
 
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::subtract_reduce]: loop body 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 70:8-77:9 -/
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4]: loop body 0:
+    Source: 'ml-kem/src/serialize.rs', lines 203:4-210:5 -/
 @[rust_loop_body]
-def polynomial.PolynomialRingElement.subtract_reduce_loop.body
+def serialize.compress_then_serialize_4_loop.body
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (self : polynomial.PolynomialRingElement Vector)
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
+    Vector) ((Slice Std.U8) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (serialized, scratch))
+  | core.option.Option.Some i =>
+    let t ← Array.index_usize re.coefficients i
+    let scratch1 ←
+      serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
+    let scratch2 ← vectortraitsOperationsInst.compress 4#i32 scratch1
+    let i1 ← 8#usize * i
+    let i2 ← i1 + 8#usize
+    let (s, index_mut_back) ←
+      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8) serialized { start := i1, «end» := i2 }
+    let s1 ← vectortraitsOperationsInst.serialize_4 scratch2 s
+    let serialized1 := index_mut_back s1
+    ok (cont (iter1, serialized1, scratch2))
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4]: loop 0:
+    Source: 'ml-kem/src/serialize.rs', lines 203:4-210:5 -/
+@[rust_loop]
+def serialize.compress_then_serialize_4_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  loop
+    (fun (iter1, serialized1, scratch1) =>
+      serialize.compress_then_serialize_4_loop.body vectortraitsOperationsInst
+      re iter1 serialized1 scratch1)
+    (iter, serialized, scratch)
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4]:
+    Source: 'ml-kem/src/serialize.rs', lines 198:0-211:1 -/
+def serialize.compress_then_serialize_4
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (serialized : Slice Std.U8) (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  let i ← polynomial.VECTORS_IN_RING_ELEMENT
+  serialize.compress_then_serialize_4_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := i } re serialized scratch
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_v]:
+    Source: 'ml-kem/src/serialize.rs', lines 237:0-252:1 -/
+def serialize.compress_then_serialize_ring_element_v
+  {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize) (C2_LEN :
+  Std.Usize) (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (re : polynomial.PolynomialRingElement Vector) (out : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  let i ← lift (UScalar.cast .U32 V_COMPRESSION_FACTOR)
+  match i with
+  | 4#uscalar =>
+    serialize.compress_then_serialize_4 vectortraitsOperationsInst re out
+      scratch
+  | 5#uscalar =>
+    serialize.compress_then_serialize_5 vectortraitsOperationsInst re out
+      scratch
+  | _ => fail panic
+
+/-- [libcrux_iot_ml_kem::vector::traits::decompress_1]:
+    Source: 'ml-kem/src/vector/traits.rs', lines 188:0-191:1
+    Visibility: public -/
+def vector.traits.decompress_1
+  {T : Type} (OperationsInst : vector.traits.Operations T) (vec : T) :
+  Result T
+  := do
+  let vec1 ← OperationsInst.negate vec
+  OperationsInst.bitwise_and_with_constant vec1 1665#i16
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_message]: loop body 0:
+    Source: 'ml-kem/src/serialize.rs', lines 38:4-41:5 -/
+@[rust_loop_body]
+def serialize.deserialize_then_decompress_message_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (serialized : Array Std.U8 32#usize)
   (iter : core.ops.range.Range Std.Usize)
-  (b : polynomial.PolynomialRingElement Vector) :
+  (re : polynomial.PolynomialRingElement Vector) :
   Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
     (polynomial.PolynomialRingElement Vector))
     (polynomial.PolynomialRingElement Vector))
@@ -520,178 +468,61 @@ def polynomial.PolynomialRingElement.subtract_reduce_loop.body
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
       core.Usize.Insts.CoreIterRangeStep iter
   match o with
-  | core.option.Option.None => ok (done b)
+  | core.option.Option.None => ok (done re)
   | core.option.Option.Some i =>
-    let (t, index_mut_back) ← Array.index_mut_usize b.coefficients i
-    let t1 ←
-      vectortraitsOperationsInst.montgomery_multiply_by_constant t 1441#i16
+    let i1 ← 2#usize * i
+    let i2 ← i1 + 2#usize
+    let s ←
+      core.Array.Insts.CoreOpsIndexIndex.index
+        (core.Slice.Insts.CoreOpsIndexIndex
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8)) serialized { start := i1, «end» := i2 }
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
+    let t1 ← vectortraitsOperationsInst.deserialize_1 s t
     let a := index_mut_back t1
     let (t2, index_mut_back1) ← Array.index_mut_usize a i
-    let t3 ← Array.index_usize self.coefficients i
-    let t4 ← vectortraitsOperationsInst.sub t2 t3
-    let a1 := index_mut_back1 t4
-    let (t5, index_mut_back2) ← Array.index_mut_usize a1 i
-    let t6 ← vectortraitsOperationsInst.negate t5
-    let a2 := index_mut_back2 t6
-    let (t7, index_mut_back3) ← Array.index_mut_usize a2 i
-    let t8 ← vectortraitsOperationsInst.barrett_reduce t7
-    let a3 := index_mut_back3 t8
-    ok (cont (iter1, { coefficients := a3 }))
-
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::subtract_reduce]: loop 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 70:8-77:9 -/
-@[rust_loop]
-def polynomial.PolynomialRingElement.subtract_reduce_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (self : polynomial.PolynomialRingElement Vector)
-  (b : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, b1) =>
-      polynomial.PolynomialRingElement.subtract_reduce_loop.body
-      vectortraitsOperationsInst self iter1 b1)
-    (iter, b)
-
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::subtract_reduce]:
-    Source: 'ml-kem/src/polynomial.rs', lines 69:4-78:5 -/
-def polynomial.PolynomialRingElement.subtract_reduce
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (self : polynomial.PolynomialRingElement Vector)
-  (b : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let i ← polynomial.VECTORS_IN_RING_ELEMENT
-  polynomial.PolynomialRingElement.subtract_reduce_loop
-    vectortraitsOperationsInst { start := 0#usize, «end» := i } self b
-
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::reducing_from_i32_array]: loop body 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 56:8-58:9 -/
-@[rust_loop_body]
-def polynomial.PolynomialRingElement.reducing_from_i32_array_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (a : Slice Std.I32) (iter : core.ops.range.Range Std.Usize)
-  (out : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
-    (polynomial.PolynomialRingElement Vector))
-    (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done out)
-  | core.option.Option.Some i =>
-    let i1 ← i * 16#usize
-    let i2 ← i + 1#usize
-    let i3 ← i2 * 16#usize
-    let s ←
-      core.Slice.Insts.CoreOpsIndexIndex.index
-        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.I32) a { start := i1, «end» := i3 }
-    let (t, index_mut_back) ← Array.index_mut_usize out.coefficients i
-    let t1 ← vectortraitsOperationsInst.reducing_from_i32_array s t
-    let a1 := index_mut_back t1
+    let t3 ← vector.traits.decompress_1 vectortraitsOperationsInst t2
+    let a1 := index_mut_back1 t3
     ok (cont (iter1, { coefficients := a1 }))
 
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::reducing_from_i32_array]: loop 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 56:8-58:9 -/
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_message]: loop 0:
+    Source: 'ml-kem/src/serialize.rs', lines 38:4-41:5 -/
 @[rust_loop]
-def polynomial.PolynomialRingElement.reducing_from_i32_array_loop
+def serialize.deserialize_then_decompress_message_loop
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (a : Slice Std.I32)
-  (out : polynomial.PolynomialRingElement Vector) :
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (serialized : Array Std.U8 32#usize)
+  (re : polynomial.PolynomialRingElement Vector) :
   Result (polynomial.PolynomialRingElement Vector)
   := do
   loop
-    (fun (iter1, out1) =>
-      polynomial.PolynomialRingElement.reducing_from_i32_array_loop.body
-      vectortraitsOperationsInst a iter1 out1)
-    (iter, out)
+    (fun (iter1, re1) =>
+      serialize.deserialize_then_decompress_message_loop.body
+      vectortraitsOperationsInst serialized iter1 re1)
+    (iter, re)
 
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::reducing_from_i32_array]:
-    Source: 'ml-kem/src/polynomial.rs', lines 55:4-59:5 -/
-def polynomial.PolynomialRingElement.reducing_from_i32_array
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_message]:
+    Source: 'ml-kem/src/serialize.rs', lines 34:0-42:1 -/
+@[reducible]
+def serialize.deserialize_then_decompress_message
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (a : Slice Std.I32) (out : polynomial.PolynomialRingElement Vector) :
+  Vector) (serialized : Array Std.U8 32#usize)
+  (re : polynomial.PolynomialRingElement Vector) :
   Result (polynomial.PolynomialRingElement Vector)
   := do
-  let i ← polynomial.VECTORS_IN_RING_ELEMENT
-  polynomial.PolynomialRingElement.reducing_from_i32_array_loop
-    vectortraitsOperationsInst { start := 0#usize, «end» := i } a out
+  serialize.deserialize_then_decompress_message_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } serialized re
 
-/-- [libcrux_iot_ml_kem::matrix::compute_message]: loop body 0:
-    Source: 'ml-kem/src/matrix.rs', lines 100:4-102:5 -/
-@[rust_loop_body]
-def matrix.compute_message_loop.body
-  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
-  vector.traits.Operations Vector)
-  (secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (iter : core.ops.range.Range Std.Usize)
-  (accumulator : Array Std.I32 256#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
-    256#usize)) (Array Std.I32 256#usize))
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::ZERO]:
+    Source: 'ml-kem/src/polynomial.rs', lines 39:4-43:5 -/
+def polynomial.PolynomialRingElement.ZERO
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
   := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done accumulator)
-  | core.option.Option.Some i =>
-    let pre ← Array.index_usize secret_as_ntt i
-    let pre1 ← Array.index_usize u_as_ntt i
-    let accumulator1 ←
-      polynomial.PolynomialRingElement.accumulating_ntt_multiply
-        vectortraitsOperationsInst pre pre1 accumulator
-    ok (cont (iter1, accumulator1))
-
-/-- [libcrux_iot_ml_kem::matrix::compute_message]: loop 0:
-    Source: 'ml-kem/src/matrix.rs', lines 100:4-102:5 -/
-@[rust_loop]
-def matrix.compute_message_loop
-  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
-  vector.traits.Operations Vector) (iter : core.ops.range.Range Std.Usize)
-  (secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (accumulator : Array Std.I32 256#usize) :
-  Result (Array Std.I32 256#usize)
-  := do
-  loop
-    (fun (iter1, accumulator1) => matrix.compute_message_loop.body
-      vectortraitsOperationsInst secret_as_ntt u_as_ntt iter1 accumulator1)
-    (iter, accumulator)
-
-/-- [libcrux_iot_ml_kem::matrix::compute_message]:
-    Source: 'ml-kem/src/matrix.rs', lines 91:0-107:1 -/
-def matrix.compute_message
-  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
-  vector.traits.Operations Vector)
-  (v : polynomial.PolynomialRingElement Vector)
-  (secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (result : polynomial.PolynomialRingElement Vector) (scratch : Vector)
-  (accumulator : Array Std.I32 256#usize) :
-  Result ((polynomial.PolynomialRingElement Vector) × Vector × (Array Std.I32
-    256#usize))
-  := do
-  let i ← libcrux_secrets.traits.Classify.Blanket.classify 0#i32
-  let accumulator1 := Array.repeat 256#usize i
-  let accumulator2 ←
-    matrix.compute_message_loop vectortraitsOperationsInst
-      { start := 0#usize, «end» := K } secret_as_ntt u_as_ntt accumulator1
-  let s ← lift (Array.to_slice accumulator2)
-  let result1 ←
-    polynomial.PolynomialRingElement.reducing_from_i32_array
-      vectortraitsOperationsInst s result
-  let (result2, scratch1) ←
-    invert_ntt.invert_ntt_montgomery K vectortraitsOperationsInst result1
-      scratch
-  let result3 ←
-    polynomial.PolynomialRingElement.subtract_reduce vectortraitsOperationsInst
-      v result2
-  ok (result3, scratch1, accumulator2)
+  let t ← vectortraitsOperationsInst.ZERO
+  let a := Array.repeat 16#usize t
+  ok { coefficients := a }
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_to_reduced_ring_element]: loop body 0:
     Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
@@ -887,6 +718,411 @@ def polynomial.PolynomialRingElement.add_message_error_reduce
     vectortraitsOperationsInst { start := 0#usize, «end» := i } self message
     result scratch
 
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::reducing_from_i32_array]: loop body 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 56:8-58:9 -/
+@[rust_loop_body]
+def polynomial.PolynomialRingElement.reducing_from_i32_array_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (a : Slice Std.I32) (iter : core.ops.range.Range Std.Usize)
+  (out : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
+    (polynomial.PolynomialRingElement Vector))
+    (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done out)
+  | core.option.Option.Some i =>
+    let i1 ← i * 16#usize
+    let i2 ← i + 1#usize
+    let i3 ← i2 * 16#usize
+    let s ←
+      core.Slice.Insts.CoreOpsIndexIndex.index
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.I32) a { start := i1, «end» := i3 }
+    let (t, index_mut_back) ← Array.index_mut_usize out.coefficients i
+    let t1 ← vectortraitsOperationsInst.reducing_from_i32_array s t
+    let a1 := index_mut_back t1
+    ok (cont (iter1, { coefficients := a1 }))
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::reducing_from_i32_array]: loop 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 56:8-58:9 -/
+@[rust_loop]
+def polynomial.PolynomialRingElement.reducing_from_i32_array_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (a : Slice Std.I32)
+  (out : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, out1) =>
+      polynomial.PolynomialRingElement.reducing_from_i32_array_loop.body
+      vectortraitsOperationsInst a iter1 out1)
+    (iter, out)
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::reducing_from_i32_array]:
+    Source: 'ml-kem/src/polynomial.rs', lines 55:4-59:5 -/
+def polynomial.PolynomialRingElement.reducing_from_i32_array
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (a : Slice Std.I32) (out : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let i ← polynomial.VECTORS_IN_RING_ELEMENT
+  polynomial.PolynomialRingElement.reducing_from_i32_array_loop
+    vectortraitsOperationsInst { start := 0#usize, «end» := i } a out
+
+/-- [libcrux_iot_ml_kem::polynomial::ZETAS_TIMES_MONTGOMERY_R]
+    Source: 'ml-kem/src/polynomial.rs', lines 5:0-17:2 -/
+@[global_simps, irreducible]
+def polynomial.ZETAS_TIMES_MONTGOMERY_R : Array Std.I16 128#usize :=
+  Array.make 128#usize [
+    (-1044)#i16, (-758)#i16, (-359)#i16, (-1517)#i16, 1493#i16, 1422#i16,
+    287#i16, 202#i16, (-171)#i16, 622#i16, 1577#i16, 182#i16, 962#i16,
+    (-1202)#i16, (-1474)#i16, 1468#i16, 573#i16, (-1325)#i16, 264#i16, 383#i16,
+    (-829)#i16, 1458#i16, (-1602)#i16, (-130)#i16, (-681)#i16, 1017#i16,
+    732#i16, 608#i16, (-1542)#i16, 411#i16, (-205)#i16, (-1571)#i16, 1223#i16,
+    652#i16, (-552)#i16, 1015#i16, (-1293)#i16, 1491#i16, (-282)#i16,
+    (-1544)#i16, 516#i16, (-8)#i16, (-320)#i16, (-666)#i16, (-1618)#i16,
+    (-1162)#i16, 126#i16, 1469#i16, (-853)#i16, (-90)#i16, (-271)#i16, 830#i16,
+    107#i16, (-1421)#i16, (-247)#i16, (-951)#i16, (-398)#i16, 961#i16,
+    (-1508)#i16, (-725)#i16, 448#i16, (-1065)#i16, 677#i16, (-1275)#i16,
+    (-1103)#i16, 430#i16, 555#i16, 843#i16, (-1251)#i16, 871#i16, 1550#i16,
+    105#i16, 422#i16, 587#i16, 177#i16, (-235)#i16, (-291)#i16, (-460)#i16,
+    1574#i16, 1653#i16, (-246)#i16, 778#i16, 1159#i16, (-147)#i16, (-777)#i16,
+    1483#i16, (-602)#i16, 1119#i16, (-1590)#i16, 644#i16, (-872)#i16, 349#i16,
+    418#i16, 329#i16, (-156)#i16, (-75)#i16, 817#i16, 1097#i16, 603#i16,
+    610#i16, 1322#i16, (-1285)#i16, (-1465)#i16, 384#i16, (-1215)#i16,
+    (-136)#i16, 1218#i16, (-1335)#i16, (-874)#i16, 220#i16, (-1187)#i16,
+    (-1659)#i16, (-1185)#i16, (-1530)#i16, (-1278)#i16, 794#i16, (-1510)#i16,
+    (-854)#i16, (-870)#i16, 478#i16, (-108)#i16, (-308)#i16, 996#i16, 991#i16,
+    958#i16, (-1460)#i16, 1522#i16, 1628#i16
+    ]
+
+/-- [libcrux_iot_ml_kem::polynomial::zeta]:
+    Source: 'ml-kem/src/polynomial.rs', lines 22:0-24:1
+    Visibility: public -/
+def polynomial.zeta (i : Std.Usize) : Result Std.I16 := do
+  Array.index_usize polynomial.ZETAS_TIMES_MONTGOMERY_R i
+
+/-- [libcrux_iot_ml_kem::vector::traits::montgomery_multiply_fe]:
+    Source: 'ml-kem/src/vector/traits.rs', lines 168:0-170:1
+    Visibility: public -/
+def vector.traits.montgomery_multiply_fe
+  {T : Type} (OperationsInst : vector.traits.Operations T) (v : T)
+  (fer : Std.I16) :
+  Result T
+  := do
+  OperationsInst.montgomery_multiply_by_constant v fer
+
+/-- [libcrux_iot_ml_kem::invert_ntt::inv_ntt_layer_int_vec_step_reduce]:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 70:0-87:1 -/
+def invert_ntt.inv_ntt_layer_int_vec_step_reduce
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (coefficients : Array Vector 16#usize) (a : Std.Usize)
+  (b : Std.Usize) (scratch : Vector) (zeta_r : Std.I16) :
+  Result ((Array Vector 16#usize) × Vector)
+  := do
+  let scratch1 ← Array.index_usize coefficients a
+  let t ← Array.index_usize coefficients b
+  let scratch2 ← vectortraitsOperationsInst.add scratch1 t
+  let scratch3 ← vectortraitsOperationsInst.barrett_reduce scratch2
+  let coefficients1 ← Array.update coefficients a scratch3
+  let scratch4 ← vectortraitsOperationsInst.negate scratch3
+  let t1 ← Array.index_usize coefficients1 b
+  let scratch5 ← vectortraitsOperationsInst.add scratch4 t1
+  let scratch6 ← vectortraitsOperationsInst.add scratch5 t1
+  let scratch7 ←
+    vector.traits.montgomery_multiply_fe vectortraitsOperationsInst scratch6
+      zeta_r
+  let coefficients2 ← Array.update coefficients1 b scratch7
+  ok (coefficients2, scratch7)
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop body 1:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 110:8-120:9 -/
+@[rust_loop_body]
+def invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (a_offset : Std.Usize) (b_offset : Std.Usize)
+  (iter : core.ops.range.Range Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
+    (polynomial.PolynomialRingElement Vector) × Vector)
+    ((polynomial.PolynomialRingElement Vector) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (re, scratch))
+  | core.option.Option.Some j =>
+    let i ← a_offset + j
+    let i1 ← b_offset + j
+    let i2 ← polynomial.zeta zeta_i
+    let (a, scratch1) ←
+      invert_ntt.inv_ntt_layer_int_vec_step_reduce vectortraitsOperationsInst
+        re.coefficients i i1 scratch i2
+    ok (cont (iter1, { coefficients := a }, scratch1))
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop 1:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 110:8-120:9 -/
+@[rust_loop]
+def invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
+  (a_offset : Std.Usize) (b_offset : Std.Usize) :
+  Result ((polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  loop
+    (fun (iter1, re1, scratch1) =>
+      invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
+      vectortraitsOperationsInst zeta_i a_offset b_offset iter1 re1 scratch1)
+    (iter, re, scratch)
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop body 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 102:4-121:5 -/
+@[rust_loop_body]
+def invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (step_vec : Std.Usize) (iter : core.ops.range.Range Std.Usize)
+  (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector) × Vector) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re, scratch))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i - 1#usize
+    let i ← round * 2#usize
+    let a_offset ← i * step_vec
+    let b_offset ← a_offset + step_vec
+    let (re1, scratch1) ←
+      invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0
+        vectortraitsOperationsInst { start := 0#usize, «end» := step_vec }
+        zeta_i1 re scratch a_offset b_offset
+    ok (cont (iter1, zeta_i1, re1, scratch1))
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]: loop 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 102:4-121:5 -/
+@[rust_loop]
+def invert_ntt.invert_ntt_at_layer_4_plus_loop0
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
+  (step_vec : Std.Usize) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1, scratch1) =>
+      invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
+      vectortraitsOperationsInst step_vec iter1 zeta_i1 re1 scratch1)
+    (iter, zeta_i, re, scratch)
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus]:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 93:0-122:1 -/
+def invert_ntt.invert_ntt_at_layer_4_plus
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
+  (layer : Std.Usize) (scratch : Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  let step ← 1#usize <<< layer
+  let step_vec ← step / vector.traits.FIELD_ELEMENTS_IN_VECTOR
+  let i ← 128#usize >>> layer
+  invert_ntt.invert_ntt_at_layer_4_plus_loop0 vectortraitsOperationsInst
+    { start := 0#usize, «end» := i } zeta_i re scratch step_vec
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3]: loop body 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 59:4-65:5 -/
+@[rust_loop_body]
+def invert_ntt.invert_ntt_at_layer_3_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i - 1#usize
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
+    let i ← polynomial.zeta zeta_i1
+    let t1 ← vectortraitsOperationsInst.inv_ntt_layer_3_step t i
+    let a := index_mut_back t1
+    ok (cont (iter1, zeta_i1, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3]: loop 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 59:4-65:5 -/
+@[rust_loop]
+def invert_ntt.invert_ntt_at_layer_3_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1) => invert_ntt.invert_ntt_at_layer_3_loop.body
+      vectortraitsOperationsInst iter1 zeta_i1 re1)
+    (iter, zeta_i, re)
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3]:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 55:0-66:1 -/
+@[reducible]
+def invert_ntt.invert_ntt_at_layer_3
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  invert_ntt.invert_ntt_at_layer_3_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } zeta_i re
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2]: loop body 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 37:4-49:5 -/
+@[rust_loop_body]
+def invert_ntt.invert_ntt_at_layer_2_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i - 1#usize
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
+    let i ← polynomial.zeta zeta_i1
+    let i1 ← zeta_i1 - 1#usize
+    let i2 ← polynomial.zeta i1
+    let t1 ← vectortraitsOperationsInst.inv_ntt_layer_2_step t i i2
+    let a := index_mut_back t1
+    ok (cont (iter1, i1, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2]: loop 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 37:4-49:5 -/
+@[rust_loop]
+def invert_ntt.invert_ntt_at_layer_2_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1) => invert_ntt.invert_ntt_at_layer_2_loop.body
+      vectortraitsOperationsInst iter1 zeta_i1 re1)
+    (iter, zeta_i, re)
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2]:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 33:0-50:1 -/
+@[reducible]
+def invert_ntt.invert_ntt_at_layer_2
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  invert_ntt.invert_ntt_at_layer_2_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } zeta_i re
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_1]: loop body 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 14:4-27:5 -/
+@[rust_loop_body]
+def invert_ntt.invert_ntt_at_layer_1_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i - 1#usize
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
+    let i ← polynomial.zeta zeta_i1
+    let i1 ← zeta_i1 - 1#usize
+    let i2 ← polynomial.zeta i1
+    let i3 ← zeta_i1 - 2#usize
+    let i4 ← polynomial.zeta i3
+    let i5 ← zeta_i1 - 3#usize
+    let i6 ← polynomial.zeta i5
+    let t1 ← vectortraitsOperationsInst.inv_ntt_layer_1_step t i i2 i4 i6
+    let a := index_mut_back t1
+    ok (cont (iter1, i5, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_1]: loop 0:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 14:4-27:5 -/
+@[rust_loop]
+def invert_ntt.invert_ntt_at_layer_1_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1) => invert_ntt.invert_ntt_at_layer_1_loop.body
+      vectortraitsOperationsInst iter1 zeta_i1 re1)
+    (iter, zeta_i, re)
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_1]:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 10:0-28:1 -/
+@[reducible]
+def invert_ntt.invert_ntt_at_layer_1
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  invert_ntt.invert_ntt_at_layer_1_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } zeta_i re
+
+/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_montgomery]:
+    Source: 'ml-kem/src/invert_ntt.rs', lines 125:0-143:1 -/
+def invert_ntt.invert_ntt_montgomery
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
+  Result ((polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  let zeta_i ← constants.COEFFICIENTS_IN_RING_ELEMENT / 2#usize
+  let (zeta_i1, re1) ←
+    invert_ntt.invert_ntt_at_layer_1 vectortraitsOperationsInst zeta_i re
+  let (zeta_i2, re2) ←
+    invert_ntt.invert_ntt_at_layer_2 vectortraitsOperationsInst zeta_i1 re1
+  let (zeta_i3, re3) ←
+    invert_ntt.invert_ntt_at_layer_3 vectortraitsOperationsInst zeta_i2 re2
+  let (zeta_i4, re4, scratch1) ←
+    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i3
+      re3 4#usize scratch
+  let (zeta_i5, re5, scratch2) ←
+    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i4
+      re4 5#usize scratch1
+  let (zeta_i6, re6, scratch3) ←
+    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i5
+      re5 6#usize scratch2
+  let (_, re7, scratch4) ←
+    invert_ntt.invert_ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i6
+      re6 7#usize scratch3
+  ok (re7, scratch4)
+
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v]: loop body 0:
     Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
 @[rust_loop_body]
@@ -981,6 +1217,1364 @@ def matrix.compute_ring_element_v
     polynomial.PolynomialRingElement.add_message_error_reduce
       vectortraitsOperationsInst error_2 message result2 scratch1
   ok (t_as_ntt_entry1, result3, scratch2, accumulator2)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::encrypt_c2]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 746:0-782:1 -/
+def ind_cpa.encrypt_c2
+  {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize) (C2_LEN :
+  Std.Usize) (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (public_key : Slice Std.U8)
+  (t_as_ntt_entry : polynomial.PolynomialRingElement Vector)
+  (r_as_ntt : Slice (polynomial.PolynomialRingElement Vector))
+  (error_2 : polynomial.PolynomialRingElement Vector)
+  (message : Array Std.U8 32#usize) (ciphertext : Slice Std.U8)
+  (scratch : Vector) (cache : Slice (polynomial.PolynomialRingElement Vector))
+  (accumulator : Array Std.I32 256#usize) :
+  Result ((polynomial.PolynomialRingElement Vector) × (Slice Std.U8) × Vector
+    × (Array Std.I32 256#usize))
+  := do
+  let message_as_ring_element ←
+    polynomial.PolynomialRingElement.ZERO vectortraitsOperationsInst
+  let message_as_ring_element1 ←
+    serialize.deserialize_then_decompress_message vectortraitsOperationsInst
+      message message_as_ring_element
+  let (t_as_ntt_entry1, v, scratch1, accumulator1) ←
+    matrix.compute_ring_element_v K vectortraitsOperationsInst public_key
+      t_as_ntt_entry r_as_ntt error_2 message_as_ring_element1
+      message_as_ring_element scratch cache accumulator
+  let (ciphertext1, scratch2) ←
+    serialize.compress_then_serialize_ring_element_v K V_COMPRESSION_FACTOR
+      C2_LEN vectortraitsOperationsInst v ciphertext scratch1
+  ok (t_as_ntt_entry1, ciphertext1, scratch2, accumulator1)
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_11]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop_body]
+def serialize.deserialize_then_decompress_11_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
+    Vector)) (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) iter
+  match o with
+  | core.option.Option.None => ok (done re)
+  | core.option.Option.Some p =>
+    let (i, bytes) := p
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
+    let t1 ← vectortraitsOperationsInst.deserialize_11 bytes t
+    let a := index_mut_back t1
+    let (t2, index_mut_back1) ← Array.index_mut_usize a i
+    let t3 ←
+      vectortraitsOperationsInst.decompress_ciphertext_coefficient 11#i32 t2
+    let a1 := index_mut_back1 t3
+    ok (cont (iter1, { coefficients := a1 }))
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_11]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop]
+def serialize.deserialize_then_decompress_11_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, re1) => serialize.deserialize_then_decompress_11_loop.body
+      vectortraitsOperationsInst iter1 re1)
+    (iter, re)
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_11]:
+    Source: 'ml-kem/src/serialize.rs', lines 274:0-284:1 -/
+def serialize.deserialize_then_decompress_11
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (serialized : Slice Std.U8)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let ce ← core.slice.Slice.chunks_exact serialized 22#usize
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) ce
+  serialize.deserialize_then_decompress_11_loop vectortraitsOperationsInst iter
+    re
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_10]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop_body]
+def serialize.deserialize_then_decompress_10_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
+    Vector)) (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) iter
+  match o with
+  | core.option.Option.None => ok (done re)
+  | core.option.Option.Some p =>
+    let (i, bytes) := p
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
+    let t1 ← vectortraitsOperationsInst.deserialize_10 bytes t
+    let a := index_mut_back t1
+    let (t2, index_mut_back1) ← Array.index_mut_usize a i
+    let t3 ←
+      vectortraitsOperationsInst.decompress_ciphertext_coefficient 10#i32 t2
+    let a1 := index_mut_back1 t3
+    ok (cont (iter1, { coefficients := a1 }))
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_10]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop]
+def serialize.deserialize_then_decompress_10_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, re1) => serialize.deserialize_then_decompress_10_loop.body
+      vectortraitsOperationsInst iter1 re1)
+    (iter, re)
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_10]:
+    Source: 'ml-kem/src/serialize.rs', lines 258:0-268:1 -/
+def serialize.deserialize_then_decompress_10
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (serialized : Slice Std.U8)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let ce ← core.slice.Slice.chunks_exact serialized 20#usize
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) ce
+  serialize.deserialize_then_decompress_10_loop vectortraitsOperationsInst iter
+    re
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_ring_element_u]:
+    Source: 'ml-kem/src/serialize.rs', lines 291:0-303:1 -/
+def serialize.deserialize_then_decompress_ring_element_u
+  {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize)
+  (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (serialized : Slice Std.U8)
+  (output : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let i ← lift (UScalar.cast .U32 U_COMPRESSION_FACTOR)
+  match i with
+  | 10#uscalar =>
+    serialize.deserialize_then_decompress_10 vectortraitsOperationsInst
+      serialized output
+  | 11#uscalar =>
+    serialize.deserialize_then_decompress_11 vectortraitsOperationsInst
+      serialized output
+  | _ => fail panic
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::poly_barrett_reduce]: loop body 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 63:8-65:9 -/
+@[rust_loop_body]
+def polynomial.PolynomialRingElement.poly_barrett_reduce_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (self : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
+    (polynomial.PolynomialRingElement Vector))
+    (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done self)
+  | core.option.Option.Some i =>
+    let (t, index_mut_back) ← Array.index_mut_usize self.coefficients i
+    let t1 ← vectortraitsOperationsInst.barrett_reduce t
+    let a := index_mut_back t1
+    ok (cont (iter1, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::poly_barrett_reduce]: loop 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 63:8-65:9 -/
+@[rust_loop]
+def polynomial.PolynomialRingElement.poly_barrett_reduce_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (self : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, self1) =>
+      polynomial.PolynomialRingElement.poly_barrett_reduce_loop.body
+      vectortraitsOperationsInst iter1 self1)
+    (iter, self)
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::poly_barrett_reduce]:
+    Source: 'ml-kem/src/polynomial.rs', lines 62:4-66:5 -/
+def polynomial.PolynomialRingElement.poly_barrett_reduce
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (self : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let i ← polynomial.VECTORS_IN_RING_ELEMENT
+  polynomial.PolynomialRingElement.poly_barrett_reduce_loop
+    vectortraitsOperationsInst { start := 0#usize, «end» := i } self
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_layer_int_vec_step]:
+    Source: 'ml-kem/src/ntt.rs', lines 66:0-78:1 -/
+def ntt.ntt_layer_int_vec_step
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (coefficients : Array Vector 16#usize) (a : Std.Usize)
+  (b : Std.Usize) (scratch : Vector) (zeta_r : Std.I16) :
+  Result ((Array Vector 16#usize) × Vector)
+  := do
+  let scratch1 ← Array.index_usize coefficients b
+  let scratch2 ←
+    vector.traits.montgomery_multiply_fe vectortraitsOperationsInst scratch1
+      zeta_r
+  let t ← Array.index_usize coefficients a
+  let coefficients1 ← Array.update coefficients b t
+  let (t1, index_mut_back) ← Array.index_mut_usize coefficients1 a
+  let t2 ← vectortraitsOperationsInst.add t1 scratch2
+  let coefficients2 := index_mut_back t2
+  let (t3, index_mut_back1) ← Array.index_mut_usize coefficients2 b
+  let t4 ← vectortraitsOperationsInst.sub t3 scratch2
+  let coefficients3 := index_mut_back1 t4
+  ok (coefficients3, scratch2)
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop body 1:
+    Source: 'ml-kem/src/ntt.rs', lines 101:8-111:9 -/
+@[rust_loop_body]
+def ntt.ntt_at_layer_4_plus_loop0_loop0.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (a_offset : Std.Usize) (b_offset : Std.Usize)
+  (iter : core.ops.range.Range Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
+    (polynomial.PolynomialRingElement Vector) × Vector)
+    ((polynomial.PolynomialRingElement Vector) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (re, scratch))
+  | core.option.Option.Some j =>
+    let i ← a_offset + j
+    let i1 ← b_offset + j
+    let i2 ← polynomial.zeta zeta_i
+    let (a, scratch1) ←
+      ntt.ntt_layer_int_vec_step vectortraitsOperationsInst re.coefficients i
+        i1 scratch i2
+    ok (cont (iter1, { coefficients := a }, scratch1))
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop 1:
+    Source: 'ml-kem/src/ntt.rs', lines 101:8-111:9 -/
+@[rust_loop]
+def ntt.ntt_at_layer_4_plus_loop0_loop0
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
+  (a_offset : Std.Usize) (b_offset : Std.Usize) :
+  Result ((polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  loop
+    (fun (iter1, re1, scratch1) => ntt.ntt_at_layer_4_plus_loop0_loop0.body
+      vectortraitsOperationsInst zeta_i a_offset b_offset iter1 re1 scratch1)
+    (iter, re, scratch)
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop body 0:
+    Source: 'ml-kem/src/ntt.rs', lines 94:4-112:5 -/
+@[rust_loop_body]
+def ntt.ntt_at_layer_4_plus_loop0.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (step_vec : Std.Usize) (iter : core.ops.range.Range Std.Usize)
+  (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector) × Vector) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re, scratch))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i + 1#usize
+    let i ← round * 2#usize
+    let a_offset ← i * step_vec
+    let b_offset ← a_offset + step_vec
+    let (re1, scratch1) ←
+      ntt.ntt_at_layer_4_plus_loop0_loop0 vectortraitsOperationsInst
+        { start := 0#usize, «end» := step_vec } zeta_i1 re scratch a_offset
+        b_offset
+    ok (cont (iter1, zeta_i1, re1, scratch1))
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop 0:
+    Source: 'ml-kem/src/ntt.rs', lines 94:4-112:5 -/
+@[rust_loop]
+def ntt.ntt_at_layer_4_plus_loop0
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
+  (step_vec : Std.Usize) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1, scratch1) => ntt.ntt_at_layer_4_plus_loop0.body
+      vectortraitsOperationsInst step_vec iter1 zeta_i1 re1 scratch1)
+    (iter, zeta_i, re, scratch)
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]:
+    Source: 'ml-kem/src/ntt.rs', lines 84:0-113:1 -/
+def ntt.ntt_at_layer_4_plus
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
+  (layer : Std.Usize) (scratch : Vector)
+  (_initial_coefficient_bound : Std.Usize) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  let step ← 1#usize <<< layer
+  let step_vec ← step / 16#usize
+  let i ← 128#usize >>> layer
+  ntt.ntt_at_layer_4_plus_loop0 vectortraitsOperationsInst
+    { start := 0#usize, «end» := i } zeta_i re scratch step_vec
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3]: loop body 0:
+    Source: 'ml-kem/src/ntt.rs', lines 56:4-61:5 -/
+@[rust_loop_body]
+def ntt.ntt_at_layer_3_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i + 1#usize
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
+    let i ← polynomial.zeta zeta_i1
+    let t1 ← vectortraitsOperationsInst.ntt_layer_3_step t i
+    let a := index_mut_back t1
+    ok (cont (iter1, zeta_i1, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3]: loop 0:
+    Source: 'ml-kem/src/ntt.rs', lines 56:4-61:5 -/
+@[rust_loop]
+def ntt.ntt_at_layer_3_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1) => ntt.ntt_at_layer_3_loop.body
+      vectortraitsOperationsInst iter1 zeta_i1 re1)
+    (iter, zeta_i, re)
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3]:
+    Source: 'ml-kem/src/ntt.rs', lines 51:0-62:1 -/
+@[reducible]
+def ntt.ntt_at_layer_3
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
+  (_initial_coefficient_bound : Std.Usize) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  ntt.ntt_at_layer_3_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } zeta_i re
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2]: loop body 0:
+    Source: 'ml-kem/src/ntt.rs', lines 36:4-46:5 -/
+@[rust_loop_body]
+def ntt.ntt_at_layer_2_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i + 1#usize
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
+    let i ← polynomial.zeta zeta_i1
+    let i1 ← zeta_i1 + 1#usize
+    let i2 ← polynomial.zeta i1
+    let t1 ← vectortraitsOperationsInst.ntt_layer_2_step t i i2
+    let a := index_mut_back t1
+    ok (cont (iter1, i1, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2]: loop 0:
+    Source: 'ml-kem/src/ntt.rs', lines 36:4-46:5 -/
+@[rust_loop]
+def ntt.ntt_at_layer_2_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1) => ntt.ntt_at_layer_2_loop.body
+      vectortraitsOperationsInst iter1 zeta_i1 re1)
+    (iter, zeta_i, re)
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2]:
+    Source: 'ml-kem/src/ntt.rs', lines 31:0-47:1 -/
+@[reducible]
+def ntt.ntt_at_layer_2
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
+  (_initial_coefficient_bound : Std.Usize) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  ntt.ntt_at_layer_2_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } zeta_i re
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1]: loop body 0:
+    Source: 'ml-kem/src/ntt.rs', lines 14:4-26:5 -/
+@[rust_loop_body]
+def ntt.ntt_at_layer_1_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (zeta_i, re))
+  | core.option.Option.Some round =>
+    let zeta_i1 ← zeta_i + 1#usize
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
+    let i ← polynomial.zeta zeta_i1
+    let i1 ← zeta_i1 + 1#usize
+    let i2 ← polynomial.zeta i1
+    let i3 ← zeta_i1 + 2#usize
+    let i4 ← polynomial.zeta i3
+    let i5 ← zeta_i1 + 3#usize
+    let i6 ← polynomial.zeta i5
+    let t1 ← vectortraitsOperationsInst.ntt_layer_1_step t i i2 i4 i6
+    let a := index_mut_back t1
+    ok (cont (iter1, i5, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1]: loop 0:
+    Source: 'ml-kem/src/ntt.rs', lines 14:4-26:5 -/
+@[rust_loop]
+def ntt.ntt_at_layer_1_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, zeta_i1, re1) => ntt.ntt_at_layer_1_loop.body
+      vectortraitsOperationsInst iter1 zeta_i1 re1)
+    (iter, zeta_i, re)
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1]:
+    Source: 'ml-kem/src/ntt.rs', lines 9:0-27:1 -/
+@[reducible]
+def ntt.ntt_at_layer_1
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
+  (_initial_coefficient_bound : Std.Usize) :
+  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
+  := do
+  ntt.ntt_at_layer_1_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } zeta_i re
+
+/-- [libcrux_iot_ml_kem::ntt::ntt_vector_u]:
+    Source: 'ml-kem/src/ntt.rs', lines 151:0-170:1 -/
+def ntt.ntt_vector_u
+  {Vector : Type} (VECTOR_U_COMPRESSION_FACTOR : Std.Usize)
+  (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
+  Result ((polynomial.PolynomialRingElement Vector) × Vector)
+  := do
+  let (zeta_i, re1, scratch1) ←
+    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst 0#usize re 7#usize
+      scratch 3328#usize
+  let i ← 2#usize * 3328#usize
+  let (zeta_i1, re2, scratch2) ←
+    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i re1 6#usize
+      scratch1 i
+  let i1 ← 3#usize * 3328#usize
+  let (zeta_i2, re3, scratch3) ←
+    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i1 re2 5#usize
+      scratch2 i1
+  let i2 ← 4#usize * 3328#usize
+  let (zeta_i3, re4, scratch4) ←
+    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i2 re3 4#usize
+      scratch3 i2
+  let i3 ← 5#usize * 3328#usize
+  let (zeta_i4, re5) ←
+    ntt.ntt_at_layer_3 vectortraitsOperationsInst zeta_i3 re4 i3
+  let i4 ← 6#usize * 3328#usize
+  let (zeta_i5, re6) ←
+    ntt.ntt_at_layer_2 vectortraitsOperationsInst zeta_i4 re5 i4
+  let i5 ← 7#usize * 3328#usize
+  let (_, re7) ← ntt.ntt_at_layer_1 vectortraitsOperationsInst zeta_i5 re6 i5
+  let re8 ←
+    polynomial.PolynomialRingElement.poly_barrett_reduce
+      vectortraitsOperationsInst re7
+  ok (re8, scratch4)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_then_decompress_u]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop_body]
+def ind_cpa.deserialize_then_decompress_u_loop.body
+  {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize)
+  (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (u_as_ntt : Slice (polynomial.PolynomialRingElement Vector))
+  (scratch : Vector) :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.slice.iter.ChunksExact Std.U8)) × (Slice
+    (polynomial.PolynomialRingElement Vector)) × Vector) ((Slice
+    (polynomial.PolynomialRingElement Vector)) × Vector))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) iter
+  match o with
+  | core.option.Option.None => ok (done (u_as_ntt, scratch))
+  | core.option.Option.Some p =>
+    let (i, u_bytes) := p
+    let (pre, index_mut_back) ← Slice.index_mut_usize u_as_ntt i
+    let pre1 ←
+      serialize.deserialize_then_decompress_ring_element_u U_COMPRESSION_FACTOR
+        vectortraitsOperationsInst u_bytes pre
+    let u_as_ntt1 := index_mut_back pre1
+    let (pre2, index_mut_back1) ← Slice.index_mut_usize u_as_ntt1 i
+    let (pre3, scratch1) ←
+      ntt.ntt_vector_u U_COMPRESSION_FACTOR vectortraitsOperationsInst pre2
+        scratch
+    let s := index_mut_back1 pre3
+    ok (cont (iter1, s, scratch1))
+
+/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_then_decompress_u]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop]
+def ind_cpa.deserialize_then_decompress_u_loop
+  {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize)
+  (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (u_as_ntt : Slice (polynomial.PolynomialRingElement Vector))
+  (scratch : Vector) :
+  Result ((Slice (polynomial.PolynomialRingElement Vector)) × Vector)
+  := do
+  loop
+    (fun (iter1, u_as_ntt1, scratch1) =>
+      ind_cpa.deserialize_then_decompress_u_loop.body U_COMPRESSION_FACTOR
+      vectortraitsOperationsInst iter1 u_as_ntt1 scratch1)
+    (iter, u_as_ntt, scratch)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_then_decompress_u]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 794:0-815:1 -/
+def ind_cpa.deserialize_then_decompress_u
+  {Vector : Type} (K : Std.Usize) (CIPHERTEXT_SIZE : Std.Usize)
+  (U_COMPRESSION_FACTOR : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (ciphertext : Slice Std.U8)
+  (u_as_ntt : Slice (polynomial.PolynomialRingElement Vector))
+  (scratch : Vector) :
+  Result ((Slice (polynomial.PolynomialRingElement Vector)) × Vector)
+  := do
+  let i ← constants.COEFFICIENTS_IN_RING_ELEMENT * U_COMPRESSION_FACTOR
+  let i1 ← i / 8#usize
+  let ce ← core.slice.Slice.chunks_exact ciphertext i1
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) ce
+  ind_cpa.deserialize_then_decompress_u_loop U_COMPRESSION_FACTOR
+    vectortraitsOperationsInst iter u_as_ntt scratch
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_to_uncompressed_ring_element]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop_body]
+def serialize.deserialize_to_uncompressed_ring_element_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
+    Vector)) (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) iter
+  match o with
+  | core.option.Option.None => ok (done re)
+  | core.option.Option.Some p =>
+    let (i, bytes) := p
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
+    let t1 ← vectortraitsOperationsInst.deserialize_12 bytes t
+    let a := index_mut_back t1
+    ok (cont (iter1, { coefficients := a }))
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_to_uncompressed_ring_element]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop]
+def serialize.deserialize_to_uncompressed_ring_element_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, re1) =>
+      serialize.deserialize_to_uncompressed_ring_element_loop.body
+      vectortraitsOperationsInst iter1 re1)
+    (iter, re)
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_to_uncompressed_ring_element]:
+    Source: 'ml-kem/src/serialize.rs', lines 67:0-76:1 -/
+def serialize.deserialize_to_uncompressed_ring_element
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (serialized : Slice Std.U8)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let ce ← core.slice.Slice.chunks_exact serialized 24#usize
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) ce
+  serialize.deserialize_to_uncompressed_ring_element_loop
+    vectortraitsOperationsInst iter re
+
+/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_vector]: loop body 0:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 829:4-836:5 -/
+@[rust_loop_body]
+def ind_cpa.deserialize_vector_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (secret_key : Slice Std.U8) (iter : core.ops.range.Range Std.Usize)
+  (secret_as_ntt : Slice (polynomial.PolynomialRingElement Vector)) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice
+    (polynomial.PolynomialRingElement Vector))) (Slice
+    (polynomial.PolynomialRingElement Vector)))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done secret_as_ntt)
+  | core.option.Option.Some i =>
+    let i1 ← constants.BYTES_PER_RING_ELEMENT
+    let i2 ← i * i1
+    let i3 ← i + 1#usize
+    let i4 ← i3 * i1
+    let s ←
+      core.Slice.Insts.CoreOpsIndexIndex.index
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8) secret_key { start := i2, «end» := i4 }
+    let (pre, index_mut_back) ← Slice.index_mut_usize secret_as_ntt i
+    let pre1 ←
+      serialize.deserialize_to_uncompressed_ring_element
+        vectortraitsOperationsInst s pre
+    let s1 := index_mut_back pre1
+    ok (cont (iter1, s1))
+
+/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_vector]: loop 0:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 829:4-836:5 -/
+@[rust_loop]
+def ind_cpa.deserialize_vector_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize) (secret_key : Slice Std.U8)
+  (secret_as_ntt : Slice (polynomial.PolynomialRingElement Vector)) :
+  Result (Slice (polynomial.PolynomialRingElement Vector))
+  := do
+  loop
+    (fun (iter1, secret_as_ntt1) => ind_cpa.deserialize_vector_loop.body
+      vectortraitsOperationsInst secret_key iter1 secret_as_ntt1)
+    (iter, secret_as_ntt)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_vector]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 825:0-837:1 -/
+@[reducible]
+def ind_cpa.deserialize_vector
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (secret_key : Slice Std.U8)
+  (secret_as_ntt : Slice (polynomial.PolynomialRingElement Vector)) :
+  Result (Slice (polynomial.PolynomialRingElement Vector))
+  := do
+  ind_cpa.deserialize_vector_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := K } secret_key secret_as_ntt
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_5]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop_body]
+def serialize.deserialize_then_decompress_5_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
+    Vector)) (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) iter
+  match o with
+  | core.option.Option.None => ok (done re)
+  | core.option.Option.Some p =>
+    let (i, bytes) := p
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
+    let t1 ← vectortraitsOperationsInst.deserialize_5 bytes t
+    let a := index_mut_back t1
+    let (t2, index_mut_back1) ← Array.index_mut_usize a i
+    let t3 ←
+      vectortraitsOperationsInst.decompress_ciphertext_coefficient 5#i32 t2
+    let a1 := index_mut_back1 t3
+    ok (cont (iter1, { coefficients := a1 }))
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_5]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop]
+def serialize.deserialize_then_decompress_5_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, re1) => serialize.deserialize_then_decompress_5_loop.body
+      vectortraitsOperationsInst iter1 re1)
+    (iter, re)
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_5]:
+    Source: 'ml-kem/src/serialize.rs', lines 325:0-335:1 -/
+def serialize.deserialize_then_decompress_5
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (serialized : Slice Std.U8)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let ce ← core.slice.Slice.chunks_exact serialized 10#usize
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) ce
+  serialize.deserialize_then_decompress_5_loop vectortraitsOperationsInst iter
+    re
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_4]: loop body 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop_body]
+def serialize.deserialize_then_decompress_4_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
+    Vector)) (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) iter
+  match o with
+  | core.option.Option.None => ok (done re)
+  | core.option.Option.Some p =>
+    let (i, bytes) := p
+    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
+    let t1 ← vectortraitsOperationsInst.deserialize_4 bytes t
+    let a := index_mut_back t1
+    let (t2, index_mut_back1) ← Array.index_mut_usize a i
+    let t3 ←
+      vectortraitsOperationsInst.decompress_ciphertext_coefficient 4#i32 t2
+    let a1 := index_mut_back1 t3
+    ok (cont (iter1, { coefficients := a1 }))
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_4]: loop 0:
+    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
+@[rust_loop]
+def serialize.deserialize_then_decompress_4_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector)
+  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
+  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, re1) => serialize.deserialize_then_decompress_4_loop.body
+      vectortraitsOperationsInst iter1 re1)
+    (iter, re)
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_4]:
+    Source: 'ml-kem/src/serialize.rs', lines 309:0-319:1 -/
+def serialize.deserialize_then_decompress_4
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (serialized : Slice Std.U8)
+  (re : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let ce ← core.slice.Slice.chunks_exact serialized 8#usize
+  let iter ←
+    core.iter.traits.iterator.Iterator.enumerate.default
+      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+      Std.U8) ce
+  serialize.deserialize_then_decompress_4_loop vectortraitsOperationsInst iter
+    re
+
+/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_ring_element_v]:
+    Source: 'ml-kem/src/serialize.rs', lines 341:0-354:1 -/
+def serialize.deserialize_then_decompress_ring_element_v
+  {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize)
+  (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (serialized : Slice Std.U8)
+  (output : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let i ← lift (UScalar.cast .U32 V_COMPRESSION_FACTOR)
+  match i with
+  | 4#uscalar =>
+    serialize.deserialize_then_decompress_4 vectortraitsOperationsInst
+      serialized output
+  | 5#uscalar =>
+    serialize.deserialize_then_decompress_5 vectortraitsOperationsInst
+      serialized output
+  | _ => fail panic
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_message]: loop body 0:
+    Source: 'ml-kem/src/serialize.rs', lines 23:4-30:5 -/
+@[rust_loop_body]
+def serialize.compress_then_serialize_message_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
+    Vector) ((Slice Std.U8) × Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done (serialized, scratch))
+  | core.option.Option.Some i =>
+    let t ← Array.index_usize re.coefficients i
+    let scratch1 ←
+      serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
+    let scratch2 ← vectortraitsOperationsInst.compress_1 scratch1
+    let i1 ← 2#usize * i
+    let i2 ← i1 + 2#usize
+    let (s, index_mut_back) ←
+      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8) serialized { start := i1, «end» := i2 }
+    let s1 ← vectortraitsOperationsInst.serialize_1 scratch2 s
+    let serialized1 := index_mut_back s1
+    ok (cont (iter1, serialized1, scratch2))
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_message]: loop 0:
+    Source: 'ml-kem/src/serialize.rs', lines 23:4-30:5 -/
+@[rust_loop]
+def serialize.compress_then_serialize_message_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
+  (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  loop
+    (fun (iter1, serialized1, scratch1) =>
+      serialize.compress_then_serialize_message_loop.body
+      vectortraitsOperationsInst re iter1 serialized1 scratch1)
+    (iter, serialized, scratch)
+
+/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_message]:
+    Source: 'ml-kem/src/serialize.rs', lines 18:0-31:1 -/
+@[reducible]
+def serialize.compress_then_serialize_message
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector)
+  (serialized : Slice Std.U8) (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  serialize.compress_then_serialize_message_loop vectortraitsOperationsInst
+    { start := 0#usize, «end» := 16#usize } re serialized scratch
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply]: loop body 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 125:8-135:9 -/
+@[rust_loop_body]
+def polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (self : polynomial.PolynomialRingElement Vector)
+  (rhs : polynomial.PolynomialRingElement Vector)
+  (iter : core.ops.range.Range Std.Usize)
+  (accumulator : Array Std.I32 256#usize) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+    256#usize)) (Array Std.I32 256#usize))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done accumulator)
+  | core.option.Option.Some i =>
+    let t ← Array.index_usize self.coefficients i
+    let t1 ← Array.index_usize rhs.coefficients i
+    let i1 ← i * 16#usize
+    let i2 ← i + 1#usize
+    let i3 ← i2 * 16#usize
+    let (s, index_mut_back) ←
+      core.Array.Insts.CoreOpsIndexIndexMut.index_mut
+        (core.Slice.Insts.CoreOpsIndexIndexMut
+        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.I32)) accumulator { start := i1, «end» := i3 }
+    let i4 ← 4#usize * i
+    let i5 ← 64#usize + i4
+    let i6 ← polynomial.zeta i5
+    let i7 ← 64#usize + i4
+    let i8 ← i7 + 1#usize
+    let i9 ← polynomial.zeta i8
+    let i10 ← 64#usize + i4
+    let i11 ← i10 + 2#usize
+    let i12 ← polynomial.zeta i11
+    let i13 ← 64#usize + i4
+    let i14 ← i13 + 3#usize
+    let i15 ← polynomial.zeta i14
+    let s1 ←
+      vectortraitsOperationsInst.accumulating_ntt_multiply t t1 s i6 i9 i12 i15
+    let accumulator1 := index_mut_back s1
+    ok (cont (iter1, accumulator1))
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply]: loop 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 125:8-135:9 -/
+@[rust_loop]
+def polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (self : polynomial.PolynomialRingElement Vector)
+  (rhs : polynomial.PolynomialRingElement Vector)
+  (accumulator : Array Std.I32 256#usize) :
+  Result (Array Std.I32 256#usize)
+  := do
+  loop
+    (fun (iter1, accumulator1) =>
+      polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop.body
+      vectortraitsOperationsInst self rhs iter1 accumulator1)
+    (iter, accumulator)
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply]:
+    Source: 'ml-kem/src/polynomial.rs', lines 124:4-136:5 -/
+def polynomial.PolynomialRingElement.accumulating_ntt_multiply
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (self : polynomial.PolynomialRingElement Vector)
+  (rhs : polynomial.PolynomialRingElement Vector)
+  (accumulator : Array Std.I32 256#usize) :
+  Result (Array Std.I32 256#usize)
+  := do
+  let i ← polynomial.VECTORS_IN_RING_ELEMENT
+  polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop
+    vectortraitsOperationsInst { start := 0#usize, «end» := i } self rhs
+    accumulator
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::subtract_reduce]: loop body 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 70:8-77:9 -/
+@[rust_loop_body]
+def polynomial.PolynomialRingElement.subtract_reduce_loop.body
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (self : polynomial.PolynomialRingElement Vector)
+  (iter : core.ops.range.Range Std.Usize)
+  (b : polynomial.PolynomialRingElement Vector) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
+    (polynomial.PolynomialRingElement Vector))
+    (polynomial.PolynomialRingElement Vector))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done b)
+  | core.option.Option.Some i =>
+    let (t, index_mut_back) ← Array.index_mut_usize b.coefficients i
+    let t1 ←
+      vectortraitsOperationsInst.montgomery_multiply_by_constant t 1441#i16
+    let a := index_mut_back t1
+    let (t2, index_mut_back1) ← Array.index_mut_usize a i
+    let t3 ← Array.index_usize self.coefficients i
+    let t4 ← vectortraitsOperationsInst.sub t2 t3
+    let a1 := index_mut_back1 t4
+    let (t5, index_mut_back2) ← Array.index_mut_usize a1 i
+    let t6 ← vectortraitsOperationsInst.negate t5
+    let a2 := index_mut_back2 t6
+    let (t7, index_mut_back3) ← Array.index_mut_usize a2 i
+    let t8 ← vectortraitsOperationsInst.barrett_reduce t7
+    let a3 := index_mut_back3 t8
+    ok (cont (iter1, { coefficients := a3 }))
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::subtract_reduce]: loop 0:
+    Source: 'ml-kem/src/polynomial.rs', lines 70:8-77:9 -/
+@[rust_loop]
+def polynomial.PolynomialRingElement.subtract_reduce_loop
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (iter : core.ops.range.Range Std.Usize)
+  (self : polynomial.PolynomialRingElement Vector)
+  (b : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  loop
+    (fun (iter1, b1) =>
+      polynomial.PolynomialRingElement.subtract_reduce_loop.body
+      vectortraitsOperationsInst self iter1 b1)
+    (iter, b)
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::subtract_reduce]:
+    Source: 'ml-kem/src/polynomial.rs', lines 69:4-78:5 -/
+def polynomial.PolynomialRingElement.subtract_reduce
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (self : polynomial.PolynomialRingElement Vector)
+  (b : polynomial.PolynomialRingElement Vector) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let i ← polynomial.VECTORS_IN_RING_ELEMENT
+  polynomial.PolynomialRingElement.subtract_reduce_loop
+    vectortraitsOperationsInst { start := 0#usize, «end» := i } self b
+
+/-- [libcrux_iot_ml_kem::matrix::compute_message]: loop body 0:
+    Source: 'ml-kem/src/matrix.rs', lines 100:4-102:5 -/
+@[rust_loop_body]
+def matrix.compute_message_loop.body
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
+  (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
+  (iter : core.ops.range.Range Std.Usize)
+  (accumulator : Array Std.I32 256#usize) :
+  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+    256#usize)) (Array Std.I32 256#usize))
+  := do
+  let (o, iter1) ←
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep iter
+  match o with
+  | core.option.Option.None => ok (done accumulator)
+  | core.option.Option.Some i =>
+    let pre ← Array.index_usize secret_as_ntt i
+    let pre1 ← Array.index_usize u_as_ntt i
+    let accumulator1 ←
+      polynomial.PolynomialRingElement.accumulating_ntt_multiply
+        vectortraitsOperationsInst pre pre1 accumulator
+    ok (cont (iter1, accumulator1))
+
+/-- [libcrux_iot_ml_kem::matrix::compute_message]: loop 0:
+    Source: 'ml-kem/src/matrix.rs', lines 100:4-102:5 -/
+@[rust_loop]
+def matrix.compute_message_loop
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (iter : core.ops.range.Range Std.Usize)
+  (secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
+  (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
+  (accumulator : Array Std.I32 256#usize) :
+  Result (Array Std.I32 256#usize)
+  := do
+  loop
+    (fun (iter1, accumulator1) => matrix.compute_message_loop.body
+      vectortraitsOperationsInst secret_as_ntt u_as_ntt iter1 accumulator1)
+    (iter, accumulator)
+
+/-- [libcrux_iot_ml_kem::matrix::compute_message]:
+    Source: 'ml-kem/src/matrix.rs', lines 91:0-107:1 -/
+def matrix.compute_message
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (v : polynomial.PolynomialRingElement Vector)
+  (secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
+  (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
+  (result : polynomial.PolynomialRingElement Vector) (scratch : Vector)
+  (accumulator : Array Std.I32 256#usize) :
+  Result ((polynomial.PolynomialRingElement Vector) × Vector × (Array Std.I32
+    256#usize))
+  := do
+  let i ← libcrux_secrets.traits.Classify.Blanket.classify 0#i32
+  let accumulator1 := Array.repeat 256#usize i
+  let accumulator2 ←
+    matrix.compute_message_loop vectortraitsOperationsInst
+      { start := 0#usize, «end» := K } secret_as_ntt u_as_ntt accumulator1
+  let s ← lift (Array.to_slice accumulator2)
+  let result1 ←
+    polynomial.PolynomialRingElement.reducing_from_i32_array
+      vectortraitsOperationsInst s result
+  let (result2, scratch1) ←
+    invert_ntt.invert_ntt_montgomery K vectortraitsOperationsInst result1
+      scratch
+  let result3 ←
+    polynomial.PolynomialRingElement.subtract_reduce vectortraitsOperationsInst
+      v result2
+  ok (result3, scratch1, accumulator2)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::{impl core::ops::function::FnMut<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}::call_mut]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 887:31-887:74 -/
+def
+  ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut
+  {Vector : Type} {K : Std.Usize} {CIPHERTEXT_SIZE : Std.Usize}
+  {VECTOR_U_ENCODED_SIZE : Std.Usize} {U_COMPRESSION_FACTOR : Std.Usize}
+  {V_COMPRESSION_FACTOR : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : ind_cpa.decrypt_unpacked.closure Vector K CIPHERTEXT_SIZE
+  VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR)
+  (tupled_args : Std.Usize) :
+  Result ((polynomial.PolynomialRingElement Vector) ×
+    (ind_cpa.decrypt_unpacked.closure Vector K CIPHERTEXT_SIZE
+    VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR))
+  := do
+  let pre ← polynomial.PolynomialRingElement.ZERO vectortraitsOperationsInst
+  ok (pre, c)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::{impl core::ops::function::FnOnce<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}::call_once]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 887:31-887:74 -/
+def
+  ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement.call_once
+  {Vector : Type} {K : Std.Usize} {CIPHERTEXT_SIZE : Std.Usize}
+  {VECTOR_U_ENCODED_SIZE : Std.Usize} {U_COMPRESSION_FACTOR : Std.Usize}
+  {V_COMPRESSION_FACTOR : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : ind_cpa.decrypt_unpacked.closure Vector K CIPHERTEXT_SIZE
+  VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR)
+  (i : Std.Usize) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let (pre, _) ←
+    ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut
+      vectortraitsOperationsInst c i
+  ok pre
+
+/-- Trait implementation: [libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::{impl core::ops::function::FnOnce<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 887:31-887:74 -/
+@[reducible]
+def
+  ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement
+  {Vector : Type} (K : Std.Usize) (CIPHERTEXT_SIZE : Std.Usize)
+  (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize)
+  (V_COMPRESSION_FACTOR : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (ind_cpa.decrypt_unpacked.closure Vector K CIPHERTEXT_SIZE
+  VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR) Std.Usize
+  (polynomial.PolynomialRingElement Vector) := {
+  call_once :=
+    ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::{impl core::ops::function::FnMut<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 887:31-887:74 -/
+@[reducible]
+def
+  ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement
+  {Vector : Type} (K : Std.Usize) (CIPHERTEXT_SIZE : Std.Usize)
+  (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize)
+  (V_COMPRESSION_FACTOR : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (ind_cpa.decrypt_unpacked.closure Vector K CIPHERTEXT_SIZE
+  VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR) Std.Usize
+  (polynomial.PolynomialRingElement Vector) := {
+  FnOnceInst :=
+    ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement
+    K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR
+    V_COMPRESSION_FACTOR vectortraitsOperationsInst
+  call_mut :=
+    ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 872:0-912:1 -/
+def ind_cpa.decrypt_unpacked
+  {Vector : Type} {K : Std.Usize} {CIPHERTEXT_SIZE : Std.Usize}
+  (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize)
+  (V_COMPRESSION_FACTOR : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (secret_key : ind_cpa.unpacked.IndCpaPrivateKeyUnpacked Vector K)
+  (ciphertext : Array Std.U8 CIPHERTEXT_SIZE) (decrypted : Slice Std.U8)
+  (scratch : Vector) (accumulator : Array Std.I32 256#usize) :
+  Result ((Slice Std.U8) × Vector × (Array Std.I32 256#usize))
+  := do
+  let u_as_ntt ←
+    core.array.from_fn K
+      (ind_cpa.decrypt_unpacked.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement
+      K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR
+      V_COMPRESSION_FACTOR vectortraitsOperationsInst) ()
+  let s ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeToUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) ciphertext { «end» := VECTOR_U_ENCODED_SIZE }
+  let (s1, to_slice_mut_back) ← lift (Array.to_slice_mut u_as_ntt)
+  let (s2, scratch1) ←
+    ind_cpa.deserialize_then_decompress_u K CIPHERTEXT_SIZE
+      U_COMPRESSION_FACTOR vectortraitsOperationsInst s s1 scratch
+  let v ← polynomial.PolynomialRingElement.ZERO vectortraitsOperationsInst
+  let s3 ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) ciphertext { start := VECTOR_U_ENCODED_SIZE }
+  let v1 ←
+    serialize.deserialize_then_decompress_ring_element_v K V_COMPRESSION_FACTOR
+      vectortraitsOperationsInst s3 v
+  let u_as_ntt1 := to_slice_mut_back s2
+  let (message, scratch2, accumulator1) ←
+    matrix.compute_message vectortraitsOperationsInst v1
+      secret_key.secret_as_ntt u_as_ntt1 v scratch1 accumulator
+  let (decrypted1, scratch3) ←
+    serialize.compress_then_serialize_message vectortraitsOperationsInst
+      message decrypted scratch2
+  ok (decrypted1, scratch3, accumulator1)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt::{impl core::ops::function::FnMut<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}::call_mut]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 941:36-941:79 -/
+def
+  ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut
+  {Vector : Type} {K : Std.Usize} {CIPHERTEXT_SIZE : Std.Usize}
+  {VECTOR_U_ENCODED_SIZE : Std.Usize} {U_COMPRESSION_FACTOR : Std.Usize}
+  {V_COMPRESSION_FACTOR : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : ind_cpa.decrypt.closure Vector K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE
+  U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR) (tupled_args : Std.Usize) :
+  Result ((polynomial.PolynomialRingElement Vector) × (ind_cpa.decrypt.closure
+    Vector K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR
+    V_COMPRESSION_FACTOR))
+  := do
+  let pre ← polynomial.PolynomialRingElement.ZERO vectortraitsOperationsInst
+  ok (pre, c)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt::{impl core::ops::function::FnOnce<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}::call_once]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 941:36-941:79 -/
+def
+  ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement.call_once
+  {Vector : Type} {K : Std.Usize} {CIPHERTEXT_SIZE : Std.Usize}
+  {VECTOR_U_ENCODED_SIZE : Std.Usize} {U_COMPRESSION_FACTOR : Std.Usize}
+  {V_COMPRESSION_FACTOR : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : ind_cpa.decrypt.closure Vector K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE
+  U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR) (i : Std.Usize) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let (pre, _) ←
+    ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut
+      vectortraitsOperationsInst c i
+  ok pre
+
+/-- Trait implementation: [libcrux_iot_ml_kem::ind_cpa::decrypt::{impl core::ops::function::FnOnce<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 941:36-941:79 -/
+@[reducible]
+def
+  ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement
+  {Vector : Type} (K : Std.Usize) (CIPHERTEXT_SIZE : Std.Usize)
+  (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize)
+  (V_COMPRESSION_FACTOR : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (ind_cpa.decrypt.closure Vector K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE
+  U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR) Std.Usize
+  (polynomial.PolynomialRingElement Vector) := {
+  call_once :=
+    ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::ind_cpa::decrypt::{impl core::ops::function::FnMut<(usize,), libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>> for libcrux_iot_ml_kem::ind_cpa::decrypt::closure<Vector, K, CIPHERTEXT_SIZE, VECTOR_U_ENCODED_SIZE, U_COMPRESSION_FACTOR, V_COMPRESSION_FACTOR>}]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 941:36-941:79 -/
+@[reducible]
+def
+  ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement
+  {Vector : Type} (K : Std.Usize) (CIPHERTEXT_SIZE : Std.Usize)
+  (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize)
+  (V_COMPRESSION_FACTOR : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (ind_cpa.decrypt.closure Vector K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE
+  U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR) Std.Usize
+  (polynomial.PolynomialRingElement Vector) := {
+  FnOnceInst :=
+    ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnOnceTupleUsizePolynomialRingElement
+    K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR
+    V_COMPRESSION_FACTOR vectortraitsOperationsInst
+  call_mut :=
+    ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 926:0-959:1 -/
+def ind_cpa.decrypt
+  {Vector : Type} (K : Std.Usize) {CIPHERTEXT_SIZE : Std.Usize}
+  (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize)
+  (V_COMPRESSION_FACTOR : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (secret_key : Slice Std.U8)
+  (ciphertext : Array Std.U8 CIPHERTEXT_SIZE) (decrypted : Slice Std.U8)
+  (scratch : Vector) (accumulator : Array Std.I32 256#usize) :
+  Result ((Slice Std.U8) × Vector × (Array Std.I32 256#usize))
+  := do
+  let secret_as_ntt ←
+    core.array.from_fn K
+      (ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement
+      K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR
+      V_COMPRESSION_FACTOR vectortraitsOperationsInst) ()
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut secret_as_ntt)
+  let s1 ←
+    ind_cpa.deserialize_vector K vectortraitsOperationsInst secret_key s
+  let secret_as_ntt1 := to_slice_mut_back s1
+  ind_cpa.decrypt_unpacked VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR
+    V_COMPRESSION_FACTOR vectortraitsOperationsInst
+    { secret_as_ntt := secret_as_ntt1 } ciphertext decrypted scratch
+    accumulator
+
+/-- [libcrux_iot_ml_kem::matrix::entry]:
+    Source: 'ml-kem/src/matrix.rs', lines 10:0-22:1 -/
+def matrix.entry
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (matrix : Slice (polynomial.PolynomialRingElement Vector)) (i : Std.Usize)
+  (j : Std.Usize) :
+  Result (polynomial.PolynomialRingElement Vector)
+  := do
+  let i1 ← core.slice.Slice.len matrix
+  let i2 ← K * K
+  massert (i1 = i2)
+  massert (i < K)
+  massert (j < K)
+  let i3 ← i * K
+  let i4 ← i3 + j
+  Slice.index_usize matrix i4
 
 /-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply_fill_cache]: loop body 0:
     Source: 'ml-kem/src/polynomial.rs', lines 145:8-156:9 -/
@@ -1631,285 +3225,6 @@ def matrix.compute_As_plus_e
       s_cache1 accumulator1
   ok (t_as_ntt2, s_cache1, accumulator2)
 
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1]: loop body 0:
-    Source: 'ml-kem/src/ntt.rs', lines 14:4-26:5 -/
-@[rust_loop_body]
-def ntt.ntt_at_layer_1_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i + 1#usize
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
-    let i ← polynomial.zeta zeta_i1
-    let i1 ← zeta_i1 + 1#usize
-    let i2 ← polynomial.zeta i1
-    let i3 ← zeta_i1 + 2#usize
-    let i4 ← polynomial.zeta i3
-    let i5 ← zeta_i1 + 3#usize
-    let i6 ← polynomial.zeta i5
-    let t1 ← vectortraitsOperationsInst.ntt_layer_1_step t i i2 i4 i6
-    let a := index_mut_back t1
-    ok (cont (iter1, i5, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1]: loop 0:
-    Source: 'ml-kem/src/ntt.rs', lines 14:4-26:5 -/
-@[rust_loop]
-def ntt.ntt_at_layer_1_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1) => ntt.ntt_at_layer_1_loop.body
-      vectortraitsOperationsInst iter1 zeta_i1 re1)
-    (iter, zeta_i, re)
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1]:
-    Source: 'ml-kem/src/ntt.rs', lines 9:0-27:1 -/
-@[reducible]
-def ntt.ntt_at_layer_1
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
-  (_initial_coefficient_bound : Std.Usize) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  ntt.ntt_at_layer_1_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } zeta_i re
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2]: loop body 0:
-    Source: 'ml-kem/src/ntt.rs', lines 36:4-46:5 -/
-@[rust_loop_body]
-def ntt.ntt_at_layer_2_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i + 1#usize
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
-    let i ← polynomial.zeta zeta_i1
-    let i1 ← zeta_i1 + 1#usize
-    let i2 ← polynomial.zeta i1
-    let t1 ← vectortraitsOperationsInst.ntt_layer_2_step t i i2
-    let a := index_mut_back t1
-    ok (cont (iter1, i1, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2]: loop 0:
-    Source: 'ml-kem/src/ntt.rs', lines 36:4-46:5 -/
-@[rust_loop]
-def ntt.ntt_at_layer_2_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1) => ntt.ntt_at_layer_2_loop.body
-      vectortraitsOperationsInst iter1 zeta_i1 re1)
-    (iter, zeta_i, re)
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2]:
-    Source: 'ml-kem/src/ntt.rs', lines 31:0-47:1 -/
-@[reducible]
-def ntt.ntt_at_layer_2
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
-  (_initial_coefficient_bound : Std.Usize) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  ntt.ntt_at_layer_2_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } zeta_i re
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3]: loop body 0:
-    Source: 'ml-kem/src/ntt.rs', lines 56:4-61:5 -/
-@[rust_loop_body]
-def ntt.ntt_at_layer_3_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector)))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i + 1#usize
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
-    let i ← polynomial.zeta zeta_i1
-    let t1 ← vectortraitsOperationsInst.ntt_layer_3_step t i
-    let a := index_mut_back t1
-    ok (cont (iter1, zeta_i1, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3]: loop 0:
-    Source: 'ml-kem/src/ntt.rs', lines 56:4-61:5 -/
-@[rust_loop]
-def ntt.ntt_at_layer_3_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1) => ntt.ntt_at_layer_3_loop.body
-      vectortraitsOperationsInst iter1 zeta_i1 re1)
-    (iter, zeta_i, re)
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3]:
-    Source: 'ml-kem/src/ntt.rs', lines 51:0-62:1 -/
-@[reducible]
-def ntt.ntt_at_layer_3
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
-  (_initial_coefficient_bound : Std.Usize) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector))
-  := do
-  ntt.ntt_at_layer_3_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } zeta_i re
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_layer_int_vec_step]:
-    Source: 'ml-kem/src/ntt.rs', lines 66:0-78:1 -/
-def ntt.ntt_layer_int_vec_step
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (coefficients : Array Vector 16#usize) (a : Std.Usize)
-  (b : Std.Usize) (scratch : Vector) (zeta_r : Std.I16) :
-  Result ((Array Vector 16#usize) × Vector)
-  := do
-  let scratch1 ← Array.index_usize coefficients b
-  let scratch2 ←
-    vector.traits.montgomery_multiply_fe vectortraitsOperationsInst scratch1
-      zeta_r
-  let t ← Array.index_usize coefficients a
-  let coefficients1 ← Array.update coefficients b t
-  let (t1, index_mut_back) ← Array.index_mut_usize coefficients1 a
-  let t2 ← vectortraitsOperationsInst.add t1 scratch2
-  let coefficients2 := index_mut_back t2
-  let (t3, index_mut_back1) ← Array.index_mut_usize coefficients2 b
-  let t4 ← vectortraitsOperationsInst.sub t3 scratch2
-  let coefficients3 := index_mut_back1 t4
-  ok (coefficients3, scratch2)
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop body 1:
-    Source: 'ml-kem/src/ntt.rs', lines 101:8-111:9 -/
-@[rust_loop_body]
-def ntt.ntt_at_layer_4_plus_loop0_loop0.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (a_offset : Std.Usize) (b_offset : Std.Usize)
-  (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
-    (polynomial.PolynomialRingElement Vector) × Vector)
-    ((polynomial.PolynomialRingElement Vector) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (re, scratch))
-  | core.option.Option.Some j =>
-    let i ← a_offset + j
-    let i1 ← b_offset + j
-    let i2 ← polynomial.zeta zeta_i
-    let (a, scratch1) ←
-      ntt.ntt_layer_int_vec_step vectortraitsOperationsInst re.coefficients i
-        i1 scratch i2
-    ok (cont (iter1, { coefficients := a }, scratch1))
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop 1:
-    Source: 'ml-kem/src/ntt.rs', lines 101:8-111:9 -/
-@[rust_loop]
-def ntt.ntt_at_layer_4_plus_loop0_loop0
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
-  (a_offset : Std.Usize) (b_offset : Std.Usize) :
-  Result ((polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  loop
-    (fun (iter1, re1, scratch1) => ntt.ntt_at_layer_4_plus_loop0_loop0.body
-      vectortraitsOperationsInst zeta_i a_offset b_offset iter1 re1 scratch1)
-    (iter, re, scratch)
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop body 0:
-    Source: 'ml-kem/src/ntt.rs', lines 94:4-112:5 -/
-@[rust_loop_body]
-def ntt.ntt_at_layer_4_plus_loop0.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (step_vec : Std.Usize) (iter : core.ops.range.Range Std.Usize)
-  (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
-  (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize ×
-    (polynomial.PolynomialRingElement Vector) × Vector) (Std.Usize ×
-    (polynomial.PolynomialRingElement Vector) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (zeta_i, re, scratch))
-  | core.option.Option.Some round =>
-    let zeta_i1 ← zeta_i + 1#usize
-    let i ← round * 2#usize
-    let a_offset ← i * step_vec
-    let b_offset ← a_offset + step_vec
-    let (re1, scratch1) ←
-      ntt.ntt_at_layer_4_plus_loop0_loop0 vectortraitsOperationsInst
-        { start := 0#usize, «end» := step_vec } zeta_i1 re scratch a_offset
-        b_offset
-    ok (cont (iter1, zeta_i1, re1, scratch1))
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]: loop 0:
-    Source: 'ml-kem/src/ntt.rs', lines 94:4-112:5 -/
-@[rust_loop]
-def ntt.ntt_at_layer_4_plus_loop0
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize) (zeta_i : Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector)
-  (step_vec : Std.Usize) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  loop
-    (fun (iter1, zeta_i1, re1, scratch1) => ntt.ntt_at_layer_4_plus_loop0.body
-      vectortraitsOperationsInst step_vec iter1 zeta_i1 re1 scratch1)
-    (iter, zeta_i, re, scratch)
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus]:
-    Source: 'ml-kem/src/ntt.rs', lines 84:0-113:1 -/
-def ntt.ntt_at_layer_4_plus
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (zeta_i : Std.Usize) (re : polynomial.PolynomialRingElement Vector)
-  (layer : Std.Usize) (scratch : Vector)
-  (_initial_coefficient_bound : Std.Usize) :
-  Result (Std.Usize × (polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  let step ← 1#usize <<< layer
-  let step_vec ← step / 16#usize
-  let i ← 128#usize >>> layer
-  ntt.ntt_at_layer_4_plus_loop0 vectortraitsOperationsInst
-    { start := 0#usize, «end» := i } zeta_i re scratch step_vec
-
 /-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_7]: loop body 0:
     Source: 'ml-kem/src/ntt.rs', lines 121:4-127:5 -/
 @[rust_loop_body]
@@ -1968,54 +3283,6 @@ def ntt.ntt_at_layer_7
   ntt.ntt_at_layer_7_loop vectortraitsOperationsInst
     { start := 0#usize, «end» := step } re scratch step
 
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::poly_barrett_reduce]: loop body 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 63:8-65:9 -/
-@[rust_loop_body]
-def polynomial.PolynomialRingElement.poly_barrett_reduce_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (self : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
-    (polynomial.PolynomialRingElement Vector))
-    (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done self)
-  | core.option.Option.Some i =>
-    let (t, index_mut_back) ← Array.index_mut_usize self.coefficients i
-    let t1 ← vectortraitsOperationsInst.barrett_reduce t
-    let a := index_mut_back t1
-    ok (cont (iter1, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::poly_barrett_reduce]: loop 0:
-    Source: 'ml-kem/src/polynomial.rs', lines 63:8-65:9 -/
-@[rust_loop]
-def polynomial.PolynomialRingElement.poly_barrett_reduce_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (self : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, self1) =>
-      polynomial.PolynomialRingElement.poly_barrett_reduce_loop.body
-      vectortraitsOperationsInst iter1 self1)
-    (iter, self)
-
-/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::poly_barrett_reduce]:
-    Source: 'ml-kem/src/polynomial.rs', lines 62:4-66:5 -/
-def polynomial.PolynomialRingElement.poly_barrett_reduce
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (self : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let i ← polynomial.VECTORS_IN_RING_ELEMENT
-  polynomial.PolynomialRingElement.poly_barrett_reduce_loop
-    vectortraitsOperationsInst { start := 0#usize, «end» := i } self
-
 /-- [libcrux_iot_ml_kem::ntt::ntt_binomially_sampled_ring_element]:
     Source: 'ml-kem/src/ntt.rs', lines 131:0-148:1 -/
 def ntt.ntt_binomially_sampled_ring_element
@@ -2052,199 +3319,6 @@ def ntt.ntt_binomially_sampled_ring_element
     polynomial.PolynomialRingElement.poly_barrett_reduce
       vectortraitsOperationsInst re7
   ok (re8, scratch4)
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_vector_u]:
-    Source: 'ml-kem/src/ntt.rs', lines 151:0-170:1 -/
-def ntt.ntt_vector_u
-  {Vector : Type} (VECTOR_U_COMPRESSION_FACTOR : Std.Usize)
-  (vectortraitsOperationsInst : vector.traits.Operations Vector)
-  (re : polynomial.PolynomialRingElement Vector) (scratch : Vector) :
-  Result ((polynomial.PolynomialRingElement Vector) × Vector)
-  := do
-  let (zeta_i, re1, scratch1) ←
-    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst 0#usize re 7#usize
-      scratch 3328#usize
-  let i ← 2#usize * 3328#usize
-  let (zeta_i1, re2, scratch2) ←
-    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i re1 6#usize
-      scratch1 i
-  let i1 ← 3#usize * 3328#usize
-  let (zeta_i2, re3, scratch3) ←
-    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i1 re2 5#usize
-      scratch2 i1
-  let i2 ← 4#usize * 3328#usize
-  let (zeta_i3, re4, scratch4) ←
-    ntt.ntt_at_layer_4_plus vectortraitsOperationsInst zeta_i2 re3 4#usize
-      scratch3 i2
-  let i3 ← 5#usize * 3328#usize
-  let (zeta_i4, re5) ←
-    ntt.ntt_at_layer_3 vectortraitsOperationsInst zeta_i3 re4 i3
-  let i4 ← 6#usize * 3328#usize
-  let (zeta_i5, re6) ←
-    ntt.ntt_at_layer_2 vectortraitsOperationsInst zeta_i4 re5 i4
-  let i5 ← 7#usize * 3328#usize
-  let (_, re7) ← ntt.ntt_at_layer_1 vectortraitsOperationsInst zeta_i5 re6 i5
-  let re8 ←
-    polynomial.PolynomialRingElement.poly_barrett_reduce
-      vectortraitsOperationsInst re7
-  ok (re8, scratch4)
-
-/-- [libcrux_iot_ml_kem::vector::traits::FIELD_MODULUS]
-    Source: 'ml-kem/src/vector/traits.rs', lines 4:0-4:36
-    Visibility: public -/
-@[global_simps, irreducible]
-def vector.traits.FIELD_MODULUS : Std.I16 := 3329#i16
-
-/-- [libcrux_iot_ml_kem::vector::traits::to_unsigned_representative]:
-    Source: 'ml-kem/src/vector/traits.rs', lines 178:0-185:1
-    Visibility: public -/
-def vector.traits.to_unsigned_representative
-  {T : Type} (OperationsInst : vector.traits.Operations T) (a : T) (out : T) :
-  Result T
-  := do
-  let a1 ← OperationsInst.shift_right 15#i32 a
-  let a2 ←
-    OperationsInst.bitwise_and_with_constant a1 vector.traits.FIELD_MODULUS
-  OperationsInst.add a2 a
-
-/-- [libcrux_iot_ml_kem::serialize::to_unsigned_field_modulus]:
-    Source: 'ml-kem/src/serialize.rs', lines 11:0-13:1 -/
-def serialize.to_unsigned_field_modulus
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (a : Vector) (out : Vector) :
-  Result Vector
-  := do
-  vector.traits.to_unsigned_representative vectortraitsOperationsInst a out
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_message]: loop body 0:
-    Source: 'ml-kem/src/serialize.rs', lines 23:4-30:5 -/
-@[rust_loop_body]
-def serialize.compress_then_serialize_message_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
-    Vector) ((Slice Std.U8) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (serialized, scratch))
-  | core.option.Option.Some i =>
-    let t ← Array.index_usize re.coefficients i
-    let scratch1 ←
-      serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
-    let scratch2 ← vectortraitsOperationsInst.compress_1 scratch1
-    let i1 ← 2#usize * i
-    let i2 ← i1 + 2#usize
-    let (s, index_mut_back) ←
-      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8) serialized { start := i1, «end» := i2 }
-    let s1 ← vectortraitsOperationsInst.serialize_1 scratch2 s
-    let serialized1 := index_mut_back s1
-    ok (cont (iter1, serialized1, scratch2))
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_message]: loop 0:
-    Source: 'ml-kem/src/serialize.rs', lines 23:4-30:5 -/
-@[rust_loop]
-def serialize.compress_then_serialize_message_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  loop
-    (fun (iter1, serialized1, scratch1) =>
-      serialize.compress_then_serialize_message_loop.body
-      vectortraitsOperationsInst re iter1 serialized1 scratch1)
-    (iter, serialized, scratch)
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_message]:
-    Source: 'ml-kem/src/serialize.rs', lines 18:0-31:1 -/
-@[reducible]
-def serialize.compress_then_serialize_message
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (serialized : Slice Std.U8) (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  serialize.compress_then_serialize_message_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } re serialized scratch
-
-/-- [libcrux_iot_ml_kem::vector::traits::decompress_1]:
-    Source: 'ml-kem/src/vector/traits.rs', lines 188:0-191:1
-    Visibility: public -/
-def vector.traits.decompress_1
-  {T : Type} (OperationsInst : vector.traits.Operations T) (vec : T) :
-  Result T
-  := do
-  let vec1 ← OperationsInst.negate vec
-  OperationsInst.bitwise_and_with_constant vec1 1665#i16
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_message]: loop body 0:
-    Source: 'ml-kem/src/serialize.rs', lines 38:4-41:5 -/
-@[rust_loop_body]
-def serialize.deserialize_then_decompress_message_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (serialized : Array Std.U8 32#usize)
-  (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
-    (polynomial.PolynomialRingElement Vector))
-    (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done re)
-  | core.option.Option.Some i =>
-    let i1 ← 2#usize * i
-    let i2 ← i1 + 2#usize
-    let s ←
-      core.Array.Insts.CoreOpsIndexIndex.index
-        (core.Slice.Insts.CoreOpsIndexIndex
-        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8)) serialized { start := i1, «end» := i2 }
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
-    let t1 ← vectortraitsOperationsInst.deserialize_1 s t
-    let a := index_mut_back t1
-    let (t2, index_mut_back1) ← Array.index_mut_usize a i
-    let t3 ← vector.traits.decompress_1 vectortraitsOperationsInst t2
-    let a1 := index_mut_back1 t3
-    ok (cont (iter1, { coefficients := a1 }))
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_message]: loop 0:
-    Source: 'ml-kem/src/serialize.rs', lines 38:4-41:5 -/
-@[rust_loop]
-def serialize.deserialize_then_decompress_message_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (serialized : Array Std.U8 32#usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, re1) =>
-      serialize.deserialize_then_decompress_message_loop.body
-      vectortraitsOperationsInst serialized iter1 re1)
-    (iter, re)
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_message]:
-    Source: 'ml-kem/src/serialize.rs', lines 34:0-42:1 -/
-@[reducible]
-def serialize.deserialize_then_decompress_message
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (serialized : Array Std.U8 32#usize)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  serialize.deserialize_then_decompress_message_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := 16#usize } serialized re
 
 /-- [libcrux_iot_ml_kem::serialize::serialize_uncompressed_ring_element]: loop body 0:
     Source: 'ml-kem/src/serialize.rs', lines 55:4-62:5 -/
@@ -2306,63 +3380,6 @@ def serialize.serialize_uncompressed_ring_element
   let i2 ← polynomial.VECTORS_IN_RING_ELEMENT
   serialize.serialize_uncompressed_ring_element_loop vectortraitsOperationsInst
     { start := 0#usize, «end» := i2 } re scratch serialized
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_to_uncompressed_ring_element]: loop body 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop_body]
-def serialize.deserialize_to_uncompressed_ring_element_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
-    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
-    Vector)) (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) iter
-  match o with
-  | core.option.Option.None => ok (done re)
-  | core.option.Option.Some p =>
-    let (i, bytes) := p
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
-    let t1 ← vectortraitsOperationsInst.deserialize_12 bytes t
-    let a := index_mut_back t1
-    ok (cont (iter1, { coefficients := a }))
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_to_uncompressed_ring_element]: loop 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop]
-def serialize.deserialize_to_uncompressed_ring_element_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, re1) =>
-      serialize.deserialize_to_uncompressed_ring_element_loop.body
-      vectortraitsOperationsInst iter1 re1)
-    (iter, re)
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_to_uncompressed_ring_element]:
-    Source: 'ml-kem/src/serialize.rs', lines 67:0-76:1 -/
-def serialize.deserialize_to_uncompressed_ring_element
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (serialized : Slice Std.U8)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let ce ← core.slice.Slice.chunks_exact serialized 24#usize
-  let iter ←
-    core.iter.traits.iterator.Iterator.enumerate.default
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) ce
-  serialize.deserialize_to_uncompressed_ring_element_loop
-    vectortraitsOperationsInst iter re
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_ring_elements_reduced]: loop body 0:
     Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
@@ -2432,566 +3449,6 @@ def serialize.deserialize_ring_elements_reduced
       iter deserialized_pk
   libcrux_secrets.mem_requests.ct_declassify public_key1
   ok deserialized_pk1
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10]: loop body 0:
-    Source: 'ml-kem/src/serialize.rs', lines 141:4-148:5 -/
-@[rust_loop_body]
-def serialize.compress_then_serialize_10_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
-    Vector) ((Slice Std.U8) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (serialized, scratch))
-  | core.option.Option.Some i =>
-    let t ← Array.index_usize re.coefficients i
-    let scratch1 ←
-      serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
-    let scratch2 ← vectortraitsOperationsInst.compress 10#i32 scratch1
-    let i1 ← 20#usize * i
-    let i2 ← i1 + 20#usize
-    let (s, index_mut_back) ←
-      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8) serialized { start := i1, «end» := i2 }
-    let s1 ← vectortraitsOperationsInst.serialize_10 scratch2 s
-    let serialized1 := index_mut_back s1
-    ok (cont (iter1, serialized1, scratch2))
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10]: loop 0:
-    Source: 'ml-kem/src/serialize.rs', lines 141:4-148:5 -/
-@[rust_loop]
-def serialize.compress_then_serialize_10_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  loop
-    (fun (iter1, serialized1, scratch1) =>
-      serialize.compress_then_serialize_10_loop.body vectortraitsOperationsInst
-      re iter1 serialized1 scratch1)
-    (iter, serialized, scratch)
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10]:
-    Source: 'ml-kem/src/serialize.rs', lines 134:0-149:1 -/
-def serialize.compress_then_serialize_10
-  {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
-  vector.traits.Operations Vector)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  let i ← core.slice.Slice.len serialized
-  massert (i = BLOCK_LEN)
-  let i1 ← polynomial.VECTORS_IN_RING_ELEMENT
-  serialize.compress_then_serialize_10_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := i1 } re serialized scratch
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11]: loop body 0:
-    Source: 'ml-kem/src/serialize.rs', lines 162:4-169:5 -/
-@[rust_loop_body]
-def serialize.compress_then_serialize_11_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
-    Vector) ((Slice Std.U8) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (serialized, scratch))
-  | core.option.Option.Some i =>
-    let t ← Array.index_usize re.coefficients i
-    let scratch1 ←
-      vector.traits.to_unsigned_representative vectortraitsOperationsInst t
-        scratch
-    let scratch2 ← vectortraitsOperationsInst.compress 11#i32 scratch1
-    let i1 ← 22#usize * i
-    let i2 ← i1 + 22#usize
-    let (s, index_mut_back) ←
-      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8) serialized { start := i1, «end» := i2 }
-    let s1 ← vectortraitsOperationsInst.serialize_11 scratch2 s
-    let serialized1 := index_mut_back s1
-    ok (cont (iter1, serialized1, scratch2))
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11]: loop 0:
-    Source: 'ml-kem/src/serialize.rs', lines 162:4-169:5 -/
-@[rust_loop]
-def serialize.compress_then_serialize_11_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  loop
-    (fun (iter1, serialized1, scratch1) =>
-      serialize.compress_then_serialize_11_loop.body vectortraitsOperationsInst
-      re iter1 serialized1 scratch1)
-    (iter, serialized, scratch)
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11]:
-    Source: 'ml-kem/src/serialize.rs', lines 154:0-170:1 -/
-def serialize.compress_then_serialize_11
-  {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
-  vector.traits.Operations Vector)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  let i ← core.slice.Slice.len serialized
-  massert (i = BLOCK_LEN)
-  let i1 ← polynomial.VECTORS_IN_RING_ELEMENT
-  serialize.compress_then_serialize_11_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := i1 } re serialized scratch
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_u]:
-    Source: 'ml-kem/src/serialize.rs', lines 179:0-193:1 -/
-def serialize.compress_then_serialize_ring_element_u
-  {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize) (BLOCK_LEN : Std.Usize)
-  (vectortraitsOperationsInst : vector.traits.Operations Vector)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  let i ← lift (UScalar.cast .U32 U_COMPRESSION_FACTOR)
-  match i with
-  | 10#uscalar =>
-    serialize.compress_then_serialize_10 BLOCK_LEN vectortraitsOperationsInst
-      re serialized scratch
-  | 11#uscalar =>
-    serialize.compress_then_serialize_11 BLOCK_LEN vectortraitsOperationsInst
-      re serialized scratch
-  | _ => fail panic
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4]: loop body 0:
-    Source: 'ml-kem/src/serialize.rs', lines 203:4-210:5 -/
-@[rust_loop_body]
-def serialize.compress_then_serialize_4_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
-    Vector) ((Slice Std.U8) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (serialized, scratch))
-  | core.option.Option.Some i =>
-    let t ← Array.index_usize re.coefficients i
-    let scratch1 ←
-      serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
-    let scratch2 ← vectortraitsOperationsInst.compress 4#i32 scratch1
-    let i1 ← 8#usize * i
-    let i2 ← i1 + 8#usize
-    let (s, index_mut_back) ←
-      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8) serialized { start := i1, «end» := i2 }
-    let s1 ← vectortraitsOperationsInst.serialize_4 scratch2 s
-    let serialized1 := index_mut_back s1
-    ok (cont (iter1, serialized1, scratch2))
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4]: loop 0:
-    Source: 'ml-kem/src/serialize.rs', lines 203:4-210:5 -/
-@[rust_loop]
-def serialize.compress_then_serialize_4_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  loop
-    (fun (iter1, serialized1, scratch1) =>
-      serialize.compress_then_serialize_4_loop.body vectortraitsOperationsInst
-      re iter1 serialized1 scratch1)
-    (iter, serialized, scratch)
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4]:
-    Source: 'ml-kem/src/serialize.rs', lines 198:0-211:1 -/
-def serialize.compress_then_serialize_4
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (serialized : Slice Std.U8) (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  let i ← polynomial.VECTORS_IN_RING_ELEMENT
-  serialize.compress_then_serialize_4_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := i } re serialized scratch
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5]: loop body 0:
-    Source: 'ml-kem/src/serialize.rs', lines 221:4-228:5 -/
-@[rust_loop_body]
-def serialize.compress_then_serialize_5_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (iter : core.ops.range.Range Std.Usize) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice Std.U8) ×
-    Vector) ((Slice Std.U8) × Vector))
-  := do
-  let (o, iter1) ←
-    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-      core.Usize.Insts.CoreIterRangeStep iter
-  match o with
-  | core.option.Option.None => ok (done (serialized, scratch))
-  | core.option.Option.Some i =>
-    let t ← Array.index_usize re.coefficients i
-    let scratch1 ←
-      vector.traits.to_unsigned_representative vectortraitsOperationsInst t
-        scratch
-    let scratch2 ← vectortraitsOperationsInst.compress 5#i32 scratch1
-    let i1 ← 10#usize * i
-    let i2 ← i1 + 10#usize
-    let (s, index_mut_back) ←
-      core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8) serialized { start := i1, «end» := i2 }
-    let s1 ← vectortraitsOperationsInst.serialize_5 scratch2 s
-    let serialized1 := index_mut_back s1
-    ok (cont (iter1, serialized1, scratch2))
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5]: loop 0:
-    Source: 'ml-kem/src/serialize.rs', lines 221:4-228:5 -/
-@[rust_loop]
-def serialize.compress_then_serialize_5_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (iter : core.ops.range.Range Std.Usize)
-  (re : polynomial.PolynomialRingElement Vector) (serialized : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  loop
-    (fun (iter1, serialized1, scratch1) =>
-      serialize.compress_then_serialize_5_loop.body vectortraitsOperationsInst
-      re iter1 serialized1 scratch1)
-    (iter, serialized, scratch)
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5]:
-    Source: 'ml-kem/src/serialize.rs', lines 216:0-229:1 -/
-def serialize.compress_then_serialize_5
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (re : polynomial.PolynomialRingElement Vector)
-  (serialized : Slice Std.U8) (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  let i ← polynomial.VECTORS_IN_RING_ELEMENT
-  serialize.compress_then_serialize_5_loop vectortraitsOperationsInst
-    { start := 0#usize, «end» := i } re serialized scratch
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_v]:
-    Source: 'ml-kem/src/serialize.rs', lines 237:0-252:1 -/
-def serialize.compress_then_serialize_ring_element_v
-  {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize) (C2_LEN :
-  Std.Usize) (vectortraitsOperationsInst : vector.traits.Operations Vector)
-  (re : polynomial.PolynomialRingElement Vector) (out : Slice Std.U8)
-  (scratch : Vector) :
-  Result ((Slice Std.U8) × Vector)
-  := do
-  let i ← lift (UScalar.cast .U32 V_COMPRESSION_FACTOR)
-  match i with
-  | 4#uscalar =>
-    serialize.compress_then_serialize_4 vectortraitsOperationsInst re out
-      scratch
-  | 5#uscalar =>
-    serialize.compress_then_serialize_5 vectortraitsOperationsInst re out
-      scratch
-  | _ => fail panic
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_10]: loop body 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop_body]
-def serialize.deserialize_then_decompress_10_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
-    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
-    Vector)) (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) iter
-  match o with
-  | core.option.Option.None => ok (done re)
-  | core.option.Option.Some p =>
-    let (i, bytes) := p
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
-    let t1 ← vectortraitsOperationsInst.deserialize_10 bytes t
-    let a := index_mut_back t1
-    let (t2, index_mut_back1) ← Array.index_mut_usize a i
-    let t3 ←
-      vectortraitsOperationsInst.decompress_ciphertext_coefficient 10#i32 t2
-    let a1 := index_mut_back1 t3
-    ok (cont (iter1, { coefficients := a1 }))
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_10]: loop 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop]
-def serialize.deserialize_then_decompress_10_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, re1) => serialize.deserialize_then_decompress_10_loop.body
-      vectortraitsOperationsInst iter1 re1)
-    (iter, re)
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_10]:
-    Source: 'ml-kem/src/serialize.rs', lines 258:0-268:1 -/
-def serialize.deserialize_then_decompress_10
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (serialized : Slice Std.U8)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let ce ← core.slice.Slice.chunks_exact serialized 20#usize
-  let iter ←
-    core.iter.traits.iterator.Iterator.enumerate.default
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) ce
-  serialize.deserialize_then_decompress_10_loop vectortraitsOperationsInst iter
-    re
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_11]: loop body 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop_body]
-def serialize.deserialize_then_decompress_11_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
-    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
-    Vector)) (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) iter
-  match o with
-  | core.option.Option.None => ok (done re)
-  | core.option.Option.Some p =>
-    let (i, bytes) := p
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
-    let t1 ← vectortraitsOperationsInst.deserialize_11 bytes t
-    let a := index_mut_back t1
-    let (t2, index_mut_back1) ← Array.index_mut_usize a i
-    let t3 ←
-      vectortraitsOperationsInst.decompress_ciphertext_coefficient 11#i32 t2
-    let a1 := index_mut_back1 t3
-    ok (cont (iter1, { coefficients := a1 }))
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_11]: loop 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop]
-def serialize.deserialize_then_decompress_11_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, re1) => serialize.deserialize_then_decompress_11_loop.body
-      vectortraitsOperationsInst iter1 re1)
-    (iter, re)
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_11]:
-    Source: 'ml-kem/src/serialize.rs', lines 274:0-284:1 -/
-def serialize.deserialize_then_decompress_11
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (serialized : Slice Std.U8)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let ce ← core.slice.Slice.chunks_exact serialized 22#usize
-  let iter ←
-    core.iter.traits.iterator.Iterator.enumerate.default
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) ce
-  serialize.deserialize_then_decompress_11_loop vectortraitsOperationsInst iter
-    re
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_ring_element_u]:
-    Source: 'ml-kem/src/serialize.rs', lines 291:0-303:1 -/
-def serialize.deserialize_then_decompress_ring_element_u
-  {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize)
-  (vectortraitsOperationsInst : vector.traits.Operations Vector)
-  (serialized : Slice Std.U8)
-  (output : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let i ← lift (UScalar.cast .U32 U_COMPRESSION_FACTOR)
-  match i with
-  | 10#uscalar =>
-    serialize.deserialize_then_decompress_10 vectortraitsOperationsInst
-      serialized output
-  | 11#uscalar =>
-    serialize.deserialize_then_decompress_11 vectortraitsOperationsInst
-      serialized output
-  | _ => fail panic
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_4]: loop body 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop_body]
-def serialize.deserialize_then_decompress_4_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
-    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
-    Vector)) (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) iter
-  match o with
-  | core.option.Option.None => ok (done re)
-  | core.option.Option.Some p =>
-    let (i, bytes) := p
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
-    let t1 ← vectortraitsOperationsInst.deserialize_4 bytes t
-    let a := index_mut_back t1
-    let (t2, index_mut_back1) ← Array.index_mut_usize a i
-    let t3 ←
-      vectortraitsOperationsInst.decompress_ciphertext_coefficient 4#i32 t2
-    let a1 := index_mut_back1 t3
-    ok (cont (iter1, { coefficients := a1 }))
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_4]: loop 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop]
-def serialize.deserialize_then_decompress_4_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, re1) => serialize.deserialize_then_decompress_4_loop.body
-      vectortraitsOperationsInst iter1 re1)
-    (iter, re)
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_4]:
-    Source: 'ml-kem/src/serialize.rs', lines 309:0-319:1 -/
-def serialize.deserialize_then_decompress_4
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (serialized : Slice Std.U8)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let ce ← core.slice.Slice.chunks_exact serialized 8#usize
-  let iter ←
-    core.iter.traits.iterator.Iterator.enumerate.default
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) ce
-  serialize.deserialize_then_decompress_4_loop vectortraitsOperationsInst iter
-    re
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_5]: loop body 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop_body]
-def serialize.deserialize_then_decompress_5_loop.body
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
-    (core.slice.iter.ChunksExact Std.U8)) × (polynomial.PolynomialRingElement
-    Vector)) (polynomial.PolynomialRingElement Vector))
-  := do
-  let (o, iter1) ←
-    core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) iter
-  match o with
-  | core.option.Option.None => ok (done re)
-  | core.option.Option.Some p =>
-    let (i, bytes) := p
-    let (t, index_mut_back) ← Array.index_mut_usize re.coefficients i
-    let t1 ← vectortraitsOperationsInst.deserialize_5 bytes t
-    let a := index_mut_back t1
-    let (t2, index_mut_back1) ← Array.index_mut_usize a i
-    let t3 ←
-      vectortraitsOperationsInst.decompress_ciphertext_coefficient 5#i32 t2
-    let a1 := index_mut_back1 t3
-    ok (cont (iter1, { coefficients := a1 }))
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_5]: loop 0:
-    Source: 'ml-kem/src/helper.rs', lines 44:13-44:75 -/
-@[rust_loop]
-def serialize.deserialize_then_decompress_5_loop
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector)
-  (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.ChunksExact
-  Std.U8)) (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  loop
-    (fun (iter1, re1) => serialize.deserialize_then_decompress_5_loop.body
-      vectortraitsOperationsInst iter1 re1)
-    (iter, re)
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_5]:
-    Source: 'ml-kem/src/serialize.rs', lines 325:0-335:1 -/
-def serialize.deserialize_then_decompress_5
-  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
-  Vector) (serialized : Slice Std.U8)
-  (re : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let ce ← core.slice.Slice.chunks_exact serialized 10#usize
-  let iter ←
-    core.iter.traits.iterator.Iterator.enumerate.default
-      (core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
-      Std.U8) ce
-  serialize.deserialize_then_decompress_5_loop vectortraitsOperationsInst iter
-    re
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_ring_element_v]:
-    Source: 'ml-kem/src/serialize.rs', lines 341:0-354:1 -/
-def serialize.deserialize_then_decompress_ring_element_v
-  {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize)
-  (vectortraitsOperationsInst : vector.traits.Operations Vector)
-  (serialized : Slice Std.U8)
-  (output : polynomial.PolynomialRingElement Vector) :
-  Result (polynomial.PolynomialRingElement Vector)
-  := do
-  let i ← lift (UScalar.cast .U32 V_COMPRESSION_FACTOR)
-  match i with
-  | 4#uscalar =>
-    serialize.deserialize_then_decompress_4 vectortraitsOperationsInst
-      serialized output
-  | 5#uscalar =>
-    serialize.deserialize_then_decompress_5 vectortraitsOperationsInst
-      serialized output
-  | _ => fail panic
 
 /-- [libcrux_iot_ml_kem::vector::portable::arithmetic::MONTGOMERY_SHIFT]
     Source: 'ml-kem/src/vector/portable/arithmetic.rs', lines 18:0-18:43 -/

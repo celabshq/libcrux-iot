@@ -43,6 +43,42 @@ START_FROM = [
     # deterministic and reaches neither SHAKE nor sampling.
     # INC-1: the whole deterministic (de)serialize + (de)compress layer.
     "crate::serialize::*",
+    # INC-2 STEP 0 (2026-08-19): the DETERMINISTIC half of ind_cpa (k-PKE), lane 2a of
+    # plans/INC-2-scope.md. `ind_cpa` had ZERO defs in Funs.lean before this — the boundary
+    # stopped at serialize — while the llbc already carried the items, so this is a
+    # boundary change, not new extraction capability.
+    #
+    # ENUMERATED, NOT `crate::ind_cpa::*`. The wholesale glob was tried first and aeneas
+    # FAILED on it:
+    #     Ill-formed builtin information for function ind_cpa::sample_ring_element_cbd:
+    #     2 filtering arguments provided for 1 trait clauses (TraitClause0)
+    #     Source: 'ml-kem/src/ind_cpa.rs', lines 176:4-182:5
+    # i.e. it broke at exactly the 2a/2b boundary the scope document predicted, on a
+    # SAMPLING function. That is a toolchain-level reason to keep the lanes apart, on top
+    # of the proof-level ones. `crate::sampling::*` is already OPAQUE below; the sampling
+    # ind_cpa entry points are simply not roots, so they stay out of Funs.lean until lane
+    # 2b is a real project with the exemplars it needs.
+    # NOT roots yet — each is BLOCKED on a named trusted-base decision (Step 0 finding,
+    # 2026-08-19); see plans/INC-2-scope.md §7. Adding them back is a one-line change once
+    # the decision is made:
+    #   serialize_vector            -> needs core.SharedAArray…into_iter, which the PINNED
+    #                                  CoreModels does not define (it has SharedASlice only)
+    #   serialize_unpacked_secret_key -> calls ind_cpa::serialize_public_key_mut, which is
+    #                                  in OPAQUE, so hax emits it as an AXIOM into
+    #                                  FunsExternal_Template and the hand-written
+    #                                  FunsExternal.lean would have to declare it
+    # "crate::ind_cpa::serialize_vector",
+    # "crate::ind_cpa::serialize_unpacked_secret_key",
+    "crate::ind_cpa::compress_then_serialize_u",
+    "crate::ind_cpa::deserialize_then_decompress_u",
+    "crate::ind_cpa::deserialize_vector",
+    "crate::ind_cpa::encrypt_c2",
+    "crate::ind_cpa::decrypt_unpacked",
+    "crate::ind_cpa::decrypt",
+    # NB `ind_cpa::serialize_public_key_mut` is deterministic too, but it is listed in
+    # OPAQUE below (pre-existing, no rationale recorded). Left exactly as it was: Step 0
+    # changes ONE thing. Un-opaquing it is a lane-2a decision, and it is a target 2a will
+    # want, so it needs a deliberate answer before 2a is scaffolded.
 ]
 
 # Items to keep opaque (extract signature only, skip body).
@@ -103,7 +139,14 @@ if result.returncode != 0:
     else:
         print(f"FATAL: hax/aeneas exited with code {result.returncode}. Refusing to "
               f"post-process: Funs.lean is rewritten in place and a partial extraction "
-              f"would be indistinguishable from a good one. Nothing was written.",
+              f"would be indistinguishable from a good one.\n"
+              f"  NOTE: hax/aeneas write Extraction/*.lean THEMSELVES, before this script "
+              f"runs. Whatever they managed to emit is ON DISK NOW and is UNPATCHED "
+              f"(no opaque->axiom rewrite, no trait-clause fixups, Specs.lean and "
+              f"ProofObligations.lean not removed). It is NOT the committed extraction.\n"
+              f"  RESTORE IT before doing anything else:\n"
+              f"    git checkout -- proofs/lean/LibcruxIotMlKem/Extraction/\n"
+              f"  Diagnostics: proofs/lean/aeneas-error.log",
               file=sys.stderr)
         sys.exit(result.returncode)
 

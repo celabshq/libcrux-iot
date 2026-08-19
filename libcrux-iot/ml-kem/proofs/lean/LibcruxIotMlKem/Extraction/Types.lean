@@ -34,6 +34,17 @@ structure hash_functions.Hash (Self : Type) where
   shake128_squeeze_next_block : Self → Slice (Array Std.U8 168#usize) →
     Result (Self × (Slice (Array Std.U8 168#usize)))
 
+/-- [libcrux_iot_ml_kem::polynomial::PolynomialRingElement]
+    Source: 'ml-kem/src/polynomial.rs', lines 32:0-34:1 -/
+structure polynomial.PolynomialRingElement (Vector : Type) where
+  coefficients : Array Vector 16#usize
+
+/-- [libcrux_iot_ml_kem::ind_cpa::unpacked::IndCpaPrivateKeyUnpacked]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 31:4-33:5 -/
+structure ind_cpa.unpacked.IndCpaPrivateKeyUnpacked (Vector : Type) (K :
+  Std.Usize) where
+  secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K
+
 /-- Trait declaration: [libcrux_iot_ml_kem::vector::traits::Repr]
     Source: 'ml-kem/src/vector/traits.rs', lines 22:0-22:17
     Visibility: public -/
@@ -92,10 +103,21 @@ structure vector.traits.Operations (Self : Type) where
   rej_sample : Slice Std.U8 → Slice Std.I16 → Result (Std.Usize × (Slice
     Std.I16))
 
-/-- [libcrux_iot_ml_kem::polynomial::PolynomialRingElement]
-    Source: 'ml-kem/src/polynomial.rs', lines 32:0-34:1 -/
-structure polynomial.PolynomialRingElement (Vector : Type) where
-  coefficients : Array Vector 16#usize
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::closure]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 887:31-887:74 -/
+@[reducible]
+def ind_cpa.decrypt_unpacked.closure (Vector : Type) (K : Std.Usize)
+  (CIPHERTEXT_SIZE : Std.Usize) (VECTOR_U_ENCODED_SIZE : Std.Usize)
+  (U_COMPRESSION_FACTOR : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize) :=
+Unit
+
+/-- [libcrux_iot_ml_kem::ind_cpa::decrypt::closure]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 941:36-941:79 -/
+@[reducible]
+def ind_cpa.decrypt.closure (Vector : Type) (K : Std.Usize) (CIPHERTEXT_SIZE :
+  Std.Usize) (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR :
+  Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize) :=
+Unit
 
 /-- [libcrux_iot_ml_kem::vector::portable::vector_type::PortableVector]
     Source: 'ml-kem/src/vector/portable/vector_type.rs', lines 9:0-11:1
