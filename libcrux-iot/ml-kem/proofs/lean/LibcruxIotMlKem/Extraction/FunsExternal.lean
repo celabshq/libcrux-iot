@@ -67,10 +67,15 @@ end CoreModels.core.iter.traits.iterator
     and which is ordinary Rust — therefore hits an unmodelled external and the extraction
     fails to compile with `Unknown identifier core.SharedAArray.Insts.…into_iter`.
 
-    ACTION REQUIRED (KB): raise this against hax-lean `main` so the definition lands in
-    CoreModels and this delegate can be deleted. Until then every project extracting a
-    shared-array iteration must re-derive it, which is the definition of a gap rather than
-    a project decision.
+    CHECKED UPSTREAM 2026-08-19, so this is not a guess: `SharedAArray` appears NOWHERE in
+    `hax-lib/proof-libs/lean/CoreModels/` on EITHER `cryspen/hax` `main` OR the
+    `core-models-regressions-fixes` branch (`6bc393f7`, 7 commits ahead, which rewrites 774
+    lines of `CoreModels/Core/Funs.lean` and still only carries `SharedASlice`). So the gap
+    is open upstream and a newer core-models does not close it.
+
+    ACTION REQUIRED (KB): raise it against hax so the definition lands in CoreModels and this
+    delegate can be deleted. Until then every project extracting a shared-array iteration
+    must re-derive it, which is the definition of a gap rather than a project decision.
 
     Soundness of the delegate: `Array.to_slice` is TOTAL (`Aeneas/Std/Array/ArraySlice.lean:20`,
     no `Result`), and `&[T; N] → &[T]` is exactly the unsizing coercion Rust performs at
