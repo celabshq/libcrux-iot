@@ -1460,6 +1460,30 @@ private theorem spkm_core
     -- the multiplication overflows well before `K * 384 + 32` does. Machine-refuted at
     -- `K = 48038396025285290`: `Error.integerOverflow`.
     (h_K_bnd : K.val * 3072 ≤ Std.Usize.max)
+    -- RE-LOCKED 2026-08-19 after a SPECREQ. The previous form dropped upstream's `is_rank`
+    -- and was FALSE in two independent ways, both machine-refuted in this file:
+    --   A. K = 0 — `&mut serialized[0 .. ranked_bytes_per_ring_element K]` is the EMPTY
+    --      range [0,0), and Aeneas's `Slice.subslice` requires start < end, so the call
+    --      fails and `noThrow` refutes the Triple (`spkm_fail_at_K0`).
+    --   B. K * 3072 > Usize.max — iot's `ranked_bytes_per_ring_element` is
+    --      `rank * BITS_PER_RING_ELEMENT / 8`, i.e. it multiplies at the BIT count and only
+    --      then divides, so it needs a bound 8x stronger than `h_pk_size` + `h_ser_len`
+    --      supply (`spkm_fail_at_large_K`). `0 < K` alone does NOT repair the statement.
+    -- WHY IT WAS DROPPED, recorded so the error is not repeated: the HELPER measured that
+    -- `is_rank` is unnecessary for `serialize_vector_fc` (which survives at K = 0 and K = 5)
+    -- and generalised that measurement to THIS function, whose body does two things
+    -- `serialize_vector` does not. `is_rank` is what upstream carries; dropping it here was
+    -- a transcription defect, and restoring it kills A and B at once.
+    -- FALSIFIED AFTER RE-LOCKING (the pass that should have run the first time):
+    --   K in {2,3,4} — every K the statement now admits — all SURVIVE;
+    --   K = 0 — IMPL-FAIL, i.e. counterexample A reproduced by EVALUATION, independently
+    --     of the prover's Lean refutation;
+    --   K = 1 and K = 5 — also survive. So `is_rank` is SUFFICIENT but STRONGER THAN
+    --     MINIMAL: the practical boundary is K = 0, and the minimal rank-generic fix would
+    --     be `0 < K` plus `K * 3072 <= Usize.max`. `is_rank` is chosen anyway because it is
+    --     UPSTREAM's contract and every caller satisfies it — a transcription, not caution.
+    --     Recorded so nobody later reads this bound as measured-tight.
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
     (h_seed_len : seed_for_a.length = 32)
     (h_pk_size : PUBLIC_KEY_SIZE.val = K.val * 384 + 32)
     (h_ser_len : serialized.length = PUBLIC_KEY_SIZE.val)
