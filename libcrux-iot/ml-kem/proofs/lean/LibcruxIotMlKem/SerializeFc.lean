@@ -2834,9 +2834,10 @@ end MCBank
 
 /-! ### SPECREQ evidence for L5.3 (`deserialize_then_decompress_ring_element_v_fc`).
 
-    The L5.3 statement below is **under-constrained**: its precondition is
-    `⌜True⌝`, but the Rust source of `deserialize_then_decompress_ring_element_v`
-    carries
+    HISTORY — this section refutes a statement that NO LONGER EXISTS in this form, and it
+    is kept because it is why the current hypotheses are there. The ORIGINAL L5.3 statement
+    was under-constrained: its precondition was `⌜True⌝`, while the Rust source of
+    `deserialize_then_decompress_ring_element_v` carries
 
         #[hax_lib::requires(
             (V_COMPRESSION_FACTOR == 4 || V_COMPRESSION_FACTOR == 5) &&
@@ -2858,8 +2859,13 @@ end MCBank
       `fail assertionFailure`. So the post is violated by a successful run — the
       length conjunct is not merely a totality side-condition.
 
-    Nothing here edits, weakens, or hypothesises the locked statement; the `sorry`
-    stands. See the SPECREQ in the dispatch report for the proposed pre. -/
+    The statement was RESTATED on 2026-08-18 with `h_rank` / `h_cf` / `h_len` transcribed
+    verbatim from that `requires`, and CLOSED on 2026-08-19; the theorem now lives BELOW its
+    proof bank, not immediately after this section. Nothing here edits or weakens it — the
+    refutations are of the superseded form, and remain true of it. **Do not read this section
+    as a claim about the current theorem.** (This prose has now been wrong twice: once by the
+    restatement, once by the close relocating the theorem. If it drifts again, delete it and
+    keep only the refutation lemmas, which speak for themselves.) -/
 
 section SpecreqL53
 
