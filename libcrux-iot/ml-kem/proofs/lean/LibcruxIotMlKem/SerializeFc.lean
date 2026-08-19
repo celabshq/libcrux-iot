@@ -47,6 +47,7 @@ import LibcruxIotMlKem.Serialize
 import LibcruxIotMlKem.Util.CreateI
 import LibcruxIotMlKem.Util.LoopSpecs
 import LibcruxIotMlKem.Matrix.ComputeRingElementV.Impl
+import LibcruxIotMlKem.Util.Shared
 
 set_option mvcgen.warning false
 set_option linter.unusedVariables false
@@ -54,6 +55,7 @@ set_option linter.unusedVariables false
 namespace libcrux_iot_ml_kem.SerializeFc
 
 open CoreModels Aeneas Aeneas.Std Std.Do
+open libcrux_iot_ml_kem.Util.Shared
 open libcrux_iot_ml_kem.Spec.Lift
 open libcrux_iot_ml_kem.Spec
 
@@ -621,21 +623,7 @@ private theorem array_set_get16 {α : Type} [Inhabited α]
   · rw [if_neg h, getElem!_pos _ _ (by simp [hlen]; omega),
       getElem!_pos _ _ (by omega), List.getElem_set_ne (by omega)]
 
-private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
-    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) : ∃ v, x = .ok v ∧ P v := by
-  match hx : x with
-  | .ok v => exact ⟨v, rfl, (by subst hx; simpa [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply] using h)⟩
-  | .fail _ => exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply])
-  | .div => exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply])
 
-private theorem holds_ok (P : Prop) : (Aeneas.Std.Result.ok P).holds ↔ P := by
-  constructor
-  · intro h
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
-      Std.Do.PredTrans.apply] using h
-  · intro h
-    simp [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
-      Std.Do.PredTrans.apply, h]
 
 open libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl in
 /-- The 16-iteration `chunks_exact 24` loop decodes every lane. -/
@@ -846,16 +834,6 @@ private theorem bytes_to_bits_closure_eq (a : Std.Array Std.U8 384#usize) (k : N
   unfold sliceBit
   rw [hq16, hr8]
 
-private theorem usize_mul_lit (x y z : Std.Usize) (h : x.val * y.val = z.val)
-    (hb : x.val * y.val ≤ Std.Usize.max) :
-    (x * y : Aeneas.Std.Result Std.Usize) = .ok z := by
-  obtain ⟨m, hm_eq, hm_v⟩ := Std.WP.spec_imp_exists
-    (Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y)
-      (fun e => by cases e <;> scalar_tac) (by simp))
-  have hm : m = z := by
-    apply Aeneas.Std.UScalar.eq_of_val_eq
-    rw [hm_v, h]
-  rw [hm_eq, hm]
 
 /-- **Spec-side bit expansion**: the 3072 booleans are exactly `sliceBit`. -/
 private theorem bytes_to_bits_get (a : Std.Array Std.U8 384#usize) :
@@ -1467,17 +1445,7 @@ private theorem slice_index_mut_range_strict {T : Type} [Inhabited T]
         simpa [Aeneas.Std.Slice.length] using hs'⟩]
     simp only [hupd]
 
-private theorem usize_mul_ok_e (x y : Std.Usize) (hb : x.val * y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
-  obtain ⟨z, hz, hv, _⟩ :=
-    Std.WP.spec_imp_exists (Std.UScalar.mul_bv_spec (x := x) (y := y) (by scalar_tac))
-  exact ⟨z, hz, hv⟩
 
-private theorem usize_add_ok_e (x y : Std.Usize) (hb : x.val + y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
-  obtain ⟨z, hz, hv, _⟩ :=
-    Std.WP.spec_imp_exists (Std.UScalar.add_bv_spec (x := x) (y := y) (by scalar_tac))
-  exact ⟨z, hz, hv⟩
 
 /-- Written-prefix loop invariant: after `k` iterations the first `24k` bytes
     carry `encByte`, and the length is preserved. -/
@@ -3712,15 +3680,6 @@ open libcrux_iot_ml_kem.Util.CreateI
 
 /-! ### Spec side. -/
 
-/-- `⟨BitVec.ofNat _ k⟩.val = k` for any in-range `k`. The `L57Bank2` companion
-    `usize_ofNat_val` is pinned at the platform-independent `2 ^ 32`; here `k`
-    ranges over `< K` with only `K * 384 ≤ Usize.max` known, so the bound has to
-    be the machine one. -/
-private theorem usize_ofNat_val_le (k : Nat) (h : k ≤ Std.Usize.max) :
-    ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k := by
-  show (BitVec.ofNat _ k).toNat = k
-  simp only [BitVec.toNat_ofNat]
-  exact Nat.mod_eq_of_lt (by scalar_tac)
 
 /-- `Spec.pk_chunk` delivers a FULL 384-byte window at every `i < K`. -/
 private theorem pk_chunk_len_384 (public_key : Slice Std.U8) (K : Std.Usize)
@@ -3731,15 +3690,6 @@ private theorem pk_chunk_len_384 (public_key : Slice Std.U8) (K : Std.Usize)
   have h : (i + 1) * 384 ≤ K.val * 384 := by apply Nat.mul_le_mul_right; omega
   omega
 
-/-- Literal `Usize` division, in the shape the two `BYTES_PER_RING_ELEMENT`
-    constants (impl and hacspec) need. The L5.6 bank has this inline; hoisted
-    here because both sides of this obligation want it. -/
-private theorem usize_div_lit (x y z : Std.Usize) (hy : y.val ≠ 0)
-    (hz : x.val / y.val = z.val) : (x / y : Result Std.Usize) = .ok z := by
-  obtain ⟨q, hq_eq, hq_val⟩ := Std.UScalar.div_spec x (y := y) hy
-  rw [hq_eq]
-  congr 1
-  exact Std.UScalar.eq_of_val_eq (by rw [hq_val, hz])
 
 /-- The hacspec `BYTES_PER_RING_ELEMENT` reduces to `384` (both constants are
     `irreducible`, so this needs the explicit unfolding). -/
@@ -3849,40 +3799,7 @@ private theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 3
     pure model uses, so the whole `createi` collapses to
     `Spec.t_as_ntt_from_public_key_pure` with NO bit-level reasoning. -/
 
-/-- Generic `core.slice.Slice.len` bridge (the file's `slice_len_384` is pinned at 384). -/
-private theorem slice_len_gen {T : Type} (sl : Slice T) :
-    CoreModels.core.slice.Slice.len sl = .ok (Aeneas.Std.Slice.len sl) := rfl
 
-/-- The shared-range index `s[a..b]` on a slice, in the shape the `vector_decode_12`
-    closure uses (goes through `SliceIndex.get`, not `.index`). -/
-private theorem slice_range_index_ok {T : Type} [Inhabited T]
-    (s : Slice T) (a b : Std.Usize) (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
-    CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
-        { start := a, «end» := b }
-      = .ok ⟨List.slice a.val b.val s.val, by
-          have := s.val.slice_length_le a.val b.val; scalar_tac⟩ := by
-  have hle : (a ≤ b) := by scalar_tac
-  have hb : (b ≤ Aeneas.Std.Slice.len s) := by
-    have : (Aeneas.Std.Slice.len s).val = s.val.length := Aeneas.Std.Slice.len_val s
-    scalar_tac
-  unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-    CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
-  rw [if_pos hle]
-  unfold CoreModels.rust_primitives.slice.slice_length
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [if_pos hb]
-  unfold CoreModels.rust_primitives.slice.slice_slice
-  rw [show (Aeneas.Std.Slice.subslice s ⟨a, b⟩)
-      = .ok ⟨List.slice a.val b.val s.val, by
-          have := s.val.slice_length_le a.val b.val; scalar_tac⟩ from by
-    unfold Aeneas.Std.Slice.subslice
-    split
-    · rfl
-    · rename_i hcon
-      exact absurd ⟨h0, h1⟩ hcon]
-  rfl
 
 /-- The `vector_decode_12` closure at index `k` decodes exactly `Spec.pk_chunk pk k`,
     hence produces the `k`-th cell of the pure model. -/
@@ -4025,30 +3942,8 @@ private def pkInv (public_key : Slice Std.U8) (K : Std.Usize) (k : Nat)
   ∧ (∀ i : Nat, i < k → ∀ c : Nat, c < 16 → ∀ ℓ : Nat, ℓ < 16 →
       (((p.val[i]!).coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328)
 
-/-- `Slice.index_mut_usize` in closed form (the `Slice` analogue of the file's
-    `array_index_mut16`). -/
-private theorem slice_index_mut_ok {α : Type} [Inhabited α] (v : Slice α) (i : Std.Usize)
-    (h : i.val < v.val.length) :
-    Aeneas.Std.Slice.index_mut_usize v i = .ok (v.val[i.val]!, Aeneas.Std.Slice.set v i) := by
-  simp only [Aeneas.Std.Slice.index_mut_usize,
-    libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.slice_index_usize_ok_eq v i h,
-    Aeneas.Std.bind_tc_ok]
 
-private theorem slice_set_length {α : Type} (v : Slice α) (i : Std.Usize) (x : α) :
-    (Aeneas.Std.Slice.set v i x).length = v.length := by
-  show ((v.val.set i.val x).length) = v.val.length
-  rw [List.length_set]
 
-private theorem slice_set_get {α : Type} [Inhabited α] (v : Slice α) (i : Std.Usize) (x : α)
-    (j : Nat) (hj : j < v.val.length) :
-    (Aeneas.Std.Slice.set v i x).val[j]! = if j = i.val then x else v.val[j]! := by
-  by_cases h : j = i.val
-  · rw [if_pos h]
-    have hs := Aeneas.Std.Slice.getElem!_Nat_set_eq v i j x ⟨h.symm, hj⟩
-    simpa [Aeneas.Std.Slice.getElem!_Nat_eq] using hs
-  · rw [if_neg h]
-    have hs := Aeneas.Std.Slice.getElem!_Nat_set_ne v i j x (fun hc => h hc.symm)
-    simpa [Aeneas.Std.Slice.getElem!_Nat_eq] using hs
 
 open libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl in
 /-- The rank-K loop: after `K` chunks the written prefix covers every index `< K`. -/

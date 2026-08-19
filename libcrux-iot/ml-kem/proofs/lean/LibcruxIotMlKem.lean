@@ -25,6 +25,7 @@ import LibcruxIotMlKem.Matrix.ComputeAsPlusE
 import LibcruxIotMlKem.Matrix.ComputeMessage.FC
 import LibcruxIotMlKem.Matrix.ComputeVectorU.FC
 import LibcruxIotMlKem.Matrix.ComputeRingElementV.FC
+import LibcruxIotMlKem.Util.Shared
 import LibcruxIotMlKem.SerializeFc
 import LibcruxIotMlKem.IndCpaFc
 import LibcruxIotMlKem.AxiomCheck
