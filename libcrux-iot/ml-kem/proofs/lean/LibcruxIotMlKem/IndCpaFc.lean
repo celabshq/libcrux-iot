@@ -1129,6 +1129,470 @@ theorem serialize_vector_fc
     intro ℓ hℓ
     rw [hp_get ℓ hℓ, henc_get ℓ (by rw [h_tsize]; exact hℓ)]
 
+/-! ## PROVER bank for INC-2a.3 (`serialize_public_key_mut`)
+
+    **The locked statement of `serialize_public_key_mut_fc` is FALSE** — see the SPECREQ in
+    that theorem's docstring. Everything in this section is the proof it *would* have, and
+    `spkm_core` below IS that proof, carrying the two hypotheses the locked statement is
+    missing (`h_K_pos`, `h_K_bnd`). When the statement is corrected, the top theorem is one
+    application of `spkm_core`. -/
+
+section SPKMBank
+
+open libcrux_iot_ml_kem.Util.CreateI
+
+/-! ### `Usize` / constant plumbing not already in `Util/Shared.lean`. -/
+
+/-- `y ≤ x → x - y` succeeds. The `Sub` companion of `Util.Shared.usize_add_ok_e`. -/
+private theorem usize_sub_ok_e (x y : Std.Usize) (h : y.val ≤ x.val) :
+    ∃ z : Std.Usize, (x - y : Result Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
+  obtain ⟨z, hz, hv, _⟩ := Std.WP.spec_imp_exists (Std.UScalar.sub_bv_spec (x := x) (y := y) h)
+  exact ⟨z, hz, hv⟩
+
+/-- The impl-side `BITS_PER_RING_ELEMENT` reduces to `3072`. `Util.Shared`'s neighbours stop
+    at `BYTES_PER_RING_ELEMENT = 384`; `ranked_bytes_per_ring_element` multiplies by the
+    *bit* count first, which is exactly where the overflow gap lives. -/
+private theorem impl_bits :
+    (libcrux_iot_ml_kem.constants.BITS_PER_RING_ELEMENT : Result Std.Usize)
+      = .ok (3072#usize : Std.Usize) := by
+  unfold libcrux_iot_ml_kem.constants.BITS_PER_RING_ELEMENT
+    libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
+  exact usize_mul_lit (256#usize : Std.Usize) (12#usize : Std.Usize)
+    (3072#usize : Std.Usize) (by scalar_tac) (by scalar_tac)
+
+/-- `(k * 3072) / 8 = k * 384`, in a CLEAN context. Inline `omega` on this goal inside
+    `ranked_bpre` blows `maxRecDepth`: that context carries `K * 3072 ≤ Usize.max`, and any
+    `omega` there drags `Std.Usize.max` into the atom set (the closed-large-scalar pitfall,
+    skill §6 — the same reason `window_div_mod` above is hoisted). Measured, not guessed:
+    `by omega` in place failed exactly this way. -/
+private theorem bits_div_8 (k : Nat) : k * 3072 / 8 = k * 384 := by omega
+
+/-- `k * 384 ≤ k * 3072` without `omega`, for the same reason. -/
+private theorem mul_384_le_3072 (k : Nat) : k * 384 ≤ k * 3072 :=
+  Nat.mul_le_mul_left k (by norm_num)
+
+/-- **The overflow seam.** `ranked_bytes_per_ring_element K` is `(K * 3072) / 8`, NOT
+    `K * 384`: the `*` happens at the bit count and only then is divided by 8. So it needs
+    `K * 3072 ≤ Usize.max`, which does NOT follow from `K * 384 + 32 ≤ Usize.max`. This is
+    one of the two missing hypotheses of the locked statement. -/
+private theorem ranked_bpre (K : Std.Usize) (hK : K.val * 3072 ≤ Std.Usize.max) :
+    ∃ i : Std.Usize,
+      libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element K = .ok i
+      ∧ i.val = K.val * 384 := by
+  have h3072 : ((3072#usize : Std.Usize)).val = 3072 := rfl
+  have h8 : ((8#usize : Std.Usize)).val = 8 := rfl
+  -- `K * 384 ≤ K * 3072 ≤ Usize.max`, hoisted so that `Usize.max` never meets `scalar_tac`
+  -- on a goal that also mentions `K * 3072` (the closed-large-scalar pitfall, skill §6).
+  have hKb : K.val * 384 ≤ Std.Usize.max := le_trans (mul_384_le_3072 K.val) hK
+  obtain ⟨m, hm_eq, hm_val⟩ := usize_mul_ok_e K (3072#usize : Std.Usize) (by rw [h3072]; exact hK)
+  have hmv : m.val = K.val * 3072 := by rw [hm_val, h3072]
+  have hzv : ((⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize)).val = K.val * 384 :=
+    usize_ofNat_val_le _ hKb
+  refine ⟨⟨BitVec.ofNat _ (K.val * 384)⟩, ?_, hzv⟩
+  unfold libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element
+  rw [impl_bits]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hm_eq]
+  exact usize_div_lit m (8#usize : Std.Usize) ⟨BitVec.ofNat _ (K.val * 384)⟩
+    (by rw [h8]; exact Nat.succ_ne_zero 7)
+    (by rw [hmv, h8, hzv]; exact bits_div_8 K.val)
+
+/-! ### The `RangeFrom` mutable subslice — the tail-copy analogue of
+    `Util.Shared.slice_index_mut_range_strict`. `&mut s[a..]` reads
+    `Slice.subslice s ⟨a, len s⟩` and writes back through
+    `HaxToRange.toRange {start := a} (len s) = ⟨a, len s⟩`, so the only side condition is
+    `a < s.length` (the write-back range is non-empty). -/
+
+private theorem slice_index_mut_rangefrom {T : Type} [Inhabited T]
+    (s : Slice T) (a : Std.Usize) (h0 : a.val < s.val.length) :
+    ∃ (ns : Slice T) (wb : Slice T → Slice T),
+      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
+        { start := a } = .ok (ns, wb)
+      ∧ ns.val.length = s.val.length - a.val
+      ∧ (∀ s' : Slice T, s'.val.length = s.val.length - a.val →
+            (wb s').val = s.val.setSlice! a.val s'.val) := by
+  have hlen : (Aeneas.Std.Slice.len s).val = s.val.length := Aeneas.Std.Slice.len_val s
+  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
+    Std.WP.spec_imp_exists
+      (Aeneas.Std.Slice.subslice_spec s ⟨a, Aeneas.Std.Slice.len s⟩ (by scalar_tac) (by scalar_tac))
+  have hns_len : ns.val.length = s.val.length - a.val := by
+    rw [hns_val]
+    show (List.slice a.val (Aeneas.Std.Slice.len s).val s.val).length = s.val.length - a.val
+    rw [List.slice_length, hlen]; omega
+  have hTR : HaxToRange.toRange ({ start := a }
+        : CoreModels.core.ops.range.RangeFrom Std.Usize) (Aeneas.Std.Slice.len s)
+      = ({ start := a, «end» := Aeneas.Std.Slice.len s }
+          : Aeneas.Std.core.ops.range.Range Std.Usize) := rfl
+  refine ⟨ns, (fun sub' =>
+      match Aeneas.Std.Slice.update_subslice s
+          (HaxToRange.toRange
+            ({ start := a } : CoreModels.core.ops.range.RangeFrom Std.Usize)
+            (Aeneas.Std.Slice.len s)) sub' with
+      | .ok s'' => s''
+      | _ => s), ?_, hns_len, ?_⟩
+  · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+    simp only
+      [CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+       CoreModels.rust_primitives.slice.slice_length,
+       CoreModels.rust_primitives.slice.slice_slice, Aeneas.Std.bind_tc_ok, hns_eq]
+    rfl
+  · intro s' hs'
+    have hupd : Aeneas.Std.Slice.update_subslice s
+        (HaxToRange.toRange ({ start := a }
+            : CoreModels.core.ops.range.RangeFrom Std.Usize) (Aeneas.Std.Slice.len s)) s'
+        = .ok ⟨s.val.setSlice! a.val s'.val, by scalar_tac⟩ := by
+      rw [hTR]
+      unfold Aeneas.Std.Slice.update_subslice
+      rw [dif_pos ⟨by scalar_tac, by scalar_tac, by
+        simpa [Aeneas.Std.Slice.length, hlen] using hs'⟩]
+    simp only [hupd]
+
+/-! ### SPEC side — `serialize_public_key` IS `encBy` on `[0, 384K)` and `seed` after.
+
+    A `createi EK_SIZE` over a closure that BRANCHES on `ℓ < RANK * 384`: below, it is byte
+    `ℓ % 384` of `byte_encode(t[ℓ / 384], 12)` — literally the `serialize_secret_key` closure,
+    so `encBy` is reused unchanged; at or above, it is `seed_for_A[ℓ - 384K]`. -/
+
+/-- The pure byte model of the whole public key: the encode model below `384K`, the seed
+    above it. -/
+private def pkBy (K : Std.Usize) (t : Std.Array SPoly K) (seed : Slice Std.U8) (ℓ : Nat) :
+    Std.U8 :=
+  if ℓ < K.val * 384 then encBy (t.val[ℓ / 384]!) (ℓ % 384)
+  else seed.val[ℓ - K.val * 384]!
+
+/-- The `serialize_public_key` closure at byte index `ℓ`. The `then` branch is `ssk_closure_eq`
+    verbatim; only the `else` branch (the seed tail) is new. -/
+private theorem spk_closure_eq (K EK_SIZE : Std.Usize) (t : Std.Array SPoly K)
+    (seed : Slice Std.U8)
+    (hKb : K.val * 384 ≤ Std.Usize.max)
+    (h_ek : EK_SIZE.val = K.val * 384 + 32)
+    (h_seed : seed.val.length = 32)
+    (ℓ : Nat) (hℓ : ℓ < EK_SIZE.val) :
+    (hacspec_ml_kem.serialize.serialize_public_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+        K EK_SIZE).call_mut
+        ((Spec.Lift.lift_vec t, seed) :
+          hacspec_ml_kem.serialize.serialize_public_key.closure K EK_SIZE)
+        (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)
+      = .ok (pkBy K t seed ℓ,
+          ((Spec.Lift.lift_vec t, seed) :
+            hacspec_ml_kem.serialize.serialize_public_key.closure K EK_SIZE)) := by
+  have hEKmax : EK_SIZE.val ≤ Std.Usize.max := by scalar_tac
+  have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
+  have hℓv : ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)).val = ℓ := usize_ofNat_val_le ℓ (by omega)
+  have hbv : ((⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize)).val = K.val * 384 :=
+    usize_ofNat_val_le _ hKb
+  have hi1 : (K * (384#usize : Std.Usize) : Result Std.Usize)
+      = .ok (⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize) :=
+    usize_mul_lit K (384#usize : Std.Usize) _ (by rw [h384, hbv]) (by rw [h384]; exact hKb)
+  show (hacspec_ml_kem.serialize.serialize_public_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
+      (RANK := K) (EK_SIZE := EK_SIZE) (Spec.Lift.lift_vec t, seed)
+      (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)) = _
+  unfold
+    hacspec_ml_kem.serialize.serialize_public_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
+  rw [hacspec_bpre]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hi1]
+  simp only [Aeneas.Std.bind_tc_ok]
+  -- The machine-generated closure body, once, with the `let (a, s) := (…, …)` destructuring
+  -- discharged (skill §4.1): `dsimp`/`simp only []` do NOT iota-reduce it, `show` does.
+  show (if (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) < (⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize) then
+      (do
+        let i2 ← (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) / (384#usize : Std.Usize)
+        let j ← (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) % (384#usize : Std.Usize)
+        let a1 ← Aeneas.Std.Array.index_usize (Spec.Lift.lift_vec t) i2
+        let encoded ← hacspec_ml_kem.serialize.byte_encode (384#usize : Std.Usize)
+            (3072#usize : Std.Usize) a1 (12#usize : Std.Usize)
+        let i3 ← Aeneas.Std.Array.index_usize encoded j
+        Result.ok (i3, ((Spec.Lift.lift_vec t, seed) :
+          hacspec_ml_kem.serialize.serialize_public_key.closure K EK_SIZE)))
+    else
+      (do
+        let i3 ← (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) - (⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize)
+        let i4 ← Aeneas.Std.Slice.index_usize seed i3
+        Result.ok (i4, ((Spec.Lift.lift_vec t, seed) :
+          hacspec_ml_kem.serialize.serialize_public_key.closure K EK_SIZE)))) = _
+  by_cases hlt : ℓ < K.val * 384
+  · -- BELOW the tail: the `serialize_secret_key` closure, byte for byte.
+    rw [if_pos (show (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)
+        < (⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize) from by
+      show ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)).val < _
+      rw [hℓv, hbv]; exact hlt)]
+    have hdv : ((⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)).val = ℓ / 384 :=
+      usize_ofNat_val_le _ (by omega)
+    have hmv : ((⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize)).val = ℓ % 384 :=
+      usize_ofNat_val_le _ (by omega)
+    have hdiv : ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) / (384#usize : Std.Usize) : Result Std.Usize)
+        = .ok (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize) :=
+      usize_div_lit _ _ _ (by rw [h384]; omega) (by rw [hℓv, h384, hdv])
+    have hrem : ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) % (384#usize : Std.Usize) : Result Std.Usize)
+        = .ok (⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize) :=
+      usize_rem_lit _ _ _ (by rw [h384]; omega) (by rw [hℓv, h384, hmv])
+    have hK : ℓ / 384 < K.val := Nat.div_lt_of_lt_mul (by omega)
+    have htlen : t.val.length = K.val := t.property
+    have hlvlen : (Spec.Lift.lift_vec t).val.length = K.val := (Spec.Lift.lift_vec t).property
+    have hcell : (Spec.Lift.lift_vec t).val[ℓ / 384]! = lift_poly (t.val[ℓ / 384]!) := by
+      show (t.val.map lift_poly)[ℓ / 384]! = lift_poly (t.val[ℓ / 384]!)
+      rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
+        List.getElem?_eq_getElem (by rw [htlen]; exact hK)]
+      simp only [Option.map_some, Option.getD_some]
+      rw [getElem!_pos t.val (ℓ / 384) (by rw [htlen]; exact hK)]
+    have hidx : Aeneas.Std.Array.index_usize (Spec.Lift.lift_vec t)
+          (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)
+        = .ok (lift_poly (t.val[ℓ / 384]!)) := by
+      rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
+        (Spec.Lift.lift_vec t) (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)
+        (by rw [show (Spec.Lift.lift_vec t).length = K.val from hlvlen, hdv]; exact hK)]
+      rw [hdv, hcell]
+    obtain ⟨a, ha_eq, ha_get⟩ :=
+      libcrux_iot_ml_kem.SerializeFc.byte_encode_12_eq (t.val[ℓ / 384]!)
+    have halen : a.val.length = 384 := a.property
+    have haidx : Aeneas.Std.Array.index_usize a (⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize)
+        = .ok (a.val[ℓ % 384]!) := by
+      rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
+        a (⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize)
+        (by rw [show a.length = 384 from halen, hmv]; omega)]
+      rw [hmv]
+    have hpk : pkBy K t seed ℓ = a.val[ℓ % 384]! := by
+      unfold pkBy encBy
+      rw [if_pos hlt]
+      simp only [ha_eq]
+    rw [hdiv]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hrem]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hidx]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [ha_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [haidx]
+    simp only [Aeneas.Std.bind_tc_ok, hpk]
+    rfl
+  · -- THE TAIL: byte `ℓ - 384K` of the seed.
+    rw [if_neg (show ¬ ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)
+        < (⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize)) from by
+      show ¬ (((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)).val < _)
+      rw [hℓv, hbv]; exact hlt)]
+    obtain ⟨d, hd_eq, hd_val⟩ :=
+      usize_sub_ok_e (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)
+        (⟨BitVec.ofNat _ (K.val * 384)⟩ : Std.Usize) (by rw [hℓv, hbv]; omega)
+    have hdv : d.val = ℓ - K.val * 384 := by rw [hd_val, hℓv, hbv]
+    have hdlt : d.val < seed.val.length := by rw [hdv, h_seed]; omega
+    have hsidx : Slice.index_usize seed d = .ok (seed.val[d.val]!) :=
+      libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.slice_index_usize_ok_eq
+        seed d hdlt
+    have hpk : pkBy K t seed ℓ = seed.val[d.val]! := by
+      unfold pkBy
+      rw [if_neg hlt, hdv]
+    rw [hd_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hsidx]
+    simp only [Aeneas.Std.bind_tc_ok, hpk]
+    rfl
+
+/-- **The spec bridge for the public key.** `serialize_public_key` is `pkBy` at every byte. -/
+private theorem spec_serialize_public_key_eq (K EK_SIZE : Std.Usize) (t : Std.Array SPoly K)
+    (seed : Slice Std.U8)
+    (hKb : K.val * 384 ≤ Std.Usize.max)
+    (h_ek : EK_SIZE.val = K.val * 384 + 32)
+    (h_seed : seed.val.length = 32) :
+    ∃ enc : Std.Array Std.U8 EK_SIZE,
+      hacspec_ml_kem.serialize.serialize_public_key (RANK := K) EK_SIZE
+          (Spec.Lift.lift_vec t) seed = .ok enc
+      ∧ ∀ ℓ : Nat, ℓ < EK_SIZE.val → enc.val[ℓ]! = pkBy K t seed ℓ := by
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Std.U8) EK_SIZE
+      (hacspec_ml_kem.serialize.serialize_public_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+        K EK_SIZE)
+      ((Spec.Lift.lift_vec t, seed) :
+        hacspec_ml_kem.serialize.serialize_public_key.closure K EK_SIZE)
+      (fun ℓ => pkBy K t seed ℓ)
+      (fun ℓ hℓ => spk_closure_eq K EK_SIZE t seed hKb h_ek h_seed ℓ hℓ)
+  refine ⟨⟨(List.range EK_SIZE.val).map (fun m => pkBy K t seed m), by simp⟩, ?_, ?_⟩
+  · unfold hacspec_ml_kem.serialize.serialize_public_key
+    simp only [hacspec_ml_kem.parameters.createi, hfn]
+  · intro ℓ hℓ
+    show ((List.range EK_SIZE.val).map (fun m => pkBy K t seed m))[ℓ]! = _
+    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hℓ]
+    simp only [Option.map_some, Option.getD_some]
+
+/-! ### IMPL side, and the proof the locked statement WOULD have.
+
+    `spkm_core` is `serialize_public_key_mut_fc` plus the two hypotheses the locked statement
+    is missing. It is a straight-line body walk: no loop, no bit algebra — `serialize_vector_fc`
+    (row 1, proved) supplies the whole `[0, 384K)` half through its own post, and the tail is
+    one `copy_from_slice` into `serialized[384K..]`. -/
+
+/-! The layout arithmetic, hoisted CONTEXT-FREE. Every one of these was an inline `omega`
+    first and every one blew `maxRecDepth`: `spkm_core`'s context carries
+    `K * 3072 ≤ Usize.max`, so any `omega` there drags `Std.Usize.max` in (skill §6). Same
+    fix as `window_div_mod` and `bits_div_8`, applied uniformly rather than one at a time. -/
+
+private theorem pos_384 (k : Nat) (h : 0 < k) : 0 < k * 384 := by omega
+private theorem le_384_32 (k : Nat) : k * 384 ≤ k * 384 + 32 := Nat.le_add_right _ _
+private theorem lt_384_32 (k : Nat) : k * 384 < k * 384 + 32 := by omega
+private theorem tail_len (k : Nat) : k * 384 + 32 - k * 384 = 32 := by omega
+private theorem tail_idx (k ℓ : Nat) (h : ℓ < k * 384 + 32) : ℓ - k * 384 < 32 := by omega
+
+/-- `copy_from_slice` on equal lengths returns the source. -/
+private theorem copy_from_slice_ok (dst src : Slice Std.U8)
+    (h : dst.val.length = src.val.length) :
+    CoreModels.core.slice.Slice.copy_from_slice CoreModels.core.U8.Insts.CoreMarkerCopy dst src
+      = .ok src := by
+  unfold CoreModels.core.slice.Slice.copy_from_slice
+  rw [if_pos (show Aeneas.Std.Slice.len dst = Aeneas.Std.Slice.len src from
+    Aeneas.Std.UScalar.eq_of_val_eq (by
+      rw [Aeneas.Std.Slice.len_val dst, Aeneas.Std.Slice.len_val src]; exact h))]
+
+/-- **The banked proof of INC-2a.3.** Identical to the locked statement of
+    `serialize_public_key_mut_fc` except for `h_K_pos` and `h_K_bnd`, the two hypotheses
+    whose absence makes that statement false (see its docstring, SPECREQ INC-2a.3-A/B).
+    When the statement is corrected, that theorem is one application of this one. -/
+private theorem spkm_core
+    (K PUBLIC_KEY_SIZE : Std.Usize)
+    (t_as_ntt : Std.Array SPoly K)
+    (seed_for_a : Slice Std.U8)
+    (serialized : Slice Std.U8)
+    (scratch : SVec)
+    -- MISSING HYPOTHESIS #1: `serialized[0 .. 384K]` is an EMPTY range at `K = 0`, and
+    -- `Slice.subslice` requires `start < end`. Machine-refuted at `K = 0`: `Error.panic`.
+    (h_K_pos : 0 < K.val)
+    -- MISSING HYPOTHESIS #2: `ranked_bytes_per_ring_element K` computes `(K * 3072) / 8`, so
+    -- the multiplication overflows well before `K * 384 + 32` does. Machine-refuted at
+    -- `K = 48038396025285290`: `Error.integerOverflow`.
+    (h_K_bnd : K.val * 3072 ≤ Std.Usize.max)
+    (h_seed_len : seed_for_a.length = 32)
+    (h_pk_size : PUBLIC_KEY_SIZE.val = K.val * 384 + 32)
+    (h_ser_len : serialized.length = PUBLIC_KEY_SIZE.val)
+    (h_bnd : ∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        (((t_as_ntt.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
+      (vectortraitsOperationsInst := portable_ops_inst) (K := K)
+      PUBLIC_KEY_SIZE t_as_ntt seed_for_a serialized scratch
+    ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 PUBLIC_KEY_SIZE,
+                  hacspec_ml_kem.serialize.serialize_public_key (RANK := K) PUBLIC_KEY_SIZE
+                      (Spec.Lift.lift_vec t_as_ntt) seed_for_a
+                    = .ok enc
+                  ∧ p.1.length = PUBLIC_KEY_SIZE.val
+                  ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
+  have h0v : ((0#usize : Std.Usize)).val = 0 := rfl
+  have hKb : K.val * 384 ≤ Std.Usize.max := le_trans (mul_384_le_3072 K.val) h_K_bnd
+  have hseed : seed_for_a.val.length = 32 := h_seed_len
+  have hser : serialized.val.length = K.val * 384 + 32 := by
+    show serialized.length = _
+    rw [h_ser_len, h_pk_size]
+  -- (1) the length constant, and (2) `&mut serialized[0 .. 384K]`
+  obtain ⟨i, hi_eq, hi_val⟩ := ranked_bpre K h_K_bnd
+  obtain ⟨s, wb, hmut_eq, hs_len, hwb⟩ :=
+    slice_index_mut_range_strict serialized (0#usize : Std.Usize) i
+      (by rw [h0v, hi_val]; exact pos_384 K.val h_K_pos)
+      (by rw [hi_val, hser]; exact le_384_32 K.val)
+  have hs384 : s.val.length = K.val * 384 := by rw [hs_len, h0v, hi_val, Nat.sub_zero]
+  -- (3) L(row 1): `serialize_vector` writes the encode model into every byte `< 384K`
+  obtain ⟨p1, hp1_eq, encv, hencv_eq, hp1_len, hp1_get⟩ :=
+    triple_exists_ok_fc
+      (serialize_vector_fc K i t_as_ntt s scratch hs384 hi_val h_bnd)
+  obtain ⟨out1, scr1⟩ := p1
+  -- identify `serialize_vector`'s spec-side witness with the pure byte model
+  obtain ⟨enc2, henc2_eq, henc2_get⟩ := spec_serialize_secret_key_eq K i t_as_ntt hi_val
+  have hencv : encv = enc2 := Result.ok.inj (hencv_eq.symm.trans henc2_eq)
+  have hout1_len : out1.val.length = K.val * 384 := hp1_len
+  have hout1_get : ∀ ℓ : Nat, ℓ < K.val * 384 →
+      out1.val[ℓ]! = encBy (t_as_ntt.val[ℓ / 384]!) (ℓ % 384) := by
+    intro ℓ hℓ
+    rw [show out1.val[ℓ]! = encv.val[ℓ]! from hp1_get ℓ hℓ, hencv,
+      henc2_get ℓ (by rw [hi_val]; exact hℓ)]
+  -- (4) write-back of the encoded prefix
+  have hwbv := hwb out1 (by rw [hout1_len, h0v, hi_val, Nat.sub_zero])
+  have hser1_len : (wb out1).val.length = K.val * 384 + 32 := by
+    rw [hwbv, List.length_setSlice!]; exact hser
+  have hser1_get : ∀ ℓ : Nat, ℓ < K.val * 384 →
+      (wb out1).val[ℓ]! = encBy (t_as_ntt.val[ℓ / 384]!) (ℓ % 384) := by
+    intro ℓ hℓ
+    rw [hwbv, List.getElem!_setSlice!_middle _ _ _ _
+      ⟨by rw [h0v]; exact Nat.zero_le ℓ,
+       by rw [hout1_len, h0v, Nat.sub_zero]; exact hℓ,
+       by rw [hser]; exact Nat.lt_of_lt_of_le hℓ (le_384_32 K.val)⟩, h0v, Nat.sub_zero]
+    exact hout1_get ℓ hℓ
+  -- (5) the discarded `ct_declassify` read of `serialized1[0 .. 384K]`
+  have hread : CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+      (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
+      (wb out1) { start := (0#usize : Std.Usize), «end» := i } = .ok _ :=
+    slice_range_index_ok (wb out1) (0#usize : Std.Usize) i
+      (by rw [h0v, hi_val]; exact pos_384 K.val h_K_pos)
+      (by rw [hi_val, hser1_len]; exact le_384_32 K.val)
+  -- (6) `&mut serialized1[384K ..]`, and (7) the tail copy
+  obtain ⟨s3, wb2, hmut2_eq, hs3_len, hwb2⟩ :=
+    slice_index_mut_rangefrom (wb out1) i
+      (by rw [hi_val, hser1_len]; exact lt_384_32 K.val)
+  have hs3_32 : s3.val.length = 32 := by
+    rw [hs3_len, hser1_len, hi_val]; exact tail_len K.val
+  have hcp : CoreModels.core.slice.Slice.copy_from_slice
+      CoreModels.core.U8.Insts.CoreMarkerCopy s3 seed_for_a = .ok seed_for_a :=
+    copy_from_slice_ok s3 seed_for_a (by rw [hs3_32, hseed])
+  have hwb2v := hwb2 seed_for_a (by rw [hseed, hser1_len, hi_val]; exact (tail_len K.val).symm)
+  -- (8) the SPEC side
+  obtain ⟨enc, henc_eq, henc_get⟩ :=
+    spec_serialize_public_key_eq K PUBLIC_KEY_SIZE t_as_ntt seed_for_a hKb h_pk_size hseed
+  refine triple_of_ok_fc (v := (wb2 seed_for_a, scr1)) ?_ ?_
+  · unfold libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
+    -- The machine-generated body, once, in HAND-WRITTEN `do` form (skill §4.1). This is not
+    -- cosmetic: the `let (s, index_mut_back) ← …` pattern binders come out of `unfold` as
+    -- compiled matcher applications that neither `simp only [bind_tc_ok]` nor `dsimp` will
+    -- iota-reduce, so every later `rw` fails under them. Re-stating the block makes the
+    -- binders ours and each `rw` then lands.
+    show (do
+        let i' ← libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element K
+        let (s', index_mut_back) ←
+          CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+            (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+              Std.U8) serialized { start := (0#usize : Std.Usize), «end» := i' }
+        let (s1, scratch1) ←
+          libcrux_iot_ml_kem.ind_cpa.serialize_vector portable_ops_inst t_as_ntt s' scratch
+        let s2 ← CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
+          (index_mut_back s1) { start := (0#usize : Std.Usize), «end» := i' }
+        let _ ← libcrux_secrets.mem_requests.ct_declassify s2
+        let (s3', index_mut_back1) ←
+          CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+            (CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+              Std.U8) (index_mut_back s1) { start := i' }
+        let s4 ← CoreModels.core.slice.Slice.copy_from_slice
+          CoreModels.core.U8.Insts.CoreMarkerCopy s3' seed_for_a
+        Result.ok (index_mut_back1 s4, scratch1)) = _
+    rw [hi_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hmut_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hp1_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hread]
+    simp only [libcrux_secrets.mem_requests.ct_declassify, Aeneas.Std.bind_tc_ok]
+    rw [hmut2_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hcp]
+    rfl
+  · refine ⟨enc, henc_eq, ?_, ?_⟩
+    · show (wb2 seed_for_a).val.length = _
+      rw [hwb2v, List.length_setSlice!, hser1_len, h_pk_size]
+    · intro ℓ hℓ
+      rw [h_pk_size] at hℓ
+      rw [henc_get ℓ (by rw [h_pk_size]; exact hℓ)]
+      show (wb2 seed_for_a).val[ℓ]! = _
+      rw [hwb2v]
+      unfold pkBy
+      by_cases hlt : ℓ < K.val * 384
+      · rw [if_pos hlt,
+          List.getElem!_setSlice!_prefix _ _ _ _ (by rw [hi_val]; exact hlt)]
+        exact hser1_get ℓ hlt
+      · rw [if_neg hlt,
+          List.getElem!_setSlice!_middle _ _ _ _
+            ⟨by rw [hi_val]; exact Nat.le_of_not_lt hlt,
+             by rw [hseed, hi_val]; exact tail_idx K.val ℓ hℓ,
+             by rw [hser1_len]; exact hℓ⟩, hi_val]
+
+end SPKMBank
+
 /-- **INC-2a.3** — `ind_cpa.serialize_public_key_mut`: concatenate `t̂` and `ρ`.
 
     `serialize_vector(t_as_ntt, &mut serialized[0..384K])` then
@@ -1144,7 +1608,63 @@ theorem serialize_vector_fc
     `serialized_future == Hacspec_ml_kem.Serialize.serialize_public_key $K $PUBLIC_KEY_SIZE
     (vector_to_spec $K $t_as_ntt) $seed_for_a`.
     `h_seed_len` and `h_pk_size` are the upstream `requires`, transcribed; `is_rank` is NOT,
-    for the same measured reason as INC-2a.2. -/
+    for the same measured reason as INC-2a.2.
+
+    ────────────────────────────────────────────────────────────────────────────────────────
+    # SPECREQ INC-2a.3 — THIS STATEMENT IS FALSE AS LOCKED (PROVER, 2026-08-19)
+
+    It is under-constrained in exactly two places, and BOTH are machine-refuted (`#eval` on
+    the extracted impl, all four hypotheses satisfied at the witness). The obligation is
+    otherwise true and PROVED: `spkm_core` above is this statement plus the two missing
+    hypotheses, closed, axioms `propext / Classical.choice / Quot.sound`.
+
+    Dropping `is_rank K` was right for INC-2a.2 (`serialize_vector`) — that body only ever
+    computes `cnt * 384`, which the output length already bounds. It is NOT right here,
+    because `serialize_public_key_mut` does two things `serialize_vector` does not.
+
+    ## (A) `K = 0` — the empty mutable subslice. `Error.panic`.
+    The body's second step is `&mut serialized[0 .. ranked_bytes_per_ring_element K]`. At
+    `K = 0` that range is `[0, 0)`, and `Aeneas.Std.Slice.subslice` requires
+    `start < end` — so `index_mut` fails and the program does not return.
+    Witness, every hypothesis satisfied: `K = 0`, `PUBLIC_KEY_SIZE = 32`,
+    `serialized = replicate 32 0u8` (`h_pk_size`, `h_ser_len` ✓), `seed_for_a = replicate 32
+    0u8` (`h_seed_len` ✓), `t_as_ntt = ⟨[], rfl⟩` (`h_bnd` vacuous).
+    Measured: `serialize_public_key_mut … = fail Error.panic`, localised to
+    `core.Slice.Insts.CoreOpsIndexIndexMut.index_mut … {start := 0, end := 0}`, which alone
+    also returns `fail Error.panic` (`end := 384` on the same slice returns `ok`, len 384).
+
+    ## (B) large `K` — `ranked_bytes_per_ring_element` overflows. `Error.integerOverflow`.
+    `constants.ranked_bytes_per_ring_element K` is NOT `K * 384`; it is
+    `let i ← BITS_PER_RING_ELEMENT (= 3072); let i1 ← K * i; i1 / 8`.
+    So it needs `K * 3072 ≤ Usize.max`, which is 8× stronger than anything `h_pk_size` +
+    `h_ser_len` give (they give only `K * 384 + 32 ≤ Usize.max`).
+    Witness on this 64-bit platform (`Usize.max = 18446744073709551615`):
+    `K = 48038396025285290`, `PUBLIC_KEY_SIZE = K * 384 + 32 = 18446744073709551392`
+    (`≤ Usize.max` ✓, so `h_pk_size`/`h_ser_len` are satisfiable), all coefficients `0`
+    (`h_bnd` ✓). Then `K * 3072 = 147573952589676410880 > Usize.max` and
+    `ranked_bytes_per_ring_element K = fail Error.integerOverflow`. Measured directly.
+
+    ## Proposed fix — upstream `requires`, in preference order
+    1. **Restore the upstream `is_rank`**, which upstream `ind_cpa.rs` does carry and which
+       this scaffold dropped: `#[hax_lib::requires(is_rank::<K>())]`. `K ∈ {2,3,4}` kills
+       both (A) and (B) at once, and is what the caller always satisfies.
+    2. If a rank-generic statement is wanted (INC-2a.2 is one, legitimately), the MINIMAL
+       transcription is the two facts the body actually needs:
+       `#[hax_lib::requires(K > 0 && K * 3072 <= usize::MAX)]`
+       i.e. in the Lean statement, two extra hypotheses
+       `(h_K_pos : 0 < K.val)` and `(h_K_bnd : K.val * 3072 ≤ Std.Usize.max)`.
+       These are exactly `spkm_core`'s, so option 2 closes in ONE line:
+       `exact spkm_core K PUBLIC_KEY_SIZE t_as_ntt seed_for_a serialized scratch`
+       `  h_K_pos h_K_bnd h_seed_len h_pk_size h_ser_len h_bnd`.
+
+    ## What is NOT wrong
+    The post itself. The tail conjunct and the length arithmetic — which the dispatch brief
+    flagged as the residual risk, this being the one statement in the campaign to reach a
+    prover without an evaluation pass — are both CORRECT: the `[0, 384K)` half is
+    `serialize_vector_fc`'s post byte for byte, and the `[384K, PUBLIC_KEY_SIZE)` half is
+    `seed_for_a[ℓ - 384K]`, matching the spec closure's `else` branch. Both are proved in
+    `spkm_core`, which is a stronger check than any probe. Nothing in this SPECREQ asks for
+    the post to be weakened. -/
 @[spec]
 theorem serialize_public_key_mut_fc
     (K PUBLIC_KEY_SIZE : Std.Usize)
@@ -1169,6 +1689,11 @@ theorem serialize_public_key_mut_fc
                     = .ok enc
                   ∧ p.1.length = PUBLIC_KEY_SIZE.val
                   ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
+  -- NOT PROVABLE: this statement is FALSE at `K = 0` and at `K * 3072 > Usize.max`, both
+  -- machine-refuted. See SPECREQ INC-2a.3 in the docstring above. The proof it WOULD have is
+  -- `spkm_core`, closed and axiom-clean; correcting the statement per option 1 or 2 of the
+  -- SPECREQ turns this `sorry` into one application of it. The statement is left byte-for-byte
+  -- as locked, per the freeze.
   sorry
 
 end libcrux_iot_ml_kem.IndCpaFc
