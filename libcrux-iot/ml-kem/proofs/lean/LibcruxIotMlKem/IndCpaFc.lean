@@ -57,34 +57,34 @@ namespace libcrux_iot_ml_kem.IndCpaFc
 
     Everything in this section is `private`: the L5.5 bank it parallels is `private` in
     `SerializeFc.lean` and therefore unreachable from here, so the small plumbing bridges
-    are restated. Each is marked with its `SerializeFc.lean` source. -/
+    are restated, each marked with its `SerializeFc.lean` source. The two exceptions are
+    `triple_exists_ok_fc` / `triple_of_ok_fc`, which DO have a public copy in the tree and
+    are forwarded to it rather than restated. -/
 
 section DVBank
 
 open libcrux_iot_ml_kem.Util.LoopSpecs
 open libcrux_iot_ml_kem.Util.CreateI
 
-/-! ### Triple ↔ `Result` plumbing (`SerializeFc.lean:624/631`, `ComputeRingElementV/FC.lean:47/56`). -/
+/-! ### Triple ↔ `Result` plumbing.
+
+    These two are NOT restated: statement-identical copies are already PUBLIC and reachable
+    from here at `Vector/Portable/Arithmetic/PerElement.lean:1399/1406`, so they are simply
+    forwarded. (The tree carries NINE copies of this pair — `SerializeFc.lean:576/624`,
+    `ComputeRingElementV/{FC:47,56, Impl:45}`, `ComputeVectorU/{FC:50,59, Impl:63,72}`,
+    `ComputeMessage/{FC:36,45, Impl:46,56}`, `ComputeVectorU/Hacspec.lean:255/261` primed —
+    all but the `PerElement` one `private`. Hoisting them into `Util/` is a tree-level task,
+    but nothing forces a tenth copy here.)
+
+    `holds_ok` below has no public copy anywhere, so it IS restated (`SerializeFc.lean:631`). -/
 
 private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
-    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) : ∃ v, x = .ok v ∧ P v := by
-  match hx : x with
-  | .ok v =>
-    refine ⟨v, rfl, ?_⟩
-    subst hx
-    simpa [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
-      Std.Do.PredTrans.apply] using h
-  | .fail _ =>
-    exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
-      Std.Do.PredTrans.apply])
-  | .div =>
-    exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
-      Std.Do.PredTrans.apply])
+    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) : ∃ v, x = .ok v ∧ P v :=
+  Vector.Portable.Arithmetic.PerElement.triple_exists_ok_fc h
 
 private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α} {P : α → Prop}
-    (hx : x = .ok v) (hp : P v) : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
-  subst hx
-  simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply, hp]
+    (hx : x = .ok v) (hp : P v) : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ :=
+  Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc hx hp
 
 private theorem holds_ok (P : Prop) : (Aeneas.Std.Result.ok P).holds ↔ P := by
   constructor
@@ -297,8 +297,10 @@ private theorem byte_decode_dyn_12_arr (b : Slice Std.U8) (hb : b.val.length = 3
   simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
 
 /-- **`byte_decode` at `d = 12` succeeds**, in both the slice and the array shape,
-    with the SAME value. Derived from the PROVED leaf L5.7 — the axiom-clean
-    counterpart of `SerializeFc.lean`'s spec-side `byte_decode_dyn_12_ok`. -/
+    with the SAME value. Same content as `SerializeFc.lean`'s same-named lemma, which is
+    ALSO axiom-clean but is `private` and hence unreachable here; the gain of this copy is
+    reachability plus cost — it is derived from the PROVED leaf L5.7 in four lines, where
+    the original re-derives it spec-side through the ~60-line 12-bit bank. -/
 private theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (hb : b.val.length = 384) :
     ∃ q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
       hacspec_ml_kem.serialize.byte_decode_dyn b 12#usize = .ok q
