@@ -575,11 +575,6 @@ private theorem deserialize_12_eq (bytes : Slice Std.U8)
 /-! ### Impl side — the 16-chunk `chunks_exact` loop -/
 
 open libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl in
-private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α} {P : α → Prop}
-    (hx : x = .ok v) (hp : P v) :
-    (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
-  subst hx; simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
-    Std.Do.PredTrans.apply, hp]
 
 /-- Re-indexing: `dec12` of a 24-byte chunk at offset `24*i` of `l`. -/
 private theorem dec12_chunk (l c : List Std.U8) (i ℓ : Nat) (hℓ : ℓ < 16)
@@ -1404,46 +1399,6 @@ private theorem vbyte_val_encByte
     Written-prefix invariant, with the undone-cells conjunct discharged by the
     `setSlice!` prefix lemma (the sub-slice writes are pairwise disjoint). -/
 
-private theorem slice_index_mut_range_strict {T : Type} [Inhabited T]
-    (s : Slice T) (a b : Std.Usize) (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
-    ∃ (ns : Slice T) (wb : Slice T → Slice T),
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
-        ⟨a, b⟩ = .ok (ns, wb)
-      ∧ ns.val.length = b.val - a.val
-      ∧ (∀ s' : Slice T, s'.val.length = b.val - a.val →
-            (wb s').val = s.val.setSlice! a.val s'.val) := by
-  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
-    Std.WP.spec_imp_exists (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩ h0 h1)
-  have hlen : ns.val.length = b.val - a.val := by
-    rw [hns_val]
-    show (List.slice a.val b.val s.val).length = b.val - a.val
-    rw [List.slice_length]; omega
-  have hTR : HaxToRange.toRange ({ start := a, «end» := b }
-        : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)
-      = ({ start := a, «end» := b } : Aeneas.Std.core.ops.range.Range Std.Usize) := rfl
-  refine ⟨ns, (fun sub' =>
-      match Aeneas.Std.Slice.update_subslice s
-          (HaxToRange.toRange
-            ({ start := a, «end» := b } : CoreModels.core.ops.range.Range Std.Usize)
-            (Aeneas.Std.Slice.len s)) sub' with
-      | .ok s'' => s''
-      | _ => s), ?_, hlen, ?_⟩
-  · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-    simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-      CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-      CoreModels.rust_primitives.slice.slice_slice, hns_eq, Aeneas.Std.bind_tc_ok]
-    rfl
-  · intro s' hs'
-    have hupd : Aeneas.Std.Slice.update_subslice s
-        (HaxToRange.toRange ({ start := a, «end» := b }
-            : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)) s'
-        = .ok ⟨s.val.setSlice! a.val s'.val, by scalar_tac⟩ := by
-      rw [hTR]
-      unfold Aeneas.Std.Slice.update_subslice
-      rw [dif_pos ⟨h0, by simpa [Aeneas.Std.Slice.length] using h1, by
-        simpa [Aeneas.Std.Slice.length] using hs'⟩]
-    simp only [hupd]
 
 
 
@@ -3224,60 +3179,19 @@ private theorem usize_ofNat_val (k : Nat) (h : k < 2 ^ 32) :
 /-- The `Slice.len` bridge at this layer's one length, `384`. Stated once in both
     the raw and the `Result` shape: `byte_decode_dyn`'s `try_from` needs the raw
     form for its `dif_pos`, and both entry points need the `Result` form. -/
-private theorem slice_len_eq_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
+theorem slice_len_eq_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
     Aeneas.Std.Slice.len sl = (384#usize : Std.Usize) := by
   refine Aeneas.Std.UScalar.eq_of_val_eq ?_
   rw [Aeneas.Std.Slice.len_val]
   show sl.val.length = ((384#usize : Std.Usize)).val
   rw [h]; scalar_tac
 
-private theorem slice_len_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
+theorem slice_len_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
     CoreModels.core.slice.Slice.len sl = .ok (384#usize : Std.Usize) := by
   simp only [CoreModels.core.slice.Slice.len, slice_len_eq_384 sl h]
   rfl
 
-/-- Generic-bound analogue of `LoopHelper.iter_next_some_eq`. -/
-private theorem iter_some_gen (i e : Std.Usize) (h_lt : i.val < e.val) :
-    ∃ s : Std.Usize, s.val = i.val + 1 ∧
-      CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-          CoreModels.core.Usize.Insts.CoreIterRangeStep
-          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
-        = .ok (some i,
-            ({ start := s, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) := by
-  have hT := IteratorRange_next_spec_usize i e
-    (Q := Std.Do.PostCond.noThrow fun (oi : Option Std.Usize × _) => ⌜
-      ∃ s : Std.Usize, s.val = i.val + 1
-        ∧ oi = (some i,
-            ({ start := s, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) ⌝)
-    (fun _ s hs => by
-      dsimp only [Std.Do.PostCond.noThrow, Std.Do.SPred.down_pure]
-      exact ⟨s, hs, rfl⟩)
-    (fun hge => absurd h_lt (Nat.not_lt.mpr hge))
-  obtain ⟨v, hveq, s, hs, hpair⟩ := triple_exists_ok_fc hT
-  refine ⟨s, hs, ?_⟩
-  show CoreModels.core.iter.range.IteratorRange.next
-      CoreModels.core.Usize.Insts.CoreIterRangeStep
-      ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize) = _
-  rw [hveq, hpair]
 
-/-- Generic-bound analogue of `LoopHelper.iter_next_none_eq`. -/
-private theorem iter_none_gen (i e : Std.Usize) (h_ge : e.val ≤ i.val) :
-    CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-        CoreModels.core.Usize.Insts.CoreIterRangeStep
-        ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
-      = .ok ((none : Option Std.Usize),
-          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) := by
-  have hT := IteratorRange_next_spec_usize i e
-    (Q := Std.Do.PostCond.noThrow fun (oi : Option Std.Usize × _) => ⌜
-      oi = ((none : Option Std.Usize),
-        ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) ⌝)
-    (fun hlt => absurd hlt (Nat.not_lt.mpr h_ge))
-    (fun _ => by dsimp only [Std.Do.PostCond.noThrow, Std.Do.SPred.down_pure])
-  obtain ⟨v, hveq, hP⟩ := triple_exists_ok_fc hT
-  show CoreModels.core.iter.range.IteratorRange.next
-      CoreModels.core.Usize.Insts.CoreIterRangeStep
-      ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize) = _
-  rw [hveq, hP]
 
 /-! ### The `d`-step bit-accumulation loop of `bitvector_to_bounded_ints`.
 
@@ -3682,7 +3596,7 @@ open libcrux_iot_ml_kem.Util.CreateI
 
 
 /-- `Spec.pk_chunk` delivers a FULL 384-byte window at every `i < K`. -/
-private theorem pk_chunk_len_384 (public_key : Slice Std.U8) (K : Std.Usize)
+theorem pk_chunk_len_384 (public_key : Slice Std.U8) (K : Std.Usize)
     (h_pk : public_key.val.length = K.val * 384) (i : Nat) (hi : i < K.val) :
     (Spec.pk_chunk public_key i).val.length = 384 := by
   show ((public_key.val.drop (i * 384)).take 384).length = 384
@@ -3693,7 +3607,7 @@ private theorem pk_chunk_len_384 (public_key : Slice Std.U8) (K : Std.Usize)
 
 /-- The hacspec `BYTES_PER_RING_ELEMENT` reduces to `384` (both constants are
     `irreducible`, so this needs the explicit unfolding). -/
-private theorem hacspec_bpre :
+theorem hacspec_bpre :
     (hacspec_ml_kem.parameters.BYTES_PER_RING_ELEMENT : Result Std.Usize)
       = .ok (384#usize : Std.Usize) := by
   unfold hacspec_ml_kem.parameters.BYTES_PER_RING_ELEMENT
@@ -3705,7 +3619,7 @@ private theorem hacspec_bpre :
   exact usize_div_lit _ _ _ (by scalar_tac) (by scalar_tac)
 
 /-- The impl-side `BYTES_PER_RING_ELEMENT`, same shape. -/
-private theorem impl_bpre :
+theorem impl_bpre :
     (libcrux_iot_ml_kem.constants.BYTES_PER_RING_ELEMENT : Result Std.Usize)
       = .ok (384#usize : Std.Usize) := by
   unfold libcrux_iot_ml_kem.constants.BYTES_PER_RING_ELEMENT
@@ -3726,7 +3640,7 @@ private theorem impl_bpre :
     identified WITHOUT any bit-level reasoning. Proved from the file's own L5.7
     spec bank (`byte_decode_generic_12_get` + `byte_decode_closure_eq`), which are
     both unconditional. -/
-private theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 384#usize)
+theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 384#usize)
     (hab : a.val = b.val) :
     ∃ q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
       hacspec_ml_kem.serialize.byte_decode_dyn b 12#usize = .ok q
@@ -3803,7 +3717,7 @@ private theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 3
 
 /-- The `vector_decode_12` closure at index `k` decodes exactly `Spec.pk_chunk pk k`,
     hence produces the `k`-th cell of the pure model. -/
-private theorem vector_decode_12_closure_eq (K : Std.Usize) (public_key : Slice Std.U8)
+theorem vector_decode_12_closure_eq (K : Std.Usize) (public_key : Slice Std.U8)
     (h_pk : public_key.val.length = K.val * 384) (k : Nat) (hk : k < K.val) :
     (hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
         K).call_mut public_key (⟨BitVec.ofNat _ k⟩ : Std.Usize)

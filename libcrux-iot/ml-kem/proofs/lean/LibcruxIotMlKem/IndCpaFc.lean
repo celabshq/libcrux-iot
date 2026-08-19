@@ -28,6 +28,9 @@ import LibcruxIotMlKem.Util.Shared
 -- been elaborated (readiness map A4).
 open CoreModels Aeneas Aeneas.Std Std.Do
 open libcrux_iot_ml_kem.Util.Shared
+-- The d=12 decode/length facts this file shares with SerializeFc are PUBLIC there as of
+-- 2026-08-19 rather than copied here (they were, 11 of them). See Util/Shared.lean's header.
+open libcrux_iot_ml_kem.SerializeFc
 open libcrux_iot_ml_kem
 open libcrux_iot_ml_kem.Spec
 open libcrux_iot_ml_kem.Spec.Lift
@@ -81,9 +84,6 @@ open libcrux_iot_ml_kem.Util.CreateI
     `holds_ok` below has no public copy anywhere, so it IS restated (`SerializeFc.lean:631`). -/
 
 
-private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α} {P : α → Prop}
-    (hx : x = .ok v) (hp : P v) : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ :=
-  Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc hx hp
 
 
 /-! ### `Usize` arithmetic bridges (`SerializeFc.lean:849/1470/1476/3719/3737`). -/
@@ -95,17 +95,7 @@ private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α} {P : α →
 
 /-! ### `Slice` bridges (`SerializeFc.lean:3259/3266/3853/3858/4030/4037/4042`). -/
 
-private theorem slice_len_eq_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
-    Aeneas.Std.Slice.len sl = (384#usize : Std.Usize) := by
-  refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-  rw [Aeneas.Std.Slice.len_val]
-  show sl.val.length = ((384#usize : Std.Usize)).val
-  rw [h]; scalar_tac
 
-private theorem slice_len_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
-    CoreModels.core.slice.Slice.len sl = .ok (384#usize : Std.Usize) := by
-  simp only [CoreModels.core.slice.Slice.len, slice_len_eq_384 sl h]
-  rfl
 
 
 
@@ -115,39 +105,10 @@ private theorem slice_len_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
 /-! ### The two `BYTES_PER_RING_ELEMENT` constants (`SerializeFc.lean:3746/3758`).
     Both are `irreducible`, so each needs its explicit unfolding. -/
 
-private theorem hacspec_bpre :
-    (hacspec_ml_kem.parameters.BYTES_PER_RING_ELEMENT : Result Std.Usize)
-      = .ok (384#usize : Std.Usize) := by
-  unfold hacspec_ml_kem.parameters.BYTES_PER_RING_ELEMENT
-    hacspec_ml_kem.parameters.BITS_PER_RING_ELEMENT
-    hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT
-  rw [usize_mul_lit (256#usize : Std.Usize) (12#usize : Std.Usize)
-    (3072#usize : Std.Usize) (by scalar_tac) (by scalar_tac)]
-  simp only [Aeneas.Std.bind_tc_ok]
-  exact usize_div_lit _ _ _ (by scalar_tac) (by scalar_tac)
 
-private theorem impl_bpre :
-    (libcrux_iot_ml_kem.constants.BYTES_PER_RING_ELEMENT : Result Std.Usize)
-      = .ok (384#usize : Std.Usize) := by
-  unfold libcrux_iot_ml_kem.constants.BYTES_PER_RING_ELEMENT
-    libcrux_iot_ml_kem.constants.BITS_PER_RING_ELEMENT
-    libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
-  rw [usize_mul_lit (256#usize : Std.Usize) (12#usize : Std.Usize)
-    (3072#usize : Std.Usize) (by scalar_tac) (by scalar_tac)]
-  simp only [Aeneas.Std.bind_tc_ok]
-  exact usize_div_lit _ _ _ (by scalar_tac) (by scalar_tac)
 
 /-! ### `Spec.pk_chunk` -/
 
-/-- `Spec.pk_chunk` delivers a FULL 384-byte window at every `i < K`
-    (`SerializeFc.lean:3726`). -/
-private theorem pk_chunk_len_384 (secret_key : Slice Std.U8) (K : Std.Usize)
-    (h_sk : secret_key.val.length = K.val * 384) (i : Nat) (hi : i < K.val) :
-    (Spec.pk_chunk secret_key i).val.length = 384 := by
-  show ((secret_key.val.drop (i * 384)).take 384).length = 384
-  rw [List.length_take, List.length_drop, h_sk]
-  have h : (i + 1) * 384 ≤ K.val * 384 := by apply Nat.mul_le_mul_right; omega
-  omega
 
 /-- The explicit `[384i, 384(i+1))` window the IMPL slices IS `Spec.pk_chunk`. -/
 private theorem window_eq_pk_chunk (secret_key : Slice Std.U8) (a b : Std.Usize) (i : Nat)
@@ -204,88 +165,9 @@ private theorem byte_decode_dyn_12_arr (b : Slice Std.U8) (hb : b.val.length = 3
     rw [dif_pos hl]]
   simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
 
-/-- **`byte_decode` at `d = 12` succeeds**, in both the slice and the array shape,
-    with the SAME value. Same content as `SerializeFc.lean`'s same-named lemma, which is
-    ALSO axiom-clean but is `private` and hence unreachable here; the gain of this copy is
-    reachability plus cost — it is derived from the PROVED leaf L5.7 in four lines, where
-    the original re-derives it spec-side through the ~60-line 12-bit bank. -/
-private theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (hb : b.val.length = 384) :
-    ∃ q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
-      hacspec_ml_kem.serialize.byte_decode_dyn b 12#usize = .ok q
-      ∧ hacspec_ml_kem.serialize.byte_decode (D32 := 384#usize) 3072#usize
-          (⟨b.val, by rw [hb]; scalar_tac⟩ : Std.Array Std.U8 384#usize) 12#usize = .ok q := by
-  obtain ⟨p, _, hdyn, _⟩ :=
-    triple_exists_ok_fc
-      (libcrux_iot_ml_kem.SerializeFc.deserialize_to_uncompressed_ring_element_fc b
-        default (by simpa [Aeneas.Std.Slice.length] using hb))
-  exact ⟨lift_poly p, hdyn, by rw [← byte_decode_dyn_12_arr b hb]; exact hdyn⟩
 
 /-! ### SPEC side — `vector_decode_12` IS the pure model. -/
 
-/-- The `vector_decode_12` closure at index `k` decodes exactly `Spec.pk_chunk sk k`,
-    hence produces the `k`-th cell of the pure model (`SerializeFc.lean:3889`). -/
-private theorem vector_decode_12_closure_eq (K : Std.Usize) (secret_key : Slice Std.U8)
-    (h_sk : secret_key.val.length = K.val * 384) (k : Nat) (hk : k < K.val) :
-    (hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
-        K).call_mut secret_key (⟨BitVec.ofNat _ k⟩ : Std.Usize)
-      = .ok ((Spec.t_as_ntt_from_public_key_pure secret_key K).val[k]!, secret_key) := by
-  have hk384' : k * 384 + 384 ≤ K.val * 384 := by
-    have h : (k + 1) * 384 ≤ K.val * 384 := by apply Nat.mul_le_mul_right; omega
-    calc k * 384 + 384 = (k + 1) * 384 := by ring
-      _ ≤ K.val * 384 := h
-  have hKmax : K.val * 384 ≤ Std.Usize.max := by
-    rw [← h_sk]; exact secret_key.property
-  have hk384 : k * 384 + 384 ≤ Std.Usize.max := le_trans hk384' hKmax
-  have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
-  have hkval : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
-    usize_ofNat_val_le k (le_trans (Nat.le_trans (Nat.le_mul_of_pos_right k (by omega))
-      (Nat.le_add_right _ 384)) hk384)
-  obtain ⟨st, hst_eq, hst_val⟩ :=
-    usize_mul_ok_e (⟨BitVec.ofNat _ k⟩ : Std.Usize) (384#usize : Std.Usize)
-      (by rw [hkval, h384]; exact le_trans (Nat.le_add_right _ 384) hk384)
-  rw [hkval, h384] at hst_val
-  obtain ⟨en, hen_eq, hen_val⟩ :=
-    usize_add_ok_e st (384#usize : Std.Usize) (by rw [hst_val, h384]; exact hk384)
-  have hen_val' : en.val = k * 384 + 384 := by
-    rw [hen_val, hst_val, h384]
-  have hchunk_len : (Spec.pk_chunk secret_key k).val.length = 384 :=
-    pk_chunk_len_384 secret_key K h_sk k hk
-  have hidx := slice_range_index_ok secret_key st en
-    (by rw [hst_val, hen_val']; omega) (by rw [hen_val', h_sk]; exact hk384')
-  rw [window_eq_pk_chunk secret_key st en k hst_val hen_val'] at hidx
-  have htry :
-      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
-          (384#usize : Std.Usize) (Spec.pk_chunk secret_key k)
-        = .ok (CoreModels.core.result.Result.Ok
-            (⟨(Spec.pk_chunk secret_key k).val, by rw [hchunk_len]; scalar_tac⟩ :
-              Std.Array Std.U8 384#usize)) := by
-    unfold
-      CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
-    rw [dif_pos (slice_len_eq_384 _ hchunk_len)]
-  obtain ⟨q, hq_dyn, hq_arr⟩ := byte_decode_dyn_12_ok (Spec.pk_chunk secret_key k) hchunk_len
-  have hcell : (Spec.t_as_ntt_from_public_key_pure secret_key K).val[k]! = q := by
-    show ((List.range K.val).map (fun i =>
-        match hacspec_ml_kem.serialize.byte_decode_dyn (Spec.pk_chunk secret_key i) 12#usize with
-        | .ok p => p
-        | _ => default))[k]! = q
-    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk]
-    simp only [Option.map_some, Option.getD_some, hq_dyn]
-  show (hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
-      (RANK := K) secret_key (⟨BitVec.ofNat _ k⟩ : Std.Usize)) = _
-  unfold
-    hacspec_ml_kem.serialize.vector_decode_12.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
-  rw [hacspec_bpre]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [hst_eq]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [hen_eq]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [hidx]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [htry]
-  simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
-  rw [hq_arr]
-  simp only [Aeneas.Std.bind_tc_ok, hcell]
 
 /-- **The spec bridge.** The hacspec rank-K 12-bit decode is the pure model
     `Spec.t_as_ntt_from_public_key_pure`, i.e. `lift_t_as_ntt_from_public_key`
@@ -340,26 +222,7 @@ private theorem spec_vector_decode_12_eq (K : Std.Usize) (secret_key : Slice Std
     prefix; no undone-cells conjunct is needed because the post only speaks about
     indices `< K`. -/
 
-/-- Generic-bound `Range.next` bridges, in the `Range.Insts…next` spelling the loop
-    body uses. Thin wrappers over the PUBLIC `Ntt.Layer4PlusFC` versions (the
-    `SerializeFc.lean:3272/3296` copies are `private`). -/
-private theorem iter_some_gen (i e : Std.Usize) (h_lt : i.val < e.val) :
-    ∃ s : Std.Usize, s.val = i.val + 1 ∧
-      CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-          CoreModels.core.Usize.Insts.CoreIterRangeStep
-          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
-        = .ok (some i,
-            ({ start := s, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) := by
-  obtain ⟨s, hs, heq⟩ := libcrux_iot_ml_kem.Ntt.Layer4PlusFC.iter_next_some_eq_gen i e h_lt
-  exact ⟨s, hs, heq⟩
 
-private theorem iter_none_gen (i e : Std.Usize) (h_ge : e.val ≤ i.val) :
-    CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
-        CoreModels.core.Usize.Insts.CoreIterRangeStep
-        ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
-      = .ok ((none : Option Std.Usize),
-          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) :=
-  libcrux_iot_ml_kem.Ntt.Layer4PlusFC.iter_next_none_eq_gen i e h_ge
 
 /-- Written-prefix invariant for the rank-K secret-key decode loop. The bound is
     `≤ 4095`, i.e. L5.7's own per-element post lifted pointwise — the impl's
@@ -1039,45 +902,6 @@ private theorem spec_serialize_secret_key_eq (K T_SIZE : Std.Usize) (key : Std.A
     it is the same statement and the same proof). `List.setSlice!` then gives the
     written-prefix / untouched-prefix algebra the invariant needs. -/
 
-private theorem slice_index_mut_range_strict {T : Type} [Inhabited T]
-    (s : Slice T) (a b : Std.Usize) (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
-    ∃ (ns : Slice T) (wb : Slice T → Slice T),
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
-        ⟨a, b⟩ = .ok (ns, wb)
-      ∧ ns.val.length = b.val - a.val
-      ∧ (∀ s' : Slice T, s'.val.length = b.val - a.val →
-            (wb s').val = s.val.setSlice! a.val s'.val) := by
-  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
-    Std.WP.spec_imp_exists (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩ h0 h1)
-  have hlen : ns.val.length = b.val - a.val := by
-    rw [hns_val]
-    show (List.slice a.val b.val s.val).length = b.val - a.val
-    rw [List.slice_length]; omega
-  have hTR : HaxToRange.toRange ({ start := a, «end» := b }
-        : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)
-      = ({ start := a, «end» := b } : Aeneas.Std.core.ops.range.Range Std.Usize) := rfl
-  refine ⟨ns, (fun sub' =>
-      match Aeneas.Std.Slice.update_subslice s
-          (HaxToRange.toRange
-            ({ start := a, «end» := b } : CoreModels.core.ops.range.Range Std.Usize)
-            (Aeneas.Std.Slice.len s)) sub' with
-      | .ok s'' => s''
-      | _ => s), ?_, hlen, ?_⟩
-  · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-    simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-      CoreModels.rust_primitives.slice.slice_slice, hns_eq, Aeneas.Std.bind_tc_ok]
-    rfl
-  · intro s' hs'
-    have hupd : Aeneas.Std.Slice.update_subslice s
-        (HaxToRange.toRange ({ start := a, «end» := b }
-            : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)) s'
-        = .ok ⟨s.val.setSlice! a.val s'.val, by scalar_tac⟩ := by
-      rw [hTR]
-      unfold Aeneas.Std.Slice.update_subslice
-      rw [dif_pos ⟨h0, by simpa [Aeneas.Std.Slice.length] using h1, by
-        simpa [Aeneas.Std.Slice.length] using hs'⟩]
-    simp only [hupd]
 
 /-- The window arithmetic, in a CLEAN context. Inline `omega` on these goals inside
     `sv_loop_fc` blows `maxRecDepth`: the loop context carries `K * 384 ≤ Usize.max`, and

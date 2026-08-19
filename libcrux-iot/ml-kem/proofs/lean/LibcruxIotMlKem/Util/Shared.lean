@@ -22,8 +22,10 @@
 import Hax                                              -- Result.holds (Hax/MissingAeneas.lean)
 import LibcruxIotMlKem.Extraction.Funs
 import LibcruxIotMlKem.Vector.Portable.Arithmetic.LoopHelper  -- slice_index_usize_ok_eq
+import LibcruxIotMlKem.Util.LoopSpecs                        -- IteratorRange_next_spec_usize
 
 open CoreModels Aeneas Aeneas.Std Std.Do
+open libcrux_iot_ml_kem.Util.LoopSpecs   -- IteratorRange_next_spec_usize, used by the iter_*_gen pair
 
 namespace libcrux_iot_ml_kem.Util.Shared
 
@@ -145,5 +147,95 @@ theorem slice_set_get {α : Type} [Inhabited α] (v : Slice α) (i : Std.Usize) 
   · rw [if_neg h]
     have hs := Aeneas.Std.Slice.getElem!_Nat_set_ne v i j x (fun hc => h hc.symm)
     simpa [Aeneas.Std.Slice.getElem!_Nat_eq] using hs
+
+theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    (hx : x = .ok v) (hp : P v) :
+    (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
+  subst hx; simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
+    Std.Do.PredTrans.apply, hp]
+
+theorem slice_index_mut_range_strict {T : Type} [Inhabited T]
+    (s : Slice T) (a b : Std.Usize) (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
+    ∃ (ns : Slice T) (wb : Slice T → Slice T),
+      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
+        ⟨a, b⟩ = .ok (ns, wb)
+      ∧ ns.val.length = b.val - a.val
+      ∧ (∀ s' : Slice T, s'.val.length = b.val - a.val →
+            (wb s').val = s.val.setSlice! a.val s'.val) := by
+  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
+    Std.WP.spec_imp_exists (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩ h0 h1)
+  have hlen : ns.val.length = b.val - a.val := by
+    rw [hns_val]
+    show (List.slice a.val b.val s.val).length = b.val - a.val
+    rw [List.slice_length]; omega
+  have hTR : HaxToRange.toRange ({ start := a, «end» := b }
+        : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)
+      = ({ start := a, «end» := b } : Aeneas.Std.core.ops.range.Range Std.Usize) := rfl
+  refine ⟨ns, (fun sub' =>
+      match Aeneas.Std.Slice.update_subslice s
+          (HaxToRange.toRange
+            ({ start := a, «end» := b } : CoreModels.core.ops.range.Range Std.Usize)
+            (Aeneas.Std.Slice.len s)) sub' with
+      | .ok s'' => s''
+      | _ => s), ?_, hlen, ?_⟩
+  · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+    simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
+      CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+      CoreModels.rust_primitives.slice.slice_slice, hns_eq, Aeneas.Std.bind_tc_ok]
+    rfl
+  · intro s' hs'
+    have hupd : Aeneas.Std.Slice.update_subslice s
+        (HaxToRange.toRange ({ start := a, «end» := b }
+            : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)) s'
+        = .ok ⟨s.val.setSlice! a.val s'.val, by scalar_tac⟩ := by
+      rw [hTR]
+      unfold Aeneas.Std.Slice.update_subslice
+      rw [dif_pos ⟨h0, by simpa [Aeneas.Std.Slice.length] using h1, by
+        simpa [Aeneas.Std.Slice.length] using hs'⟩]
+    simp only [hupd]
+
+/-- Generic-bound analogue of `LoopHelper.iter_next_some_eq`. -/
+theorem iter_some_gen (i e : Std.Usize) (h_lt : i.val < e.val) :
+    ∃ s : Std.Usize, s.val = i.val + 1 ∧
+      CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+          CoreModels.core.Usize.Insts.CoreIterRangeStep
+          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
+        = .ok (some i,
+            ({ start := s, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) := by
+  have hT := IteratorRange_next_spec_usize i e
+    (Q := Std.Do.PostCond.noThrow fun (oi : Option Std.Usize × _) => ⌜
+      ∃ s : Std.Usize, s.val = i.val + 1
+        ∧ oi = (some i,
+            ({ start := s, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) ⌝)
+    (fun _ s hs => by
+      dsimp only [Std.Do.PostCond.noThrow, Std.Do.SPred.down_pure]
+      exact ⟨s, hs, rfl⟩)
+    (fun hge => absurd h_lt (Nat.not_lt.mpr hge))
+  obtain ⟨v, hveq, s, hs, hpair⟩ := triple_exists_ok_fc hT
+  refine ⟨s, hs, ?_⟩
+  show CoreModels.core.iter.range.IteratorRange.next
+      CoreModels.core.Usize.Insts.CoreIterRangeStep
+      ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize) = _
+  rw [hveq, hpair]
+
+/-- Generic-bound analogue of `LoopHelper.iter_next_none_eq`. -/
+theorem iter_none_gen (i e : Std.Usize) (h_ge : e.val ≤ i.val) :
+    CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+        CoreModels.core.Usize.Insts.CoreIterRangeStep
+        ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)
+      = .ok ((none : Option Std.Usize),
+          ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) := by
+  have hT := IteratorRange_next_spec_usize i e
+    (Q := Std.Do.PostCond.noThrow fun (oi : Option Std.Usize × _) => ⌜
+      oi = ((none : Option Std.Usize),
+        ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize)) ⌝)
+    (fun hlt => absurd hlt (Nat.not_lt.mpr h_ge))
+    (fun _ => by dsimp only [Std.Do.PostCond.noThrow, Std.Do.SPred.down_pure])
+  obtain ⟨v, hveq, hP⟩ := triple_exists_ok_fc hT
+  show CoreModels.core.iter.range.IteratorRange.next
+      CoreModels.core.Usize.Insts.CoreIterRangeStep
+      ({ start := i, «end» := e } : CoreModels.core.ops.range.Range Std.Usize) = _
+  rw [hveq, hP]
 
 end libcrux_iot_ml_kem.Util.Shared
