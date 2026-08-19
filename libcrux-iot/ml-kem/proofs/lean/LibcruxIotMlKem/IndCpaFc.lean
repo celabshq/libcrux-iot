@@ -617,4 +617,100 @@ theorem deserialize_vector_fc
     rw [lift_vec_slice_of_dvInv K secret_key p hp_lift]
     exact spec_vector_decode_12_eq K secret_key h_sk
 
+/-- **INC-2a.2** — `ind_cpa.serialize_vector`: the ENCODE dual of `deserialize_vector_fc`.
+
+    `for (i, re) in key.enumerate() { serialize_uncompressed_ring_element(re, scratch,
+    &mut out[384i .. 384(i+1)]) }` — the K-fold assembly of **L5.6**
+    (`serialize_uncompressed_ring_element_fc`), which is PROVED and axiom-clean.
+
+    ## The post is the UPSTREAM `ensures`, transcribed
+    `libcrux-ml-kem/src/ind_cpa.rs:154` states it as ONE whole-vector equation,
+    `out_future == Hacspec_ml_kem.Serialize.serialize_secret_key $K ($K *! sz 384)
+    (vector_to_spec $K $key)`, so that is the shape here — not a per-chunk restatement.
+    (`deserialize_vector_fc` had to learn this the hard way: its first draft was stated per
+    chunk, which was true and still an invention.)
+
+    ## Falsification: coverage chosen by MEASUREMENT, and the reason it is not a sweep
+    Encode evaluates ~37 s per case in the kernel — far more expensive than decode — so an
+    exhaustive lane sweep is not affordable here and a first attempt at one was killed by a
+    50-minute timeout. It is also not the right test: **the per-element encode math is
+    already proved** by L5.6, which was itself falsified exhaustively over all 6657
+    admissible lane values in Phase 1. What is NEW in this obligation is the K-FOLD
+    PLUMBING, so the probe varies that and nothing else:
+    * survives at K = 1, 2, 3 (random and sequential keys);
+    * survives at the chunk-boundary extremes — all-0, all-3328, all-(−3328) at K = 2;
+    * survives at K = 4 and at K = 5, so **no `is_rank` hypothesis is needed or stated**;
+    * **NEGATIVE CONTROL FIRES**: with the bound dropped (lane 3400, the witness that makes
+      L5.6 false) the check reports `EQ-MISMATCH`. `h_bnd` is load-bearing, not decorative.
+
+    `T_SIZE` is a spec-side parameter with a defining hypothesis, exactly as L5.4 carries
+    `C2_LEN`: the impl has no such argument, the spec function needs one. -/
+@[spec]
+theorem serialize_vector_fc
+    (K T_SIZE : Std.Usize)
+    (key : Std.Array
+        (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+          libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_out_len : out.length = K.val * 384)
+    (h_tsize : T_SIZE.val = K.val * 384)
+    -- ENCODE precondition. Machine-refuted without it: lane 3400 diverges (impl [72,13,0],
+    -- spec [71,0,0]) — the same witness L5.6 records, reached independently here.
+    (h_bnd : ∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        (((key.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.serialize_vector
+      (vectortraitsOperationsInst := portable_ops_inst) (K := K)
+      key out scratch
+    ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 T_SIZE,
+                  hacspec_ml_kem.serialize.serialize_secret_key (RANK := K) T_SIZE
+                      (Spec.Lift.lift_vec key)
+                    = .ok enc
+                  ∧ p.1.length = K.val * 384
+                  ∧ ∀ ℓ : Nat, ℓ < K.val * 384 → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
+  sorry
+
+/-- **INC-2a.3** — `ind_cpa.serialize_public_key_mut`: concatenate `t̂` and `ρ`.
+
+    `serialize_vector(t_as_ntt, &mut serialized[0..384K])` then
+    `serialized[384K..].copy_from_slice(seed_for_a)`. So it is INC-2a.2 plus a tail copy.
+
+    **This function is only extractable at all as of 2026-08-19.** It was in `OPAQUE` with
+    no rationale because the Lean lane compiles without `--cfg hax`, which selected its
+    `#[cfg(not(hax))]` body — the one calling `classify_ref_mut()`, a `&mut`-RETURNING
+    method Aeneas cannot translate. Gating on `cfg(hax_compilation)` (the flag this lane
+    does set) selects the intended body. See `plans/INC-2-scope.md` §8.
+
+    Post transcribed from `libcrux-ml-kem/src/ind_cpa.rs:114`:
+    `serialized_future == Hacspec_ml_kem.Serialize.serialize_public_key $K $PUBLIC_KEY_SIZE
+    (vector_to_spec $K $t_as_ntt) $seed_for_a`.
+    `h_seed_len` and `h_pk_size` are the upstream `requires`, transcribed; `is_rank` is NOT,
+    for the same measured reason as INC-2a.2. -/
+@[spec]
+theorem serialize_public_key_mut_fc
+    (K PUBLIC_KEY_SIZE : Std.Usize)
+    (t_as_ntt : Std.Array
+        (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+          libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
+    (seed_for_a : Slice Std.U8)
+    (serialized : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_seed_len : seed_for_a.length = 32)
+    (h_pk_size : PUBLIC_KEY_SIZE.val = K.val * 384 + 32)
+    (h_ser_len : serialized.length = PUBLIC_KEY_SIZE.val)
+    (h_bnd : ∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        (((t_as_ntt.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
+      (vectortraitsOperationsInst := portable_ops_inst) (K := K)
+      PUBLIC_KEY_SIZE t_as_ntt seed_for_a serialized scratch
+    ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 PUBLIC_KEY_SIZE,
+                  hacspec_ml_kem.serialize.serialize_public_key (RANK := K) PUBLIC_KEY_SIZE
+                      (Spec.Lift.lift_vec t_as_ntt) seed_for_a
+                    = .ok enc
+                  ∧ p.1.length = PUBLIC_KEY_SIZE.val
+                  ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
+  sorry
+
 end libcrux_iot_ml_kem.IndCpaFc
