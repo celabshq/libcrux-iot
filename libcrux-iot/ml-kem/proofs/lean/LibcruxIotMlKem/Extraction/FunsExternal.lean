@@ -58,6 +58,34 @@ def Iterator.enumerate.default {Self Item : Type}
 
 end CoreModels.core.iter.traits.iterator
 
+/-! ### `into_iter` for a SHARED FIXED-SIZE ARRAY — a CoreModels gap, delegated here.
+
+    ⚠ THIS BELONGS UPSTREAM, NOT HERE. `cryspen/hax-lean` (pinned at tag `v0.2.0` =
+    `ea3e4204`, on `main`) models `into_iter` for a shared SLICE
+    (`CoreModels/Core/Funs.lean`, `SharedASlice.Insts.…into_iter`) and has **no
+    `SharedAArray` at all**. Iterating `&[T; N]` — which `ind_cpa::serialize_vector` does,
+    and which is ordinary Rust — therefore hits an unmodelled external and the extraction
+    fails to compile with `Unknown identifier core.SharedAArray.Insts.…into_iter`.
+
+    ACTION REQUIRED (KB): raise this against hax-lean `main` so the definition lands in
+    CoreModels and this delegate can be deleted. Until then every project extracting a
+    shared-array iteration must re-derive it, which is the definition of a gap rather than
+    a project decision.
+
+    Soundness of the delegate: `Array.to_slice` is TOTAL (`Aeneas/Std/Array/ArraySlice.lean:20`,
+    no `Result`), and `&[T; N] → &[T]` is exactly the unsizing coercion Rust performs at
+    this call site, so this is the array case expressed through the slice case rather than
+    a new model. It is a `def`, NOT an axiom: it adds nothing to `#print axioms`. -/
+namespace CoreModels.core
+
+def SharedAArray.Insts.CoreIterTraitsCollectIntoIteratorSharedATIter.into_iter
+    {T : Type} {N : Aeneas.Std.Usize} (self : Aeneas.Std.Array T N) :
+    Result (slice.iter.Iter T) :=
+  SharedASlice.Insts.CoreIterTraitsCollectIntoIteratorSharedATIter.into_iter
+    (Aeneas.Std.Array.to_slice self)
+
+end CoreModels.core
+
 /-! ## `libcrux_secrets.*` integer-cast + classify/declassify stubs.
     `libcrux_secrets`-functions are not part of the extraction; we map
     them to identity functions on the underlying scalar types. -/

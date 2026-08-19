@@ -58,16 +58,15 @@ START_FROM = [
     # of the proof-level ones. `crate::sampling::*` is already OPAQUE below; the sampling
     # ind_cpa entry points are simply not roots, so they stay out of Funs.lean until lane
     # 2b is a real project with the exemplars it needs.
-    # NOT roots yet — each is BLOCKED on a named trusted-base decision (Step 0 finding,
-    # 2026-08-19); see plans/INC-2-scope.md §7. Adding them back is a one-line change once
-    # the decision is made:
-    #   serialize_vector            -> needs core.SharedAArray…into_iter, which the PINNED
-    #                                  CoreModels does not define (it has SharedASlice only)
-    #   serialize_unpacked_secret_key -> calls ind_cpa::serialize_public_key_mut, which is
-    #                                  in OPAQUE, so hax emits it as an AXIOM into
-    #                                  FunsExternal_Template and the hand-written
-    #                                  FunsExternal.lean would have to declare it
-    # "crate::ind_cpa::serialize_vector",
+    # Both were held back at Step 0 and are now unblocked by KB decisions (2026-08-19):
+    #   serialize_vector            -> the missing core.SharedAArray…into_iter is delegated
+    #                                  in FunsExternal.lean, with an upstream note; it is a
+    #                                  `def` over the existing slice model, so no new axiom
+    #   serialize_unpacked_secret_key -> serialize_public_key_mut was REMOVED from OPAQUE
+    "crate::ind_cpa::serialize_vector",
+    # NOT a root: it calls `serialize_public_key_mut`, which Aeneas cannot translate (see
+    # the OPAQUE block). Adding it means taking that axiom into the trusted base for
+    # everything downstream, so it waits until someone actually needs the target.
     # "crate::ind_cpa::serialize_unpacked_secret_key",
     "crate::ind_cpa::compress_then_serialize_u",
     "crate::ind_cpa::deserialize_then_decompress_u",
@@ -90,8 +89,23 @@ START_FROM = [
 # omitted as of INC-1 (see START_FROM) -- it is deterministic and SHAKE-free.
 #
 OPAQUE = [
-    "crate::hash_functions::portable::*",
+    # ⚠ AENEAS TOOL FAILURE — NOT a modelling choice. Policy (KB, 2026-08-19): nothing is
+    # opaque unless Aeneas cannot support it, and such a case is a TOOL FAILURE that must
+    # carry an issue. This is that case, and it was previously listed with NO rationale,
+    # which is how a tool limitation gets mistaken for a decision.
+    #   MEASURED: removing this entry makes extraction fail with
+    #     [Error] Unimplemented
+    #     Source: 'ml-kem/src/ind_cpa.rs', lines 82:0-114:1
+    #   The function passes a MUTABLE SUBSLICE `&mut serialized[0..ranked_bytes(K)]` into
+    #   `serialize_vector`, then writes the DISJOINT COMPLEMENT
+    #   `serialized[ranked_bytes(K)..].copy_from_slice(seed_for_a)` — i.e. two disjoint
+    #   `&mut` borrows of one slice, with write-back through both. The source already
+    #   carries a `#[cfg(hax)]` workaround for a neighbouring limitation
+    #   (https://github.com/cryspen/hax/issues/420, "&mut-returning functions").
+    #   ACTION REQUIRED (KB): file this against Aeneas. Until it is fixed this function
+    #   cannot be proved in ANY project, because it cannot be extracted.
     "crate::ind_cpa::serialize_public_key_mut",
+    "crate::hash_functions::portable::*",
     "crate::sampling::*",
     "crate::matrix::sample_matrix_A",
     "crate::matrix::sample_matrix_entry",
