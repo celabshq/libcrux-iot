@@ -1591,6 +1591,154 @@ private theorem spkm_core
              by rw [hseed, hi_val]; exact tail_idx K.val ℓ hℓ,
              by rw [hser1_len]; exact hℓ⟩, hi_val]
 
+/-! ### SPECREQ INC-2a.3, KERNEL-CHECKED (r2, 2026-08-19).
+
+    r1 established both counterexamples by `#eval` on the extracted body and reported them
+    as "machine-refuted". That is a computation, not a proof, and the driver's gate does not
+    re-derive `#eval` output. The five lemmas below replace it with theorems, so the claim
+    "this statement is false" now carries the same weight as any other result in this tree.
+    Axioms: `propext / Classical.choice / Quot.sound`, i.e. NOT the `Util.SliceSpecs`
+    empty-subslice axioms — which matters here more than usual, see `spkm_locked_false`. -/
+
+/-- `x * y` fails with `integerOverflow` once the product exceeds `Usize.max`. `Usize.max`
+    is kept SYMBOLIC throughout (`2 ^ numBits - 1`, never a literal), so nothing here is
+    exposed to the closed-large-scalar pitfall (skill §6) — that is the whole reason
+    counterexample B is stated as a symbolic bound rather than at r1's witness `K`. -/
+private theorem usize_mul_overflow (x y : Std.Usize) (h : Std.Usize.max < x.val * y.val) :
+    (x * y : Result Std.Usize) = .fail .integerOverflow := by
+  have h1 : ¬ (Aeneas.Std.UScalar.check_bounds .Usize (x.val * y.val)) := by
+    simp only [Aeneas.Std.UScalar.check_bounds, decide_eq_true_eq, Nat.not_lt]
+    have hm : Std.Usize.max = 2 ^ Aeneas.Std.UScalarTy.Usize.numBits - 1 := by
+      rw [← Aeneas.Std.UScalar.max_USize_eq, Aeneas.Std.UScalar.max]
+    have hp : 0 < 2 ^ Aeneas.Std.UScalarTy.Usize.numBits := Nat.two_pow_pos _
+    omega
+  show Aeneas.Std.UScalar.mul x y = _
+  unfold Aeneas.Std.UScalar.mul Aeneas.Std.UScalar.tryMk Aeneas.Std.UScalar.tryMkOpt
+  rw [dif_neg h1]
+  rfl
+
+/-- **Counterexample B's seam.** `ranked_bytes_per_ring_element` multiplies at the BIT count
+    (`K * 3072`) and only then divides by 8, so it overflows 8× sooner than `K * 384 + 32`
+    does. The dual of `ranked_bpre`, which is the same computation on the succeeding side. -/
+private theorem ranked_bpre_overflow (K : Std.Usize) (hK : Std.Usize.max < K.val * 3072) :
+    libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element K = .fail .integerOverflow := by
+  unfold libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element
+  rw [impl_bits]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [usize_mul_overflow K (3072#usize : Std.Usize)
+    (by show Std.Usize.max < K.val * ((3072#usize : Std.Usize)).val; exact hK)]
+  rfl
+
+/-- **Counterexample A's seam.** `&mut s[0 .. 0]`: `index_mut` reads through
+    `Slice.subslice`, whose *definition* (`aeneas/Std/Slice.lean:293`) requires
+    `start < end` and fails on the empty range. Note carefully that this is the DEFINITION,
+    reached by `unfold` — it is NOT `Util.SliceSpecs.Slice.subslice_le_eq`, the axiom that
+    asserts the opposite (see `spkm_locked_false`). -/
+private theorem idx_mut_empty_fail {T : Type} (s : Slice T) (i : Std.Usize) (hi : i.val = 0) :
+    CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+      (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T)
+      s { start := 0#usize, «end» := i } = .fail .panic := by
+  unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+    CoreModels.rust_primitives.slice.slice_slice]
+  have hsub : Aeneas.Std.Slice.subslice s ⟨0#usize, i⟩ = .fail .panic := by
+    unfold Aeneas.Std.Slice.subslice
+    rw [if_neg (by show ¬ (((0#usize : Std.Usize)).val < i.val ∧ _); rw [hi]; omega)]
+  rw [hsub]
+  rfl
+
+/-- **SPECREQ INC-2a.3-A, PROVED.** At `K = 0` the extracted `serialize_public_key_mut` fails
+    for EVERY `PUBLIC_KEY_SIZE`, every `serialized`, every `seed_for_a`, every `scratch`, at
+    every vector type — so no choice of the remaining arguments can rescue the Triple. -/
+private theorem spkm_fail_at_K0 {V : Type}
+    (inst : libcrux_iot_ml_kem.vector.traits.Operations V)
+    (PUBLIC_KEY_SIZE : Std.Usize)
+    (t_as_ntt : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement V) (0#usize))
+    (seed_for_a serialized : Slice Std.U8) (scratch : V) :
+    libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut (Vector := V) (K := 0#usize)
+        PUBLIC_KEY_SIZE inst t_as_ntt seed_for_a serialized scratch
+      = .fail .panic := by
+  obtain ⟨i, hi_eq, hi_val⟩ := ranked_bpre (0#usize : Std.Usize) (by scalar_tac)
+  have hi0 : i.val = 0 := by rw [hi_val]; scalar_tac
+  unfold libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
+  rw [hi_eq]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [idx_mut_empty_fail serialized i hi0]
+  rfl
+
+/-- **SPECREQ INC-2a.3-B, PROVED** to the same depth as A: once `K * 3072 > Usize.max` the
+    function fails for every choice of the remaining arguments. What is NOT mechanised is
+    the *witness* — a `Slice Std.U8` of length `K * 384 + 32` is a perfectly good term
+    (`List.replicate`), but building it needs a case split on `Usize.numBits` and two
+    ~20-digit literals, and it would add nothing: A already refutes the statement outright.
+    B's job is narrower and this lemma discharges it in full — it shows `0 < K` ALONE does
+    not repair the statement, so the minimal fix needs BOTH hypotheses (or `is_rank`). -/
+private theorem spkm_fail_at_large_K {V : Type} {K : Std.Usize}
+    (inst : libcrux_iot_ml_kem.vector.traits.Operations V)
+    (PUBLIC_KEY_SIZE : Std.Usize)
+    (t_as_ntt : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement V) K)
+    (seed_for_a serialized : Slice Std.U8) (scratch : V)
+    (hK : Std.Usize.max < K.val * 3072) :
+    libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut (Vector := V) (K := K)
+        PUBLIC_KEY_SIZE inst t_as_ntt seed_for_a serialized scratch
+      = .fail .integerOverflow := by
+  unfold libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
+  rw [ranked_bpre_overflow K hK]
+  rfl
+
+/-! #### The witnesses for A. All four locked hypotheses hold at them. -/
+
+private def w32 : Slice Std.U8 := ⟨List.replicate 32 (0#u8), by simp; scalar_tac⟩
+private def wT0 : Std.Array SPoly (0#usize) := ⟨[], by simp⟩
+private def wV : SVec := ⟨⟨List.replicate 16 (0#i16), by simp⟩⟩
+
+private theorem w32_len : w32.length = 32 := by
+  show (List.replicate 32 (0#u8)).length = 32
+  simp
+
+/-- **THE REFUTATION.** The locked statement of `serialize_public_key_mut_fc`, ∀-closed over
+    exactly its own binders and hypotheses, is FALSE — machine-checked, axioms
+    `propext / Classical.choice / Quot.sound`.
+
+    Read together with `spkm_core` (the same statement plus `h_K_pos` and `h_K_bnd`, PROVED),
+    this is a completed decomposition: the obligation is true exactly on the hypotheses the
+    scaffold dropped, and false without them. Nothing about the POST is weakened anywhere.
+
+    ⚠ One caveat that is NOT about this row, and is the reason the docstring above is so
+    insistent about which subslice fact each lemma uses. `Util.SliceSpecs` axiomatises
+    `Slice.subslice s ⟨a,b⟩ = .ok _` for `a ≤ b` (`AENEAS-SUBSLICE-STRICT`), which
+    contradicts `Slice.subslice`'s definition at `a = b` — so `False` is derivable from that
+    axiom, and the locked statement is therefore *also* "provable" from it. The allowlist is
+    what keeps that out: this refutation and `spkm_core` both stand clear of those axioms.
+    Reported to the driver as a trust-boundary finding; it is not this row's to fix. -/
+private theorem spkm_locked_false :
+    ¬ (∀ (K PUBLIC_KEY_SIZE : Std.Usize) (t_as_ntt : Std.Array SPoly K)
+         (seed_for_a serialized : Slice Std.U8) (scratch : SVec),
+         seed_for_a.length = 32 →
+         PUBLIC_KEY_SIZE.val = K.val * 384 + 32 →
+         serialized.length = PUBLIC_KEY_SIZE.val →
+         (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+             (((t_as_ntt.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
+               ≤ 3328) →
+         ⦃ ⌜ True ⌝ ⦄
+         libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
+           (vectortraitsOperationsInst := portable_ops_inst) (K := K)
+           PUBLIC_KEY_SIZE t_as_ntt seed_for_a serialized scratch
+         ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 PUBLIC_KEY_SIZE,
+                       hacspec_ml_kem.serialize.serialize_public_key (RANK := K) PUBLIC_KEY_SIZE
+                           (Spec.Lift.lift_vec t_as_ntt) seed_for_a
+                         = .ok enc
+                       ∧ p.1.length = PUBLIC_KEY_SIZE.val
+                       ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val →
+                             p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄) := by
+  intro h
+  -- the witness: K = 0, PUBLIC_KEY_SIZE = 32, both slices 32 zero bytes, `h_bnd` vacuous
+  have hT := h (0#usize) (32#usize) wT0 w32 w32 wV w32_len (by scalar_tac)
+    (by rw [w32_len]; scalar_tac) (by intro i hi; exact absurd hi (by scalar_tac))
+  obtain ⟨v, hv, _⟩ := triple_exists_ok_fc hT
+  rw [spkm_fail_at_K0 portable_ops_inst (32#usize) wT0 w32 w32 wV] at hv
+  exact absurd hv (by simp)
+
 end SPKMBank
 
 /-- **INC-2a.3** — `ind_cpa.serialize_public_key_mut`: concatenate `t̂` and `ρ`.
@@ -1664,7 +1812,27 @@ end SPKMBank
     `serialize_vector_fc`'s post byte for byte, and the `[384K, PUBLIC_KEY_SIZE)` half is
     `seed_for_a[ℓ - 384K]`, matching the spec closure's `else` branch. Both are proved in
     `spkm_core`, which is a stronger check than any probe. Nothing in this SPECREQ asks for
-    the post to be weakened. -/
+    the post to be weakened.
+
+    ## r2 (2026-08-19): the SPECREQ is now PROVED, not measured
+    Everything above was established by `#eval`. It is now machine-checked, in the bank:
+    `spkm_locked_false` is a theorem that the ∀-closure of THIS statement — its own binders,
+    its own four hypotheses, its own post — is false, axioms `propext / Classical.choice /
+    Quot.sound`. Supporting: `spkm_fail_at_K0` (A, for all remaining arguments),
+    `spkm_fail_at_large_K` + `ranked_bpre_overflow` (B, symbolic in `Usize.max`, so B's
+    ~20-digit witness is never evaluated), `idx_mut_empty_fail`, `usize_mul_overflow`.
+    r1's verdict is confirmed in every particular; only the strength of the evidence changed.
+
+    ## r2 trust-boundary finding — NOT this row's to fix, but it decides how to read this row
+    `Util.SliceSpecs` (`AENEAS-SUBSLICE-STRICT`) axiomatises `Slice.subslice` / `update_subslice`
+    / `Array.update_subslice` as SUCCEEDING for `start ≤ end`, while aeneas's definitions
+    `fail` at `start = end`. Those axioms are therefore refutable in this very build — `False`
+    follows from `Slice.subslice_le_eq` applied at `⟨0,0⟩` (checked). Consequences: (i) the
+    locked statement is *also* derivable from them, so the axiom allowlist, not the proof
+    search, is what makes this row's SPECREQ the honest answer; (ii) `spkm_core` and every
+    lemma above deliberately go through the real strict `Slice.subslice_spec` (via
+    `Util.Shared.slice_index_mut_range_strict`) and are clean; (iii) obligations elsewhere
+    that DO list these axioms are vacuous — see the r2 self-report for the list. -/
 @[spec]
 theorem serialize_public_key_mut_fc
     (K PUBLIC_KEY_SIZE : Std.Usize)
