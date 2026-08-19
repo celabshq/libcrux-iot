@@ -87,8 +87,25 @@ result = subprocess.run(
     env={**os.environ, "RUSTFLAGS": "--cfg hax_backend_lean"},
 )
 if result.returncode != 0:
-    print(f"warning: hax/aeneas exited with code {result.returncode}; "
-          f"continuing with post-processing.", file=sys.stderr)
+    # HARD FAILURE, not a warning (tightened 2026-08-19, before the INC-2 root change).
+    # Post-processing rewrites Funs.lean IN PLACE. Continuing past a failed extractor
+    # therefore writes a plausible-looking Funs.lean built from whatever partial output
+    # landed — and that file is the campaign's entire trust boundary: every proof in the
+    # tree is a statement ABOUT it, and the driver gates on its sha256. A truncated
+    # extraction that still parses is the worst possible outcome, because nothing
+    # downstream can tell it from a good one.
+    # Override deliberately with ALLOW_PARTIAL_EXTRACTION=1 if you are debugging the
+    # extractor itself; never in a run whose output will be committed or locked.
+    if os.environ.get("ALLOW_PARTIAL_EXTRACTION") == "1":
+        print(f"warning: hax/aeneas exited {result.returncode}; continuing anyway "
+              f"because ALLOW_PARTIAL_EXTRACTION=1. Output is UNTRUSTWORTHY.",
+              file=sys.stderr)
+    else:
+        print(f"FATAL: hax/aeneas exited with code {result.returncode}. Refusing to "
+              f"post-process: Funs.lean is rewritten in place and a partial extraction "
+              f"would be indistinguishable from a good one. Nothing was written.",
+              file=sys.stderr)
+        sys.exit(result.returncode)
 
 funs_lean = Path("proofs/lean/LibcruxIotMlKem/Extraction/Funs.lean")
 content = funs_lean.read_text()
