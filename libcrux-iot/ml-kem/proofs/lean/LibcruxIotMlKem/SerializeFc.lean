@@ -1,11 +1,18 @@
 /-
   # `SerializeFc.lean` — INC-1 obligation stubs for the (de)serialize layer.
 
-  SCAFFOLD ONLY. Every theorem below is `sorry`ed: these are the OBLIGATIONS the
-  driver will dispatch a PROVER to close, not results. They are authored by the
-  HELPER as a *low-distance binding* to the EXISTING `HacspecMlKem` model (skill
-  §0.2) — nothing here invents a spec. The statements are NOT frozen until the
-  PRINCIPAL approves them; the driver locks each signature at that point.
+  **COMPLETE as of 2026-08-19: this file contains ZERO `sorry`s and all seven INC-1
+  obligations in it are PROVED.** (It was a scaffold when written; the header said so, and
+  said so for one commit too long — the last close is what made it false.)
+
+  The obligations were authored by the HELPER as a *low-distance binding* to the EXISTING
+  `HacspecMlKem` model (skill §0.2) — nothing here invents a spec — then frozen by the
+  PRINCIPAL and locked signature-by-signature by the driver, which byte-compares each
+  statement on every rung. Six are axiom-clean `[propext, Classical.choice, Quot.sound]`;
+  `deserialize_ring_elements_reduced_fc` additionally rests on the A2 axiom
+  `Serialize.deserialize_to_reduced_ring_element_fc` BY DESIGN (retiring it is item M-A),
+  and that is its declared allowlist, not a gap. `AxiomCheck.lean` asserts the
+  sorry-freedom of each, so a regression fails the build rather than being noticed later.
 
   Shape follows the tree's established convention (see `Matrix/ComputeAsPlusE.lean`,
   `Serialize.lean`): an mvcgen Triple whose post equates the hacspec model applied
