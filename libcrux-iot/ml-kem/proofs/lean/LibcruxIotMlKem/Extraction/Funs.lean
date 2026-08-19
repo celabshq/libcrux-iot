@@ -47,6 +47,14 @@ def constants.BYTES_PER_RING_ELEMENT : Result Std.Usize := do
 @[global_simps, irreducible]
 def constants.SHARED_SECRET_SIZE : Std.Usize := 32#usize
 
+/-- [libcrux_iot_ml_kem::constants::ranked_bytes_per_ring_element]:
+    Source: 'ml-kem/src/constants.rs', lines 43:0-45:1 -/
+def constants.ranked_bytes_per_ring_element
+  (rank : Std.Usize) : Result Std.Usize := do
+  let i ← constants.BITS_PER_RING_ELEMENT
+  let i1 ← rank * i
+  i1 / 8#usize
+
 /-- [libcrux_iot_ml_kem::vector::traits::FIELD_MODULUS]
     Source: 'ml-kem/src/vector/traits.rs', lines 4:0-4:36
     Visibility: public -/
@@ -216,6 +224,58 @@ def ind_cpa.serialize_vector
       (core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT
       (polynomial.PolynomialRingElement Vector)) i
   ind_cpa.serialize_vector_loop vectortraitsOperationsInst iter out scratch
+
+/-- [libcrux_iot_ml_kem::ind_cpa::serialize_public_key_mut]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 82:0-114:1 -/
+def ind_cpa.serialize_public_key_mut
+  {Vector : Type} {K : Std.Usize} (PUBLIC_KEY_SIZE : Std.Usize)
+  (vectortraitsOperationsInst : vector.traits.Operations Vector)
+  (t_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
+  (seed_for_a : Slice Std.U8) (serialized : Slice Std.U8) (scratch : Vector) :
+  Result ((Slice Std.U8) × Vector)
+  := do
+  let i ← constants.ranked_bytes_per_ring_element K
+  let (s, index_mut_back) ←
+    core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+      (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8) serialized { start := 0#usize, «end» := i }
+  let (s1, scratch1) ←
+    ind_cpa.serialize_vector vectortraitsOperationsInst t_as_ntt s scratch
+  let serialized1 := index_mut_back s1
+  let s2 ←
+    core.Slice.Insts.CoreOpsIndexIndex.index
+      (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8) serialized1 { start := 0#usize, «end» := i }
+  libcrux_secrets.mem_requests.ct_declassify s2
+  let (s3, index_mut_back1) ←
+    core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+      (core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8) serialized1 { start := i }
+  let s4 ←
+    core.slice.Slice.copy_from_slice core.U8.Insts.CoreMarkerCopy s3 seed_for_a
+  let serialized2 := index_mut_back1 s4
+  ok (serialized2, scratch1)
+
+/-- [libcrux_iot_ml_kem::ind_cpa::serialize_unpacked_secret_key]:
+    Source: 'ml-kem/src/ind_cpa.rs', lines 437:0-460:1 -/
+def ind_cpa.serialize_unpacked_secret_key
+  {Vector : Type} {K : Std.Usize} {K_SQUARED : Std.Usize} (PRIVATE_KEY_SIZE :
+  Std.Usize) (PUBLIC_KEY_SIZE : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (public_key : ind_cpa.unpacked.IndCpaPublicKeyUnpacked Vector K K_SQUARED)
+  (private_key : ind_cpa.unpacked.IndCpaPrivateKeyUnpacked Vector K)
+  (serialized_private_key : Slice Std.U8)
+  (serialized_public_key : Slice Std.U8) (scratch : Vector) :
+  Result ((Slice Std.U8) × (Slice Std.U8) × Vector)
+  := do
+  let s ← lift (Array.to_slice public_key.seed_for_A)
+  let (serialized_public_key1, scratch1) ←
+    ind_cpa.serialize_public_key_mut PUBLIC_KEY_SIZE vectortraitsOperationsInst
+      public_key.t_as_ntt s serialized_public_key scratch
+  let (serialized_private_key1, scratch2) ←
+    ind_cpa.serialize_vector vectortraitsOperationsInst
+      private_key.secret_as_ntt serialized_private_key scratch1
+  ok (serialized_private_key1, serialized_public_key1, scratch2)
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11]: loop body 0:
     Source: 'ml-kem/src/serialize.rs', lines 162:4-169:5 -/

@@ -45,6 +45,14 @@ structure ind_cpa.unpacked.IndCpaPrivateKeyUnpacked (Vector : Type) (K :
   Std.Usize) where
   secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K
 
+/-- [libcrux_iot_ml_kem::ind_cpa::unpacked::IndCpaPublicKeyUnpacked]
+    Source: 'ml-kem/src/ind_cpa.rs', lines 46:4-54:5 -/
+structure ind_cpa.unpacked.IndCpaPublicKeyUnpacked (Vector : Type) (K :
+  Std.Usize) (K_SQUARED : Std.Usize) where
+  t_as_ntt : Array (polynomial.PolynomialRingElement Vector) K
+  seed_for_A : Array Std.U8 32#usize
+  A : Array (polynomial.PolynomialRingElement Vector) K_SQUARED
+
 /-- Trait declaration: [libcrux_iot_ml_kem::vector::traits::Repr]
     Source: 'ml-kem/src/vector/traits.rs', lines 22:0-22:17
     Visibility: public -/

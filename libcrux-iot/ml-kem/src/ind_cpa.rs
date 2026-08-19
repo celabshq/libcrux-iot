@@ -66,7 +66,7 @@ pub(crate) mod unpacked {
         }
     }
 }
-#[cfg(not(hax))]
+#[cfg(not(hax_compilation))]
 use libcrux_secrets::ClassifyRefMut as _;
 use libcrux_secrets::{Classify as _, Declassify as _, DeclassifyRef as _, I16, I32, U8};
 use unpacked::*;
@@ -93,13 +93,13 @@ pub(crate) fn serialize_public_key_mut<
     // classification. The reason is that hax does not support for
     // `&mut`-returning functions.
     // (see https://github.com/cryspen/hax/issues/420)
-    #[cfg(not(hax))]
+    #[cfg(not(hax_compilation))]
     serialize_vector::<K, Vector>(
         t_as_ntt,
         (&mut serialized[0..ranked_bytes_per_ring_element(K)]).classify_ref_mut(),
         scratch,
     );
-    #[cfg(hax)]
+    #[cfg(hax_compilation)]
     serialize_vector::<K, Vector>(
         t_as_ntt,
         &mut serialized[0..ranked_bytes_per_ring_element(K)],
