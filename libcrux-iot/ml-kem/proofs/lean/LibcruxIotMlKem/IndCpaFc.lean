@@ -617,6 +617,621 @@ theorem deserialize_vector_fc
     rw [lift_vec_slice_of_dvInv K secret_key p hp_lift]
     exact spec_vector_decode_12_eq K secret_key h_sk
 
+/-! ## PROVER bank for INC-2a.2 — the ENCODE dual.
+
+    Two halves again, mirroring the decode bank above:
+
+    * **SPEC side** (`spec_serialize_secret_key_eq`): `serialize_secret_key T_SIZE` is a
+      `createi T_SIZE` whose closure, at BYTE index `ℓ`, reads `vector[ℓ / 384]` and returns
+      byte `ℓ % 384` of its `byte_encode … 12`. So the whole `createi` collapses to the pure
+      byte model `encBy (key[ℓ / 384]) (ℓ % 384)`. No bit-level reasoning enters: the only
+      fact needed about the encode atom is `SerializeFc.byte_encode_12_eq` (M-B(1)), which
+      is PROVED.
+    * **IMPL side** (`sv_loop_fc`): `for (i, re) in key.into_iter().enumerate()` with a
+      mutable SUBSLICE write to `out[384i .. 384(i+1)]`. The iterator is
+      `Enumerate (Iter Poly)`, NOT `Enumerate (ChunksExact U8)`, so neither
+      `loop_chunks_exact_enumerate_spec` nor `loop_chunks_exact_pk_spec` applies; their
+      SHAPE (suffix-aware induction on `n - count`) is copied into
+      `loop_iter_enumerate_spec` below at the `Iter` instance. The per-element leaf is
+      L5.6 `SerializeFc.serialize_uncompressed_ring_element_fc`. -/
+
+section SVBank
+
+open libcrux_iot_ml_kem.Util.CreateI
+
+/-- The impl's polynomial type; it appears in every signature below. -/
+private abbrev SPoly :=
+  libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector
+
+/-- The impl's 16-lane vector type (the `scratch` argument). -/
+private abbrev SVec := libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector
+
+/-! ### `Usize` remainder bridge — the companion of `Util.Shared.usize_div_lit`,
+    which the `serialize_secret_key` closure needs alongside it (`ℓ / 384`, `ℓ % 384`). -/
+
+private theorem usize_rem_lit (x y z : Std.Usize) (hy : y.val ≠ 0)
+    (hz : x.val % y.val = z.val) : (x % y : Result Std.Usize) = .ok z := by
+  obtain ⟨r, hr_eq, hr_val, _⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.rem_bv_spec x hy)
+  rw [hr_eq]
+  congr 1
+  exact Std.UScalar.eq_of_val_eq (by rw [hr_val, hz])
+
+/-! ### The `Enumerate (Iter T)` iterator.
+
+    `CoreModels.core.slice.iter.Iter T` is `rust_primitives.sequence.Seq T` is `Slice T`
+    (two `def` unfoldings, both transparent), and its `next` pops the head through
+    `seq_remove … 0`. These three lemmas are the `Iter`-instance analogues of
+    `ComputeRingElementV.Impl.enumerate_chunks_next_{cont,done}`. -/
+
+private abbrev EnumIter (T : Type) :=
+  CoreModels.core.iter.adapters.enumerate.Enumerate (CoreModels.core.slice.iter.Iter T)
+
+/-- `seq_remove … 0` on a non-empty sequence: the head, and the tail. -/
+private theorem seq_remove_zero {T : Type} [Inhabited T] (rest : Slice T)
+    (h_ne : 0 < rest.val.length) :
+    CoreModels.rust_primitives.sequence.seq_remove rest (0#usize : Std.Usize)
+      = .ok (rest.val[0]!, (⟨rest.val.drop 1, by
+          have := rest.property
+          simp only [List.length_drop]
+          omega⟩ : Slice T)) := by
+  have hlt : ((0#usize : Std.Usize)).val < rest.val.length := h_ne
+  unfold CoreModels.rust_primitives.sequence.seq_remove
+  rw [dif_pos hlt]
+  have h1 : rest.val.get ⟨((0#usize : Std.Usize)).val, hlt⟩ = rest.val[0]! := by
+    rw [List.get_eq_getElem, getElem!_pos rest.val 0 h_ne]
+    rfl
+  have h2 : rest.val.take ((0#usize : Std.Usize)).val
+      ++ rest.val.drop (((0#usize : Std.Usize)).val + 1) = rest.val.drop 1 := by
+    show rest.val.take 0 ++ rest.val.drop 1 = rest.val.drop 1
+    simp
+  simp only [h1]
+  exact congrArg (fun s => Result.ok (rest.val[0]!, s)) (Subtype.ext h2)
+
+/-- `Enumerate (Iter T)`'s `next` when at least one element remains. -/
+private theorem enum_iter_next_cont {T : Type} [Inhabited T]
+    (rest : Slice T) (cnt : Std.Usize)
+    (h_ne : 0 < rest.val.length) (h_cnt : cnt.val + 1 ≤ Std.Usize.max) :
+    ∃ (rest' : Slice T) (cnt' : Std.Usize),
+      CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+          (CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT T)
+          ({ iter := rest, count := cnt } : EnumIter T)
+        = .ok (CoreModels.core.option.Option.Some (cnt, rest.val[0]!),
+               ({ iter := rest', count := cnt' } : EnumIter T))
+      ∧ cnt'.val = cnt.val + 1
+      ∧ rest'.val.length = rest.val.length - 1
+      ∧ (∀ ℓ : Nat, rest'.val[ℓ]! = rest.val[ℓ + 1]!) := by
+  have h1 : ((1#usize : Std.Usize)).val = 1 := by scalar_tac
+  obtain ⟨cnt', hcnt'_eq, hcnt'_val⟩ :=
+    usize_add_ok_e cnt (1#usize : Std.Usize) (by rw [h1]; exact h_cnt)
+  have hcnt'_val' : cnt'.val = cnt.val + 1 := by rw [hcnt'_val, h1]
+  have hne : ¬ (Aeneas.Std.Slice.len rest = (0#usize : Std.Usize)) := by
+    intro hc
+    have hv : (Aeneas.Std.Slice.len rest).val = ((0#usize : Std.Usize)).val := by rw [hc]
+    rw [Aeneas.Std.Slice.len_val] at hv
+    have hv' : rest.val.length = ((0#usize : Std.Usize)).val := hv
+    have h0 : ((0#usize : Std.Usize)).val = 0 := by scalar_tac
+    omega
+  refine ⟨⟨rest.val.drop 1, by
+      have := rest.property
+      simp only [List.length_drop]
+      omega⟩, cnt', ?_, hcnt'_val', ?_, ?_⟩
+  · show CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+        (CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT T)
+        ({ iter := rest, count := cnt } : EnumIter T) = _
+    unfold
+      CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+    show (do
+        let (o, t) ←
+          CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next
+            (T := T) rest
+        match o with
+        | CoreModels.core.option.Option.Some a =>
+          let i ← cnt + (1#usize : Std.Usize)
+          Result.ok (CoreModels.core.option.Option.Some (cnt, a),
+            ({ iter := t, count := i } : EnumIter T))
+        | CoreModels.core.option.Option.None =>
+          Result.ok (CoreModels.core.option.Option.None,
+            ({ iter := t, count := cnt } : EnumIter T))) = _
+    unfold CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next
+    unfold CoreModels.rust_primitives.sequence.seq_len
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [if_neg hne]
+    rw [seq_remove_zero rest h_ne]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hcnt'_eq]
+    rfl
+  · show (rest.val.drop 1).length = rest.val.length - 1
+    simp
+  · intro ℓ
+    show (rest.val.drop 1)[ℓ]! = rest.val[ℓ + 1]!
+    by_cases hℓ : ℓ < (rest.val.drop 1).length
+    · rw [getElem!_pos (rest.val.drop 1) ℓ hℓ]
+      have hℓ' : ℓ + 1 < rest.val.length := by
+        rw [List.length_drop] at hℓ; omega
+      rw [getElem!_pos rest.val (ℓ + 1) hℓ', List.getElem_drop]
+      congr 1
+      omega
+    · have hℓr : ¬ (ℓ + 1 < rest.val.length) := by
+        rw [List.length_drop] at hℓ; omega
+      rw [getElem!_neg (rest.val.drop 1) ℓ hℓ, getElem!_neg rest.val (ℓ + 1) hℓr]
+
+/-- `Enumerate (Iter T)`'s `next` when the sequence is exhausted. -/
+private theorem enum_iter_next_done {T : Type} [Inhabited T]
+    (rest : Slice T) (cnt : Std.Usize) (h : rest.val.length = 0) :
+    CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+        (CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT T)
+        ({ iter := rest, count := cnt } : EnumIter T)
+      = .ok (CoreModels.core.option.Option.None,
+             ({ iter := rest, count := cnt } : EnumIter T)) := by
+  have heq : Aeneas.Std.Slice.len rest = (0#usize : Std.Usize) := by
+    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+    rw [Aeneas.Std.Slice.len_val]
+    show rest.val.length = ((0#usize : Std.Usize)).val
+    rw [h]; scalar_tac
+  show CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+      (CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT T)
+      ({ iter := rest, count := cnt } : EnumIter T) = _
+  unfold
+    CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+  show (do
+      let (o, t) ←
+        CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next
+          (T := T) rest
+      match o with
+      | CoreModels.core.option.Option.Some a =>
+        let i ← cnt + (1#usize : Std.Usize)
+        Result.ok (CoreModels.core.option.Option.Some (cnt, a),
+          ({ iter := t, count := i } : EnumIter T))
+      | CoreModels.core.option.Option.None =>
+        Result.ok (CoreModels.core.option.Option.None,
+          ({ iter := t, count := cnt } : EnumIter T))) = _
+  unfold CoreModels.core.slice.iter.Iter.Insts.CoreIterTraitsIteratorIteratorSharedAT.next
+  unfold CoreModels.rust_primitives.sequence.seq_len
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [if_pos heq]
+  rfl
+
+/-! ### The loop Hoare spec at the `Iter` instance.
+
+    Structurally `loop_chunks_exact_pk_spec` (K1, disposition COPIED): same induction on
+    `n - count`, with the byte-suffix relation replaced by the ELEMENT-suffix relation
+    `rest[ℓ] = full[k + ℓ]` — which this loop needs for the same reason, namely that the
+    per-element leaf must be applied to `key[k]` and not to an unidentified `rest`. The three
+    triple helpers are the `_chunks` helpers renamed. -/
+
+section loop_iter_helpers
+
+private abbrev ResultPSI := PostShape.except Error (PostShape.except PUnit PostShape.pure)
+
+private theorem triple_noThrow_elim_iter {α : Type} {x : Result α}
+    {Q : α → Assertion ResultPSI}
+    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) {v : α} (hv : x = .ok v) :
+    (Q v).down := by
+  subst hv
+  simpa [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
+    Std.Do.PredTrans.apply] using h
+
+private theorem triple_noThrow_exists_ok_iter {α : Type} {x : Result α}
+    {Q : α → Assertion ResultPSI}
+    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) : ∃ v, x = .ok v := by
+  match x, h with
+  | .ok v, _ => exact ⟨v, rfl⟩
+  | .fail _, h => exact absurd h (by
+      simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply])
+  | .div, h => exact absurd h (by
+      simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply])
+
+end loop_iter_helpers
+
+set_option maxHeartbeats 2000000 in
+private theorem loop_iter_enumerate_spec {T β : Type} [Inhabited T]
+    (body : (EnumIter T × β) → Result (ControlFlow (EnumIter T × β) β))
+    (init : β) (full : Slice T) (n : Nat)
+    (inv : Nat → β → Result Prop)
+    (h_len : full.val.length = n)
+    (h_init : (inv 0 init).holds)
+    (h_step : ∀ (acc : β) (k : Nat) (rest : Slice T) (cnt : Std.Usize),
+        k ≤ n → cnt.val = k → rest.val.length = n - k →
+        (∀ ℓ : Nat, rest.val[ℓ]! = full.val[k + ℓ]!) →
+        (inv k acc).holds →
+        ⦃ ⌜ True ⌝ ⦄
+        body (({ iter := rest, count := cnt } : EnumIter T), acc)
+        ⦃ ⇓ r => match r with
+          | .cont (it', acc') =>
+              ⌜ k < n ∧ ∃ (rest' : Slice T) (cnt' : Std.Usize),
+                  it' = ({ iter := rest', count := cnt' } : EnumIter T)
+                  ∧ cnt'.val = k + 1
+                  ∧ rest'.val.length = n - (k + 1)
+                  ∧ (∀ ℓ : Nat, rest'.val[ℓ]! = full.val[(k + 1) + ℓ]!)
+                  ∧ (inv (k + 1) acc').holds ⌝
+          | .done y => ⌜ (inv n y).holds ⌝ ⦄) :
+    ⦃ ⌜ True ⌝ ⦄
+    loop body (({ iter := full, count := 0#usize } : EnumIter T), init)
+    ⦃ ⇓ r => ⌜ (inv n r).holds ⌝ ⦄ := by
+  suffices gen : ∀ (m : Nat) (acc : β) (rest : Slice T) (cnt : Std.Usize),
+      n - cnt.val = m → cnt.val ≤ n →
+      rest.val.length = n - cnt.val →
+      (∀ ℓ : Nat, rest.val[ℓ]! = full.val[cnt.val + ℓ]!) →
+      (inv cnt.val acc).holds →
+      ⦃ ⌜ True ⌝ ⦄
+      loop body (({ iter := rest, count := cnt } : EnumIter T), acc)
+      ⦃ ⇓ r => ⌜ (inv n r).holds ⌝ ⦄ by
+    have h0 : ((0#usize : Std.Usize)).val = 0 := rfl
+    refine gen _ init full 0#usize rfl (by rw [h0]; exact Nat.zero_le _) ?_ ?_ ?_
+    · rw [h0]; simpa using h_len
+    · rw [h0]; intro ℓ; simp
+    · rw [h0]; exact h_init
+  intro m
+  induction m with
+  | zero =>
+    intro acc rest cnt hm hcnt_le hlen hsuf hinv
+    have hcnt_eq : cnt.val = n := by omega
+    have hs := h_step acc cnt.val rest cnt hcnt_le rfl hlen hsuf hinv
+    obtain ⟨r, hbody⟩ := triple_noThrow_exists_ok_iter hs
+    have hpost := triple_noThrow_elim_iter hs hbody
+    rw [loop.eq_def, hbody]
+    match r with
+    | .cont (it', acc') =>
+      simp only at hpost
+      exact absurd hpost.1 (by rw [hcnt_eq]; exact Nat.lt_irrefl _)
+    | .done y =>
+      simp only at hpost
+      exact triple_of_ok_fc rfl hpost
+  | succ m ih =>
+    intro acc rest cnt hm hcnt_le hlen hsuf hinv
+    have hs := h_step acc cnt.val rest cnt hcnt_le rfl hlen hsuf hinv
+    obtain ⟨r, hbody⟩ := triple_noThrow_exists_ok_iter hs
+    have hpost := triple_noThrow_elim_iter hs hbody
+    rw [loop.eq_def, hbody]
+    match r with
+    | .done y =>
+      simp only at hpost
+      exact triple_of_ok_fc rfl hpost
+    | .cont (it', acc') =>
+      simp only at hpost
+      obtain ⟨hlt, rest', cnt', hit', hcnt', hlen', hsuf', hinv'⟩ := hpost
+      rw [hit']
+      refine ih acc' rest' cnt' ?_ ?_ ?_ ?_ ?_
+      · rw [hcnt']; omega
+      · rw [hcnt']; omega
+      · rw [hcnt']; exact hlen'
+      · rw [hcnt']; exact hsuf'
+      · rw [hcnt']; exact hinv'
+
+/-! ### The pure byte model, and the two sides that agree on it.
+
+    `encBy re j` is byte `j` of the `d = 12` packing of `re`, read off the SPEC function so
+    that no private name from `SerializeFc.lean` has to be spelled here (`encByte` is
+    `private` there). Both sides are then characterised against it:
+    * the SPEC side by `SerializeFc.byte_encode_12_eq` (M-B(1)), by definition;
+    * the IMPL side by `SerializeFc.byte_encode_into_12_eq` (M-B(2)) — the form L5.6's post
+      is stated against — plus M-B(1) to identify the two. -/
+
+private def encBy (re : SPoly) (j : Nat) : Std.U8 :=
+  match hacspec_ml_kem.serialize.byte_encode 384#usize 3072#usize (lift_poly re) 12#usize with
+  | .ok a => a.val[j]!
+  | _ => 0#u8
+
+/-- The `byte_encode_into` slice wrapper produces exactly `encBy re`. This is the ONE place
+    the two K4/K11 encode exemplars are composed; everything downstream cites this. -/
+private theorem encode_into_encBy (re : SPoly) (serialized : Slice Std.U8)
+    (h_len : serialized.length = 384) :
+    ∃ s : Slice Std.U8,
+      hacspec_ml_kem.serialize.byte_encode_into (lift_poly re) 12#usize serialized = .ok s
+      ∧ s.val.length = 384
+      ∧ ∀ n : Nat, n < 384 → s.val[n]! = encBy re n := by
+  obtain ⟨a, ha_eq, ha_get⟩ := libcrux_iot_ml_kem.SerializeFc.byte_encode_12_eq re
+  obtain ⟨s, hs_eq, hs_len, hs_get⟩ :=
+    libcrux_iot_ml_kem.SerializeFc.byte_encode_into_12_eq re serialized h_len
+  refine ⟨s, hs_eq, hs_len, ?_⟩
+  intro n hn
+  refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+  rw [hs_get n hn]
+  show _ = (encBy re n).val
+  unfold encBy
+  simp only [ha_eq]
+  exact (ha_get n hn).symm
+
+/-! ### SPEC side — `serialize_secret_key` IS the pure byte model.
+
+    `createi T_SIZE` over a closure that, at byte `ℓ`, does `vector[ℓ / 384]` then
+    `byte_encode … 12` then `[ℓ % 384]`. The `Fn`-vs-`FnMut` wrapper is the direct one, so
+    the composer is `Util.CreateI.from_fn_pure_eq` (as on the decode side). -/
+
+/-- The `serialize_secret_key` closure at byte index `ℓ`. -/
+private theorem ssk_closure_eq (K T_SIZE : Std.Usize) (key : Std.Array SPoly K)
+    (h_tsize : T_SIZE.val = K.val * 384) (ℓ : Nat) (hℓ : ℓ < T_SIZE.val) :
+    (hacspec_ml_kem.serialize.serialize_secret_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+        K T_SIZE).call_mut (lift_vec key) (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)
+      = .ok (encBy (key.val[ℓ / 384]!) (ℓ % 384), lift_vec key) := by
+  have hTmax : T_SIZE.val ≤ Std.Usize.max := by scalar_tac
+  have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
+  have hℓv : ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)).val = ℓ :=
+    usize_ofNat_val_le ℓ (by omega)
+  have hdv : ((⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)).val = ℓ / 384 :=
+    usize_ofNat_val_le _ (by omega)
+  have hmv : ((⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize)).val = ℓ % 384 :=
+    usize_ofNat_val_le _ (by omega)
+  have hdiv : ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) / (384#usize : Std.Usize) : Result Std.Usize)
+      = .ok (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize) :=
+    usize_div_lit _ _ _ (by rw [h384]; omega) (by rw [hℓv, h384, hdv])
+  have hrem : ((⟨BitVec.ofNat _ ℓ⟩ : Std.Usize) % (384#usize : Std.Usize) : Result Std.Usize)
+      = .ok (⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize) :=
+    usize_rem_lit _ _ _ (by rw [h384]; omega) (by rw [hℓv, h384, hmv])
+  -- `ℓ / 384 < K`, so the vector read succeeds and IS `lift_poly (key[ℓ / 384])`
+  have hK : ℓ / 384 < K.val := by
+    rw [h_tsize] at hℓ
+    exact Nat.div_lt_of_lt_mul (by omega)
+  have hkeylen : key.val.length = K.val := key.property
+  have hlvlen : (lift_vec key).val.length = K.val := (lift_vec key).property
+  have hcell : (lift_vec key).val[ℓ / 384]! = lift_poly (key.val[ℓ / 384]!) := by
+    show (key.val.map lift_poly)[ℓ / 384]! = lift_poly (key.val[ℓ / 384]!)
+    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
+      List.getElem?_eq_getElem (by rw [hkeylen]; exact hK)]
+    simp only [Option.map_some, Option.getD_some]
+    rw [getElem!_pos key.val (ℓ / 384) (by rw [hkeylen]; exact hK)]
+  have hidx : Aeneas.Std.Array.index_usize (lift_vec key)
+        (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)
+      = .ok (lift_poly (key.val[ℓ / 384]!)) := by
+    rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
+      (lift_vec key) (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)
+      (by rw [show (lift_vec key).length = K.val from hlvlen, hdv]; exact hK)]
+    rw [hdv, hcell]
+  -- the encode atom: M-B(1)
+  obtain ⟨a, ha_eq, ha_get⟩ :=
+    libcrux_iot_ml_kem.SerializeFc.byte_encode_12_eq (key.val[ℓ / 384]!)
+  have halen : a.val.length = 384 := a.property
+  have haidx : Aeneas.Std.Array.index_usize a (⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize)
+      = .ok (a.val[ℓ % 384]!) := by
+    rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
+      a (⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize)
+      (by rw [show a.length = 384 from halen, hmv]; omega)]
+    rw [hmv]
+  have hencBy : encBy (key.val[ℓ / 384]!) (ℓ % 384) = a.val[ℓ % 384]! := by
+    unfold encBy
+    simp only [ha_eq]
+  show (hacspec_ml_kem.serialize.serialize_secret_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
+      (RANK := K) (T_SIZE := T_SIZE) (lift_vec key) (⟨BitVec.ofNat _ ℓ⟩ : Std.Usize)) = _
+  unfold
+    hacspec_ml_kem.serialize.serialize_secret_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
+  rw [hacspec_bpre]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hdiv]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hrem]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hidx]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [ha_eq]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [haidx]
+  simp only [Aeneas.Std.bind_tc_ok, hencBy]
+
+/-- **The spec bridge.** The hacspec rank-K 12-bit encode of `key` is the pure byte model
+    `encBy (key[ℓ / 384]) (ℓ % 384)` at every byte `ℓ`. -/
+private theorem spec_serialize_secret_key_eq (K T_SIZE : Std.Usize) (key : Std.Array SPoly K)
+    (h_tsize : T_SIZE.val = K.val * 384) :
+    ∃ enc : Std.Array Std.U8 T_SIZE,
+      hacspec_ml_kem.serialize.serialize_secret_key (RANK := K) T_SIZE (lift_vec key) = .ok enc
+      ∧ ∀ ℓ : Nat, ℓ < T_SIZE.val → enc.val[ℓ]! = encBy (key.val[ℓ / 384]!) (ℓ % 384) := by
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Std.U8) T_SIZE
+      (hacspec_ml_kem.serialize.serialize_secret_key.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+        K T_SIZE)
+      (lift_vec key)
+      (fun ℓ => encBy (key.val[ℓ / 384]!) (ℓ % 384))
+      (fun ℓ hℓ => ssk_closure_eq K T_SIZE key h_tsize ℓ hℓ)
+  refine ⟨⟨(List.range T_SIZE.val).map (fun m => encBy (key.val[m / 384]!) (m % 384)),
+      by simp⟩, ?_, ?_⟩
+  · unfold hacspec_ml_kem.serialize.serialize_secret_key
+    simp only [hacspec_ml_kem.parameters.createi, hfn]
+  · intro ℓ hℓ
+    show ((List.range T_SIZE.val).map
+        (fun m => encBy (key.val[m / 384]!) (m % 384)))[ℓ]! = _
+    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hℓ]
+    simp only [Option.map_some, Option.getD_some]
+
+/-! ### IMPL side — the enumerate loop with a mutable SUBSLICE write.
+
+    `slice_index_mut_range_strict` is the K2 exemplar's write-back helper
+    (`SerializeFc.lean:1407`, `private` there hence unreachable, so RESTATED here verbatim —
+    it is the same statement and the same proof). `List.setSlice!` then gives the
+    written-prefix / untouched-prefix algebra the invariant needs. -/
+
+private theorem slice_index_mut_range_strict {T : Type} [Inhabited T]
+    (s : Slice T) (a b : Std.Usize) (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
+    ∃ (ns : Slice T) (wb : Slice T → Slice T),
+      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
+        ⟨a, b⟩ = .ok (ns, wb)
+      ∧ ns.val.length = b.val - a.val
+      ∧ (∀ s' : Slice T, s'.val.length = b.val - a.val →
+            (wb s').val = s.val.setSlice! a.val s'.val) := by
+  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
+    Std.WP.spec_imp_exists (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩ h0 h1)
+  have hlen : ns.val.length = b.val - a.val := by
+    rw [hns_val]
+    show (List.slice a.val b.val s.val).length = b.val - a.val
+    rw [List.slice_length]; omega
+  have hTR : HaxToRange.toRange ({ start := a, «end» := b }
+        : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)
+      = ({ start := a, «end» := b } : Aeneas.Std.core.ops.range.Range Std.Usize) := rfl
+  refine ⟨ns, (fun sub' =>
+      match Aeneas.Std.Slice.update_subslice s
+          (HaxToRange.toRange
+            ({ start := a, «end» := b } : CoreModels.core.ops.range.Range Std.Usize)
+            (Aeneas.Std.Slice.len s)) sub' with
+      | .ok s'' => s''
+      | _ => s), ?_, hlen, ?_⟩
+  · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+    simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+      CoreModels.rust_primitives.slice.slice_slice, hns_eq, Aeneas.Std.bind_tc_ok]
+    rfl
+  · intro s' hs'
+    have hupd : Aeneas.Std.Slice.update_subslice s
+        (HaxToRange.toRange ({ start := a, «end» := b }
+            : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)) s'
+        = .ok ⟨s.val.setSlice! a.val s'.val, by scalar_tac⟩ := by
+      rw [hTR]
+      unfold Aeneas.Std.Slice.update_subslice
+      rw [dif_pos ⟨h0, by simpa [Aeneas.Std.Slice.length] using h1, by
+        simpa [Aeneas.Std.Slice.length] using hs'⟩]
+    simp only [hupd]
+
+/-- The window arithmetic, in a CLEAN context. Inline `omega` on these goals inside
+    `sv_loop_fc` blows `maxRecDepth`: the loop context carries `K * 384 ≤ Usize.max`, and
+    any goal mentioning `K * 384` drags `Std.Usize.max` into omega's atom set (the
+    closed-large-scalar pitfall, skill §6). Hoisting is the fix; a `maxRecDepth` bump
+    would not be. -/
+private theorem window_div_mod (k ℓ : Nat) (h1 : k * 384 ≤ ℓ) (h2 : ℓ < (k + 1) * 384) :
+    ℓ / 384 = k ∧ ℓ % 384 = ℓ - k * 384 := ⟨by omega, by omega⟩
+
+/-- Written-prefix invariant for the rank-K encode loop: after `k` iterations the first
+    `384k` bytes of the output carry the pure byte model, and the length is preserved. The
+    undone-cells conjunct is not needed because the post only speaks about `ℓ < 384K` and
+    every one of those cells IS written. -/
+private def svInv (K : Std.Usize) (key : Std.Array SPoly K) (k : Nat)
+    (acc : Slice Std.U8 × SVec) : Prop :=
+  acc.1.val.length = K.val * 384
+  ∧ (∀ ℓ : Nat, ℓ < k * 384 → acc.1.val[ℓ]! = encBy (key.val[ℓ / 384]!) (ℓ % 384))
+
+set_option maxHeartbeats 4000000 in
+/-- The rank-K encode loop: after `K` iterations every byte `< 384K` is written. -/
+private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
+    (h_bnd : ∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        (((key.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328)
+    (out : Slice Std.U8) (scratch : SVec)
+    (h_out : out.val.length = K.val * 384) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop
+      (vectortraitsOperationsInst := portable_ops_inst)
+      ({ iter := Aeneas.Std.Array.to_slice key, count := 0#usize } : EnumIter SPoly)
+      out scratch
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (svInv K key K.val p)).holds ⌝ ⦄ := by
+  have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
+  have h1 : ((1#usize : Std.Usize)).val = 1 := by scalar_tac
+  have hKmax : K.val * 384 ≤ Std.Usize.max := by rw [← h_out]; exact out.property
+  have hkeylen : key.val.length = K.val := key.property
+  have hKle : K.val ≤ K.val * 384 := Nat.le_mul_of_pos_right _ (by omega)
+  unfold libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop
+  refine loop_iter_enumerate_spec _ (out, scratch) (Aeneas.Std.Array.to_slice key) K.val
+    (fun k acc => .ok (svInv K key k acc))
+    hkeylen
+    ((holds_ok _).mpr ⟨h_out, by intro ℓ hℓ; omega⟩) ?_
+  intro acc k rest cnt hk_le hcnt hlen hsuf hinv
+  obtain ⟨hacc_len, hacc_get⟩ := (holds_ok _).mp hinv
+  by_cases hlt : k < K.val
+  · -- one polynomial remains
+    have h_ne : 0 < rest.val.length := by rw [hlen]; omega
+    have hcnt_bd : cnt.val + 1 ≤ Std.Usize.max := by rw [hcnt]; omega
+    obtain ⟨rest', cnt', hnext, hcnt'_val, hrest'_len, hrest'_get⟩ :=
+      enum_iter_next_cont rest cnt h_ne hcnt_bd
+    have hre : rest.val[0]! = key.val[k]! := by
+      have h := hsuf 0
+      rw [h]; rfl
+    obtain ⟨i2, hi2_eq, hi2_val⟩ := usize_mul_ok_e cnt (384#usize : Std.Usize)
+      (by rw [h384, hcnt]; exact le_trans (Nat.mul_le_mul_right 384 (by omega)) hKmax)
+    obtain ⟨i3, hi3_eq, hi3_val⟩ := usize_add_ok_e cnt (1#usize : Std.Usize)
+      (by rw [h1]; exact hcnt_bd)
+    obtain ⟨i4, hi4_eq, hi4_val⟩ := usize_mul_ok_e i3 (384#usize : Std.Usize)
+      (by rw [h384, hi3_val, h1, hcnt]
+          exact le_trans (Nat.mul_le_mul_right 384 (by omega)) hKmax)
+    have hi2v : i2.val = k * 384 := by rw [hi2_val, h384, hcnt]
+    have hi4v : i4.val = k * 384 + 384 := by
+      rw [hi4_val, hi3_val, h1, h384, hcnt]; ring
+    have hwin' : (k + 1) * 384 ≤ K.val * 384 := Nat.mul_le_mul_right 384 (by omega)
+    have hwin : k * 384 + 384 ≤ K.val * 384 := by
+      calc k * 384 + 384 = (k + 1) * 384 := by ring
+        _ ≤ K.val * 384 := hwin'
+    obtain ⟨sub, wb, hmut_eq, hsub_len, hwb⟩ :=
+      slice_index_mut_range_strict acc.1 i2 i4 (by omega) (by rw [hacc_len]; omega)
+    have hsub384 : sub.val.length = 384 := by rw [hsub_len, hi2v, hi4v]; omega
+    -- L5.6, the PROVED per-element leaf
+    obtain ⟨p, hp_eq, hp_enc⟩ :=
+      triple_exists_ok_fc
+        (libcrux_iot_ml_kem.SerializeFc.serialize_uncompressed_ring_element_fc
+          (key.val[k]!) acc.2 sub (by simpa [Aeneas.Std.Slice.length] using hsub384)
+          (fun c hc l hl => h_bnd k hlt c hc l hl))
+    obtain ⟨senc, hsenc_eq, hsenc_len, hsenc_get⟩ :=
+      encode_into_encBy (key.val[k]!) sub (by simpa [Aeneas.Std.Slice.length] using hsub384)
+    rw [hsenc_eq] at hp_enc
+    have hsp : senc = p.2 := Result.ok.inj hp_enc
+    have hp2_len : p.2.val.length = 384 := by rw [← hsp]; exact hsenc_len
+    have hp2_get : ∀ n : Nat, n < 384 → p.2.val[n]! = encBy (key.val[k]!) n := by
+      intro n hn; rw [← hsp]; exact hsenc_get n hn
+    have hwbv := hwb p.2 (by rw [hp2_len, hi2v, hi4v]; omega)
+    refine triple_of_ok_fc
+      (v := .cont (({ iter := rest', count := cnt' } : EnumIter SPoly), (wb p.2, p.1))) ?_ ?_
+    · show libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
+        portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
+      unfold libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
+      rw [hnext]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [impl_bpre]
+      simp only [Aeneas.Std.bind_tc_ok]
+      -- the machine-generated body, once, in reduced form (skill §4.1)
+      show (do
+          let i2' ← cnt * (384#usize : Std.Usize)
+          let i3' ← cnt + (1#usize : Std.Usize)
+          let i4' ← i3' * (384#usize : Std.Usize)
+          let (s, index_mut_back) ←
+            CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+              (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+                Std.U8) acc.1 { start := i2', «end» := i4' }
+          let (scratch1, s1) ←
+            libcrux_iot_ml_kem.serialize.serialize_uncompressed_ring_element
+              portable_ops_inst (rest.val[0]!) acc.2 s
+          Result.ok (ControlFlow.cont
+            (({ iter := rest', count := cnt' } : EnumIter SPoly),
+             (index_mut_back s1, scratch1)))) = _
+      rw [hi2_eq]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [hi3_eq]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [hi4_eq]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [hmut_eq]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [hre, hp_eq]
+      rfl
+    · refine ⟨hlt, rest', cnt', rfl, by rw [hcnt'_val, hcnt], by rw [hrest'_len, hlen]; omega,
+        ?_, ?_⟩
+      · intro ℓ
+        rw [hrest'_get ℓ, hsuf (ℓ + 1)]
+        congr 1
+        omega
+      · refine (holds_ok _).mpr ⟨?_, ?_⟩
+        · show (wb p.2).val.length = K.val * 384
+          rw [hwbv, List.length_setSlice!]
+          exact hacc_len
+        · intro ℓ hℓ
+          show (wb p.2).val[ℓ]! = _
+          rw [hwbv]
+          by_cases hlk : ℓ < k * 384
+          · rw [List.getElem!_setSlice!_prefix _ _ _ _ (by omega)]
+            exact hacc_get ℓ hlk
+          · rw [List.getElem!_setSlice!_middle _ _ _ _
+              ⟨by omega, by rw [hp2_len]; omega,
+               by rw [hacc_len]; exact Nat.lt_of_lt_of_le hℓ hwin'⟩]
+            rw [hi2v, hp2_get (ℓ - k * 384) (by omega)]
+            obtain ⟨hdk, hmk⟩ := window_div_mod k ℓ (Nat.le_of_not_lt hlk) hℓ
+            rw [hdk, hmk]
+  · -- k = K: the loop is done
+    have hkK : k = K.val := by omega
+    have h_e : rest.val.length = 0 := by rw [hlen]; omega
+    refine triple_of_ok_fc (v := .done acc) ?_ ?_
+    · show libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
+        portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
+      unfold libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
+      rw [enum_iter_next_done rest cnt h_e]
+      rfl
+    · refine (holds_ok _).mpr ⟨hacc_len, ?_⟩
+      intro ℓ hℓ
+      exact hacc_get ℓ (by rw [hkK]; exact hℓ)
+
+end SVBank
+
 /-- **INC-2a.2** — `ind_cpa.serialize_vector`: the ENCODE dual of `deserialize_vector_fc`.
 
     `for (i, re) in key.enumerate() { serialize_uncompressed_ring_element(re, scratch,
@@ -669,7 +1284,26 @@ theorem serialize_vector_fc
                     = .ok enc
                   ∧ p.1.length = K.val * 384
                   ∧ ∀ ℓ : Nat, ℓ < K.val * 384 → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
-  sorry
+  have h_out' : out.val.length = K.val * 384 := h_out_len
+  -- SPEC side: the hacspec `createi` IS the pure byte model.
+  obtain ⟨enc, henc_eq, henc_get⟩ := spec_serialize_secret_key_eq K T_SIZE key h_tsize
+  -- IMPL side: the enumerate loop writes that same model into every byte `< 384K`.
+  obtain ⟨p, hp_eq, hp_holds⟩ :=
+    triple_exists_ok_fc (sv_loop_fc K key h_bnd out scratch h_out')
+  obtain ⟨hp_len, hp_get⟩ := (holds_ok _).mp hp_holds
+  refine triple_of_ok_fc (v := p) ?_ ?_
+  · -- `into_iter` (the `SharedAArray` delegate) and `enumerate` are both pure `ok`s
+    have hred : libcrux_iot_ml_kem.ind_cpa.serialize_vector
+          (vectortraitsOperationsInst := portable_ops_inst) (K := K) key out scratch
+        = libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop
+            (vectortraitsOperationsInst := portable_ops_inst)
+            ({ iter := Aeneas.Std.Array.to_slice key, count := 0#usize } : EnumIter SPoly)
+            out scratch := rfl
+    rw [hred]
+    exact hp_eq
+  · refine ⟨enc, henc_eq, hp_len, ?_⟩
+    intro ℓ hℓ
+    rw [hp_get ℓ hℓ, henc_get ℓ (by rw [h_tsize]; exact hℓ)]
 
 /-- **INC-2a.3** — `ind_cpa.serialize_public_key_mut`: concatenate `t̂` and `ρ`.
 
