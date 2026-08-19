@@ -40,6 +40,17 @@ namespace libcrux_iot_ml_kem.IndCpaFc
     ## Every hypothesis and conjunct below was MEASURED before it was written
     (probe: `references/mlkem-falsify-harness.lean` vocabulary, run against this tree)
 
+    ## The post is the UPSTREAM `ensures`, transcribed — not a per-chunk restatement
+    `libcrux-ml-kem/src/ind_cpa.rs` states this function's contract as ONE whole-vector
+    equation, `vector_to_spec K secret_as_ntt == Hacspec_ml_kem.Serialize.vector_decode_12_ K
+    secret_key`, so that is what is written here. A first draft stated it per chunk against
+    `byte_decode_dyn (Spec.pk_chunk …) 12` — TRUE (measured, identically) but an invention,
+    and rule 2 of the contract-transcription discipline exists to stop exactly that.
+    Note `hacspec.deserialize_ring_elements_reduced` is DEFINED as `vector_decode_12`
+    (`specs/ml-kem/src/serialize.rs:410`), so this post and L5.5's are the same shape
+    against the same spec function — which is the precise sense in which this obligation is
+    "L5.5 with a proved leaf instead of an axiom".
+
     * **No `is_rank` hypothesis, and none is needed** — verified at K = 0 and K = 5 as well
       as the three valid ranks.
     * **`h_out_len` and `h_sk_len` are the impl's own indexing preconditions**, transcribed,
@@ -77,10 +88,8 @@ theorem deserialize_vector_fc
       (vectortraitsOperationsInst := portable_ops_inst)
       K secret_key secret_as_ntt
     ⦃ ⇓ p => ⌜ p.length = K.val
-                ∧ (∀ i : Nat, i < K.val →
-                    hacspec_ml_kem.serialize.byte_decode_dyn
-                        (Spec.pk_chunk secret_key i) 12#usize
-                      = .ok (lift_poly p.val[i]!))
+                ∧ hacspec_ml_kem.serialize.vector_decode_12 K secret_key
+                    = .ok (lift_vec_slice p K)
                 ∧ (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
                     (((p.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
                       ≤ 4095) ⌝ ⦄ := by
