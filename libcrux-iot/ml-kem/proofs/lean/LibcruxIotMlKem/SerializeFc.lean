@@ -3101,9 +3101,14 @@ end L53Bank
     recoverable from the one the scaffold kept. The L5.3 dispatch above was proved with
     the same three-lemma `simp only` normal form, so this cost one rung, not a dispatch.
 
-    This is evidence, not a statement edit: L5.4's `sorry` stands untouched, and the
-    restatement it motivated was made by the PRINCIPAL-sanctioned scaffold pass, not
-    here. -/
+    This is evidence, not a statement edit: the restatement it motivated was made by the
+    PRINCIPAL-sanctioned scaffold pass, not here.
+
+    **CLOSED 2026-08-19.** L5.4 is now PROVED, at the END of this file, from the `L54Bank`
+    section there; `L54_dispatch_of_pre` is the positive form of this section's
+    refutation, cited by that proof. Nothing below refutes the live target. (This prose
+    has now drifted once, exactly as L5.3's did; if it drifts again, delete it and keep
+    only the two refutation lemmas, which speak for themselves.) -/
 
 section SpecreqL54
 
@@ -3143,48 +3148,14 @@ private theorem specreq_L54_refuted_at_dv_zero (K C2_LEN : Std.Usize)
 
 end SpecreqL54
 
-/-- L5.4 — `serialize.compress_then_serialize_ring_element_v`.
+/-! L5.4 (`compress_then_serialize_ring_element_v_fc`) is stated at the END of this file,
+    after its `L54Bank` section — for the same reason L5.1/L5.2/L5.3 are. It assembles
+    material declared further down (`MCPBank`'s `compress_barrett_eq` /
+    `compress_ciphertext_coefficient_eq` / `compress_d_gen_eq`, and `L52Bank`'s
+    `as_u8_eq` / `cu16_val` / `byte_encode_closure_eq_gen` /
+    `bits_to_bytes_closure_eq_gen`), so the scaffold position above could not hold it.
+    Its text is byte-identical to the locked form; only its position moved. -/
 
-    The encode direction of L5.3: `Compress_dv` then `ByteEncode_dv`. The impl
-    writes into the caller's `out` slice and threads `scratch`; the hacspec
-    returns a fresh `Array U8 C2_LEN`. The post therefore compares the returned
-    slice bytewise against the spec array, exactly as L5.2 does for the message.
-    `V_SIZE` on the spec side is the impl's `C2_LEN`. -/
-@[spec]
-theorem compress_then_serialize_ring_element_v_fc
-    (K V_COMPRESSION_FACTOR C2_LEN : Std.Usize)
-    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
-            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (out : Slice Std.U8)
-    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    -- RESTATED 2026-08-18. The previous form carried only `h_len` and was FALSE; this
-    -- file proves it so (the dv-dispatch refutation). Hypotheses transcribed VERBATIM
-    -- from the upstream contract (libcrux-ml-kem/src/serialize.rs):
-    --   is_rank v_K /\ $COMPRESSION_FACTOR == vector_v_compression_factor v_K
-    --   /\ Seq.length $out == v $OUT_LEN /\ v $OUT_LEN == 32 * v $COMPRESSION_FACTOR
-    --   /\ is_bounded_poly (sz 3328) $re
-    -- The LAST conjunct is the one whose absence cost $71.82 on the sibling encode
-    -- obligation: `byte_encode` reads a canonicalised `FieldElement.val` while the impl
-    -- adds q at most once, so an unreduced coefficient makes impl and spec disagree
-    -- (witness: lane 3400 -> impl byte 0x48, spec byte 0x47).
-    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
-    (h_cf : hacspec_ml_kem.parameters.vector_v_compression_factor K
-              = .ok V_COMPRESSION_FACTOR)
-    (h_len : out.length = C2_LEN.val)
-    (h_c2 : C2_LEN.val = 32 * V_COMPRESSION_FACTOR.val)
-    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
-        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
-    ⦃ ⌜ True ⌝ ⦄
-    libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
-      (vectortraitsOperationsInst := portable_ops_inst)
-      K V_COMPRESSION_FACTOR C2_LEN re out scratch
-    ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 C2_LEN,
-                  hacspec_ml_kem.serialize.compress_then_serialize_v
-                      C2_LEN (lift_poly re) V_COMPRESSION_FACTOR
-                    = .ok enc
-                  ∧ p.1.length = C2_LEN.val
-                  ∧ ∀ ℓ : Nat, ℓ < C2_LEN.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
-  sorry
 
 /-! ## PROVER bank for L5.7, part 2 — the SPEC-side decode chain.
 
@@ -8263,5 +8234,1563 @@ theorem deserialize_then_decompress_ring_element_v_fc
     have h := hdc chunk hchunk ℓ hℓ
     have hb := win_dec_lt (win serialized.val 5 (16 * chunk + ℓ)) 5 (win_lt _ _ _) (by omega)
     omega
+
+/-! ## PROVER bank for L5.4 — `compress_then_serialize_ring_element_v` at `dv ∈ {4,5}`.
+
+    L5.4's statement is at the END of this file, after this bank, for the same reason
+    L5.1/L5.2/L5.3 are: it assembles material declared FURTHER DOWN than the scaffold
+    position could hold — `MCPBank`'s `compress_barrett_eq` /
+    `compress_ciphertext_coefficient_eq` / `compress_d_gen_eq`, and `L52Bank`'s
+    `as_u8_eq` / `cu16_val` / `byte_encode_closure_eq_gen` /
+    `bits_to_bytes_closure_eq_gen`.  Its text is byte-identical to the locked form;
+    only its position moved.
+
+    Everything that CAN be generic in `d` is: the pure byte model (`cLane` / `cByte` /
+    `cBit`), the per-lane compress seam, and the whole spec-side `createi` ladder are
+    each stated ONCE in `d` and instantiated twice.  What is NOT generic is the two
+    impl seams — `serialize_4_int` and `serialize_5_int` are different straight-line
+    programs, and at `d = 4` no lane straddles a byte while at `d = 5` four bytes out of
+    five do — and the two range-loop bodies (different machine-generated names,
+    different stride literals).  That is the honest measurement for CORRECTION 2: the
+    ENCODE impl seam does not generalise even within one obligation, while everything
+    around it does. -/
+
+section L54Bank
+
+open Aeneas.Std
+open libcrux_iot_ml_kem.Util.LoopSpecs
+
+/-! ### The dispatcher rung — the same three-lemma `simp only` normal form as L5.3's
+    `L53_dispatch_of_pre`, copied verbatim off it (that is what made it one rung and not
+    a dispatch). -/
+
+/-- `V_COMPRESSION_FACTOR = 4` dispatches to `compress_then_serialize_4`. -/
+private theorem L54_dispatch_eq_d4 (K C2_LEN : Std.Usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst) K 4#usize C2_LEN re out scratch
+    = libcrux_iot_ml_kem.serialize.compress_then_serialize_4
+        (vectortraitsOperationsInst := portable_ops_inst) re out scratch := by
+  simp only [libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+/-- `V_COMPRESSION_FACTOR = 5` dispatches to `compress_then_serialize_5`. -/
+private theorem L54_dispatch_eq_d5 (K C2_LEN : Std.Usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst) K 5#usize C2_LEN re out scratch
+    = libcrux_iot_ml_kem.serialize.compress_then_serialize_5
+        (vectortraitsOperationsInst := portable_ops_inst) re out scratch := by
+  simp only [libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+/-- **First rung of the positive L5.4 proof**: under the dv-conjunct of the source's
+    `requires`, the dispatcher reduces to exactly one of the two real arms — the
+    `unreachable!()` arm that `specreq_L54_refuted_at_dv_zero` exploits is gone. -/
+private theorem L54_dispatch_of_pre (K V_COMPRESSION_FACTOR C2_LEN : Std.Usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_dv : V_COMPRESSION_FACTOR.val = 4 ∨ V_COMPRESSION_FACTOR.val = 5) :
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst)
+      K V_COMPRESSION_FACTOR C2_LEN re out scratch
+    = if V_COMPRESSION_FACTOR.val = 4 then
+        libcrux_iot_ml_kem.serialize.compress_then_serialize_4
+          (vectortraitsOperationsInst := portable_ops_inst) re out scratch
+      else
+        libcrux_iot_ml_kem.serialize.compress_then_serialize_5
+          (vectortraitsOperationsInst := portable_ops_inst) re out scratch := by
+  rcases h_dv with h | h
+  · rw [show V_COMPRESSION_FACTOR = 4#usize from Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac),
+      L54_dispatch_eq_d4]
+    simp
+  · rw [show V_COMPRESSION_FACTOR = 5#usize from Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac),
+      L54_dispatch_eq_d5]
+    simp
+
+/-! ### The pure `Nat` byte model, generic in `d`.
+
+    `cLane re d j` is the `d`-bit COMPRESSED value of lane `j`, in the spec's own closed
+    form (`compress_d_gen_eq`'s RHS).  `cByte re d n` is byte `n` of the packed stream,
+    read as the 3-lane window that M-C(2) `bitSum_laneBit_window` produces — so the
+    spec-side bit algebra is discharged by CITING that law and the impl side only has to
+    hit the same three-term expression. -/
+
+/-- Byte `n` of a `d`-bit lane stream: the RHS of M-C(2), as a named atom. -/
+private def lanewin (d : Nat) (L : Nat → Nat) (n : Nat) : Nat :=
+  (L (8 * n / d) / 2 ^ (8 * n % d)
+    + L (8 * n / d + 1) * 2 ^ (d - 8 * n % d)
+    + L (8 * n / d + 2) * 2 ^ (2 * d - 8 * n % d)) % 256
+
+/-- The `d`-bit compressed value of lane `j`. -/
+private def cLane (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (d j : Nat) : Nat :=
+  ((2 * encLane re j * 2 ^ d + 3329) / 6658) % 2 ^ d
+
+private theorem cLane_lt (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (d j : Nat) :
+    cLane re d j < 2 ^ d := Nat.mod_lt _ (Nat.two_pow_pos d)
+
+/-- Byte `n` of the `d`-bit packing of `re`'s compressed lanes. -/
+private def cByte (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (d n : Nat) : Nat :=
+  lanewin d (cLane re d) n
+
+/-- Bit `m` of the `d`-bit stream — the normal form of `bitvector_from_bounded_ints`'s
+    closure at width `d`. -/
+private def cBit (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (d m : Nat) : Bool :=
+  natBit (cLane re d (m / d)) (m % d)
+
+/-- **CITES M-C(2) `bitSum_laneBit_window`** — and nothing else.  The LSB-first 8-bit
+    window of the `d`-bit compressed stream IS the 3-lane read the impl computes.  The
+    `hL` hypothesis of the window law is `cLane_lt`, which is exactly the
+    `0 ≤ r < 2 ^ d` post of `compress_ciphertext_coefficient_eq`; that is why compress
+    and encode compose here with no bridging lemma. -/
+private theorem bitSum_cBit_eq_cByte
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (d : Nat) (hd : 4 ≤ d) (n : Nat) :
+    bitSum (fun t => cBit re d (8 * n + t)) 8 = cByte re d n :=
+  bitSum_laneBit_window d hd (cLane re d) (cLane_lt re d) n
+
+/-- Re-indexing: chunk `k`'s local byte `n` is global byte `2 * d * k + n`.  `8 * (2dk+n)`
+    is `d * (16k) + 8n`, so the window's base lane shifts by exactly `16k` and the bit
+    offset does not move — which is why the per-chunk seam can be stated locally. -/
+private theorem lanewin_shift
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (d k n : Nat) (hd : 0 < d) :
+    lanewin d (fun j => cLane re d (16 * k + j)) n = cByte re d (2 * d * k + n) := by
+  have e1 : 8 * (2 * d * k + n) = d * (16 * k) + 8 * n := by ring
+  unfold cByte lanewin
+  rw [e1, Nat.mul_add_div hd, Nat.mul_add_mod]
+  simp only [← Nat.add_assoc]
+
+/-! ### `Result`-payload plumbing the `d = 12` bank does not have: 4- and 5-tuples. -/
+
+private theorem bind_ok_quad {α β γ δ ε : Type} {x : Result (α × β × γ × δ)}
+    {a : α} {b : β} {c : γ} {e : δ}
+    (h : x = .ok (a, b, c, e)) (g : α → β → γ → δ → Result ε) :
+    (do let (u, v, w, z) ← x; g u v w z) = g a b c e := by rw [h]; rfl
+
+private theorem bind_ok_quint {α β γ δ ε ζ : Type} {x : Result (α × β × γ × δ × ε)}
+    {a : α} {b : β} {c : γ} {e : δ} {f : ε}
+    (h : x = .ok (a, b, c, e, f)) (g : α → β → γ → δ → ε → Result ζ) :
+    (do let (u, v, w, z, y) ← x; g u v w z y) = g a b c e f := by rw [h]; rfl
+
+/-! ### Shift payloads PINNED at the `BitVec` level.
+
+    The `d = 12` bank's `u8_shl_iscalar` / `u8_shl_lit` pin only the `.val`, which is
+    enough for a straight-line walk but not to name the output byte as a `def`.  The
+    encode seams need the latter (their outputs go into a `set`-chain), so each shift
+    gets a payload-pinned form.  Aeneas's `<<<` on both `UScalar` and `IScalar`
+    TRUNCATES rather than failing (`shiftLeft` is total for `s < numBits`), so these
+    carry no value side-condition at all — the bounds appear later, in the `.val`
+    lemmas, where they are real. -/
+
+private theorem u8_shl_bvp (x : Std.U8) (t : Std.I32) (k : Nat)
+    (htv : t.val = (k : Int)) (hk : k < 8) :
+    (x <<< t : Result Std.U8) = .ok ⟨x.bv <<< k⟩ := by
+  have h0 : (0:Int) ≤ t.val := by rw [htv]; exact Int.natCast_nonneg k
+  have hkn : Std.IScalar.toNat t = k := by
+    show t.val.toNat = k; rw [htv]; exact Int.toNat_natCast k
+  show Std.UScalar.shiftLeft_IScalar x t = _
+  unfold Std.UScalar.shiftLeft_IScalar Std.UScalar.shiftLeft
+  rw [if_pos h0, hkn, if_pos (show k < Std.UScalarTy.U8.numBits by simpa using hk)]
+  rfl
+
+private theorem i16_shl_bvp (x : Std.I16) (t : Std.I32) (k : Nat)
+    (htv : t.val = (k : Int)) (hk : k < 16) :
+    (x <<< t : Result Std.I16) = .ok ⟨x.bv <<< k⟩ := by
+  have h0 : (0:Int) ≤ t.val := by rw [htv]; exact Int.natCast_nonneg k
+  have hkn : Std.IScalar.toNat t = k := by
+    show t.val.toNat = k; rw [htv]; exact Int.toNat_natCast k
+  show Std.IScalar.shiftLeft_IScalar x t = _
+  unfold Std.IScalar.shiftLeft_IScalar Std.IScalar.shiftLeft
+  rw [if_pos h0, hkn, if_pos (show k < Std.IScalarTy.I16.numBits by simpa using hk)]
+  rfl
+
+private theorem i16_shr_bvp (x : Std.I16) (t : Std.I32) (k : Nat)
+    (htv : t.val = (k : Int)) (hk : k < 16) :
+    (x >>> t : Result Std.I16) = .ok ⟨x.bv.sshiftRight k⟩ := by
+  have h0 : (0:Int) ≤ t.val := by rw [htv]; exact Int.natCast_nonneg k
+  have hkn : Std.IScalar.toNat t = k := by
+    show t.val.toNat = k; rw [htv]; exact Int.toNat_natCast k
+  show Std.IScalar.shiftRight_IScalar x t = _
+  unfold Std.IScalar.shiftRight_IScalar Std.IScalar.shiftRight
+  rw [if_pos h0, hkn, if_pos (show k < Std.IScalarTy.I16.numBits by simpa using hk)]
+
+/-- A left shift that does not truncate, on the `Nat` view. -/
+private theorem bv16_shl_p (a : BitVec 16) (k : Nat) (h : a.toNat * 2 ^ k < 65536) :
+    (a <<< k).toNat = a.toNat * 2 ^ k := by
+  rw [BitVec.toNat_shiftLeft, Nat.shiftLeft_eq]
+  exact Nat.mod_eq_of_lt (by simpa using h)
+
+/-- The arithmetic right shift of a NONNEGATIVE `I16` is floor division. -/
+private theorem bv16_sshr_p (a : BitVec 16) (k : Nat) (h : a.toNat < 32768) :
+    (a.sshiftRight k).toNat = a.toNat / 2 ^ k := by
+  rw [BitVec.sshiftRight_eq_of_msb_false
+      (BitVec.msb_eq_false_iff_two_mul_lt.mpr (by simp; omega)),
+    BitVec.toNat_ushiftRight, Nat.shiftRight_eq_div_pow]
+
+/-! ### IMPL SEAM at `d = 4`. THE UNCOVERED PART, half one.
+
+    `serialize_4_int` packs 8 four-bit lanes into 4 bytes.  Four divides eight, so NO
+    lane straddles a byte and every output byte is one `(hi <<< 4) ||| lo` — the whole
+    seam is `or_shl_add` eight times over.  Contrast the `d = 5` half below, where four
+    of the five bytes straddle and the shift amounts advance by 5 mod 8. -/
+
+/-- The one byte `serialize_4_int` builds from a lane pair. -/
+private def s4b (x0 x1 : Std.I16) : Std.U8 := ⟨((c8 x1).bv <<< 4) ||| (c8 x0).bv⟩
+
+private theorem s4b_val (x0 x1 : Std.I16) (h0 : x0.bv.toNat < 16) (h1 : x1.bv.toNat < 16) :
+    (s4b x0 x1).val = x0.bv.toNat + 16 * x1.bv.toNat := by
+  have e1 : (c8 x1).bv.toNat = x1.bv.toNat := by
+    show (c8 x1).val = _; rw [c8_val]; omega
+  have e0 : (c8 x0).bv.toNat = x0.bv.toNat := by
+    show (c8 x0).val = _; rw [c8_val]; omega
+  show (((c8 x1).bv <<< 4) ||| (c8 x0).bv).toNat = _
+  rw [BitVec.toNat_or, BitVec.toNat_shiftLeft, e1, e0, Nat.shiftLeft_eq,
+    show (2:Nat) ^ 4 = 16 from rfl]
+  rw [Nat.mod_eq_of_lt (show x1.bv.toNat * 16 < 2 ^ 8 by norm_num; omega)]
+  rw [show x1.bv.toNat * 16 = x1.bv.toNat * 2 ^ 4 from rfl,
+    or_shl_add _ _ 4 (show x0.bv.toNat < 2 ^ 4 by norm_num; omega)]
+  norm_num
+  omega
+
+private theorem serialize_4_int_eq (v : Slice Std.I16) (h : 8 ≤ v.val.length) :
+    libcrux_iot_ml_kem.vector.portable.serialize.serialize_4_int v
+      = .ok (s4b v.val[0]! v.val[1]!, s4b v.val[2]! v.val[3]!,
+             s4b v.val[4]! v.val[5]!, s4b v.val[6]! v.val[7]!) := by
+  have q : ∀ (u : Std.Usize) (j : Nat), u.val = j → j < 8 →
+      Aeneas.Std.Slice.index_usize v u = .ok (v.val[j]!) := by
+    intro u j hu hj
+    rw [slice_index_usize_eq v u (by omega), hu]
+  unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_4_int
+  simp only [Aeneas.Std.lift]
+  rw [q 1#usize 1 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [u8_shl_bvp _ _ 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 0#usize 0 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 3#usize 3 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [u8_shl_bvp _ _ 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 2#usize 2 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 5#usize 5 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [u8_shl_bvp _ _ 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 4#usize 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 7#usize 7 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [u8_shl_bvp _ _ 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 6#usize 6 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rfl
+
+/-! ### IMPL SEAM at `d = 5`. THE UNCOVERED PART, half two. -/
+
+private def s5b0 (x0 x1 : Std.I16) : Std.U8 := c8 ⟨x0.bv ||| (x1.bv <<< 5)⟩
+
+private def s5b1 (x1 x2 x3 : Std.I16) : Std.U8 :=
+  c8 ⟨((x1.bv.sshiftRight 3) ||| (x2.bv <<< 2)) ||| (x3.bv <<< 7)⟩
+
+private def s5b2 (x3 x4 : Std.I16) : Std.U8 :=
+  c8 ⟨(x3.bv.sshiftRight 1) ||| (x4.bv <<< 4)⟩
+
+private def s5b3 (x4 x5 x6 : Std.I16) : Std.U8 :=
+  c8 ⟨((x4.bv.sshiftRight 4) ||| (x5.bv <<< 1)) ||| (x6.bv <<< 6)⟩
+
+private def s5b4 (x6 x7 : Std.I16) : Std.U8 :=
+  c8 ⟨(x6.bv.sshiftRight 2) ||| (x7.bv <<< 3)⟩
+
+private theorem s5b0_val (x0 x1 : Std.I16) (h0 : x0.bv.toNat < 32) (h1 : x1.bv.toNat < 32) :
+    (s5b0 x0 x1).val = (x0.bv.toNat / 2 ^ 0 + x1.bv.toNat * 2 ^ 5) % 256 := by
+  show (c8 ⟨x0.bv ||| (x1.bv <<< 5)⟩).val = _
+  rw [c8_val]
+  show (x0.bv ||| (x1.bv <<< 5)).toNat % 256 = _
+  rw [BitVec.toNat_or, bv16_shl_p _ 5 (by norm_num; omega), Nat.or_comm,
+    or_shl_add _ _ 5 (show x0.bv.toNat < 2 ^ 5 by norm_num; omega)]
+  norm_num
+  omega
+
+private theorem s5b1_val (x1 x2 x3 : Std.I16)
+    (h1 : x1.bv.toNat < 32) (h2 : x2.bv.toNat < 32) (h3 : x3.bv.toNat < 32) :
+    (s5b1 x1 x2 x3).val
+      = (x1.bv.toNat / 2 ^ 3 + x2.bv.toNat * 2 ^ 2 + x3.bv.toNat * 2 ^ 7) % 256 := by
+  show (c8 ⟨((x1.bv.sshiftRight 3) ||| (x2.bv <<< 2)) ||| (x3.bv <<< 7)⟩).val = _
+  rw [c8_val]
+  show (((x1.bv.sshiftRight 3) ||| (x2.bv <<< 2)) ||| (x3.bv <<< 7)).toNat % 256 = _
+  rw [BitVec.toNat_or, BitVec.toNat_or, bv16_sshr_p _ 3 (by omega),
+    bv16_shl_p _ 2 (by norm_num; omega), bv16_shl_p _ 7 (by norm_num; omega)]
+  rw [Nat.or_comm (x1.bv.toNat / 2 ^ 3),
+    or_shl_add _ _ 2 (show x1.bv.toNat / 2 ^ 3 < 2 ^ 2 by norm_num; omega)]
+  rw [Nat.or_comm, or_shl_add _ _ 7
+    (show x2.bv.toNat * 2 ^ 2 + x1.bv.toNat / 2 ^ 3 < 2 ^ 7 by norm_num; omega)]
+  norm_num
+  omega
+
+private theorem s5b2_val (x3 x4 : Std.I16) (h3 : x3.bv.toNat < 32) (h4 : x4.bv.toNat < 32) :
+    (s5b2 x3 x4).val = (x3.bv.toNat / 2 ^ 1 + x4.bv.toNat * 2 ^ 4) % 256 := by
+  show (c8 ⟨(x3.bv.sshiftRight 1) ||| (x4.bv <<< 4)⟩).val = _
+  rw [c8_val]
+  show ((x3.bv.sshiftRight 1) ||| (x4.bv <<< 4)).toNat % 256 = _
+  rw [BitVec.toNat_or, bv16_sshr_p _ 1 (by omega), bv16_shl_p _ 4 (by norm_num; omega),
+    Nat.or_comm, or_shl_add _ _ 4 (show x3.bv.toNat / 2 ^ 1 < 2 ^ 4 by norm_num; omega)]
+  norm_num
+  omega
+
+private theorem s5b3_val (x4 x5 x6 : Std.I16)
+    (h4 : x4.bv.toNat < 32) (h5 : x5.bv.toNat < 32) (h6 : x6.bv.toNat < 32) :
+    (s5b3 x4 x5 x6).val
+      = (x4.bv.toNat / 2 ^ 4 + x5.bv.toNat * 2 ^ 1 + x6.bv.toNat * 2 ^ 6) % 256 := by
+  show (c8 ⟨((x4.bv.sshiftRight 4) ||| (x5.bv <<< 1)) ||| (x6.bv <<< 6)⟩).val = _
+  rw [c8_val]
+  show (((x4.bv.sshiftRight 4) ||| (x5.bv <<< 1)) ||| (x6.bv <<< 6)).toNat % 256 = _
+  rw [BitVec.toNat_or, BitVec.toNat_or, bv16_sshr_p _ 4 (by omega),
+    bv16_shl_p _ 1 (by norm_num; omega), bv16_shl_p _ 6 (by norm_num; omega)]
+  rw [Nat.or_comm (x4.bv.toNat / 2 ^ 4),
+    or_shl_add _ _ 1 (show x4.bv.toNat / 2 ^ 4 < 2 ^ 1 by norm_num; omega)]
+  rw [Nat.or_comm, or_shl_add _ _ 6
+    (show x5.bv.toNat * 2 ^ 1 + x4.bv.toNat / 2 ^ 4 < 2 ^ 6 by norm_num; omega)]
+  norm_num
+  omega
+
+private theorem s5b4_val (x6 x7 : Std.I16) (h6 : x6.bv.toNat < 32) (h7 : x7.bv.toNat < 32) :
+    (s5b4 x6 x7).val = (x6.bv.toNat / 2 ^ 2 + x7.bv.toNat * 2 ^ 3) % 256 := by
+  show (c8 ⟨(x6.bv.sshiftRight 2) ||| (x7.bv <<< 3)⟩).val = _
+  rw [c8_val]
+  show ((x6.bv.sshiftRight 2) ||| (x7.bv <<< 3)).toNat % 256 = _
+  rw [BitVec.toNat_or, bv16_sshr_p _ 2 (by omega), bv16_shl_p _ 3 (by norm_num; omega),
+    Nat.or_comm, or_shl_add _ _ 3 (show x6.bv.toNat / 2 ^ 2 < 2 ^ 3 by norm_num; omega)]
+  norm_num
+  omega
+
+private theorem serialize_5_int_eq (v : Slice Std.I16) (h : 8 ≤ v.val.length) :
+    libcrux_iot_ml_kem.vector.portable.serialize.serialize_5_int v
+      = .ok (s5b0 v.val[0]! v.val[1]!,
+             s5b1 v.val[1]! v.val[2]! v.val[3]!,
+             s5b2 v.val[3]! v.val[4]!,
+             s5b3 v.val[4]! v.val[5]! v.val[6]!,
+             s5b4 v.val[6]! v.val[7]!) := by
+  have q : ∀ (u : Std.Usize) (j : Nat), u.val = j → j < 8 →
+      Aeneas.Std.Slice.index_usize v u = .ok (v.val[j]!) := by
+    intro u j hu hj
+    rw [slice_index_usize_eq v u (by omega), hu]
+  unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_5_int
+  simp only [Aeneas.Std.lift]
+  rw [q 0#usize 0 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 1#usize 1 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shl_bvp _ _ 5 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shr_bvp _ _ 3 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 2#usize 2 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shl_bvp _ _ 2 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 3#usize 3 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shl_bvp _ _ 7 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shr_bvp _ _ 1 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 4#usize 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shl_bvp _ _ 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shr_bvp _ _ 4 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 5#usize 5 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shl_bvp _ _ 1 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 6#usize 6 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shl_bvp _ _ 6 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shr_bvp _ _ 2 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [q 7#usize 7 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [i16_shl_bvp _ _ 3 (by scalar_tac) (by omega)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [as_u8_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rfl
+
+/-! ### `serialize_4` — the 8-byte wrapper: two 8-lane sub-slices, eight `Slice.update`s. -/
+
+private theorem s4_group (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (a bnd : Std.Usize) (m0 : Nat) (ha : a.val = m0) (hb : bnd.val = m0 + 8)
+    (hm : m0 + 8 ≤ 16) :
+    ∃ ns : Slice Std.I16,
+      CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
+        (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.I16))
+        v.elements ⟨a, bnd⟩ = .ok ns
+      ∧ libcrux_iot_ml_kem.vector.portable.serialize.serialize_4_int ns
+          = .ok (s4b v.elements.val[m0]! v.elements.val[m0 + 1]!,
+                 s4b v.elements.val[m0 + 2]! v.elements.val[m0 + 3]!,
+                 s4b v.elements.val[m0 + 4]! v.elements.val[m0 + 5]!,
+                 s4b v.elements.val[m0 + 6]! v.elements.val[m0 + 7]!) := by
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  obtain ⟨ns, he, hl, hget⟩ := array_index_range_strict v.elements a bnd (by omega) (by omega)
+  refine ⟨ns, he, ?_⟩
+  rw [serialize_4_int_eq ns (by omega)]
+  rw [hget 0 (by omega), hget 1 (by omega), hget 2 (by omega), hget 3 (by omega),
+    hget 4 (by omega), hget 5 (by omega), hget 6 (by omega), hget 7 (by omega), ha]
+  norm_num
+
+/-- The 8 bytes `serialize_4` writes into `out`, as an explicit `set` chain. -/
+private def s4set (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) : Slice Std.U8 :=
+  out.set 0#usize (s4b v.elements.val[0]! v.elements.val[1]!)
+  |>.set 1#usize (s4b v.elements.val[2]! v.elements.val[3]!)
+  |>.set 2#usize (s4b v.elements.val[4]! v.elements.val[5]!)
+  |>.set 3#usize (s4b v.elements.val[6]! v.elements.val[7]!)
+  |>.set 4#usize (s4b v.elements.val[8]! v.elements.val[9]!)
+  |>.set 5#usize (s4b v.elements.val[10]! v.elements.val[11]!)
+  |>.set 6#usize (s4b v.elements.val[12]! v.elements.val[13]!)
+  |>.set 7#usize (s4b v.elements.val[14]! v.elements.val[15]!)
+
+private theorem s4set_length
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) (h : out.val.length = 8) : (s4set v out).val.length = 8 := by
+  unfold s4set
+  simp only [Aeneas.Std.Slice.set_val_eq, List.length_set]; exact h
+
+/-- Byte `n` of the `d = 4` packing of one 16-lane vector, in impl terms. -/
+private def v4byte (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (n : Nat) : Std.U8 :=
+  s4b (v.elements.val[2 * n]!) (v.elements.val[2 * n + 1]!)
+
+set_option maxHeartbeats 4000000 in
+private theorem s4set_get
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) (h : out.val.length = 8) (n : Nat) (hn : n < 8) :
+    (s4set v out).val[n]! = v4byte v n := by
+  unfold s4set
+  simp only [Aeneas.Std.Slice.set_val_eq]
+  interval_cases n <;> (simp_lists; norm_num [v4byte])
+
+set_option maxHeartbeats 4000000 in
+/-- **Impl-side chunk closed form at `d = 4`**: `serialize_4` writes exactly `v4byte`. -/
+private theorem serialize_4_eq
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) (h : out.val.length = 8) :
+    libcrux_iot_ml_kem.vector.portable.serialize.serialize_4 v out = .ok (s4set v out) := by
+  obtain ⟨ns0, he0, hs0⟩ := s4_group v 0#usize 8#usize 0
+    (by scalar_tac) (by scalar_tac) (by omega)
+  obtain ⟨ns1, he1, hs1⟩ := s4_group v 8#usize 16#usize 8
+    (by scalar_tac) (by scalar_tac) (by omega)
+  simp only [Nat.reduceAdd] at hs0 hs1
+  have hlen : CoreModels.core.slice.Slice.len out = .ok (8#usize : Std.Usize) := by
+    show Result.ok (Aeneas.Std.Slice.len out) = _
+    congr 1
+    apply Std.UScalar.eq_of_val_eq
+    simp [Aeneas.Std.Slice.len_val, h]
+  unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_4 s4set
+  rw [hlen]
+  simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
+  rw [he0]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [bind_ok_quad hs0]
+  rw [slice_update_eq _ _ _ (by simp only [h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [he1]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [bind_ok_quad hs1]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]
+
+/-- The `d = 4` byte value against an abstract lane function. Reads lane `2n + 2` out of
+    `L` — one PAST the vector at `n = 7` — which is sound because that term is a multiple
+    of `256` and dies under the truncation; that is also exactly what makes the per-chunk
+    seam agree with the GLOBAL byte model at the chunk boundary. -/
+private theorem v4byte_val
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (L : Nat → Nat)
+    (hv : ∀ l : Nat, l < 16 → (v.elements.val[l]!).bv.toNat = L l)
+    (hL : ∀ i : Nat, L i < 16) (n : Nat) (hn : n < 8) :
+    (v4byte v n).val = lanewin 4 L n := by
+  have b0 := hv (2 * n) (by omega)
+  have b1 := hv (2 * n + 1) (by omega)
+  have l0 := hL (2 * n)
+  have l1 := hL (2 * n + 1)
+  have l2 := hL (2 * n + 2)
+  unfold v4byte
+  rw [s4b_val _ _ (by rw [b0]; omega) (by rw [b1]; omega), b0, b1]
+  unfold lanewin
+  rw [show 8 * n / 4 = 2 * n from by omega, show 8 * n % 4 = 0 from by omega,
+    show (2:Nat) ^ 0 = 1 from rfl, show (2:Nat) ^ (4 - 0) = 16 from rfl,
+    show (2:Nat) ^ (2 * 4 - 0) = 256 from rfl, Nat.div_one]
+  omega
+
+/-! ### `serialize_5` — the 10-byte wrapper. -/
+
+private theorem s5_group (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (a bnd : Std.Usize) (m0 : Nat) (ha : a.val = m0) (hb : bnd.val = m0 + 8)
+    (hm : m0 + 8 ≤ 16) :
+    ∃ ns : Slice Std.I16,
+      CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
+        (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.I16))
+        v.elements ⟨a, bnd⟩ = .ok ns
+      ∧ libcrux_iot_ml_kem.vector.portable.serialize.serialize_5_int ns
+          = .ok (s5b0 v.elements.val[m0]! v.elements.val[m0 + 1]!,
+                 s5b1 v.elements.val[m0 + 1]! v.elements.val[m0 + 2]! v.elements.val[m0 + 3]!,
+                 s5b2 v.elements.val[m0 + 3]! v.elements.val[m0 + 4]!,
+                 s5b3 v.elements.val[m0 + 4]! v.elements.val[m0 + 5]! v.elements.val[m0 + 6]!,
+                 s5b4 v.elements.val[m0 + 6]! v.elements.val[m0 + 7]!) := by
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  obtain ⟨ns, he, hl, hget⟩ := array_index_range_strict v.elements a bnd (by omega) (by omega)
+  refine ⟨ns, he, ?_⟩
+  rw [serialize_5_int_eq ns (by omega)]
+  rw [hget 0 (by omega), hget 1 (by omega), hget 2 (by omega), hget 3 (by omega),
+    hget 4 (by omega), hget 5 (by omega), hget 6 (by omega), hget 7 (by omega), ha]
+  norm_num
+
+private def s5set (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) : Slice Std.U8 :=
+  out.set 0#usize (s5b0 v.elements.val[0]! v.elements.val[1]!)
+  |>.set 1#usize (s5b1 v.elements.val[1]! v.elements.val[2]! v.elements.val[3]!)
+  |>.set 2#usize (s5b2 v.elements.val[3]! v.elements.val[4]!)
+  |>.set 3#usize (s5b3 v.elements.val[4]! v.elements.val[5]! v.elements.val[6]!)
+  |>.set 4#usize (s5b4 v.elements.val[6]! v.elements.val[7]!)
+  |>.set 5#usize (s5b0 v.elements.val[8]! v.elements.val[9]!)
+  |>.set 6#usize (s5b1 v.elements.val[9]! v.elements.val[10]! v.elements.val[11]!)
+  |>.set 7#usize (s5b2 v.elements.val[11]! v.elements.val[12]!)
+  |>.set 8#usize (s5b3 v.elements.val[12]! v.elements.val[13]! v.elements.val[14]!)
+  |>.set 9#usize (s5b4 v.elements.val[14]! v.elements.val[15]!)
+
+private theorem s5set_length
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) (h : out.val.length = 10) : (s5set v out).val.length = 10 := by
+  unfold s5set
+  simp only [Aeneas.Std.Slice.set_val_eq, List.length_set]; exact h
+
+/-- Byte `n` of the `d = 5` packing of one 16-lane vector, in impl terms. Unlike `v4byte`
+    this is a FIVE-way split: the lane/byte boundaries realign only every 5 bytes. -/
+private def v5byte (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (n : Nat) : Std.U8 :=
+  if n % 5 = 0 then
+    s5b0 (v.elements.val[8 * (n / 5)]!) (v.elements.val[8 * (n / 5) + 1]!)
+  else if n % 5 = 1 then
+    s5b1 (v.elements.val[8 * (n / 5) + 1]!) (v.elements.val[8 * (n / 5) + 2]!)
+      (v.elements.val[8 * (n / 5) + 3]!)
+  else if n % 5 = 2 then
+    s5b2 (v.elements.val[8 * (n / 5) + 3]!) (v.elements.val[8 * (n / 5) + 4]!)
+  else if n % 5 = 3 then
+    s5b3 (v.elements.val[8 * (n / 5) + 4]!) (v.elements.val[8 * (n / 5) + 5]!)
+      (v.elements.val[8 * (n / 5) + 6]!)
+  else
+    s5b4 (v.elements.val[8 * (n / 5) + 6]!) (v.elements.val[8 * (n / 5) + 7]!)
+
+set_option maxHeartbeats 4000000 in
+private theorem s5set_get
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) (h : out.val.length = 10) (n : Nat) (hn : n < 10) :
+    (s5set v out).val[n]! = v5byte v n := by
+  unfold s5set
+  simp only [Aeneas.Std.Slice.set_val_eq]
+  interval_cases n <;> (simp_lists; norm_num [v5byte])
+
+set_option maxHeartbeats 4000000 in
+/-- **Impl-side chunk closed form at `d = 5`**: `serialize_5` writes exactly `v5byte`. -/
+private theorem serialize_5_eq
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8) (h : out.val.length = 10) :
+    libcrux_iot_ml_kem.vector.portable.serialize.serialize_5 v out = .ok (s5set v out) := by
+  obtain ⟨ns0, he0, hs0⟩ := s5_group v 0#usize 8#usize 0
+    (by scalar_tac) (by scalar_tac) (by omega)
+  obtain ⟨ns1, he1, hs1⟩ := s5_group v 8#usize 16#usize 8
+    (by scalar_tac) (by scalar_tac) (by omega)
+  simp only [Nat.reduceAdd] at hs0 hs1
+  have hlen : CoreModels.core.slice.Slice.len out = .ok (10#usize : Std.Usize) := by
+    show Result.ok (Aeneas.Std.Slice.len out) = _
+    congr 1
+    apply Std.UScalar.eq_of_val_eq
+    simp [Aeneas.Std.Slice.len_val, h]
+  unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_5 s5set
+  rw [hlen]
+  simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
+  rw [he0]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [bind_ok_quint hs0]
+  rw [slice_update_eq _ _ _ (by simp only [h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [he1]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [bind_ok_quint hs1]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [slice_update_eq _ _ _ (by simp only [Aeneas.Std.Slice.set_val_eq, List.length_set, h]; scalar_tac)]
+
+private theorem v5byte_val
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (L : Nat → Nat)
+    (hv : ∀ l : Nat, l < 16 → (v.elements.val[l]!).bv.toNat = L l)
+    (hL : ∀ i : Nat, L i < 32) (n : Nat) (hn : n < 10) :
+    (v5byte v n).val = lanewin 5 L n := by
+  obtain ⟨m, hm5⟩ : ∃ m : Nat, n / 5 = m := ⟨_, rfl⟩
+  have hmlt : m < 2 := by omega
+  have b0 : (v.elements.val[8 * m]!).bv.toNat = L (8 * m) := hv _ (by omega)
+  have b1 : (v.elements.val[8 * m + 1]!).bv.toNat = L (8 * m + 1) := hv _ (by omega)
+  have b2 : (v.elements.val[8 * m + 2]!).bv.toNat = L (8 * m + 2) := hv _ (by omega)
+  have b3 : (v.elements.val[8 * m + 3]!).bv.toNat = L (8 * m + 3) := hv _ (by omega)
+  have b4 : (v.elements.val[8 * m + 4]!).bv.toNat = L (8 * m + 4) := hv _ (by omega)
+  have b5 : (v.elements.val[8 * m + 5]!).bv.toNat = L (8 * m + 5) := hv _ (by omega)
+  have b6 : (v.elements.val[8 * m + 6]!).bv.toNat = L (8 * m + 6) := hv _ (by omega)
+  have b7 : (v.elements.val[8 * m + 7]!).bv.toNat = L (8 * m + 7) := hv _ (by omega)
+  have c0 := hL (8 * m); have c1 := hL (8 * m + 1); have c2 := hL (8 * m + 2)
+  have c3 := hL (8 * m + 3); have c4 := hL (8 * m + 4); have c5 := hL (8 * m + 5)
+  have c6 := hL (8 * m + 6); have c7 := hL (8 * m + 7); have c8 := hL (8 * m + 8)
+  unfold v5byte
+  rw [hm5]
+  unfold lanewin
+  rcases (show n % 5 = 0 ∨ n % 5 = 1 ∨ n % 5 = 2 ∨ n % 5 = 3 ∨ n % 5 = 4 by omega)
+    with hr | hr | hr | hr | hr
+  · rw [if_pos hr, s5b0_val _ _ (by rw [b0]; omega) (by rw [b1]; omega), b0, b1,
+      show 8 * n / 5 = 8 * m from by omega, show 8 * n % 5 = 0 from by omega]
+    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
+    all_goals omega
+  · rw [if_neg (by omega), if_pos hr,
+      s5b1_val _ _ _ (by rw [b1]; omega) (by rw [b2]; omega) (by rw [b3]; omega), b1, b2, b3,
+      show 8 * n / 5 = 8 * m + 1 from by omega, show 8 * n % 5 = 3 from by omega]
+    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
+    all_goals omega
+  · rw [if_neg (by omega), if_neg (by omega), if_pos hr,
+      s5b2_val _ _ (by rw [b3]; omega) (by rw [b4]; omega), b3, b4,
+      show 8 * n / 5 = 8 * m + 3 from by omega, show 8 * n % 5 = 1 from by omega]
+    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
+    all_goals omega
+  · rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_pos hr,
+      s5b3_val _ _ _ (by rw [b4]; omega) (by rw [b5]; omega) (by rw [b6]; omega), b4, b5, b6,
+      show 8 * n / 5 = 8 * m + 4 from by omega, show 8 * n % 5 = 4 from by omega]
+    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
+    all_goals omega
+  · rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg (by omega),
+      s5b4_val _ _ (by rw [b6]; omega) (by rw [b7]; omega), b6, b7,
+      show 8 * n / 5 = 8 * m + 6 from by omega, show 8 * n % 5 = 2 from by omega]
+    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
+    all_goals omega
+
+/-! ### The vector-level COMPRESS seam, generic in `d`.
+
+    CITES `compress_ciphertext_coefficient_eq` (M-C′(2)) per lane and lifts it over the
+    16-lane loop with `LoopHelper.elementwise_unary_spec`; no new loop reasoning, the
+    extracted body IS `unary_loop_body` once the two total casts are rewritten. -/
+
+private theorem as_i16_id (x : Std.I16) :
+    libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i16 x = .ok x := rfl
+
+/-- `to_unsigned_field_modulus` IS `to_unsigned_representative` (a one-statement `do`), so
+    `to_unsigned_fm_eq` serves both arms — the `d = 4` body calls the former and the
+    `d = 5` body the latter. -/
+private theorem tufm_eq_tur
+    (a out : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.to_unsigned_field_modulus
+      (vectortraitsOperationsInst := portable_ops_inst) a out
+    = libcrux_iot_ml_kem.vector.traits.to_unsigned_representative portable_ops_inst a out := rfl
+
+private def cccb (d : Std.U8) (x : Std.I16) : Result Std.I16 := do
+  let u ← libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_u16 x
+  libcrux_iot_ml_kem.vector.portable.compress.compress_ciphertext_coefficient d u
+
+private theorem cccb_spec (d : Std.U8) (hd : d.val < 12) (x : Std.I16) :
+    ∃ r : Std.I16, cccb d x = .ok r
+      ∧ r.bv.toNat = (((x.bv.toNat * 2 ^ d.val + 1664) * 10321340) / 2 ^ 35) % 2 ^ d.val
+      ∧ r.bv.toNat < 2 ^ d.val := by
+  obtain ⟨r, hr_eq, hrv, hr0, hrlt⟩ := compress_ciphertext_coefficient_eq d (cu16 x) hd
+  rw [cu16_val x] at hrv
+  have hlt16 := i16_toNat_lt r
+  have hbn : r.bv.toNat = r.val.toNat := by
+    rcases i16_msb_cases r with ⟨_, hn, hv⟩ | ⟨_, hn, hv⟩ <;> omega
+  have hcast : ((2:Int) ^ d.val) = ((2 ^ d.val : Nat) : Int) := by push_cast; ring
+  rw [hcast] at hrlt
+  refine ⟨r, ?_, ?_, ?_⟩
+  · unfold cccb
+    rw [as_u16_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    exact hr_eq
+  · rw [hbn, hrv]
+  · rw [hbn]; omega
+
+private theorem compress_body_eq (CB : Std.I32)
+    (iter : CoreModels.core.ops.range.Range Std.Usize)
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.vector.portable.compress.compress_loop.body CB iter v
+      = libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body
+          (cccb (Std.IScalar.hcast .U8 CB)) iter v := by
+  unfold libcrux_iot_ml_kem.vector.portable.compress.compress_loop.body
+    libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body cccb
+  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, as_u16_eq, as_i16_id]
+  rfl
+
+private theorem compress_vec_eq (CB : Std.I32) (dn : Nat)
+    (hCB : (Std.IScalar.hcast .U8 CB : Std.U8).val = dn) (hd : dn < 12)
+    (v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ∃ r : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector,
+      libcrux_iot_ml_kem.vector.portable.compress.compress CB v = .ok r
+      ∧ ∀ l : Nat, l < 16 →
+          (r.elements.val[l]!).bv.toNat
+            = ((((v.elements.val[l]!).bv.toNat * 2 ^ dn + 1664) * 10321340) / 2 ^ 35)
+              % 2 ^ dn := by
+  have hloop : libcrux_iot_ml_kem.vector.portable.compress.compress CB v
+      = loop (fun p => libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body
+                (cccb (Std.IScalar.hcast .U8 CB)) p.1 p.2)
+          (({ start := 0#usize, «end» := 16#usize }
+              : CoreModels.core.ops.range.Range Std.Usize), v) := by
+    have hFEV : (libcrux_iot_ml_kem.vector.traits.FIELD_ELEMENTS_IN_VECTOR : Std.Usize)
+        = (16#usize : Std.Usize) :=
+      Std.UScalar.eq_of_val_eq (by
+        rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.field_elements_in_vector_val]
+        scalar_tac)
+    have h1 : ∀ (iter1 : CoreModels.core.ops.range.Range Std.Usize)
+        (a1 : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector),
+        libcrux_iot_ml_kem.vector.portable.compress.compress_loop.body CB iter1 a1
+          = libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.unary_loop_body
+              (cccb (Std.IScalar.hcast .U8 CB)) iter1 a1 :=
+      fun i a => compress_body_eq CB i a
+    unfold libcrux_iot_ml_kem.vector.portable.compress.compress
+    rw [hFEV]
+    unfold libcrux_iot_ml_kem.vector.portable.compress.compress_loop
+    simp only [h1]
+  obtain ⟨r, hr_eq, hr⟩ := triple_exists_ok_fc
+    (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.elementwise_unary_spec
+      (cccb (Std.IScalar.hcast .U8 CB))
+      (fun x y => y.bv.toNat = (((x.bv.toNat * 2 ^ dn + 1664) * 10321340) / 2 ^ 35) % 2 ^ dn)
+      (fun x => by
+        obtain ⟨y, hy_eq, hy1, hy2⟩ := cccb_spec _ (by rw [hCB]; exact hd) x
+        rw [hCB] at hy1
+        exact triple_of_ok_fc hy_eq hy1)
+      v)
+  refine ⟨r, by rw [hloop]; exact hr_eq, ?_⟩
+  intro l hl
+  obtain ⟨ri, _, hri, hP⟩ := hr l hl
+  rw [hri]; exact hP
+
+/-! ### The two 16-iteration range loops. Written-prefix invariant; the
+    undone-cells-unchanged conjunct is discharged by the `setSlice!` prefix lemma, exactly
+    as in `serialize_uncompressed_loop_fc`. -/
+
+private def cInv (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+      libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (d C2 : Nat) (k : Std.Usize)
+    (acc : Slice Std.U8 × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    Result Prop :=
+  pure (acc.1.val.length = C2 ∧
+        ∀ n : Nat, n < 2 * d * k.val → (acc.1.val[n]!).val = cByte re d n)
+
+private theorem vectors_in_ring_element_eq :
+    libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT = .ok (16#usize : Std.Usize) := by
+  have hdivlit : ∀ x y z : Std.Usize, y.val ≠ 0 → x.val / y.val = z.val →
+      (x / y : Result Std.Usize) = .ok z := by
+    intro x y z hy hz
+    obtain ⟨q, hq_eq, hq_val⟩ := Std.UScalar.div_spec x (y := y) hy
+    rw [hq_eq]
+    congr 1
+    exact Std.UScalar.eq_of_val_eq (by rw [hq_val, hz])
+  unfold libcrux_iot_ml_kem.polynomial.VECTORS_IN_RING_ELEMENT
+    libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
+    libcrux_iot_ml_kem.vector.traits.FIELD_ELEMENTS_IN_VECTOR
+  exact hdivlit _ _ _ (by scalar_tac) (by scalar_tac)
+
+set_option maxHeartbeats 4000000 in
+private theorem L54_loop_4_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
+      ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 128)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_4_loop
+      (vectortraitsOperationsInst := portable_ops_inst)
+      { start := 0#usize, «end» := 16#usize } re serialized scratch
+    ⦃ ⇓ p => ⌜ (cInv re 4 128 16#usize p).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_4_loop
+  refine libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
+    (fun (iter1, serialized1, scratch1) =>
+      libcrux_iot_ml_kem.serialize.compress_then_serialize_4_loop.body
+        (vectortraitsOperationsInst := portable_ops_inst) re iter1 serialized1 scratch1)
+    (serialized, scratch) 0#usize 16#usize (cInv re 4 128) (by scalar_tac) ?_ ?_
+  · show (pure _ : Result Prop).holds
+    simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+    intro _
+    exact ⟨h_len, by intro n hn; exact absurd hn (by scalar_tac)⟩
+  · intro acc k hk0 hk16 hinv
+    have h16 : (16#usize : Std.Usize).val = 16 := rfl
+    obtain ⟨hacc_len, hacc_done⟩ : acc.1.val.length = 128 ∧
+        ∀ n : Nat, n < 2 * 4 * k.val → (acc.1.val[n]!).val = cByte re 4 n := by
+      have hh := hinv
+      simp only [cInv, Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails] at hh
+      exact hh trivial
+    by_cases hlt : k.val < 16
+    · obtain ⟨s, hs_val, h_iter⟩ :=
+        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
+          (by rw [h16]; exact hlt)
+      have hcl : re.coefficients.val.length = 16 := by
+        have := re.coefficients.property; simpa using this
+      have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
+          = .ok (re.coefficients.val[k.val]!) :=
+        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
+          re.coefficients k (by rw [show re.coefficients.length = 16 from hcl]; exact hlt)
+      obtain ⟨sc1, hsc1_eq, hsc1⟩ :=
+        to_unsigned_fm_eq (re.coefficients.val[k.val]!) acc.2
+          (fun l hl => hbnd k.val hlt l hl)
+      have hlanes : ∀ l : Nat, l < 16 →
+          (sc1.elements.val[l]!).bv.toNat = encLane re (16 * k.val + l) := by
+        intro l hl
+        obtain ⟨hb0, hb1, hb2⟩ := hsc1 l hl
+        exact uval_encLane re k.val l hlt hl _ hb0 hb1 hb2
+      obtain ⟨sc2, hsc2_eq, hsc2⟩ :=
+        compress_vec_eq (4#i32) 4 (by decide) (by omega) sc1
+      have hclanes : ∀ l : Nat, l < 16 →
+          (sc2.elements.val[l]!).bv.toNat = cLane re 4 (16 * k.val + l) := by
+        intro l hl
+        rw [hsc2 l hl, hlanes l hl]
+        unfold cLane
+        rw [compress_barrett_eq (encLane re (16 * k.val + l)) 4
+          (encLane_lt re (16 * k.val + l)) (by omega)]
+      obtain ⟨i1, hi1_eq, hi1⟩ := usize_mul_ok_e (8#usize : Std.Usize) k (by scalar_tac)
+      obtain ⟨i2, hi2_eq, hi2⟩ := usize_add_ok_e i1 (8#usize : Std.Usize) (by scalar_tac)
+      have hi1v : i1.val = 8 * k.val := by rw [hi1]; scalar_tac
+      have hi2v : i2.val = 8 * k.val + 8 := by rw [hi2, hi1v]; scalar_tac
+      obtain ⟨sub, wb, hmut_eq, hsub_len, hwb⟩ :=
+        slice_index_mut_range_strict acc.1 i1 i2 (by omega) (by rw [hacc_len]; omega)
+      have hsub8 : sub.val.length = 8 := by rw [hsub_len]; omega
+      have hser4 := serialize_4_eq sc2 sub hsub8
+      refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
+        (v := .cont (({ start := s, «end» := 16#usize }
+                : CoreModels.core.ops.range.Range Std.Usize), (wb (s4set sc2 sub), sc2))) ?_ ?_
+      · show libcrux_iot_ml_kem.serialize.compress_then_serialize_4_loop.body
+          (vectortraitsOperationsInst := portable_ops_inst) re
+          { start := k, «end» := 16#usize } acc.1 acc.2 = _
+        unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_4_loop.body
+        rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+              core.Usize.Insts.CoreIterRangeStep
+              ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize))
+            = (CoreModels.core.iter.range.IteratorRange.next
+                core.Usize.Insts.CoreIterRangeStep
+                ({ start := k, «end» := 16#usize }
+                  : CoreModels.core.ops.range.Range Std.Usize)) from rfl]
+        rw [h_iter]
+        simp only [Aeneas.Std.bind_tc_ok]
+        show (do
+            let t ← Aeneas.Std.Array.index_usize re.coefficients k
+            let scratch1 ← libcrux_iot_ml_kem.serialize.to_unsigned_field_modulus
+                             portable_ops_inst t acc.2
+            let scratch2 ← libcrux_iot_ml_kem.vector.portable.compress.compress
+                             (4#i32 : Std.I32) scratch1
+            let i1' ← (8#usize : Std.Usize) * k
+            let i2' ← i1' + (8#usize : Std.Usize)
+            let (sb, index_mut_back) ←
+              CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+                (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+                  Std.U8) acc.1 { start := i1', «end» := i2' }
+            let s1 ← libcrux_iot_ml_kem.vector.portable.serialize.serialize_4 scratch2 sb
+            Result.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
+                : CoreModels.core.ops.range.Range Std.Usize),
+              (index_mut_back s1, scratch2)))) = _
+        rw [h_idx]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hsc1_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hsc2_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hi2_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hmut_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hser4]
+        rfl
+      · refine ⟨by rw [h16]; exact hlt, rfl, hs_val, ?_⟩
+        show (cInv re 4 128 s (wb (s4set sc2 sub), sc2)).holds
+        simp only [cInv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        intro _
+        have hwbv := hwb (s4set sc2 sub) (by rw [s4set_length sc2 sub hsub8]; omega)
+        refine ⟨?_, ?_⟩
+        · rw [hwbv, List.length_setSlice!]; exact hacc_len
+        · intro n hn
+          rw [hs_val] at hn
+          rw [hwbv]
+          by_cases hnk : n < 2 * 4 * k.val
+          · rw [List.getElem!_setSlice!_prefix _ _ _ _ (by omega)]
+            exact hacc_done n hnk
+          · rw [List.getElem!_setSlice!_middle _ _ _ _
+              ⟨by omega, by rw [s4set_length sc2 sub hsub8]; omega,
+               by rw [hacc_len]; omega⟩]
+            rw [hi1v, s4set_get sc2 sub hsub8 (n - 8 * k.val) (by omega),
+              v4byte_val sc2 (fun j => cLane re 4 (16 * k.val + j)) hclanes
+                (fun i => by
+                  have := cLane_lt re 4 (16 * k.val + i)
+                  simpa using this)
+                (n - 8 * k.val) (by omega),
+              lanewin_shift re 4 k.val (n - 8 * k.val) (by omega)]
+            congr 1
+            omega
+    · have hk : k.val = 16 := by omega
+      refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
+        (v := .done acc) ?_ ?_
+      · show libcrux_iot_ml_kem.serialize.compress_then_serialize_4_loop.body
+          (vectortraitsOperationsInst := portable_ops_inst) re
+          { start := k, «end» := 16#usize } acc.1 acc.2 = _
+        unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_4_loop.body
+        rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+              core.Usize.Insts.CoreIterRangeStep
+              ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize))
+            = (CoreModels.core.iter.range.IteratorRange.next
+                core.Usize.Insts.CoreIterRangeStep
+                ({ start := k, «end» := 16#usize }
+                  : CoreModels.core.ops.range.Range Std.Usize)) from rfl]
+        rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_none_eq k
+          (by rw [h16]; omega)]
+        rfl
+      · show (cInv re 4 128 16#usize acc).holds
+        simp only [cInv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        intro _
+        exact ⟨hacc_len, by intro n hn; exact hacc_done n (by rw [hk]; rw [h16] at hn; omega)⟩
+
+private theorem L54_impl_4_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
+      ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 128)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_4
+      (vectortraitsOperationsInst := portable_ops_inst) re serialized scratch
+    ⦃ ⇓ p => ⌜ (cInv re 4 128 16#usize p).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_4
+  rw [vectors_in_ring_element_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  exact L54_loop_4_fc re hbnd serialized h_len scratch
+
+set_option maxHeartbeats 4000000 in
+private theorem L54_loop_5_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
+      ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 160)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_5_loop
+      (vectortraitsOperationsInst := portable_ops_inst)
+      { start := 0#usize, «end» := 16#usize } re serialized scratch
+    ⦃ ⇓ p => ⌜ (cInv re 5 160 16#usize p).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_5_loop
+  refine libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
+    (fun (iter1, serialized1, scratch1) =>
+      libcrux_iot_ml_kem.serialize.compress_then_serialize_5_loop.body
+        (vectortraitsOperationsInst := portable_ops_inst) re iter1 serialized1 scratch1)
+    (serialized, scratch) 0#usize 16#usize (cInv re 5 160) (by scalar_tac) ?_ ?_
+  · show (pure _ : Result Prop).holds
+    simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+    intro _
+    exact ⟨h_len, by intro n hn; exact absurd hn (by scalar_tac)⟩
+  · intro acc k hk0 hk16 hinv
+    have h16 : (16#usize : Std.Usize).val = 16 := rfl
+    obtain ⟨hacc_len, hacc_done⟩ : acc.1.val.length = 160 ∧
+        ∀ n : Nat, n < 2 * 5 * k.val → (acc.1.val[n]!).val = cByte re 5 n := by
+      have hh := hinv
+      simp only [cInv, Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails] at hh
+      exact hh trivial
+    by_cases hlt : k.val < 16
+    · obtain ⟨s, hs_val, h_iter⟩ :=
+        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
+          (by rw [h16]; exact hlt)
+      have hcl : re.coefficients.val.length = 16 := by
+        have := re.coefficients.property; simpa using this
+      have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
+          = .ok (re.coefficients.val[k.val]!) :=
+        libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
+          re.coefficients k (by rw [show re.coefficients.length = 16 from hcl]; exact hlt)
+      obtain ⟨sc1, hsc1_eq, hsc1⟩ :=
+        to_unsigned_fm_eq (re.coefficients.val[k.val]!) acc.2
+          (fun l hl => hbnd k.val hlt l hl)
+      have hlanes : ∀ l : Nat, l < 16 →
+          (sc1.elements.val[l]!).bv.toNat = encLane re (16 * k.val + l) := by
+        intro l hl
+        obtain ⟨hb0, hb1, hb2⟩ := hsc1 l hl
+        exact uval_encLane re k.val l hlt hl _ hb0 hb1 hb2
+      obtain ⟨sc2, hsc2_eq, hsc2⟩ :=
+        compress_vec_eq (5#i32) 5 (by decide) (by omega) sc1
+      have hclanes : ∀ l : Nat, l < 16 →
+          (sc2.elements.val[l]!).bv.toNat = cLane re 5 (16 * k.val + l) := by
+        intro l hl
+        rw [hsc2 l hl, hlanes l hl]
+        unfold cLane
+        rw [compress_barrett_eq (encLane re (16 * k.val + l)) 5
+          (encLane_lt re (16 * k.val + l)) (by omega)]
+      obtain ⟨i1, hi1_eq, hi1⟩ := usize_mul_ok_e (10#usize : Std.Usize) k (by scalar_tac)
+      obtain ⟨i2, hi2_eq, hi2⟩ := usize_add_ok_e i1 (10#usize : Std.Usize) (by scalar_tac)
+      have hi1v : i1.val = 10 * k.val := by rw [hi1]; scalar_tac
+      have hi2v : i2.val = 10 * k.val + 10 := by rw [hi2, hi1v]; scalar_tac
+      obtain ⟨sub, wb, hmut_eq, hsub_len, hwb⟩ :=
+        slice_index_mut_range_strict acc.1 i1 i2 (by omega) (by rw [hacc_len]; omega)
+      have hsub10 : sub.val.length = 10 := by rw [hsub_len]; omega
+      have hser5 := serialize_5_eq sc2 sub hsub10
+      refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
+        (v := .cont (({ start := s, «end» := 16#usize }
+                : CoreModels.core.ops.range.Range Std.Usize), (wb (s5set sc2 sub), sc2))) ?_ ?_
+      · show libcrux_iot_ml_kem.serialize.compress_then_serialize_5_loop.body
+          (vectortraitsOperationsInst := portable_ops_inst) re
+          { start := k, «end» := 16#usize } acc.1 acc.2 = _
+        unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_5_loop.body
+        rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+              core.Usize.Insts.CoreIterRangeStep
+              ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize))
+            = (CoreModels.core.iter.range.IteratorRange.next
+                core.Usize.Insts.CoreIterRangeStep
+                ({ start := k, «end» := 16#usize }
+                  : CoreModels.core.ops.range.Range Std.Usize)) from rfl]
+        rw [h_iter]
+        simp only [Aeneas.Std.bind_tc_ok]
+        show (do
+            let t ← Aeneas.Std.Array.index_usize re.coefficients k
+            let scratch1 ← libcrux_iot_ml_kem.vector.traits.to_unsigned_representative
+                             portable_ops_inst t acc.2
+            let scratch2 ← libcrux_iot_ml_kem.vector.portable.compress.compress
+                             (5#i32 : Std.I32) scratch1
+            let i1' ← (10#usize : Std.Usize) * k
+            let i2' ← i1' + (10#usize : Std.Usize)
+            let (sb, index_mut_back) ←
+              CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+                (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+                  Std.U8) acc.1 { start := i1', «end» := i2' }
+            let s1 ← libcrux_iot_ml_kem.vector.portable.serialize.serialize_5 scratch2 sb
+            Result.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
+                : CoreModels.core.ops.range.Range Std.Usize),
+              (index_mut_back s1, scratch2)))) = _
+        rw [h_idx]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [← tufm_eq_tur (re.coefficients.val[k.val]!) acc.2, hsc1_eq]
+        simp only [Aeneas.Std.bind_tc_ok]
+        rw [hsc2_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hi2_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hmut_eq]; simp only [Aeneas.Std.bind_tc_ok]
+        rw [hser5]
+        rfl
+      · refine ⟨by rw [h16]; exact hlt, rfl, hs_val, ?_⟩
+        show (cInv re 5 160 s (wb (s5set sc2 sub), sc2)).holds
+        simp only [cInv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        intro _
+        have hwbv := hwb (s5set sc2 sub) (by rw [s5set_length sc2 sub hsub10]; omega)
+        refine ⟨?_, ?_⟩
+        · rw [hwbv, List.length_setSlice!]; exact hacc_len
+        · intro n hn
+          rw [hs_val] at hn
+          rw [hwbv]
+          by_cases hnk : n < 2 * 5 * k.val
+          · rw [List.getElem!_setSlice!_prefix _ _ _ _ (by omega)]
+            exact hacc_done n hnk
+          · rw [List.getElem!_setSlice!_middle _ _ _ _
+              ⟨by omega, by rw [s5set_length sc2 sub hsub10]; omega,
+               by rw [hacc_len]; omega⟩]
+            rw [hi1v, s5set_get sc2 sub hsub10 (n - 10 * k.val) (by omega),
+              v5byte_val sc2 (fun j => cLane re 5 (16 * k.val + j)) hclanes
+                (fun i => by
+                  have := cLane_lt re 5 (16 * k.val + i)
+                  simpa using this)
+                (n - 10 * k.val) (by omega),
+              lanewin_shift re 5 k.val (n - 10 * k.val) (by omega)]
+            congr 1
+            omega
+    · have hk : k.val = 16 := by omega
+      refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
+        (v := .done acc) ?_ ?_
+      · show libcrux_iot_ml_kem.serialize.compress_then_serialize_5_loop.body
+          (vectortraitsOperationsInst := portable_ops_inst) re
+          { start := k, «end» := 16#usize } acc.1 acc.2 = _
+        unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_5_loop.body
+        rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+              core.Usize.Insts.CoreIterRangeStep
+              ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize))
+            = (CoreModels.core.iter.range.IteratorRange.next
+                core.Usize.Insts.CoreIterRangeStep
+                ({ start := k, «end» := 16#usize }
+                  : CoreModels.core.ops.range.Range Std.Usize)) from rfl]
+        rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_none_eq k
+          (by rw [h16]; omega)]
+        rfl
+      · show (cInv re 5 160 16#usize acc).holds
+        simp only [cInv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        intro _
+        exact ⟨hacc_len, by intro n hn; exact hacc_done n (by rw [hk]; rw [h16] at hn; omega)⟩
+
+private theorem L54_impl_5_fc
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
+      ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 160)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_5
+      (vectortraitsOperationsInst := portable_ops_inst) re serialized scratch
+    ⦃ ⇓ p => ⌜ (cInv re 5 160 16#usize p).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_5
+  rw [vectors_in_ring_element_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  exact L54_loop_5_fc re hbnd serialized h_len scratch
+
+/-! ### SPEC side, generic in `d`.
+
+    Four levels, as in the `d = 12` and `d = 1` banks: `compress.compress`'s `createi`,
+    `byte_encode`'s `createi`, `bitvector_from_bounded_ints`, `bits_to_bytes`.  Levels 1
+    and 4 are already generic in the tree (`byte_encode_closure_eq_gen`,
+    `bits_to_bytes_closure_eq_gen`); levels 0 and 2 are generalised here off `d = 1` /
+    `d = 12` and then instantiated twice. -/
+
+/-- The spec-side compressed coefficient at lane `k`. -/
+private def cFe (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (d k : Nat) :
+    hacspec_ml_kem.parameters.FieldElement :=
+  { val := u16OfNat (cLane re d k) }
+
+private theorem cLane_le_u16 (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (d : Nat) (hd : d < 12) (k : Nat) : cLane re d k ≤ Std.U16.max := by
+  have h1 := cLane_lt re d k
+  have h2 : (2:Nat) ^ d ≤ 2048 := by
+    calc (2:Nat) ^ d ≤ 2 ^ 11 := Nat.pow_le_pow_right (by omega) (by omega)
+      _ = 2048 := by norm_num
+  have h3 : Std.U16.max = 65535 := by scalar_tac
+  omega
+
+/-- **Level 0**, generic in `d`: `compress.compress`'s closure at `p = lift_poly re` is
+    exactly `cLane`.  CITES M-C′(3) `compress_d_gen_eq` for the per-coefficient step. -/
+private theorem compress_v_closure_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (d : Std.Usize) (hd : d.val < 12) (k : Nat) (hk : k < 256) :
+    (hacspec_ml_kem.compress.compress.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement).call_mut
+        (lift_poly re, d) ⟨BitVec.ofNat _ k⟩
+      = .ok (cFe re d.val k, (lift_poly re, d)) := by
+  have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
+    enc_usize_ofNat_val k (by omega)
+  have hlen : (lift_poly re).val.length = 256 := by
+    have := (lift_poly re).property; simpa using this
+  show (do
+      let fe ← Aeneas.Std.Array.index_usize (lift_poly re) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      let fe1 ← hacspec_ml_kem.compress.compress_d fe d
+      Result.ok (fe1, ((lift_poly re, d) : hacspec_ml_kem.compress.compress.closure))) = _
+  rw [enc_array_index_ok (lift_poly re) _ (by rw [hkv, hlen]; exact hk), hkv]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [compress_d_gen_eq ((lift_poly re).val[k]!) d hd]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [lift_poly_raw re k hk]
+  unfold cFe cLane
+  rfl
+
+/-- **Level 0, assembled.** -/
+private theorem compress_v_get
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (d : Std.Usize) (hd : d.val < 12) :
+    ∃ a : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
+      hacspec_ml_kem.compress.compress (lift_poly re) d = .ok a
+      ∧ ∀ k : Nat, k < 256 → ((a.val[k]!).val).val = cLane re d.val k := by
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
+      (T := hacspec_ml_kem.parameters.FieldElement) (256#usize : Std.Usize)
+      (hacspec_ml_kem.compress.compress.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement)
+      (lift_poly re, d)
+      (fun k => cFe re d.val k)
+      (fun k hk => compress_v_closure_eq re d hd k (by rw [h256] at hk; exact hk))
+  unfold hacspec_ml_kem.compress.compress
+  simp only [hacspec_ml_kem.parameters.createi]
+  rw [hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro k hk
+  rw [enc_mk_getElem (by rw [h256]; exact hk)]
+  show ((cFe re d.val k).val).val = _
+  unfold cFe
+  exact u16OfNat_val _ (cLane_le_u16 re d.val hd k)
+
+/-- **Level 2**, generic in `d`: `bitvector_from_bounded_ints`'s closure.  The `d = 12`
+    bank states this at `d = 12` and the `d = 1` bank at `d = 1`; the body never mentions
+    the width, so one statement in `d` serves every rung. -/
+private theorem bvfb_closure_eq_gen {Nd : Std.Usize} (a : Std.Array Std.U16 256#usize)
+    (d : Std.Usize) (m : Nat) (hm32 : m < 2 ^ 32) (hd0 : 0 < d.val) (hd16 : d.val < 16)
+    (hidx : m / d.val < 256) :
+    (hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+        (256#usize : Std.Usize) Nd).call_mut (a, d) ⟨BitVec.ofNat _ m⟩
+      = .ok (natBit ((a.val[m / d.val]!).val) (m % d.val), (a, d)) := by
+  have hmv : ((⟨BitVec.ofNat _ m⟩ : Std.Usize)).val = m := enc_usize_ofNat_val m hm32
+  have hlen : a.val.length = 256 := by have := a.property; simpa using this
+  obtain ⟨q, hq_eq, hq_val⟩ :=
+    Std.UScalar.div_spec (⟨BitVec.ofNat _ m⟩ : Std.Usize) (y := d) (by omega)
+  obtain ⟨r, hr_eq, hr_val⟩ :=
+    Std.WP.spec_imp_exists (Std.UScalar.rem_spec (⟨BitVec.ofNat _ m⟩ : Std.Usize)
+      (y := d) (by omega))
+  have hqv : q.val = m / d.val := by rw [hq_val, hmv]
+  have hrv : r.val = m % d.val := by rw [hr_val, hmv]
+  -- `% d.val` by a VARIABLE modulus is out of `omega`'s reach; supply it once.
+  have hmod : m % d.val < d.val := Nat.mod_lt _ (by omega)
+  obtain ⟨y, hy_eq, hy⟩ := u16_shr_and1_eq (a.val[q.val]!) r (by rw [hrv]; omega)
+  show (do
+      let i1 ← (⟨BitVec.ofNat _ m⟩ : Std.Usize) / d
+      let i2 ← Aeneas.Std.Array.index_usize a i1
+      let i3 ← (⟨BitVec.ofNat _ m⟩ : Std.Usize) % d
+      let i4 ← i2 >>> i3
+      let i5 ← Aeneas.Std.lift (i4 &&& 1#u16)
+      Result.ok (decide (i5 = 1#u16),
+        ((a, d) :
+          hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure
+            (256#usize : Std.Usize) Nd))) = _
+  rw [hq_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [enc_array_index_ok a q (by rw [hqv, hlen]; omega)]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hr_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hy_eq]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  rw [hy, hqv, hrv]
+  rfl
+
+/-- **Level 2, assembled**: the `256 * d` booleans are exactly `cBit re d`. -/
+private theorem bvfb_get_gen
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (d Nd : Std.Usize) (hd0 : 0 < d.val) (hd16 : d.val < 16) (hNd : Nd.val = 256 * d.val)
+    (p_raw : Std.Array Std.U16 256#usize)
+    (hp : ∀ k : Nat, k < 256 → (p_raw.val[k]!).val = cLane re d.val k) :
+    ∃ bv : Std.Array Bool Nd,
+      hacspec_ml_kem.serialize.bitvector_from_bounded_ints (N := 256#usize) Nd p_raw d
+        = .ok bv
+      ∧ ∀ m : Nat, m < Nd.val → bv.val[m]! = cBit re d.val m := by
+  have hmul : ((256#usize : Std.Usize) * d : Result Std.Usize) = .ok Nd :=
+    usize_mul_lit _ _ _ (by rw [hNd]; scalar_tac) (by scalar_tac)
+  -- division by a VARIABLE modulus, again out of `omega`'s reach: stated once.
+  have hdiv : ∀ m : Nat, m < Nd.val → m / d.val < 256 := by
+    intro m hm
+    rw [hNd] at hm
+    exact (Nat.div_lt_iff_lt_mul (by omega)).mpr (by omega)
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Bool) Nd
+      (hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+        (256#usize : Std.Usize) Nd) (p_raw, d)
+      (fun m => natBit ((p_raw.val[m / d.val]!).val) (m % d.val))
+      (fun m hm => bvfb_closure_eq_gen p_raw d m (by omega) hd0 hd16 (hdiv m hm))
+  have key : hacspec_ml_kem.serialize.bitvector_from_bounded_ints (N := 256#usize) Nd p_raw d
+      = CoreModels.core.array.from_fn Nd
+          (hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+            (256#usize : Std.Usize) Nd) (p_raw, d) := by
+    unfold hacspec_ml_kem.serialize.bitvector_from_bounded_ints
+    rw [hmul]
+    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
+      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+  rw [key, hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro m hm
+  rw [enc_mk_getElem hm]
+  show natBit ((p_raw.val[m / d.val]!).val) (m % d.val) = cBit re d.val m
+  unfold cBit
+  rw [hp (m / d.val) (hdiv m hm)]
+
+/-- **Level 3**, generic in the two width params. -/
+private theorem bits_to_bytes_get_gen (N N8 : Std.Usize) (hN8 : N8.val = N.val * 8)
+    (hmax : N.val * 8 ≤ Std.Usize.max) (hN32 : N.val < 2 ^ 32) (bv : Std.Array Bool N8) :
+    ∃ out : Std.Array Std.U8 N,
+      hacspec_ml_kem.serialize.bits_to_bytes N (N8 := N8) bv = .ok out
+      ∧ ∀ n : Nat, n < N.val →
+          (out.val[n]!).val = bitSum (fun t => bv.val[8 * n + t]!) 8 := by
+  have hmul : (N * (8#usize : Std.Usize) : Result Std.Usize) = .ok N8 :=
+    usize_mul_lit _ _ _ (by rw [hN8]; scalar_tac) (by scalar_tac)
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Std.U8) N
+      (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+        N N8) bv
+      (fun n => u8OfNat (bitSum (fun t => bv.val[8 * n + t]!) 8))
+      (fun n hn => bits_to_bytes_closure_eq_gen bv n
+        (by rw [hN8]; omega) (by omega) (by omega))
+  have key : hacspec_ml_kem.serialize.bits_to_bytes N (N8 := N8) bv
+      = CoreModels.core.array.from_fn N
+          (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
+            N N8) bv := by
+    unfold hacspec_ml_kem.serialize.bits_to_bytes
+    rw [hmul]
+    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
+      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+  rw [key, hfn]
+  refine ⟨_, rfl, ?_⟩
+  intro n hn
+  rw [enc_mk_getElem hn]
+  exact u8OfNat_val _ (by have := bitSum_lt (fun t => bv.val[8 * n + t]!) 8; simpa using this)
+
+/-- **The spec-side `byte_encode` apex, generic in `d ∈ [4, 12]`.** The three `createi`
+    levels normalised onto `bitSum_cBit_eq_cByte`, i.e. onto M-C(2). -/
+private theorem byte_encode_gen_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (D32 D256 d : Std.Usize) (hd4 : 4 ≤ d.val) (hd12 : d.val ≤ 12)
+    (hD32 : D32.val = 32 * d.val) (hD256 : D256.val = 256 * d.val)
+    (a : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (ha : ∀ k : Nat, k < 256 → ((a.val[k]!).val).val = cLane re d.val k) :
+    ∃ out : Std.Array Std.U8 D32,
+      hacspec_ml_kem.serialize.byte_encode D32 D256 a d = .ok out
+      ∧ ∀ n : Nat, n < D32.val → (out.val[n]!).val = cByte re d.val n := by
+  have h256 : ((256#usize : Std.Usize)).val = 256 := by scalar_tac
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := Std.U16)
+      (256#usize : Std.Usize)
+      (hacspec_ml_kem.serialize.byte_encode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+        D32 D256) a
+      (fun k => (a.val[k]!).val)
+      (fun k hk => byte_encode_closure_eq_gen a k (by rw [h256] at hk; exact hk))
+  obtain ⟨p_raw, hp_raw', hp_get⟩ :
+      ∃ p_raw : Std.Array Std.U16 256#usize,
+        hacspec_ml_kem.parameters.createi (256#usize : Std.Usize)
+            (hacspec_ml_kem.serialize.byte_encode.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16
+              D32 D256) a = .ok p_raw
+        ∧ ∀ k : Nat, k < 256 → (p_raw.val[k]!).val = cLane re d.val k := by
+    simp only [hacspec_ml_kem.parameters.createi]
+    rw [hfn]
+    refine ⟨_, rfl, ?_⟩
+    intro k hk
+    rw [enc_mk_getElem (by rw [h256]; exact hk)]
+    exact ha k hk
+  obtain ⟨bv, hbv, hbv_get⟩ :=
+    bvfb_get_gen re d D256 (by omega) (by omega) hD256 p_raw hp_get
+  obtain ⟨out, hout, hout_get⟩ :=
+    bits_to_bytes_get_gen D32 D256 (by rw [hD32, hD256]; ring)
+      (by have h1 : D32.val ≤ 384 := by rw [hD32]; omega
+          have h2 : (3072 : Nat) ≤ Std.Usize.max := by scalar_tac
+          omega)
+      (by rw [hD32]; omega) bv
+  have e1 : ((32#usize : Std.Usize) * d : Result Std.Usize) = .ok D32 :=
+    usize_mul_lit _ _ _ (by rw [hD32]; scalar_tac) (by scalar_tac)
+  have e2 : ((256#usize : Std.Usize) * d : Result Std.Usize) = .ok D256 :=
+    usize_mul_lit _ _ _ (by rw [hD256]; scalar_tac) (by scalar_tac)
+  have hass : (d ≤ (12#usize : Std.Usize)) := by scalar_tac
+  refine ⟨out, ?_, ?_⟩
+  · unfold hacspec_ml_kem.serialize.byte_encode
+    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+      if_pos hass, Aeneas.Std.bind_tc_ok, e1, e2, eq_self_iff_true, if_true,
+      hp_raw', hbv, hout]
+  · intro n hn
+    rw [hout_get n hn,
+      bitSum_congr _ (fun t => cBit re d.val (8 * n + t)) 8
+        (fun t ht => hbv_get (8 * n + t) (by rw [hD256]; rw [hD32] at hn; omega))]
+    exact bitSum_cBit_eq_cByte re d.val hd4 n
+
+/-- The `byte_encode_into` slice wrapper at `dv ∈ {4,5}` — the spec dispatches on
+    `dv.val` and each arm is `byte_encode_gen_eq` plus `to_slice`/`copy_from_slice`. -/
+private theorem byte_encode_into_45_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (dv : Std.Usize) (hdv : dv.val = 4 ∨ dv.val = 5)
+    (a : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (ha : ∀ k : Nat, k < 256 → ((a.val[k]!).val).val = cLane re dv.val k)
+    (out : Slice Std.U8) (h_len : out.val.length = 32 * dv.val) :
+    ∃ s : Slice Std.U8,
+      hacspec_ml_kem.serialize.byte_encode_into a dv out = .ok s
+      ∧ s.val.length = 32 * dv.val
+      ∧ ∀ n : Nat, n < 32 * dv.val → (s.val[n]!).val = cByte re dv.val n := by
+  have hcopy : ∀ (D32 : Std.Usize) (enc : Std.Array Std.U8 D32),
+      D32.val = 32 * dv.val →
+      CoreModels.core.slice.Slice.copy_from_slice CoreModels.core.U8.Insts.CoreMarkerCopy out
+          (Aeneas.Std.Array.to_slice enc)
+        = .ok (Aeneas.Std.Array.to_slice enc) := by
+    intro D32 enc hD32
+    have hlen_enc : (Aeneas.Std.Array.to_slice enc).val.length = 32 * dv.val := by
+      show enc.val.length = _
+      have := enc.property; rw [show enc.val.length = D32.val from by simpa using this, hD32]
+    have h1 : Aeneas.Std.Slice.len out = Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice enc) := by
+      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+      rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val]
+      show out.val.length = (Aeneas.Std.Array.to_slice enc).val.length
+      rw [h_len, hlen_enc]
+    unfold CoreModels.core.slice.Slice.copy_from_slice
+    rw [h1, if_pos rfl]
+  rcases hdv with h4 | h5
+  · have hdveq : dv = 4#usize := Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac)
+    subst hdveq
+    obtain ⟨enc, henc, henc_get⟩ :=
+      byte_encode_gen_eq re (128#usize) (1024#usize) (4#usize) (by scalar_tac) (by scalar_tac)
+        (by scalar_tac) (by scalar_tac) a ha
+    refine ⟨Aeneas.Std.Array.to_slice enc, ?_, ?_, ?_⟩
+    · unfold hacspec_ml_kem.serialize.byte_encode_into
+      simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+        Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+        show ((4#usize : Std.Usize).val) = 4 from rfl, henc]
+      rw [if_pos (show ((4#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [show CoreModels.core.slice.Slice.len out = .ok (128#usize : Std.Usize) from by
+        show Result.ok (Aeneas.Std.Slice.len out) = _
+        congr 1
+        refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+        rw [Aeneas.Std.Slice.len_val]
+        show out.val.length = _
+        rw [h_len]; scalar_tac]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [usize_mul_lit (32#usize : Std.Usize) (4#usize : Std.Usize) (128#usize : Std.Usize)
+        (by scalar_tac) (by scalar_tac)]
+      simp only [Aeneas.Std.bind_tc_ok, eq_self_iff_true, if_true, henc, Aeneas.Std.lift]
+      exact hcopy (128#usize) enc (by scalar_tac)
+    · show enc.val.length = _
+      have := enc.property
+      rw [show enc.val.length = ((128#usize : Std.Usize)).val from by simpa using this]
+      scalar_tac
+    · intro n hn
+      show (enc.val[n]!).val = _
+      exact henc_get n (by scalar_tac)
+  · have hdveq : dv = 5#usize := Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac)
+    subst hdveq
+    obtain ⟨enc, henc, henc_get⟩ :=
+      byte_encode_gen_eq re (160#usize) (1280#usize) (5#usize) (by scalar_tac) (by scalar_tac)
+        (by scalar_tac) (by scalar_tac) a ha
+    refine ⟨Aeneas.Std.Array.to_slice enc, ?_, ?_, ?_⟩
+    · unfold hacspec_ml_kem.serialize.byte_encode_into
+      simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+        Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+        show ((5#usize : Std.Usize).val) = 5 from rfl, henc]
+      rw [if_pos (show ((5#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [show CoreModels.core.slice.Slice.len out = .ok (160#usize : Std.Usize) from by
+        show Result.ok (Aeneas.Std.Slice.len out) = _
+        congr 1
+        refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+        rw [Aeneas.Std.Slice.len_val]
+        show out.val.length = _
+        rw [h_len]; scalar_tac]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [usize_mul_lit (32#usize : Std.Usize) (5#usize : Std.Usize) (160#usize : Std.Usize)
+        (by scalar_tac) (by scalar_tac)]
+      simp only [Aeneas.Std.bind_tc_ok, eq_self_iff_true, if_true, henc, Aeneas.Std.lift]
+      exact hcopy (160#usize) enc (by scalar_tac)
+    · show enc.val.length = _
+      have := enc.property
+      rw [show enc.val.length = ((160#usize : Std.Usize)).val from by simpa using this]
+      scalar_tac
+    · intro n hn
+      show (enc.val[n]!).val = _
+      exact henc_get n (by scalar_tac)
+
+/-- **Spec-side apex.** `Compress_dv` then `ByteEncode_dv` into the freshly-zeroed
+    `V_SIZE`-array, reproducing exactly `cByte re dv`. -/
+private theorem L54_spec_eq
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (C2_LEN dv : Std.Usize) (hdv : dv.val = 4 ∨ dv.val = 5)
+    (hc2 : C2_LEN.val = 32 * dv.val) :
+    ∃ enc : Std.Array Std.U8 C2_LEN,
+      hacspec_ml_kem.serialize.compress_then_serialize_v C2_LEN (lift_poly re) dv = .ok enc
+      ∧ ∀ n : Nat, n < C2_LEN.val → (enc.val[n]!).val = cByte re dv.val n := by
+  have hd12 : dv.val < 12 := by rcases hdv with h | h <;> omega
+  obtain ⟨a, ha, ha_get⟩ := compress_v_get re dv hd12
+  have hzlen : (Aeneas.Std.Array.to_slice
+      (Aeneas.Std.Array.repeat C2_LEN (0#u8 : Std.U8))).val.length = 32 * dv.val := by
+    show (Aeneas.Std.Array.repeat C2_LEN (0#u8 : Std.U8)).val.length = _
+    rw [Aeneas.Std.Array.repeat_val, List.length_replicate, hc2]
+  obtain ⟨s1, hs1, hs1len, hs1get⟩ :=
+    byte_encode_into_45_eq re dv hdv a ha_get _ hzlen
+  refine ⟨Aeneas.Std.Array.from_slice
+    (Aeneas.Std.Array.repeat C2_LEN (0#u8 : Std.U8)) s1, ?_, ?_⟩
+  · show (do
+        let a' ← hacspec_ml_kem.compress.compress (lift_poly re) dv
+        let s1' ← hacspec_ml_kem.serialize.byte_encode_into a' dv
+                    (Aeneas.Std.Array.to_slice (Aeneas.Std.Array.repeat C2_LEN (0#u8 : Std.U8)))
+        Result.ok (Aeneas.Std.Array.from_slice
+          (Aeneas.Std.Array.repeat C2_LEN (0#u8 : Std.U8)) s1')) = _
+    rw [ha]; simp only [Aeneas.Std.bind_tc_ok]
+    rw [hs1]; rfl
+  · intro n hn
+    rw [Aeneas.Std.Array.from_slice_val _ _ (by rw [hs1len, hc2])]
+    exact hs1get n (by omega)
+
+end L54Bank
+
+/-- L5.4 — `serialize.compress_then_serialize_ring_element_v`.
+
+    The encode direction of L5.3: `Compress_dv` then `ByteEncode_dv`. The impl
+    writes into the caller's `out` slice and threads `scratch`; the hacspec
+    returns a fresh `Array U8 C2_LEN`. The post therefore compares the returned
+    slice bytewise against the spec array, exactly as L5.2 does for the message.
+    `V_SIZE` on the spec side is the impl's `C2_LEN`. -/
+@[spec]
+theorem compress_then_serialize_ring_element_v_fc
+    (K V_COMPRESSION_FACTOR C2_LEN : Std.Usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    -- RESTATED 2026-08-18. The previous form carried only `h_len` and was FALSE; this
+    -- file proves it so (the dv-dispatch refutation). Hypotheses transcribed VERBATIM
+    -- from the upstream contract (libcrux-ml-kem/src/serialize.rs):
+    --   is_rank v_K /\ $COMPRESSION_FACTOR == vector_v_compression_factor v_K
+    --   /\ Seq.length $out == v $OUT_LEN /\ v $OUT_LEN == 32 * v $COMPRESSION_FACTOR
+    --   /\ is_bounded_poly (sz 3328) $re
+    -- The LAST conjunct is the one whose absence cost $71.82 on the sibling encode
+    -- obligation: `byte_encode` reads a canonicalised `FieldElement.val` while the impl
+    -- adds q at most once, so an unreduced coefficient makes impl and spec disagree
+    -- (witness: lane 3400 -> impl byte 0x48, spec byte 0x47).
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
+    (h_cf : hacspec_ml_kem.parameters.vector_v_compression_factor K
+              = .ok V_COMPRESSION_FACTOR)
+    (h_len : out.length = C2_LEN.val)
+    (h_c2 : C2_LEN.val = 32 * V_COMPRESSION_FACTOR.val)
+    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_v
+      (vectortraitsOperationsInst := portable_ops_inst)
+      K V_COMPRESSION_FACTOR C2_LEN re out scratch
+    ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 C2_LEN,
+                  hacspec_ml_kem.serialize.compress_then_serialize_v
+                      C2_LEN (lift_poly re) V_COMPRESSION_FACTOR
+                    = .ok enc
+                  ∧ p.1.length = C2_LEN.val
+                  ∧ ∀ ℓ : Nat, ℓ < C2_LEN.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
+  -- The dv-conjunct of the source's `requires`: `vector_v_compression_factor` is 5 at
+  -- rank 4 and 4 otherwise, so `h_cf` ALONE pins dv to {4,5} — `h_rank` is not needed for
+  -- this step (it is the source's own panic-freedom conjunct, kept in the transcription).
+  have hdv : V_COMPRESSION_FACTOR.val = 4 ∨ V_COMPRESSION_FACTOR.val = 5 := by
+    unfold hacspec_ml_kem.parameters.vector_v_compression_factor at h_cf
+    by_cases hK : K = 4#usize
+    · rw [if_pos hK] at h_cf
+      exact Or.inr (by injection h_cf with h; rw [← h]; scalar_tac)
+    · rw [if_neg hK] at h_cf
+      exact Or.inl (by injection h_cf with h; rw [← h]; scalar_tac)
+  have hlen' : out.val.length = C2_LEN.val := h_len
+  -- SPEC side, once and for both arms: `Compress_dv` then `ByteEncode_dv` is `cByte re dv`.
+  obtain ⟨enc, henc, hencget⟩ := L54_spec_eq re C2_LEN V_COMPRESSION_FACTOR hdv h_c2
+  -- FIRST RUNG (`L54_dispatch_of_pre`): the `unreachable!()` arm is gone.
+  rw [L54_dispatch_of_pre K V_COMPRESSION_FACTOR C2_LEN re out scratch hdv]
+  rcases hdv with h4 | h5
+  · rw [if_pos h4]
+    rw [h4] at hencget
+    have hl4 : out.val.length = 128 := by rw [hlen', h_c2, h4]
+    -- IMPL side. `h_bnd` is consumed HERE and only here, inside `to_unsigned_fm_eq`.
+    obtain ⟨p, hp_eq, hp⟩ := triple_exists_ok_fc (L54_impl_4_fc re h_bnd out hl4 scratch)
+    obtain ⟨hplen, hpget⟩ : p.1.val.length = 128 ∧
+        ∀ n : Nat, n < 2 * 4 * ((16#usize : Std.Usize)).val →
+          (p.1.val[n]!).val = cByte re 4 n := by
+      simp only [cInv, Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails] at hp
+      exact hp trivial
+    refine triple_of_ok_fc hp_eq ⟨enc, henc, ?_, ?_⟩
+    · show p.1.val.length = C2_LEN.val
+      rw [hplen, h_c2, h4]
+    · intro ℓ hℓ
+      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+      rw [hpget ℓ (by rw [h_c2, h4] at hℓ; scalar_tac), hencget ℓ hℓ]
+  · rw [if_neg (by omega)]
+    rw [h5] at hencget
+    have hl5 : out.val.length = 160 := by rw [hlen', h_c2, h5]
+    obtain ⟨p, hp_eq, hp⟩ := triple_exists_ok_fc (L54_impl_5_fc re h_bnd out hl5 scratch)
+    obtain ⟨hplen, hpget⟩ : p.1.val.length = 160 ∧
+        ∀ n : Nat, n < 2 * 5 * ((16#usize : Std.Usize)).val →
+          (p.1.val[n]!).val = cByte re 5 n := by
+      simp only [cInv, Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+        Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
+        Std.Do.SPred.pure, Std.Do.SPred.entails] at hp
+      exact hp trivial
+    refine triple_of_ok_fc hp_eq ⟨enc, henc, ?_, ?_⟩
+    · show p.1.val.length = C2_LEN.val
+      rw [hplen, h_c2, h5]
+    · intro ℓ hℓ
+      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
+      rw [hpget ℓ (by rw [h_c2, h5] at hℓ; scalar_tac), hencget ℓ hℓ]
 
 end libcrux_iot_ml_kem.SerializeFc
