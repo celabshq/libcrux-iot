@@ -1143,8 +1143,19 @@ theorem serialize_vector_fc
 
     The refutations are deliberately KEPT, not deleted: `spkm_locked_false`,
     `spkm_fail_at_K0`, `spkm_fail_at_large_K`, `ranked_bpre_overflow` are the standing
-    machine-checked evidence for WHY `h_rank` is in the locked statement. They are
-    statements about the PREVIOUS lock, and each says so at its own docstring. -/
+    machine-checked evidence for WHY `h_rank` is in the locked statement.
+
+    Exactly ONE of the four is a statement about the PREVIOUS lock: `spkm_locked_false`,
+    which ∀-closes that superseded hypothesis list and refutes it, and says so at its own
+    docstring. The other three are UNCONDITIONAL facts about the extracted impl and mention
+    no lock at all — `serialize_public_key_mut` fails at `K = 0` for every other argument
+    (`spkm_fail_at_K0`), it fails once `K * 3072 > Usize.max` (`spkm_fail_at_large_K`), and
+    `ranked_bytes_per_ring_element` overflows at the BIT count (`ranked_bpre_overflow`).
+    That is a better reason to keep them than the one r2's header gave: being unconditional,
+    they survive any future re-lock, whereas `spkm_locked_false` is tied to a hypothesis
+    list that is no longer anywhere in this file. (r3, correcting r2's claim that all four
+    "say so at their own docstring" — checked all four; three do not, because three are not
+    about a lock.) -/
 
 section SPKMBank
 
@@ -1756,12 +1767,10 @@ end SPKMBank
     three-way literal test — extracted as nested `if`s ending in `ok (rank = 4#usize)` — so
     `is_rank K = .ok true` is *equivalent* to pinning `K.val ∈ {2, 3, 4}`.
 
-    Named rather than unfolded inline because `is_rank` is upstream's `requires` on the whole
-    `ind_cpa` surface: every remaining `is_rank`-carrying obligation in this lane needs the
-    same three-way test, and the spec-side definition carries no `@[spec]` and had no
-    characterisation lemma anywhere in the tree, so each obligation was re-doing the same
-    `unfold` + `split_ifs` (reviewer finding on INC-2a.3 r1). Consumers get whatever side
-    condition they need in one line, e.g.
+    Named rather than unfolded inline so the three-way test is written once: the spec-side
+    definition carries no `@[spec]` and had no characterisation lemma anywhere in the tree,
+    so any obligation needing `K.val ∈ {2,3,4}` had to re-do the same `unfold` + `split_ifs`
+    (reviewer finding on INC-2a.3 r1). The consumer idiom is one line, e.g.
     `rcases (is_rank_ok_iff K).mp h_rank with h | h | h <;> omega`.
 
     The `←` direction is not needed by any current consumer; it is proved because it is two
@@ -1769,10 +1778,32 @@ end SPKMBank
     exactly `{2,3,4}` and not merely implied by it. That is the fact behind the locked
     statement's note that `h_rank` is SUFFICIENT but STRONGER THAN MINIMAL.
 
-    ⚠ PLACEMENT: this is a fact about the SPEC side, not about `IndCpaFc`, so it belongs in
-    `Util/Shared.lean` next to the other shared plumbing. It is here only because this
-    dispatch's writable surface was this file alone. Move it when a dispatch may touch
-    `Util/Shared.lean`. -/
+    ⚠ REACHABILITY — MOVE THIS LEMMA BEFORE CITING IT ANYWHERE ELSE. As placed it has
+    exactly ONE consumer and ZERO reachable ones outside this file. r2's docstring claimed
+    the opposite ("every remaining `is_rank`-carrying obligation in this lane needs the same
+    three-way test"); that was not measured and it is false. What is measured (r3):
+      * The only citation of this name in the tree is `serialize_public_key_mut_fc` below,
+        in this same file.
+      * every declaration in `IndCpaFc.lean` is proved — the file elaborates with no
+        unproved goals — so no obligation that CAN see this lemma still needs it.
+      * `IndCpaFc.lean` IMPORTS `LibcruxIotMlKem.SerializeFc` (:22), and nothing but the root
+        `LibcruxIotMlKem.lean` imports `IndCpaFc` — so no other proof file in the tree can
+        cite this name at all, whatever it needs.
+      * The only other `is_rank`-carrying statements in the tree are
+        `SerializeFc.deserialize_then_decompress_ring_element_v_fc` (:7996) and
+        `SerializeFc.compress_then_serialize_ring_element_v_fc` (:9543). BOTH are already
+        proved and axiom-clean, and NEITHER would use this lemma: each derives its only side
+        condition (`dv ∈ {4,5}`) from `h_cf` by unfolding `vector_v_compression_factor`, and
+        each says so in a comment (:8016-8018, :9560-9562). Their `h_rank` is dead weight,
+        transcribed only because it is upstream's panic-freedom conjunct.
+    So the prospective reuse this hoist was asked for is 0/0 — not 0/2, and not achieved.
+
+    It is retained regardless, because the fact it records — `is_rank` is EXACTLY `{2,3,4}` —
+    is what makes the locked statement's "SUFFICIENT but STRONGER THAN MINIMAL" note
+    checkable rather than asserted. Its home is `Util/Shared.lean`, which both this file
+    (:23) and `SerializeFc.lean` (:50) already import; it is HERE only because this
+    dispatch's writable surface was `IndCpaFc.lean` alone. Until a dispatch that may touch
+    `Util/Shared.lean` moves it, treat this name as effectively file-local. -/
 theorem is_rank_ok_iff (K : Std.Usize) :
     hacspec_ml_kem.parameters.is_rank K = .ok true
       ↔ (K.val = 2 ∨ K.val = 3 ∨ K.val = 4) := by
@@ -1954,8 +1985,10 @@ theorem serialize_public_key_mut_fc
                   ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
   -- The re-locked statement is `spkm_core` plus `h_rank` in place of `h_K_pos`/`h_K_bnd`, so
   -- all this proof does is discharge those two from upstream's rank contract, through the
-  -- named characterisation `is_rank_ok_iff` above (r2: it was unfolded inline here, which
-  -- every other `is_rank`-carrying row would have repeated). `is_rank` is a three-way
+  -- named characterisation `is_rank_ok_iff` above (r2 hoisted it out of this proof; r3
+  -- measured its reuse — see its ⚠ REACHABILITY note, this is its only consumer, and the
+  -- lemma must move to `Util/Shared.lean` before anything else can cite it). `is_rank`
+  -- is a three-way
   -- literal test, so it pins `K.val ∈ {2,3,4}`: that gives `0 < K` (counterexample
   -- A — the subslice `[0, 384K)` is non-empty) and `K * 3072 ≤ Usize.max` (counterexample B —
   -- `ranked_bytes_per_ring_element` multiplies at the BIT count, so `12288 ≤ Usize.max`, which
