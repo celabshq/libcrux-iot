@@ -1,9 +1,12 @@
 /-
   # `SerializeFc.lean` — INC-1 obligation stubs for the (de)serialize layer.
 
-  **COMPLETE as of 2026-08-19: this file contains ZERO `sorry`s and all seven INC-1
-  obligations in it are PROVED.** (It was a scaffold when written; the header said so, and
-  said so for one commit too long — the last close is what made it false.)
+  **All seven INC-1 obligations in this file are PROVED as of 2026-08-19.** (It was a
+  scaffold when written; the header said so, and said so for one commit too long — the last
+  close is what made it false.) As of 2026-08-20 the file is NO LONGER sorry-free: the two
+  INC-2a `_u` per-element obligations at the bottom (`deserialize_then_decompress_ring_element_u_fc`,
+  `compress_then_serialize_ring_element_u_fc`) are freshly SCAFFOLDED and sorried, awaiting
+  their prover dispatch. Nothing above them is affected.
 
   The obligations were authored by the HELPER as a *low-distance binding* to the EXISTING
   `HacspecMlKem` model (skill §0.2) — nothing here invents a spec — then frozen by the
@@ -27,18 +30,19 @@
   each needs a PRINCIPAL decision rather than a transcription — see the campaign
   STATE.md (P7):
 
-  * `compress_then_serialize_ring_element_u` / `deserialize_then_decompress_ring_element_u`
-    — the impl works on ONE ring element; the hacspec `compress_then_serialize_u` /
-    `deserialize_then_decompress_u` work on the WHOLE rank-K vector. Binding the
-    per-element impl needs either a spec-side per-element projection or a
-    whole-vector statement assembled from K impl calls. That is a modelling
-    choice, not a transcription.
+  * ~~`compress_then_serialize_ring_element_u` / `deserialize_then_decompress_ring_element_u`~~
+    — **RETIRED 2026-08-20, and the reasoning below was WRONG.** It said the hacspec offers
+    only whole-vector `_u` functions, so binding the per-element impl was a modelling choice.
+    That compared ARITIES and never checked width-genericity: `deserialize_then_decompress_v`
+    / `compress_then_serialize_v` take the width as a RUNTIME parameter and ARE the
+    per-element `_u` operations — as upstream's own `#[hax_lib::ensures]` on the two
+    per-element `_u` functions says in so many words. Both are now scaffolded at the bottom
+    of this file. See `plans/INC-2-scope.md` §9 and the section note there.
   * `compress_then_serialize_{4,5,10,11}` / `deserialize_then_decompress_{4,5,10,11}`
     — impl-internal specializations of a `d`-parametric operation. No named
-    hacspec counterpart; the natural binding is
-    `byte_encode_into (compress_d · d) ` / `byte_decode` at that `d`, i.e. step
-    lemmas feeding the `_u`/`_v` apexes above. Their statement shape should be
-    fixed together with the `_u` decision so the two compose.
+    hacspec counterpart; they are step lemmas feeding the `_u`/`_v` apexes above and are
+    proved as private banks inside those obligations (L53Bank/L54Bank at d ∈ {4,5}), not as
+    obligations of their own.
   * `to_unsigned_field_modulus` — an impl-internal helper with no spec image.
 -/
 
@@ -9618,5 +9622,126 @@ theorem compress_then_serialize_ring_element_v_fc
     · intro ℓ hℓ
       refine Aeneas.Std.UScalar.eq_of_val_eq ?_
       rw [hpget ℓ (by rw [h_c2, h5] at hℓ; scalar_tac), hencget ℓ hℓ]
+
+/-! ## INC-2a — the `_u` per-element family at `du ∈ {10, 11}`.
+
+    **The `_u` blocker recorded in this file's header was a NAMING artifact.** The header
+    (and `plans/INC-2-scope.md` §5.1, now retired by §9) said the per-element `_u` impl
+    functions had no hacspec counterpart because the only `_u` spec functions are
+    whole-vector. That compared ARITIES and never checked width-genericity. The hacspec
+
+        deserialize_then_decompress_v (serialized) (dv) := decompress (byte_decode_dyn serialized dv) dv
+        compress_then_serialize_v     (V_SIZE) (v) (dv) := byte_encode_into (compress v dv) dv …
+
+    take the width as a RUNTIME parameter, and the closure body inside the whole-vector
+    `deserialize_then_decompress_u` is `decompress (byte_decode_dyn chunk du) du` —
+    the same expression. The function is named after ONE of its two callers.
+
+    **This is not a reading of ours: it is upstream's own contract.** The
+    `#[hax_lib::ensures]` on `deserialize_then_decompress_ring_element_u`
+    (libcrux-ml-kem/src/serialize.rs) says the result is
+    `Hacspec_ml_kem.Compress.decompress (Hacspec_ml_kem.Serialize.byte_decode_dyn $serialized
+    $COMPRESSION_FACTOR) $COMPRESSION_FACTOR` — which is `deserialize_then_decompress_v`'s
+    body, verbatim. Writing it under that name is an abbreviation of upstream's ensures,
+    nothing more. Same on the encode side, where upstream's ensures is
+    `byte_encode $OUT_LEN (sz 256 *! $CF) (compress … $CF) $CF`, i.e.
+    `compress_then_serialize_v`'s body at `OUT_LEN = 32 * CF`.
+
+    ⚠ **The one thing to know before reading the spec side.** The `.pre` that hax generates
+    for `deserialize_then_decompress_v` / `compress_then_serialize_v` restricts `dv` to
+    `{4, 5}`, because it is transcribed from the `#[hax_lib::requires]` of the `_v` CALLER.
+    That `.pre` is NOT part of these statements and is not needed by them: the extracted
+    Lean `def`s are total in `dv`, `byte_decode_dyn` / `byte_encode_into` both carry real
+    arms at `d = 10` and `d = 11`, and both evaluate there (falsification log,
+    2026-08-20). The `.pre` documents the `_v` caller's use, not the function's domain.
+
+    **Composition.** These two are the per-element bricks. The whole-vector
+    `ind_cpa::deserialize_then_decompress_u` / `compress_then_serialize_u` obligations
+    compose them through BRIDGE lemmas relating the hacspec whole-vector `_u` functions'
+    `createi` cells to `_v` at the corresponding chunk (`INC-2-scope.md` §9.4) — the same
+    local-restructure-and-prove pattern as `spec_deser_pk_eq` in `IndCpaFc.lean`. Note the
+    impl's whole-vector decode FUSES `ntt_vector_u` into the loop, so its spec counterpart
+    is `deserialize_then_decompress_u_then_ntt`, not plain `_u`.
+-/
+
+/-- **INC-2a.4** — `serialize.deserialize_then_decompress_ring_element_u`.
+
+    `ByteDecode_du` then `Decompress_du` over ONE ring element, at `du ∈ {10, 11}`.
+    The decode dual of L5.3 (`deserialize_then_decompress_ring_element_v_fc`) at the
+    other two widths; the spec side is the SAME hacspec function, since it is
+    width-generic (see the section note above).
+
+    Hypotheses transcribed VERBATIM from the upstream contract
+    (libcrux-ml-kem/src/serialize.rs, `deserialize_then_decompress_ring_element_u`):
+      (COMPRESSION_FACTOR == 10 || COMPRESSION_FACTOR == 11)
+      && serialized.len() == 32 * COMPRESSION_FACTOR
+    Upstream states the width condition DIRECTLY here — there is no `is_rank` and no
+    `vector_u_compression_factor` indirection to transcribe, unlike L5.3/L5.4 — so none
+    is added. The post is upstream's `ensures` in both conjuncts: the spec equation, and
+    `is_bounded_poly (sz 3328) $result`. -/
+@[spec]
+theorem deserialize_then_decompress_ring_element_u_fc
+    (U_COMPRESSION_FACTOR : Std.Usize)
+    (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_cf : U_COMPRESSION_FACTOR.val = 10 ∨ U_COMPRESSION_FACTOR.val = 11)
+    (h_len : serialized.length = 32 * U_COMPRESSION_FACTOR.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_u
+      (vectortraitsOperationsInst := portable_ops_inst)
+      U_COMPRESSION_FACTOR serialized output
+    ⦃ ⇓ p => ⌜ hacspec_ml_kem.serialize.deserialize_then_decompress_v
+                  serialized U_COMPRESSION_FACTOR
+                = .ok (lift_poly p)
+                ∧ (∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                    ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) ⌝ ⦄ := by
+  sorry
+
+/-- **INC-2a.5** — `serialize.compress_then_serialize_ring_element_u`.
+
+    The encode direction of INC-2a.4, and the `du ∈ {10, 11}` sibling of L5.4
+    (`compress_then_serialize_ring_element_v_fc`). The impl writes into the caller's
+    `serialized` slice and threads `scratch`; the hacspec returns a fresh
+    `Array U8 BLOCK_LEN`, so the post compares the returned slice bytewise against the
+    spec array — exactly as L5.4 does.
+
+    Hypotheses transcribed VERBATIM from the upstream contract
+    (libcrux-ml-kem/src/serialize.rs, `compress_then_serialize_ring_element_u`):
+      (v $COMPRESSION_FACTOR == 10 \/ v $COMPRESSION_FACTOR == 11)
+      /\ v $OUT_LEN == 32 * v $COMPRESSION_FACTOR
+      /\ Libcrux_ml_kem.Polynomial.Spec.is_bounded_poly (sz 3328) $re
+    `h_len` is the additional iot-side fact that the caller's slice really has `BLOCK_LEN`
+    bytes — the impl asserts it (`massert (serialized.len = BLOCK_LEN)` inside
+    `compress_then_serialize_10` / `_11`), and without it the statement is false by
+    panic, not by mismatch.
+
+    `h_bnd` is the conjunct whose absence cost $71.82 on L5.6 and which L5.4 records a
+    witness for: `byte_encode` reads a canonicalised `FieldElement.val` while the impl's
+    `to_unsigned_field_modulus` adds q AT MOST ONCE, so an unreduced coefficient makes
+    impl and spec genuinely disagree. -/
+@[spec]
+theorem compress_then_serialize_ring_element_u_fc
+    (U_COMPRESSION_FACTOR BLOCK_LEN : Std.Usize)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_cf : U_COMPRESSION_FACTOR.val = 10 ∨ U_COMPRESSION_FACTOR.val = 11)
+    (h_len : out.length = BLOCK_LEN.val)
+    (h_block : BLOCK_LEN.val = 32 * U_COMPRESSION_FACTOR.val)
+    (h_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        ((re.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.compress_then_serialize_ring_element_u
+      (vectortraitsOperationsInst := portable_ops_inst)
+      U_COMPRESSION_FACTOR BLOCK_LEN re out scratch
+    ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 BLOCK_LEN,
+                  hacspec_ml_kem.serialize.compress_then_serialize_v
+                      BLOCK_LEN (lift_poly re) U_COMPRESSION_FACTOR
+                    = .ok enc
+                  ∧ p.1.length = BLOCK_LEN.val
+                  ∧ ∀ ℓ : Nat, ℓ < BLOCK_LEN.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
+  sorry
 
 end libcrux_iot_ml_kem.SerializeFc
