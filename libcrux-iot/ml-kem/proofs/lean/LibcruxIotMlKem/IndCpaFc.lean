@@ -1131,11 +1131,20 @@ theorem serialize_vector_fc
 
 /-! ## PROVER bank for INC-2a.3 (`serialize_public_key_mut`)
 
-    **The locked statement of `serialize_public_key_mut_fc` is FALSE** — see the SPECREQ in
-    that theorem's docstring. Everything in this section is the proof it *would* have, and
-    `spkm_core` below IS that proof, carrying the two hypotheses the locked statement is
-    missing (`h_K_pos`, `h_K_bnd`). When the statement is corrected, the top theorem is one
-    application of `spkm_core`. -/
+    **Status: `serialize_public_key_mut_fc` is CLOSED** (2026-08-20, axioms
+    `propext / Classical.choice / Quot.sound`). The statement it is closed against is the
+    one RE-LOCKED on 2026-08-19 to carry upstream's `is_rank K`, after this section's
+    SPECREQ showed the previous form — the one without it — was FALSE.
+
+    So this section is no longer "the proof the theorem *would* have"; it is the proof it
+    DOES have. `spkm_core` below carries `h_K_pos` and `h_K_bnd` (the two facts the body
+    actually needs), and the top theorem is exactly one application of it, with those two
+    discharged from `h_rank` via `is_rank_ok_iff`.
+
+    The refutations are deliberately KEPT, not deleted: `spkm_locked_false`,
+    `spkm_fail_at_K0`, `spkm_fail_at_large_K`, `ranked_bpre_overflow` are the standing
+    machine-checked evidence for WHY `h_rank` is in the locked statement. They are
+    statements about the PREVIOUS lock, and each says so at its own docstring. -/
 
 section SPKMBank
 
@@ -1743,6 +1752,43 @@ private theorem spkm_locked_false :
 
 end SPKMBank
 
+/-- **Upstream's rank contract, named once.** `hacspec_ml_kem.parameters.is_rank` is a
+    three-way literal test — extracted as nested `if`s ending in `ok (rank = 4#usize)` — so
+    `is_rank K = .ok true` is *equivalent* to pinning `K.val ∈ {2, 3, 4}`.
+
+    Named rather than unfolded inline because `is_rank` is upstream's `requires` on the whole
+    `ind_cpa` surface: every remaining `is_rank`-carrying obligation in this lane needs the
+    same three-way test, and the spec-side definition carries no `@[spec]` and had no
+    characterisation lemma anywhere in the tree, so each obligation was re-doing the same
+    `unfold` + `split_ifs` (reviewer finding on INC-2a.3 r1). Consumers get whatever side
+    condition they need in one line, e.g.
+    `rcases (is_rank_ok_iff K).mp h_rank with h | h | h <;> omega`.
+
+    The `←` direction is not needed by any current consumer; it is proved because it is two
+    lines and it is what makes this a *characterisation* — i.e. the record that `is_rank` is
+    exactly `{2,3,4}` and not merely implied by it. That is the fact behind the locked
+    statement's note that `h_rank` is SUFFICIENT but STRONGER THAN MINIMAL.
+
+    ⚠ PLACEMENT: this is a fact about the SPEC side, not about `IndCpaFc`, so it belongs in
+    `Util/Shared.lean` next to the other shared plumbing. It is here only because this
+    dispatch's writable surface was this file alone. Move it when a dispatch may touch
+    `Util/Shared.lean`. -/
+theorem is_rank_ok_iff (K : Std.Usize) :
+    hacspec_ml_kem.parameters.is_rank K = .ok true
+      ↔ (K.val = 2 ∨ K.val = 3 ∨ K.val = 4) := by
+  unfold hacspec_ml_kem.parameters.is_rank
+  split_ifs with h2 h3
+  · exact iff_of_true rfl (Or.inl (by rw [h2]; rfl))
+  · exact iff_of_true rfl (Or.inr (Or.inl (by rw [h3]; rfl)))
+  · constructor
+    · intro h
+      have h4 : K = 4#usize := by simpa using h
+      exact Or.inr (Or.inr (by rw [h4]; rfl))
+    · rintro (h | h | h)
+      · exact absurd (show K = 2#usize by scalar_tac) h2
+      · exact absurd (show K = 3#usize by scalar_tac) h3
+      · simp [show K = 4#usize by scalar_tac]
+
 /-- **INC-2a.3** — `ind_cpa.serialize_public_key_mut`: concatenate `t̂` and `ρ`.
 
     `serialize_vector(t_as_ntt, &mut serialized[0..384K])` then
@@ -1907,18 +1953,14 @@ theorem serialize_public_key_mut_fc
                   ∧ p.1.length = PUBLIC_KEY_SIZE.val
                   ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
   -- The re-locked statement is `spkm_core` plus `h_rank` in place of `h_K_pos`/`h_K_bnd`, so
-  -- all this proof does is discharge those two from upstream's rank contract. `is_rank` is a
-  -- three-way literal test, so it pins `K.val ∈ {2,3,4}`: that gives `0 < K` (counterexample
+  -- all this proof does is discharge those two from upstream's rank contract, through the
+  -- named characterisation `is_rank_ok_iff` above (r2: it was unfolded inline here, which
+  -- every other `is_rank`-carrying row would have repeated). `is_rank` is a three-way
+  -- literal test, so it pins `K.val ∈ {2,3,4}`: that gives `0 < K` (counterexample
   -- A — the subslice `[0, 384K)` is non-empty) and `K * 3072 ≤ Usize.max` (counterexample B —
   -- `ranked_bytes_per_ring_element` multiplies at the BIT count, so `12288 ≤ Usize.max`, which
   -- `scalar_tac` supplies from the platform width, is the bound that matters, not `K * 384`).
-  have hK : K.val = 2 ∨ K.val = 3 ∨ K.val = 4 := by
-    unfold hacspec_ml_kem.parameters.is_rank at h_rank
-    split_ifs at h_rank with h2 h3
-    · exact Or.inl (by rw [h2]; rfl)
-    · exact Or.inr (Or.inl (by rw [h3]; rfl))
-    · have h4 : K = 4#usize := by simpa using h_rank
-      exact Or.inr (Or.inr (by rw [h4]; rfl))
+  have hK : K.val = 2 ∨ K.val = 3 ∨ K.val = 4 := (is_rank_ok_iff K).mp h_rank
   have hmax : (12288 : Nat) ≤ Std.Usize.max := by scalar_tac
   exact spkm_core K PUBLIC_KEY_SIZE t_as_ntt seed_for_a serialized scratch
     (by rcases hK with h | h | h <;> omega) (by rcases hK with h | h | h <;> omega)
