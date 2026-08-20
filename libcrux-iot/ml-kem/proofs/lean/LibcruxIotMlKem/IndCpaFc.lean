@@ -2023,4 +2023,73 @@ theorem serialize_public_key_mut_fc
     (by rcases hK with h | h | h <;> omega) (by rcases hK with h | h | h <;> omega)
     h_rank h_seed_len h_pk_size h_ser_len h_bnd
 
+/-- **INC-2a.6** — `ind_cpa.compress_then_serialize_u`: the WHOLE-VECTOR ciphertext-`u`
+    encode, and the K-fold assembly of the now-PROVED per-element
+    `compress_then_serialize_ring_element_u_fc`.
+
+    `for (i, re) in input.into_iter().enumerate() {
+       compress_then_serialize_ring_element_u(re, scratch, &mut out[i*(C1_LEN/K) .. (i+1)*(C1_LEN/K)]) }`
+    — structurally the ENCODE dual of `serialize_vector_fc`, with a compressed
+    per-element leaf at `du` in place of the uncompressed d=12 one, and with the block
+    width a runtime quantity rather than the literal 384.
+
+    ## The post is the UPSTREAM `ensures`, transcribed
+    `libcrux-ml-kem/src/ind_cpa.rs:685` states it as ONE whole-vector equation,
+    `out_future == Hacspec_ml_kem.Serialize.compress_then_serialize_u $K $OUT_LEN
+    (vector_to_spec $K $input) $COMPRESSION_FACTOR`, so that is the shape here — not a
+    per-chunk restatement. (`deserialize_vector_fc` learned that the hard way: its first
+    draft was stated per chunk, which was true and still an invention.) Upstream's
+    `OUT_LEN` is this extraction's `C1_LEN`.
+
+    ## Every `requires` conjunct is transcribed, and all four are indirect
+    Unlike the per-element `_u` pair — where upstream states `CF == 10 || CF == 11`
+    directly — the whole-vector contract routes everything through the rank:
+    `is_rank K`, `OUT_LEN == c1_size K`, `COMPRESSION_FACTOR == vector_u_compression_factor K`,
+    `BLOCK_LEN == c1_block_size K`. All four are carried, per the UNIFORMITY rule
+    (KB, 2026-08-20): transcribe `is_rank` wherever upstream carries it, because every
+    caller has it and discharging it is free — unlike `h_bnd`, which is real work for the
+    consumer and therefore belongs in exactly one measured place.
+
+    Together they pin the shape completely: `c1_block_size K = 32 * du` and
+    `c1_size K = K * c1_block_size K`, so `C1_LEN = K * BLOCK_LEN` follows and does NOT
+    need its own hypothesis. That relation is what the impl's `C1_LEN / K` slicing needs,
+    and it is why `h_c1` and `h_block` are both present rather than one combined length.
+
+    ## The BRIDGE this obligation has to build (INC-2-scope §9.4 item 1)
+    The spec side is `compress_then_serialize_u_into`, a loop calling `byte_encode_into
+    (compress u[i] du) du` into `out[i*sz .. (i+1)*sz]`. Its `i`-th block IS
+    `compress_then_serialize_v BLOCK_LEN (lift_poly input[i]) du` — the function the
+    per-element obligation is already stated against. Proving that locally, and composing,
+    is the intended route; it is the same local-restructure-and-prove pattern as
+    `spec_serialize_secret_key_eq` in this file. Do NOT descend into `byte_encode`.
+
+    `h_bnd` is upstream's `is_bounded_polynomial_vector(3328, &input)`, per element. -/
+@[spec]
+theorem compress_then_serialize_u_fc
+    (K C1_LEN U_COMPRESSION_FACTOR BLOCK_LEN : Std.Usize)
+    (input : Std.Array
+        (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+          libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
+    (out : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
+    (h_c1 : hacspec_ml_kem.parameters.c1_size K = .ok C1_LEN)
+    (h_cf : hacspec_ml_kem.parameters.vector_u_compression_factor K
+              = .ok U_COMPRESSION_FACTOR)
+    (h_block : hacspec_ml_kem.parameters.c1_block_size K = .ok BLOCK_LEN)
+    (h_len : out.length = C1_LEN.val)
+    (h_bnd : ∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+        (((input.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.compress_then_serialize_u
+      (vectortraitsOperationsInst := portable_ops_inst) (K := K)
+      C1_LEN U_COMPRESSION_FACTOR BLOCK_LEN input out scratch
+    ⦃ ⇓ p => ⌜ ∃ enc : Std.Array Std.U8 C1_LEN,
+                  hacspec_ml_kem.serialize.compress_then_serialize_u (RANK := K) C1_LEN
+                      (Spec.Lift.lift_vec input) U_COMPRESSION_FACTOR
+                    = .ok enc
+                  ∧ p.1.length = C1_LEN.val
+                  ∧ ∀ ℓ : Nat, ℓ < C1_LEN.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
+  sorry
+
 end libcrux_iot_ml_kem.IndCpaFc
