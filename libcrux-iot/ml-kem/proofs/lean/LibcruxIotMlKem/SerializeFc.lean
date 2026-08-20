@@ -9362,7 +9362,7 @@ private theorem bits_to_bytes_get_gen (N N8 : Std.Usize) (hN8 : N8.val = N.val *
 
 /-- **The spec-side `byte_encode` apex, generic in `d ∈ [4, 12]`.** The three `createi`
     levels normalised onto `bitSum_cBit_eq_cByte`, i.e. onto M-C(2). -/
-private theorem byte_encode_gen_eq
+theorem byte_encode_gen_eq
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (D32 D256 d : Std.Usize) (hd4 : 4 ≤ d.val) (hd12 : d.val ≤ 12)
@@ -9417,7 +9417,7 @@ private theorem byte_encode_gen_eq
 
 /-- The `byte_encode_into` slice wrapper at `dv ∈ {4,5}` — the spec dispatches on
     `dv.val` and each arm is `byte_encode_gen_eq` plus `to_slice`/`copy_from_slice`. -/
-private theorem byte_encode_into_45_eq
+theorem byte_encode_into_45_eq
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (dv : Std.Usize) (hdv : dv.val = 4 ∨ dv.val = 5)
@@ -11049,7 +11049,7 @@ private theorem Le_set_step (s : Slice Std.U8) (F : Nat → Nat) (k : Nat) (i : 
     the point: threading the chain through `obtain` keeps every goal the size of a single
     `Slice.update`, where writing the 20-fold `set` term out (as `s4set` / `s5set` do at
     depth 8 and 10) makes each later goal carry all its predecessors. -/
-private theorem Le_update_step (F : Nat → Nat) (N : Nat) (s : Slice Std.U8) (k : Nat)
+theorem Le_update_step (F : Nat → Nat) (N : Nat) (s : Slice Std.U8) (k : Nat)
     (i : Std.Usize) (z : Std.U8) (hi : i.val = k) (hk : k < N) (hslen : s.val.length = N)
     (hs : ∀ n : Nat, n < k → (s.val[n]!).val = F n) (hz : z.val = F k) :
     ∃ s' : Slice Std.U8, Aeneas.Std.Slice.update s i z = .ok s'
@@ -11159,7 +11159,7 @@ private theorem e10b4_val (x3 : Std.I16) (h3 : x3.bv.toNat < 32768) :
     `Le_straddle_val'` below, the unmasked-low-field variant, because at `d = 11` the impl
     leaves the low field unmasked and the shapes do not match. Reaching for this lemma at
     `d ≥ 11` will fail.) -/
-private theorem Le_straddle_val (lo hi Ml Mh : Std.I16) (s e kl kh : Nat)
+theorem Le_straddle_val (lo hi Ml Mh : Std.I16) (s e kl kh : Nat)
     (hlo : lo.bv.toNat < 32768)
     (hMl : Ml.bv.toNat = 2 ^ kl - 1) (hMh : Mh.bv.toNat = 2 ^ kh - 1)
     (hfit : hi.bv.toNat % 2 ^ kh % 256 * 2 ^ e < 256)
@@ -11371,7 +11371,7 @@ private theorem Le_shr_c8_val (x : Std.I16) (s : Nat) (hx : x.bv.toNat < 32768) 
     also claimed `d = 10` byte 4. It cannot: `e10b4_val` sits ~215 lines EARLIER in the file
     and discharges that byte by hand. Its three-line proof IS this lemma inlined, so
     hoisting this declaration above the `d = 10` block would delete it — recorded debt.) -/
-private theorem Le_shr_mask_c8_val (x M : Std.I16) (s k : Nat) (hx : x.bv.toNat < 32768)
+theorem Le_shr_mask_c8_val (x M : Std.I16) (s k : Nat) (hx : x.bv.toNat < 32768)
     (hM : M.bv.toNat = 2 ^ k - 1) :
     (c8 ((⟨x.bv.sshiftRight s⟩ : Std.I16) &&& M)).val = x.bv.toNat / 2 ^ s % 2 ^ k % 256 := by
   rw [Le_c8_mask _ _ k hM]
@@ -11379,7 +11379,7 @@ private theorem Le_shr_mask_c8_val (x M : Std.I16) (s k : Nat) (hx : x.bv.toNat 
   exact bv16_sshr_p x.bv s hx
 
 /-- The straddling byte with an UNMASKED low field. -/
-private theorem Le_straddle_val' (lo hi Mh : Std.I16) (s e kh : Nat)
+theorem Le_straddle_val' (lo hi Mh : Std.I16) (s e kh : Nat)
     (hlo : lo.bv.toNat < 32768) (hMh : Mh.bv.toNat = 2 ^ kh - 1)
     (hfit : hi.bv.toNat % 2 ^ kh % 256 * 2 ^ e < 256)
     (hklo : lo.bv.toNat / 2 ^ s % 256 < 2 ^ e) :
