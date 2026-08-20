@@ -1126,6 +1126,37 @@ theorem Spec.zeta_at_one_eq_layer_7 :
     libcrux_iot_ml_kem.Spec.i16_to_spec_fe_plain
   congr 1
 
+/-- **THE NTT BRIDGE** — the hacspec forward NTT IS this tree's pure model of it.
+
+    `Spec.ntt_pure_vec_u` (above) mirrors the layer chain `ntt_vector_u` actually runs;
+    `hacspec_ml_kem.ntt.ntt` is the shared model's seven uniform `ntt_layer` steps. Both are
+    FIPS-203 Algorithm 8 in full — seven layers, the same zeta index sets in the same order —
+    and the impl's Montgomery-form zetas cancel against `mont_mul`'s `·R⁻¹` at every layer as
+    an identity mod q. The hacspec has no final Barrett step because its `FieldElement` is
+    canonical by construction, and `poly_barrett_reduce_pure` is the identity mod q, so the
+    tails agree too.
+
+    **Why this is its own obligation rather than a step inside a consumer.**
+    `InvertNtt.ntt_vector_u_fc` is proved, `@[spec]`, and axiom-clean — but its post is
+    stated against `Spec.ntt_pure_vec_u`, an IN-TREE mirror, while every hacspec-facing
+    consumer needs `hacspec_ml_kem.ntt.ntt`. Without this bridge the interface stops one step
+    short of what consumers compose with, and a consumer is forced to reason about zetas and
+    layers itself at its own budget. That is exactly what happened: both rungs of
+    `IndCpaFc.deserialize_then_decompress_u_fc` burned out below the trait boundary — r1's
+    diff mentions `zeta` 98 times against 2 citations of `ntt_vector_u_fc` — for $47.38 and
+    no proof. `plans/INC-2-scope.md` §9.8 is the record.
+
+    An interface is only an interface if its post is stated against what the consumer
+    composes with. This theorem is what makes `ntt_vector_u_fc` one.
+
+    **Template**: `Matrix/ComputeVectorU/Hacspec.lean`'s `mcol_mult_eq` proves exactly this
+    shape for the sibling operation —
+    `hacspec_ml_kem.ntt.multiply_ntts a1 a2 = .ok (Spec.multiply_ntts_pure a1 a2)`. Copy it. -/
+theorem Spec.ntt_pure_vec_u_eq_hacspec
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    hacspec_ml_kem.ntt.ntt p = .ok (Spec.ntt_pure_vec_u p) := by
+  sorry
+
 /-- Per-chunk pure projection of `polynomial.add_error_reduce`: for the
     `ℓ`-th lane of a 16-lane chunk,
     `out[ℓ] := self_chunk[ℓ] · lift_fe_mont(1441#i16) + error_chunk[ℓ]`. -/
