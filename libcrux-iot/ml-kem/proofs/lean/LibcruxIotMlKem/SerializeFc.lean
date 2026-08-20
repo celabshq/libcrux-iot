@@ -38,13 +38,17 @@
     That compared ARITIES and never checked width-genericity: `deserialize_then_decompress_v`
     / `compress_then_serialize_v` take the width as a RUNTIME parameter and ARE the
     per-element `_u` operations — as upstream's own `#[hax_lib::ensures]` on the two
-    per-element `_u` functions says in so many words. Both are now scaffolded at the bottom
-    of this file. See `plans/INC-2-scope.md` §9 and the section note there.
+    per-element `_u` functions says in so many words. Both were scaffolded and CLOSED on
+    2026-08-20, axiom-clean. See `plans/INC-2-scope.md` §9 and the section note there.
   * `compress_then_serialize_{4,5,10,11}` / `deserialize_then_decompress_{4,5,10,11}`
     — impl-internal specializations of a `d`-parametric operation. No named
     hacspec counterpart; they are step lemmas feeding the `_u`/`_v` apexes above and are
-    proved as private banks inside those obligations (L53Bank/L54Bank at d ∈ {4,5}, LuBank
-    at d ∈ {10,11}), not as obligations of their own.
+    proved as private banks inside those obligations, not as obligations of their own. The
+    banks, by direction and width: `L53Bank2` (decode, d ∈ {4,5}), `L54Bank` (encode,
+    d ∈ {4,5}), `LuBank` (decode, d ∈ {10,11}), `LuEncBank` (encode, d ∈ {10,11}). All four
+    widths are covered in both directions; be precise about WHICH bank when you cite one —
+    an earlier form of this bullet named `LuBank` for both directions, which was false while
+    only the decode half existed.
   * `to_unsigned_field_modulus` — an impl-internal helper with no spec image.
 -/
 
@@ -6889,8 +6893,11 @@ private theorem win_lt (l : List Std.U8) (d j : Nat) : win l d j < 2 ^ d :=
   bitSum_lt _ _
 
 /-- CITES M-C(1) `bitSum_sliceBit_window`: the spec-side window IS the 3-byte read, at
-    every `d ≤ 17`. This is the one place the group law is used, and it covers `d = 4`
-    and `d = 5` at once. -/
+    every `d ≤ 17`. This is the one place the group law is used, and because the law is
+    generic it covers `d = 4`, `5`, `10` and `11` — every decode width in the tree — at
+    once. (UPDATED 2026-08-20: it said "`d = 4` and `d = 5`", written before `LuBank`
+    consumed it unchanged at 10 and 11. Understating a generic lemma's reach is how a
+    later rung ends up re-deriving it.) -/
 private theorem win_eq_decw (l : List Std.U8) (d j : Nat) (hd : d ≤ 17) :
     win l d j = decw l (d * j) d :=
   bitSum_sliceBit_window l (d * j) d hd
@@ -6905,8 +6912,11 @@ private theorem sliceBit_at_offset (l c : List Std.U8) (bo len m : Nat)
     show (8 * bo + m) % 8 = m % 8 by omega, hc (m / 8) hm]
 
 /-- Re-indexing a whole window. `hq` says the sub-list starts on a `d`-bit lane
-    boundary (`8 * bo = d * q`), which is true for every split this file makes:
-    `8·4 = 4·8`, `8·5 = 5·8`, `8·(8i) = 4·(16i)`, `8·(10i) = 5·(16i)`. -/
+    boundary (`8 * bo = d * q`), which is true for every split this file makes —
+    at `d ∈ {4,5}` (L5.3): `8·4 = 4·8`, `8·5 = 5·8`, `8·(8i) = 4·(16i)`, `8·(10i) = 5·(16i)`;
+    at `d ∈ {10,11}` (`LuBank`): `8·10 = 10·8`, `8·11 = 11·8`, `8·(20i) = 10·(16i)`,
+    `8·(22i) = 11·(16i)`. (The second line added 2026-08-20; the lemma was already generic,
+    only the enumeration was stale.) -/
 private theorem win_at_offset (l c : List Std.U8) (bo len d j q : Nat)
     (hc : ∀ t : Nat, t < len → c[t]! = l[bo + t]!)
     (hq : 8 * bo = d * q)
@@ -11142,8 +11152,13 @@ private theorem e10b4_val (x3 : Std.I16) (h3 : x3.bv.toNat < 32768) :
   congr 2
   exact bv16_sshr_p x3.bv 2 h3
 
-/-- The straddling byte, generic in the two shift widths: this ONE lemma covers bytes 1,
-    2 and 3 of the `d = 10` group and bytes 1, 2, 4, 5, 6, 8, 9 of the `d = 11` group. -/
+/-- The straddling byte, generic in the two shift widths. Call sites: bytes 1, 2 and 3 of
+    the `d = 10` group (`e10b1_val` / `e10b2_val` / `e10b3_val`) — and ONLY those three.
+    (CORRECTED 2026-08-20 after a reviewer finding: this said it also covered `d = 11`
+    bytes 1, 2, 4, 5, 6, 8, 9. It does not. Every one of those is proved by
+    `Le_straddle_val'` below, the unmasked-low-field variant, because at `d = 11` the impl
+    leaves the low field unmasked and the shapes do not match. Reaching for this lemma at
+    `d ≥ 11` will fail.) -/
 private theorem Le_straddle_val (lo hi Ml Mh : Std.I16) (s e kl kh : Nat)
     (hlo : lo.bv.toNat < 32768)
     (hMl : Ml.bv.toNat = 2 ^ kl - 1) (hMh : Mh.bv.toNat = 2 ^ kh - 1)
@@ -11351,7 +11366,11 @@ private theorem Le_shr_c8_val (x : Std.I16) (s : Nat) (hx : x.bv.toNat < 32768) 
   congr 1
   exact bv16_sshr_p x.bv s hx
 
-/-- `as_u8 ((x >>> s) & (2 ^ k - 1))`. Covers `d = 10` byte 4 and `d = 11` bytes 3, 7. -/
+/-- `as_u8 ((x >>> s) & (2 ^ k - 1))`. Call sites: `d = 11` bytes 3 and 7 (`e11b3_val`,
+    `e11b7_val`) — and only those two. (CORRECTED 2026-08-20 after a reviewer finding: it
+    also claimed `d = 10` byte 4. It cannot: `e10b4_val` sits ~215 lines EARLIER in the file
+    and discharges that byte by hand. Its three-line proof IS this lemma inlined, so
+    hoisting this declaration above the `d = 10` block would delete it — recorded debt.) -/
 private theorem Le_shr_mask_c8_val (x M : Std.I16) (s k : Nat) (hx : x.bv.toNat < 32768)
     (hM : M.bv.toNat = 2 ^ k - 1) :
     (c8 ((⟨x.bv.sshiftRight s⟩ : Std.I16) &&& M)).val = x.bv.toNat / 2 ^ s % 2 ^ k % 256 := by

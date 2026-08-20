@@ -1,5 +1,5 @@
 import LibcruxIotMlKem.SerializeFc
-import LibcruxIotMlKem.Matrix.ComputeMessage.FC
+import LibcruxIotMlKem.IndCpaFc
 import LibcruxIotMlKem.Matrix.ComputeMessage.FC
 
 /-!
@@ -30,11 +30,18 @@ closed and are asserted below. Current state:
   * `deserialize_ring_elements_reduced_fc`            CLOSED — leaf is the A2 axiom, by design
   * `serialize_uncompressed_ring_element_fc`          CLOSED — axiom-clean
   * `compress_then_serialize_message_fc`              CLOSED — axiom-clean
-  * `deserialize_then_decompress_ring_element_v_fc`   open, restated with is_rank / dv / len
-  * `compress_then_serialize_ring_element_v_fc`       open, restated with is_rank / dv / len / bound
+  * `deserialize_then_decompress_ring_element_v_fc`   CLOSED 2026-08-19 — axiom-clean
+  * `compress_then_serialize_ring_element_v_fc`       CLOSED 2026-08-19 — axiom-clean
+
+**UPDATED 2026-08-20**, closing a REAL GAP a reviewer found (INC-2a.4 r1, med/debt): this
+module was guarding 5 of the file's closed obligations while 7 were closed, and the three
+most expensive closes were among the unguarded. Every closed obligation in the campaign is
+now asserted here — the two `_v` siblings above, the two INC-2a `_u` per-element ones, and
+the three `IndCpaFc` ones (which needed the import added). If you close another, ADD IT: the
+list is hand-maintained, which is itself recorded debt.
 
 This module asserts the sorry-freedom of what IS closed, so those results cannot
-silently regress while the open ones are being restated.
+silently regress while later obligations are worked on in the same files.
 
 It deliberately does not pin the full axiom set per target — that is the driver
 gate's job (`driver/verify.sh` compares `#print axioms` against a per-target
@@ -69,6 +76,22 @@ def elabAssertNoSorry : CommandElab := fun stx => do
 #assert_no_sorry libcrux_iot_ml_kem.SerializeFc.deserialize_ring_elements_reduced_fc
 #assert_no_sorry libcrux_iot_ml_kem.SerializeFc.serialize_uncompressed_ring_element_fc
 #assert_no_sorry libcrux_iot_ml_kem.SerializeFc.compress_then_serialize_message_fc
+-- L5.3 / L5.4, closed 2026-08-19. Added 2026-08-20 — they had been closed for a day with no
+-- guard here, which is the gap the INC-2a.4 review found.
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.deserialize_then_decompress_ring_element_v_fc
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.compress_then_serialize_ring_element_v_fc
+
+/-! ## Closed INC-2a obligations -/
+-- The `_u` per-element family at du ∈ {10,11} (2026-08-20). Same file as L5.3/L5.4 and the
+-- same private banks, so a regression here is exactly the cross-obligation kind this guard
+-- exists for.
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.deserialize_then_decompress_ring_element_u_fc
+#assert_no_sorry libcrux_iot_ml_kem.SerializeFc.compress_then_serialize_ring_element_u_fc
+-- The ind_cpa lane-2a chain. `serialize_public_key_mut_fc` composes `serialize_vector_fc`,
+-- which composes L5.6, so a `sorry` anywhere below is a `sorry` in all three.
+#assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.deserialize_vector_fc
+#assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.serialize_vector_fc
+#assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.serialize_public_key_mut_fc
 
 /-! ## Kind exemplars the campaign's readiness gate depends on.
     If one of these acquires a `sorry`, every "FULL" verdict resting on it is void. -/
