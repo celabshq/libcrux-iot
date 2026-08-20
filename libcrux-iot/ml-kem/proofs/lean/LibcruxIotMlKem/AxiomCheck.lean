@@ -92,6 +92,10 @@ def elabAssertNoSorry : CommandElab := fun stx => do
 #assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.deserialize_vector_fc
 #assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.serialize_vector_fc
 #assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.serialize_public_key_mut_fc
+-- The whole-vector ciphertext-u encode (2026-08-20). It composes
+-- `compress_then_serialize_ring_element_u_fc` above, so a `sorry` in that leaf is a `sorry`
+-- here too — and this is the guard that says so at build time rather than at review time.
+#assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.compress_then_serialize_u_fc
 
 /-! ## Kind exemplars the campaign's readiness gate depends on.
     If one of these acquires a `sorry`, every "FULL" verdict resting on it is void. -/

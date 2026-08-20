@@ -510,6 +510,20 @@ private abbrev SPoly :=
 /-- The impl's 16-lane vector type (the `scratch` argument). -/
 private abbrev SVec := libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector
 
+/-- `lift_vec`'s `i`-th cell. Declared HERE, above all three of its uses, which is what
+    makes it a hoist: `ssk_closure_eq` and `spk_closure_eq` below both carried this same
+    six-line proof inline as `hcell`, and `compress_then_serialize_u_fc` added a third
+    copy. (The third copy's docstring claimed the hoist had happened when it had not, and
+    a reviewer caught it — INC-2a.6 r1, low/prose + low/debt. This is the fix.) -/
+private theorem lift_vec_cell (K : Std.Usize) (v : Std.Array SPoly K) (i : Nat)
+    (hi : i < K.val) : (lift_vec v).val[i]! = lift_poly (v.val[i]!) := by
+  have hvlen : v.val.length = K.val := v.property
+  show (v.val.map lift_poly)[i]! = lift_poly (v.val[i]!)
+  rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
+    List.getElem?_eq_getElem (by rw [hvlen]; exact hi)]
+  simp only [Option.map_some, Option.getD_some]
+  rw [getElem!_pos v.val i (by rw [hvlen]; exact hi)]
+
 /-! ### `Usize` remainder bridge — the companion of `Util.Shared.usize_div_lit`,
     which the `serialize_secret_key` closure needs alongside it (`ℓ / 384`, `ℓ % 384`). -/
 
@@ -827,14 +841,8 @@ private theorem ssk_closure_eq (K T_SIZE : Std.Usize) (key : Std.Array SPoly K)
   have hK : ℓ / 384 < K.val := by
     rw [h_tsize] at hℓ
     exact Nat.div_lt_of_lt_mul (by omega)
-  have hkeylen : key.val.length = K.val := key.property
   have hlvlen : (lift_vec key).val.length = K.val := (lift_vec key).property
-  have hcell : (lift_vec key).val[ℓ / 384]! = lift_poly (key.val[ℓ / 384]!) := by
-    show (key.val.map lift_poly)[ℓ / 384]! = lift_poly (key.val[ℓ / 384]!)
-    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
-      List.getElem?_eq_getElem (by rw [hkeylen]; exact hK)]
-    simp only [Option.map_some, Option.getD_some]
-    rw [getElem!_pos key.val (ℓ / 384) (by rw [hkeylen]; exact hK)]
+  have hcell := lift_vec_cell K key (ℓ / 384) hK
   have hidx : Aeneas.Std.Array.index_usize (lift_vec key)
         (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)
       = .ok (lift_poly (key.val[ℓ / 384]!)) := by
@@ -1359,14 +1367,8 @@ private theorem spk_closure_eq (K EK_SIZE : Std.Usize) (t : Std.Array SPoly K)
         = .ok (⟨BitVec.ofNat _ (ℓ % 384)⟩ : Std.Usize) :=
       usize_rem_lit _ _ _ (by rw [h384]; omega) (by rw [hℓv, h384, hmv])
     have hK : ℓ / 384 < K.val := Nat.div_lt_of_lt_mul (by omega)
-    have htlen : t.val.length = K.val := t.property
     have hlvlen : (Spec.Lift.lift_vec t).val.length = K.val := (Spec.Lift.lift_vec t).property
-    have hcell : (Spec.Lift.lift_vec t).val[ℓ / 384]! = lift_poly (t.val[ℓ / 384]!) := by
-      show (t.val.map lift_poly)[ℓ / 384]! = lift_poly (t.val[ℓ / 384]!)
-      rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
-        List.getElem?_eq_getElem (by rw [htlen]; exact hK)]
-      simp only [Option.map_some, Option.getD_some]
-      rw [getElem!_pos t.val (ℓ / 384) (by rw [htlen]; exact hK)]
+    have hcell := lift_vec_cell K t (ℓ / 384) hK
     have hidx : Aeneas.Std.Array.index_usize (Spec.Lift.lift_vec t)
           (⟨BitVec.ofNat _ (ℓ / 384)⟩ : Std.Usize)
         = .ok (lift_poly (t.val[ℓ / 384]!)) := by
@@ -2107,16 +2109,6 @@ private theorem window_div_mod_gen (b k ℓ : Nat) (hb : 0 < b)
   have hd : ℓ / b = k := Nat.div_eq_of_lt_le h1 (by omega)
   exact ⟨hd, by rw [Nat.mod_eq_sub_div_mul, hd]⟩
 
-/-- `lift_vec`'s `i`-th cell (`ssk_closure_eq`'s `hcell`, hoisted: this obligation needs it
-    in three places). -/
-private theorem lift_vec_cell (K : Std.Usize) (v : Std.Array SPoly K) (i : Nat)
-    (hi : i < K.val) : (lift_vec v).val[i]! = lift_poly (v.val[i]!) := by
-  have hvlen : v.val.length = K.val := v.property
-  show (v.val.map lift_poly)[i]! = lift_poly (v.val[i]!)
-  rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
-    List.getElem?_eq_getElem (by rw [hvlen]; exact hi)]
-  simp only [Option.map_some, Option.getD_some]
-  rw [getElem!_pos v.val i (by rw [hvlen]; exact hi)]
 
 /-- The freshly-zeroed spec buffer has the length it advertises. -/
 private theorem zeros_len (n : Std.Usize) :
@@ -2130,7 +2122,18 @@ private theorem zeros_len (n : Std.Usize) :
     The ONE fact this proof needs about the spec's encode atom: at a slice of the right
     length, `byte_encode_into p du s` IS `byte_encode … p du >>= ok ∘ to_slice` — a value
     that does not mention `s` at all. Content-independence and length-preservation both
-    read off that, and `byte_encode` stays closed (the K4 boundary). -/
+    read off that, and `byte_encode` stays closed (the K4 boundary).
+
+    ⚠ RECORDED DEBT (reviewer finding, INC-2a.6 r1, low/debt — NOT yet acted on).
+    `bei_10` and `bei_11` below are ~36-line near-verbatim twins differing only in
+    `10/320/2560` vs `11/352/2816`, and `bei_indep` / `bei_len` then EACH re-do the
+    `rcases hdu` dispatch to reach them — four copies of one case split over ~110 lines.
+    The next consumers of exactly these facts are `serialize_ciphertext` and the
+    whole-vector `_v` sibling, so left as-is each of them copies 110 lines instead of
+    instantiating one lemma. That is the same per-width proliferation the campaign already
+    paid for with the `s4b`/`s5b*` defs. The fix is a `du`-generic `bei_gen` plus one
+    dispatch, and it belongs to whoever needs the second consumer — doing it here would be
+    a refactor with no obligation behind it. Deliberately deferred, not overlooked. -/
 
 private theorem bei_10 (a : FePoly) (s : Slice Std.U8) (hs : s.val.length = 320) :
     hacspec_ml_kem.serialize.byte_encode_into a (10#usize : Std.Usize) s
