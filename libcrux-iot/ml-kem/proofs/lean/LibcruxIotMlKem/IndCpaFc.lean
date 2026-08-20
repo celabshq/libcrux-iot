@@ -2793,4 +2793,74 @@ theorem compress_then_serialize_u_fc
     · intro ℓ hℓ
       rw [hp_get ℓ (by rw [← hc1]; exact hℓ), henc_get ℓ hℓ]
 
+/-- **INC-2a.7** — `ind_cpa.deserialize_then_decompress_u`: the WHOLE-VECTOR ciphertext-`u`
+    decode, with the NTT FUSED into the loop.
+
+    `for (i, u_bytes) in ciphertext.chunks_exact(32*du).enumerate() {
+       deserialize_then_decompress_ring_element_u(u_bytes, &mut u_as_ntt[i]);
+       ntt_vector_u(&mut u_as_ntt[i], scratch) }`
+
+    ## Why the spec side is `_then_ntt`, and why that is not a guess
+    The impl fuses an NTT into the decompress loop, so its counterpart is the hacspec's
+    `deserialize_then_decompress_u_then_ntt` — `vector_ntt ∘ deserialize_then_decompress_u` —
+    and NOT plain `deserialize_then_decompress_u`. The hacspec function exists precisely
+    because of this fusion (`specs/ml-kem/src/serialize.rs:384-388` says so), and UPSTREAM HAS
+    ALREADY MACHINE-CHECKED THIS PAIRING: `libcrux-ml-kem/src/ind_cpa.rs:1364-1376` ensures
+    `vector_to_spec(res) == deserialize_then_decompress_u_then_ntt(...)` with
+    `is_bounded_polynomial_vector(3328, res)`, marked FULLY VERIFIED (2026-06-21).
+    Investigation record: `plans/INC-2-scope.md` §9.7.
+
+    ⚠ **The `ciphertext` argument is the ALREADY-SLICED `c1`, and this is the one place in
+    this campaign where transcribing upstream VERBATIM would be WRONG.** Upstream's function
+    takes the WHOLE ciphertext and slices internally, so its ensures reads
+    `deserialize_then_decompress_u_then_ntt (ciphertext[..c1_size K]) du`. The iot caller
+    passes the slice already made (`&ciphertext[..VECTOR_U_ENCODED_SIZE]`,
+    `ml-kem/src/ind_cpa.rs:889`), so `ciphertext` here IS `c1` and slicing again would be a
+    different — and false — statement. Same function name, different calling convention.
+
+    ## Hypotheses come from IOT'S OWN `#[hax_lib::requires]`, not upstream's
+    `ml-kem/src/ind_cpa.rs:786-791` states them DIRECTLY:
+      (K == 2 || K == 3 || K == 4) && (U_COMPRESSION_FACTOR == 10 || == 11)
+      && ciphertext.len() == K * 32 * U_COMPRESSION_FACTOR && u_as_ntt.len() == K
+    The contracts file's AMENDED RULE 1 prefers this to upstream's indirect
+    `is_rank / cpa_ciphertext_size / vector_u_compression_factor` form, which is strictly
+    more burdensome (it additionally ties `du` to `K`, which this statement does not need)
+    and buys nothing. `CIPHERTEXT_SIZE` is constrained by neither: it does not occur in the
+    extracted body at all, so no hypothesis mentions it.
+
+    NB this makes the hypothesis SPELLING differ from the encode sibling
+    `compress_then_serialize_u_fc`, which carries upstream's indirect `is_rank K = .ok true`.
+    That is not an inconsistency to fix by weakening a closed proof: `is_rank_ok_iff` converts
+    between the two in one step, and this obligation follows the rule the sibling should have.
+
+    ## Bound
+    `natAbs ≤ 3328` is upstream's `is_bounded_polynomial_vector(3328, res)`. Measured on the
+    extracted impl: max attained lane is 1565 (K=3, du=10, all-0xFF ciphertext), so it is
+    sound with wide margin — and it is the bound `ntt_vector_u` itself needs as an INPUT, so
+    it is what makes the fused loop compose with the next element. -/
+@[spec]
+theorem deserialize_then_decompress_u_fc
+    (K CIPHERTEXT_SIZE U_COMPRESSION_FACTOR : Std.Usize)
+    (ciphertext : Slice Std.U8)
+    (u_as_ntt : Slice
+        (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+          libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_rank : K.val = 2 ∨ K.val = 3 ∨ K.val = 4)
+    (h_du : U_COMPRESSION_FACTOR.val = 10 ∨ U_COMPRESSION_FACTOR.val = 11)
+    (h_ct : ciphertext.length = K.val * 32 * U_COMPRESSION_FACTOR.val)
+    (h_out_len : u_as_ntt.length = K.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u
+      (vectortraitsOperationsInst := portable_ops_inst)
+      K CIPHERTEXT_SIZE U_COMPRESSION_FACTOR ciphertext u_as_ntt scratch
+    ⦃ ⇓ p => ⌜ p.1.length = K.val
+                ∧ hacspec_ml_kem.serialize.deserialize_then_decompress_u_then_ntt
+                    K ciphertext U_COMPRESSION_FACTOR
+                  = .ok (lift_vec_slice p.1 K)
+                ∧ (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                    (((p.1.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
+                      ≤ 3328) ⌝ ⦄ := by
+  sorry
+
 end libcrux_iot_ml_kem.IndCpaFc
