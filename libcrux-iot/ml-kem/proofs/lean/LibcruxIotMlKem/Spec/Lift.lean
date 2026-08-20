@@ -6,6 +6,7 @@ import LibcruxIotMlKem.Spec.Pure
 import LibcruxIotMlKem.Spec.AlgEquiv
 import LibcruxIotMlKem.Spec.ModularArith
 import LibcruxIotMlKem.Extraction.Funs
+import LibcruxIotMlKem.Util.ScalarSpecs
 import HacspecMlKem.Extraction.Funs
 -- `interval_cases` for the 128-entry zeta-table bridge in §NB.1.
 import Mathlib.Tactic.IntervalCases
@@ -1135,68 +1136,17 @@ theorem Spec.zeta_at_one_eq_layer_7 :
     the SAME flat lane; (3) compose. Everything here is pure — no impl, no
     Triple, no `mvcgen`.
 
-    The scalar/monadic and `createi` helpers below are local copies: the shared
-    ones (`Matrix/ComputeMessage/Hacspec.lean`, `Vector/.../Element.lean`) sit
-    DOWNSTREAM of `Spec/Lift.lean` in the import order, so they cannot be cited
-    from here. -/
+    The scalar/monadic helpers this proof needs are NO LONGER local copies: they were
+    hoisted to `Util/ScalarSpecs.lean` (2026-08-20, after a reviewer found the same six
+    written three times) and are CITED from there. That module imports only what this file
+    already imports and declares no attributes, so the hoist cannot widen `simp`/`mvcgen`
+    downstream — checked, per skill §2.1, not assumed. `Matrix/ComputeMessage/Hacspec.lean`
+    still carries its own set; it is downstream of here and is a live obligation surface, so
+    collapsing it is left for the next time that file is touched. -/
 
 section NttBridge
 
 /-! ### §NB.0 — monadic scalar + indexing helpers. -/
-
-private theorem nb_umul_ok (a b : Std.Usize) (h : a.val * b.val ≤ Std.Usize.max) :
-    ∃ c : Std.Usize, (a * b : Result Std.Usize) = .ok c ∧ c.val = a.val * b.val := by
-  have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec a b)
-    (fun e => by cases e <;> scalar_tac) (by simp)
-  obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
-  exact ⟨v, h_eq, h_v⟩
-
-private theorem nb_uadd_ok (a b : Std.Usize) (h : a.val + b.val ≤ Std.Usize.max) :
-    ∃ c : Std.Usize, (a + b : Result Std.Usize) = .ok c ∧ c.val = a.val + b.val := by
-  have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec a b)
-    (fun e => by cases e <;> scalar_tac) (by simp)
-  obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
-  exact ⟨v, h_eq, h_v⟩
-
-private theorem nb_usub_ok (a b : Std.Usize) (h : b.val ≤ a.val) :
-    ∃ c : Std.Usize, (a - b : Result Std.Usize) = .ok c ∧ c.val = a.val - b.val := by
-  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec a b)
-    (fun e => by cases e <;> scalar_tac) (by simp)
-  obtain ⟨c, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
-  exact ⟨c, h_eq, h_v.1⟩
-
-private theorem nb_udiv_ok (a b : Std.Usize) (h : b.val ≠ 0) :
-    ∃ c : Std.Usize, (a / b : Result Std.Usize) = .ok c ∧ c.val = a.val / b.val := by
-  obtain ⟨v, h_eq, h_v⟩ := Std.UScalar.div_spec a h
-  exact ⟨v, h_eq, h_v⟩
-
-private theorem nb_umod_ok (a b : Std.Usize) (h : b.val ≠ 0) :
-    ∃ c : Std.Usize, (a % b : Result Std.Usize) = .ok c ∧ c.val = a.val % b.val := by
-  obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists (Std.UScalar.rem_spec a h)
-  exact ⟨v, h_eq, h_v⟩
-
-/-- `(1#usize <<< n)` succeeds with value `2^n.val`. -/
-private theorem nb_shl_one_ok (n : Std.Usize) (hn : n.val < UScalarTy.Usize.numBits) :
-    ∃ len : Std.Usize, (1#usize <<< n : Result Std.Usize) = .ok len ∧ len.val = 2 ^ n.val := by
-  have h_one_shl_pow : ((1#usize : Std.Usize).val <<< n.val) < 2 ^ System.Platform.numBits := by
-    have h_one_eq : (1#usize : Std.Usize).val = 1 := rfl
-    rw [h_one_eq, Nat.shiftLeft_eq, Nat.one_mul]
-    have hnb : n.val < System.Platform.numBits := by
-      rwa [Std.UScalarTy.Usize_numBits_eq] at hn
-    rcases System.Platform.numBits_eq with h32 | h64
-    · rw [h32]; rw [h32] at hnb; exact Nat.pow_lt_pow_right (by decide) hnb
-    · rw [h64]; rw [h64] at hnb; exact Nat.pow_lt_pow_right (by decide) hnb
-  have hT := Aeneas.Std.UScalar.ShiftLeft_spec (1#usize : Std.Usize) n
-    (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) hn rfl
-  obtain ⟨z, h_eq, h_v_mod, _h_bv⟩ := Std.WP.spec_imp_exists hT
-  refine ⟨z, h_eq, ?_⟩
-  have h_one_eq : (1#usize : Std.Usize).val = 1 := rfl
-  have h_size_eq : (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize)
-      = 2 ^ System.Platform.numBits := by
-    rw [Aeneas.Std.UScalar.size]; rw [Std.UScalarTy.Usize_numBits_eq]
-  rw [h_v_mod, h_one_eq, h_size_eq, Nat.shiftLeft_eq, Nat.one_mul, Nat.mod_eq_of_lt]
-  rw [h_one_eq, Nat.shiftLeft_eq, Nat.one_mul] at h_one_shl_pow
-  exact h_one_shl_pow
 
 private theorem nb_numbits_ge (n : Nat) (hn : n ≤ 7) : n < UScalarTy.Usize.numBits := by
   rw [Std.UScalarTy.Usize_numBits_eq]
@@ -1230,13 +1180,6 @@ private theorem nb_slice_index_ok {α : Type} [Inhabited α]
   simp only [Aeneas.Std.Slice.index_usize, Aeneas.Std.Slice.getElem?_Usize_eq,
              List.getElem?_eq_getElem h]
 
-/-- `bind` distributes over `ite` (dedicated form — `apply_ite` won't
-    higher-order match `Bind.bind (ite …) k`). -/
-private theorem nb_res_bind_ite {α β : Type} (c : Prop) [Decidable c]
-    (a b : Result α) (g : α → Result β) :
-    (if c then a else b) >>= g = if c then a >>= g else b >>= g := by
-  split <;> rfl
-
 /-- `(List.slice a b l)[k]! = l[a+k]!` when `a + k < b ≤ l.length`. -/
 private theorem nb_slice_getElem {α} [Inhabited α]
     (l : List α) (a b k : Nat) (hb : b ≤ l.length) (hk : a + k < b) :
@@ -1259,13 +1202,34 @@ private noncomputable def nb_zetasArr :
   | .ok a => a
   | _ => Std.Array.make 128#usize (List.replicate 128 ⟨0#u16⟩) (by simp)
 
-set_option maxRecDepth 20000 in
+/-! ### ⚠ The only two `maxRecDepth` bumps in this file, and why they are not the usual smell.
+
+    The campaign bans ADDING `maxRecDepth`, on the rule that a bump which "fixes" a goal is
+    evidence of being on the wrong rung. This file had none before the NTT bridge; these two
+    are new, a reviewer flagged them (INC-2a NTT bridge r1, med/debt), and they were then
+    MEASURED rather than argued about:
+
+      * removing them entirely -> `maximum recursion depth has been reached` at both sites,
+        so they are load-bearing, not decorative;
+      * the minimum that works is between 800 (FAILS) and 1200 (passes);
+      * the value the dispatch left behind was 20000 — roughly 10x padded.
+
+    Set to 2000: comfortable headroom over the measured 1200, an order of magnitude below
+    what was there. The reason the ban's rationale does not apply is the CATEGORY: both
+    goals are whole-table definitional equalities over the 128-entry ZETAS table (`rfl` on a
+    128-call `FieldElement.new` do-chain, and `interval_cases i <;> rfl` over all 128
+    entries). Recursion depth there scales with the TABLE, not with proof-search
+    misdirection, so no better rung exists — the alternative is `native_decide`, which is
+    banned outright and for a much better reason. Cost is re-paid by any future touch of
+    `ZETAS_TIMES_MONTGOMERY_R`; that is recorded debt, not a defect. -/
+
+set_option maxRecDepth 2000 in
 private theorem nb_ntt_zetas_eq_ok : hacspec_ml_kem.ntt.ZETAS = .ok nb_zetasArr := by
   unfold nb_zetasArr
   unfold hacspec_ml_kem.ntt.ZETAS
   rfl
 
-set_option maxRecDepth 20000 in
+set_option maxRecDepth 2000 in
 set_option maxHeartbeats 4000000 in
 /-- **The zeta bridge.** Entry `i` of the hacspec plain-domain table IS
     `Spec.zeta_at i` (the impl Mont-domain table with `R` stripped), as a
@@ -1285,9 +1249,11 @@ private theorem nb_zetas_bridge (i : Nat) (hi : i < 128) :
     `Spec.Pure.FieldElement.sub_eq_ok` / `Canonical_sub_pure` require BOTH
     arguments canonical. The forward NTT's `sub` is `a − ζ·b` where only the
     SUBTRAHEND `ζ·b` is a `mul` output (hence canonical); `a` is an arbitrary
-    input lane at layer 7. The two `'`-variants below drop the unused
-    `Canonical a` hypothesis — that is what makes the locked statement
-    hypothesis-free. -/
+    input lane at layer 7. `nb_sub_eq_ok` and `nb_Canonical_sub_pure` below
+    therefore take `Canonical b` ONLY, dropping the `Canonical a` hypothesis —
+    that is what makes the locked statement hypothesis-free.
+    (CORRECTED 2026-08-20 after a reviewer finding: this said "the two
+    `'`-variants below", and there are no `'`-suffixed lemmas here.) -/
 
 private theorem nb_uscalar_rem_ok_U32 (z m : Std.U32) (hm : m.val ≠ 0) :
     ∃ w : Std.U32, (z % m : Result Std.U32) = .ok w ∧ w.val = z.val % m.val := by
@@ -1483,19 +1449,6 @@ private theorem nb_flat_arr_lane
   rw [getElem!_pos _ i (by simp [List.length_map, List.length_range, hi])]
   rw [List.getElem_map, List.getElem_range]
 
-/-- Every lane of a flat layer array is canonical (`add_pure` unconditionally,
-    `sub_pure` because its subtrahend is a `mul_pure`). -/
-private theorem nb_flat_arr_canon
-    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
-    (len : Nat) (zf : Nat → hacspec_ml_kem.parameters.FieldElement)
-    (i : Nat) (hi : i < 256) :
-    libcrux_iot_ml_kem.Spec.Pure.Canonical ((nb_flat_arr p len zf).val[i]!) := by
-  rw [nb_flat_arr_lane p len zf i hi]
-  unfold nb_flat_lane
-  split
-  · exact libcrux_iot_ml_kem.Spec.Pure.Canonical_add_pure _ _
-  · exact nb_Canonical_sub_pure _ _ (libcrux_iot_ml_kem.Spec.Pure.Canonical_mul_pure _ _)
-
 set_option maxHeartbeats 4000000 in
 /-- Per-lane reduction of the `ntt_layer_n` closure. -/
 private theorem nb_layer_n_call_mut_eq
@@ -1529,12 +1482,12 @@ private theorem nb_layer_n_call_mut_eq
           let (_, fe3) ← hacspec_ml_kem.ntt.butterfly fe fe1 fe2
           Result.ok (fe3, (len, s, p)))
     = .ok (nb_flat_lane p len.val (fun g => s.val[g]!) k, (len, s, p))
-  obtain ⟨i1, hi1, hi1v⟩ := nb_umul_ok 2#usize len (by simpa using h2len)
+  obtain ⟨i1, hi1, hi1v⟩ := Util.ScalarSpecs.usize_mul_ok 2#usize len (by simpa using h2len)
   rw [hi1]; simp only [bind_tc_ok]
   have hi1ne : i1.val ≠ 0 := by rw [hi1v]; simp; omega
-  obtain ⟨grp, hgrp, hgrpv⟩ := nb_udiv_ok ⟨BitVec.ofNat _ k⟩ i1 hi1ne
+  obtain ⟨grp, hgrp, hgrpv⟩ := Util.ScalarSpecs.usize_div_ok ⟨BitVec.ofNat _ k⟩ i1 hi1ne
   rw [hgrp]; simp only [bind_tc_ok]
-  obtain ⟨idx, hidx, hidxv⟩ := nb_umod_ok ⟨BitVec.ofNat _ k⟩ i1 hi1ne
+  obtain ⟨idx, hidx, hidxv⟩ := Util.ScalarSpecs.usize_mod_ok ⟨BitVec.ofNat _ k⟩ i1 hi1ne
   rw [hidx]; simp only [bind_tc_ok]
   have hgrpv' : grp.val = k / (2 * len.val) := by
     rw [hgrpv, hi1v, hk_us]; simp
@@ -1553,7 +1506,7 @@ private theorem nb_layer_n_call_mut_eq
         (by show (⟨BitVec.ofNat _ k⟩ : Std.Usize).val < p.val.length
             rw [hk_us, p.property]; exact hk)]
     simp only [bind_tc_ok]
-    obtain ⟨i2, hi2, hi2v⟩ := nb_uadd_ok ⟨BitVec.ofNat _ k⟩ len (by
+    obtain ⟨i2, hi2, hi2v⟩ := Util.ScalarSpecs.usize_add_ok ⟨BitVec.ofNat _ k⟩ len (by
       rw [hk_us]; have : (256:Nat) ≤ Std.Usize.max := by scalar_tac
       have := hapart hbr'; omega)
     rw [hi2]; simp only [bind_tc_ok]
@@ -1569,7 +1522,7 @@ private theorem nb_layer_n_call_mut_eq
     rw [if_neg hbr']
     rw [nb_slice_index_ok s grp (by rw [hgrpv']; exact hslen)]
     simp only [bind_tc_ok]
-    obtain ⟨i2, hi2, hi2v⟩ := nb_usub_ok ⟨BitVec.ofNat _ k⟩ len (by
+    obtain ⟨i2, hi2, hi2v⟩ := Util.ScalarSpecs.usize_sub_ok ⟨BitVec.ofNat _ k⟩ len (by
       rw [hk_us]; exact hbpart hbr')
     rw [hi2]; simp only [bind_tc_ok]
     have hi2v' : i2.val = k - len.val := by rw [hi2v, hk_us]
@@ -1690,7 +1643,7 @@ private theorem nb_ntt_layer_flat
       _ = 128 := by norm_num
   have hlg : 2 ^ L * (128 / 2 ^ L) = 128 := Nat.mul_div_cancel' hdvd
   unfold hacspec_ml_kem.ntt.ntt_layer
-  obtain ⟨len, hlen_def, hlenv⟩ := nb_shl_one_ok layer (by rw [hL]; exact nb_numbits_ge L (by omega))
+  obtain ⟨len, hlen_def, hlenv⟩ := Util.ScalarSpecs.usize_shl_one_ok layer (by rw [hL]; exact nb_numbits_ge L (by omega))
   have hlenv2 : len.val = 2 ^ L := by rw [hlenv, hL]
   rw [hlen_def]; simp only [bind_tc_ok]
   rw [nb_ntt_zetas_eq_ok]; simp only [bind_tc_ok]
@@ -1703,7 +1656,7 @@ private theorem nb_ntt_layer_flat
   have hgpos : 0 < groups.val := by
     rw [hgv2]; exact Nat.div_pos hpowhi (by omega)
   rw [hg_def]; simp only [bind_tc_ok]
-  obtain ⟨iend, hi_def, hiv⟩ := nb_umul_ok 2#usize groups (by
+  obtain ⟨iend, hi_def, hiv⟩ := Util.ScalarSpecs.usize_mul_ok 2#usize groups (by
     show (2#usize : Std.Usize).val * groups.val ≤ Std.Usize.max
     have h2 : (2#usize : Std.Usize).val = 2 := by scalar_tac
     rw [h2]; omega)
