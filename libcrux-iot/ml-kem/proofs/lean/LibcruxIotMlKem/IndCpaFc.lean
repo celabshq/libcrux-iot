@@ -1778,10 +1778,17 @@ end SPKMBank
     exactly `{2,3,4}` and not merely implied by it. That is the fact behind the locked
     statement's note that `h_rank` is SUFFICIENT but STRONGER THAN MINIMAL.
 
-    ⚠ REACHABILITY — MOVE THIS LEMMA BEFORE CITING IT ANYWHERE ELSE. As placed it has
-    exactly ONE consumer and ZERO reachable ones outside this file. r2's docstring claimed
-    the opposite ("every remaining `is_rank`-carrying obligation in this lane needs the same
-    three-way test"); that was not measured and it is false. What is measured (r3):
+    REACHABILITY, as measured — and note this paragraph has now been wrong twice in opposite
+    directions, so it states only what was checked. r2 claimed every remaining
+    `is_rank`-carrying obligation in this lane needs this lemma (not measured, false as
+    stated). r3 replaced that with "prospective reuse is 0/0" and an instruction to MOVE the
+    lemma before citing it — also an over-claim, in the other direction: lane 2a is NOT
+    finished. `plans/INC-2-scope.md` still lists `decrypt`, `decrypt_unpacked`,
+    `serialize_unpacked_secret_key` and `encrypt_c2`, three of which carry the SAME upstream
+    `(K == 2 || K == 3 || K == 4)` requires that became this file's `h_rank` — and they land
+    in THIS file, where the lemma is already in scope with no move required.
+    So: zero reuse TODAY, plausible reuse within this same file as lane 2a continues, and no
+    move needed either way. What is measured, at this commit:
       * The only citation of this name in the tree is `serialize_public_key_mut_fc` below,
         in this same file.
       * every declaration in `IndCpaFc.lean` is proved — the file elaborates with no
@@ -1796,7 +1803,9 @@ end SPKMBank
         condition (`dv ∈ {4,5}`) from `h_cf` by unfolding `vector_v_compression_factor`, and
         each says so in a comment (:8016-8018, :9560-9562). Their `h_rank` is dead weight,
         transcribed only because it is upstream's panic-freedom conjunct.
-    So the prospective reuse this hoist was asked for is 0/0 — not 0/2, and not achieved.
+    So the reuse this hoist was asked for is ZERO AT THIS COMMIT — not 0/2, which was the
+    earlier miscount. Whether it becomes non-zero depends on obligations that do not exist
+    yet; that is a prediction, and this docstring does not make it.
 
     It is retained regardless, because the fact it records — `is_rank` is EXACTLY `{2,3,4}` —
     is what makes the locked statement's "SUFFICIENT but STRONGER THAN MINIMAL" note
