@@ -2793,6 +2793,449 @@ theorem compress_then_serialize_u_fc
     · intro ℓ hℓ
       rw [hp_get ℓ (by rw [← hc1]; exact hℓ), henc_get ℓ hℓ]
 
+/-! ## PROVER bank for INC-2a.7 — the FUSED decode + NTT.
+
+    This obligation is COMPOSITION ONLY. Five proved, axiom-clean leaves and a `createi`
+    normalisation; nothing below the trait boundary is opened, and no NTT-layer or
+    twiddle-factor reasoning occurs anywhere below:
+
+    * `SerializeFc.deserialize_then_decompress_ring_element_u_fc` — the per-chunk decode at
+      exactly this `du`, exporting `natAbs ≤ 3328`, which is precisely what the NTT needs
+      as an INPUT (this is why the fused loop composes at all);
+    * `InvertNtt.ntt_vector_u_fc` — the per-element NTT, against the in-tree mirror
+      `Spec.ntt_pure_vec_u`;
+    * `Spec.Lift.Spec.ntt_pure_vec_u_eq_hacspec` — THE BRIDGE, which turns that mirror into
+      `hacspec_ml_kem.ntt.ntt`, i.e. the model this statement names;
+    * `Polynomial.NttDrivers.ntt_vector_u_spec` — the NTT's own output bound, re-exported;
+    * `Matrix.ComputeRingElementV.Impl.loop_chunks_exact_pk_spec` — the `chunks_exact +
+      enumerate` loop combinator, at the runtime chunk size `32·du`.
+
+    The SPEC side is two nested `createi`s (`deserialize_then_decompress_u` then
+    `vector_ntt`), each normalised by `Util.CreateI.from_fn_pure_eq` — the `FnMut`-direct
+    sibling of `createi_pure_eq`, which is the one the extraction actually needs since both
+    hacspec functions hand `createi` a `FnMut` instance rather than a `Fn` wrapper.
+
+    ⚠ `ciphertext` is the ALREADY-SLICED `c1` (`ml-kem/src/ind_cpa.rs:889`), so the windows
+    below are taken from byte 0 of the argument, NOT from `c1_size K` inside a longer
+    buffer. See `plans/INC-2-scope.md` §9.7. -/
+
+section DDUBank
+
+open libcrux_iot_ml_kem.Util.CreateI
+open libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl
+
+/-! ### The `32·du`-byte windows of `c1`. -/
+
+/-- The `i`-th `cs`-byte window of the ciphertext. The `chunks_exact` chunk at enumerate
+    count `i` and the spec closure's `ciphertext[i*cs .. i*cs+cs]` are both this. -/
+private def uWin (ciphertext : Slice Std.U8) (cs i : Nat) : Slice Std.U8 :=
+  ⟨List.slice (i * cs) (i * cs + cs) ciphertext.val, by
+    have := ciphertext.val.slice_length_le (i * cs) (i * cs + cs); scalar_tac⟩
+
+private theorem uWin_len (ciphertext : Slice Std.U8) (cs i : Nat)
+    (h : i * cs + cs ≤ ciphertext.val.length) :
+    (uWin ciphertext cs i).val.length = cs := by
+  show (List.slice (i * cs) (i * cs + cs) ciphertext.val).length = cs
+  unfold List.slice
+  rw [List.length_take, List.length_drop]
+  omega
+
+private theorem uWin_get (ciphertext : Slice Std.U8) (cs i ℓ : Nat) (hℓ : ℓ < cs)
+    (h : i * cs + cs ≤ ciphertext.val.length) :
+    (uWin ciphertext cs i).val[ℓ]! = ciphertext.val[i * cs + ℓ]! := by
+  show (List.slice (i * cs) (i * cs + cs) ciphertext.val)[ℓ]! = _
+  unfold List.slice
+  rw [List.getElem!_take_of_lt _ _ _ (by omega),
+      getElem!_pos _ _ (by rw [List.length_drop]; omega), getElem!_pos _ _ (by omega),
+      List.getElem_drop]
+
+/-- A `chunks_exact` chunk at count `i`, characterised by length + byte content, IS the
+    `i`-th window. This is the whole content of the impl↔spec slicing agreement. -/
+private theorem chunk_eq_uWin (ciphertext chunk : Slice Std.U8) (cs i : Nat)
+    (hclen : chunk.val.length = cs)
+    (hcget : ∀ ℓ : Nat, ℓ < cs → chunk.val[ℓ]! = ciphertext.val[i * cs + ℓ]!)
+    (h : i * cs + cs ≤ ciphertext.val.length) :
+    chunk = uWin ciphertext cs i := by
+  apply Subtype.ext
+  refine List.ext_getElem (by rw [hclen, uWin_len ciphertext cs i h]) ?_
+  intro n h1 h2
+  have hn : n < cs := by rw [hclen] at h1; exact h1
+  rw [← getElem!_pos chunk.val n h1, ← getElem!_pos _ n h2, hcget n hn,
+      uWin_get ciphertext cs i n hn h]
+
+/-- The impl writes cell `i` twice (decode, then NTT in place); the second write wins. -/
+private theorem slice_set_set {α : Type} (v : Slice α) (i : Std.Usize) (x y : α) :
+    Aeneas.Std.Slice.set (Aeneas.Std.Slice.set v i x) i y = Aeneas.Std.Slice.set v i y := by
+  apply Subtype.ext
+  show (v.val.set i.val x).set i.val y = v.val.set i.val y
+  simp
+
+/-- `Array.index_usize` at a bounded index, in `getElem!` form (no dependent proof to
+    transport when the index is a `BitVec.ofNat` literal). -/
+private theorem array_index_usize_get {α : Type} [Inhabited α] {n : Std.Usize}
+    (v : Std.Array α n) (i : Std.Usize) (h : i.val < v.val.length) :
+    Aeneas.Std.Array.index_usize v i = .ok (v.val[i.val]!) := by
+  obtain ⟨x, hx, hxv⟩ := libcrux_iot_ml_kem.Util.SliceSpecs.Array.index_usize_exists v i h
+  rw [hx, hxv, getElem!_pos v.val i.val h]
+
+/-! ### IMPL side — the rank-K `Enumerate (ChunksExact (32·du))` loop with the fused NTT. -/
+
+/-- Written-prefix invariant. Conjunct 2 is the WHOLE per-cell spec chain — decode,
+    decompress, then the hacspec NTT — collapsed into one `Result` equation, so it carries
+    success and value together and the apex needs no separate success argument. -/
+private def dduInv (ciphertext : Slice Std.U8) (du : Std.Usize) (cs K : Nat) (k : Nat)
+    (acc : Slice SPoly × SVec) : Prop :=
+  acc.1.length = K
+  ∧ (∀ i : Nat, i < k →
+      (do
+        let a ← hacspec_ml_kem.serialize.deserialize_then_decompress_v
+                  (uWin ciphertext cs i) du
+        hacspec_ml_kem.ntt.ntt a) = .ok (lift_poly (acc.1.val[i]!)))
+  ∧ (∀ i : Nat, i < k → ∀ c : Nat, c < 16 → ∀ ℓ : Nat, ℓ < 16 →
+      (((acc.1.val[i]!).coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328)
+
+set_option maxHeartbeats 4000000 in
+/-- The rank-K fused loop: after `K` chunks the written prefix covers every index `< K`. -/
+private theorem ddu_loop_fc (K du csz : Std.Usize) (ciphertext : Slice Std.U8)
+    (hdu : du.val = 10 ∨ du.val = 11) (hcs : csz.val = 32 * du.val)
+    (h_ct : ciphertext.val.length = K.val * csz.val)
+    (out : Slice SPoly) (scratch : SVec) (h_out : out.length = K.val) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop
+      (vectortraitsOperationsInst := portable_ops_inst) du
+      ({ iter := { cs := csz, elements := ciphertext }, count := 0#usize } : EnumCE)
+      out scratch
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (dduInv ciphertext du csz.val K.val K.val p)).holds ⌝ ⦄ := by
+  have hcs0 : 0 < csz.val := by rcases hdu with h | h <;> omega
+  have hKmax : K.val * csz.val ≤ Std.Usize.max := by rw [← h_ct]; exact ciphertext.property
+  have hK_le : K.val ≤ Std.Usize.max :=
+    le_trans (Nat.le_mul_of_pos_right _ hcs0) hKmax
+  unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop
+  refine loop_chunks_exact_pk_spec _ (out, scratch) ciphertext csz K.val
+    (fun k acc => .ok (dduInv ciphertext du csz.val K.val k acc)) hcs0
+    (by simpa [Aeneas.Std.Slice.length] using h_ct)
+    ((holds_ok _).mpr ⟨h_out, by intro i hi; omega, by intro i hi; omega⟩) ?_
+  intro acc k rest cnt hk hcnt hrest hsuf hinv
+  obtain ⟨hacc_len, hacc_spec, hacc_bnd⟩ := (holds_ok _).mp hinv
+  by_cases hlt : k < K.val
+  · -- a full `32·du`-byte chunk remains
+    have hrestcs : csz.val ≤ rest.length := by
+      rw [hrest]
+      calc csz.val = 1 * csz.val := by ring
+        _ ≤ (K.val - k) * csz.val := Nat.mul_le_mul_right _ (by omega)
+    have hcnt_bd : cnt.val + 1 ≤ Std.Usize.max := by rw [hcnt]; omega
+    obtain ⟨chunk, drop, cnt', hnext, hcnt', hclen, hdlen, hcget, hdget⟩ :=
+      enumerate_chunks_next_cont_drop rest csz cnt hrestcs hcnt_bd
+    have hwin : k * csz.val + csz.val ≤ ciphertext.val.length := by
+      rw [h_ct]
+      calc k * csz.val + csz.val = (k + 1) * csz.val := by ring
+        _ ≤ K.val * csz.val := Nat.mul_le_mul_right _ (by omega)
+    have hchunk_len : chunk.val.length = csz.val := hclen
+    have hchunk_get : ∀ ℓ : Nat, ℓ < csz.val →
+        chunk.val[ℓ]! = ciphertext.val[k * csz.val + ℓ]! := by
+      intro ℓ hℓ
+      rw [hcget ℓ hℓ, hsuf ℓ]
+    have hchunk : chunk = uWin ciphertext csz.val k :=
+      chunk_eq_uWin ciphertext chunk csz.val k hchunk_len hchunk_get hwin
+    have hacc_idx : cnt.val < acc.1.val.length := by
+      have : acc.1.val.length = K.val := hacc_len
+      omega
+    -- LEAF 1: the per-chunk decode, at exactly this `du`.
+    obtain ⟨te, hte_eq, hte_spec, hte_bnd⟩ :=
+      triple_exists_ok_fc
+        (libcrux_iot_ml_kem.SerializeFc.deserialize_then_decompress_ring_element_u_fc
+          du chunk (acc.1.val[cnt.val]!) hdu
+          (by show chunk.val.length = 32 * du.val; rw [hchunk_len, hcs]))
+    -- LEAF 2: the per-element NTT (value), and LEAF 3 (bound) on the SAME call.
+    obtain ⟨v1, hv1_eq, hv1_lift⟩ :=
+      triple_exists_ok_fc
+        (libcrux_iot_ml_kem.InvertNtt.ntt_vector_u_fc du te acc.2 hte_bnd)
+    obtain ⟨v2, hv2_eq, hv2_bnd⟩ :=
+      triple_exists_ok_fc
+        (libcrux_iot_ml_kem.Polynomial.NttDrivers.ntt_vector_u_spec du te acc.2 hte_bnd)
+    have hv : v1 = v2 := Aeneas.Std.Result.ok.inj (hv1_eq.symm.trans hv2_eq)
+    have hv1_bnd : ∀ i : Nat, i < 16 → ∀ j : Nat, j < 16 →
+        ((v1.1.coefficients.val[i]!).elements.val[j]!).val.natAbs ≤ 3328 := by
+      rw [hv]; exact hv2_bnd
+    -- THE BRIDGE: the in-tree mirror IS the hacspec `ntt`, so the two leaves compose.
+    have hcell : (do
+        let a ← hacspec_ml_kem.serialize.deserialize_then_decompress_v
+                  (uWin ciphertext csz.val k) du
+        hacspec_ml_kem.ntt.ntt a) = .ok (lift_poly v1.1) := by
+      rw [← hchunk, hte_spec]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [Spec.ntt_pure_vec_u_eq_hacspec (lift_poly te), hv1_lift]
+    have hpre2 : (Aeneas.Std.Slice.set acc.1 cnt te).val[cnt.val]! = te := by
+      rw [slice_set_get acc.1 cnt te cnt.val hacc_idx]; simp
+    refine triple_of_ok_fc
+      (v := .cont (({ iter := { cs := csz, elements := drop }, count := cnt' } : EnumCE),
+                   (Aeneas.Std.Slice.set acc.1 cnt v1.1, v1.2))) ?_ ?_
+    · show libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
+        du portable_ops_inst
+        ({ iter := { cs := csz, elements := rest }, count := cnt } : EnumCE) acc.1 acc.2 = _
+      unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := csz, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.Some (cnt, chunk),
+                 { iter := { cs := csz, elements := drop }, count := cnt' }) from hnext]
+      simp only [Aeneas.Std.bind_tc_ok]
+      show (do
+          let (pre, index_mut_back) ← Aeneas.Std.Slice.index_mut_usize acc.1 cnt
+          let pre1 ← libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_u
+            du portable_ops_inst chunk pre
+          let (pre2, index_mut_back1) ←
+            Aeneas.Std.Slice.index_mut_usize (index_mut_back pre1) cnt
+          let (pre3, scratch1) ←
+            libcrux_iot_ml_kem.ntt.ntt_vector_u du portable_ops_inst pre2 acc.2
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := csz, elements := drop }, count := cnt' } : EnumCE),
+             (index_mut_back1 pre3, scratch1)))) = _
+      rw [slice_index_mut_ok acc.1 cnt hacc_idx]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [hte_eq]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [slice_index_mut_ok (Aeneas.Std.Slice.set acc.1 cnt te) cnt
+            (by have h := slice_set_length acc.1 cnt te
+                have h' : (Aeneas.Std.Slice.set acc.1 cnt te).val.length = acc.1.val.length := h
+                omega)]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [hpre2, hv1_eq]
+      simp only [Aeneas.Std.bind_tc_ok, slice_set_set]
+    · refine ⟨hlt, rfl, (by show cnt'.val = k + 1; rw [hcnt', hcnt]), ?_, ?_, ?_⟩
+      · show drop.length = (K.val - (k + 1)) * csz.val
+        have hsplit : (K.val - k) * csz.val = (K.val - (k + 1)) * csz.val + csz.val := by
+          rw [show K.val - k = (K.val - (k + 1)) + 1 from by omega]; ring
+        rw [hdlen, hrest, hsplit]
+        exact Nat.add_sub_cancel _ _
+      · intro ℓ
+        rw [hdget ℓ, hsuf (csz.val + ℓ),
+            show k * csz.val + (csz.val + ℓ) = (k + 1) * csz.val + ℓ from by ring]
+      · refine (holds_ok _).mpr ⟨?_, ?_, ?_⟩
+        · rw [slice_set_length]; exact hacc_len
+        · intro i hi
+          have hilen : i < acc.1.val.length := by
+            have : acc.1.val.length = K.val := hacc_len
+            omega
+          rw [slice_set_get acc.1 cnt v1.1 i hilen]
+          by_cases hik : i = cnt.val
+          · rw [if_pos hik, hik, hcnt]; exact hcell
+          · rw [if_neg hik]
+            exact hacc_spec i (by rw [hcnt] at hik; omega)
+        · intro i hi c hc ℓ hℓ
+          have hilen : i < acc.1.val.length := by
+            have : acc.1.val.length = K.val := hacc_len
+            omega
+          rw [slice_set_get acc.1 cnt v1.1 i hilen]
+          by_cases hik : i = cnt.val
+          · rw [if_pos hik]; exact hv1_bnd c hc ℓ hℓ
+          · rw [if_neg hik]
+            exact hacc_bnd i (by rw [hcnt] at hik; omega) c hc ℓ hℓ
+  · -- no full chunk remains: k = K, the loop is done
+    have hkK : k = K.val := by omega
+    have hrest0 : rest.length = 0 := by rw [hrest, hkK]; simp
+    refine triple_of_ok_fc (v := .done acc) ?_ ?_
+    · show libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
+        du portable_ops_inst
+        ({ iter := { cs := csz, elements := rest }, count := cnt } : EnumCE) acc.1 acc.2 = _
+      unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := csz, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.None,
+                 { iter := { cs := csz, elements := rest }, count := cnt }) from
+          enumerate_chunks_next_done rest csz cnt (by rw [hrest0]; exact hcs0)]
+      rfl
+    · refine (holds_ok _).mpr ⟨hacc_len, ?_, ?_⟩
+      · intro i hi; exact hacc_spec i (by omega)
+      · intro i hi; exact hacc_bnd i (by omega)
+
+/-! ### SPEC side — `deserialize_then_decompress_u_then_ntt` is two nested `createi`s. -/
+
+/-- The decode `createi` closure at index `k`: slice the `k`-th window, `byte_decode_dyn`,
+    `decompress` — which is exactly `deserialize_then_decompress_v` of that window, the
+    function the per-element leaf is stated against. -/
+private theorem ddu_closure_eq (K du csz : Std.Usize) (ciphertext : Slice Std.U8)
+    (hcs0 : 0 < csz.val)
+    (h_ct : ciphertext.val.length = K.val * csz.val)
+    (f : Nat → Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (hf : ∀ k : Nat, k < K.val →
+        hacspec_ml_kem.serialize.deserialize_then_decompress_v (uWin ciphertext csz.val k) du
+          = .ok (f k))
+    (k : Nat) (hk : k < K.val) :
+    (hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+        K).call_mut
+        ((csz, ciphertext, du) :
+          hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure K)
+        (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      = .ok (f k, ((csz, ciphertext, du) :
+          hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure K)) := by
+  have hKmax : K.val * csz.val ≤ Std.Usize.max := by rw [← h_ct]; exact ciphertext.property
+  have hwin : k * csz.val + csz.val ≤ K.val * csz.val := by
+    calc k * csz.val + csz.val = (k + 1) * csz.val := by ring
+      _ ≤ K.val * csz.val := Nat.mul_le_mul_right _ (by omega)
+  have hkmax : k * csz.val + csz.val ≤ Std.Usize.max := le_trans hwin hKmax
+  have hk_le : k ≤ Std.Usize.max :=
+    le_trans (Nat.le_mul_of_pos_right _ hcs0) (le_trans (Nat.le_add_right _ _) hkmax)
+  have hkval : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k := usize_ofNat_val_le k hk_le
+  obtain ⟨st, hst_eq, hst_val⟩ :=
+    usize_mul_ok_e (⟨BitVec.ofNat _ k⟩ : Std.Usize) csz
+      (by rw [hkval]; exact le_trans (Nat.le_add_right _ _) hkmax)
+  rw [hkval] at hst_val
+  obtain ⟨en, hen_eq, hen_val⟩ := usize_add_ok_e st csz (by rw [hst_val]; exact hkmax)
+  have hen_val' : en.val = k * csz.val + csz.val := by rw [hen_val, hst_val]
+  have hidx := slice_range_index_ok ciphertext st en
+    (by rw [hst_val, hen_val']; exact Nat.lt_add_of_pos_right hcs0)
+    (by rw [hen_val', h_ct]; exact hwin)
+  have hslice_eq : (⟨List.slice st.val en.val ciphertext.val, by
+        have := ciphertext.val.slice_length_le st.val en.val; scalar_tac⟩ : Slice Std.U8)
+      = uWin ciphertext csz.val k := by
+    apply Subtype.ext
+    show List.slice st.val en.val ciphertext.val
+        = List.slice (k * csz.val) (k * csz.val + csz.val) ciphertext.val
+    rw [hst_val, hen_val']
+  rw [hslice_eq] at hidx
+  have hdd := hf k hk
+  unfold hacspec_ml_kem.serialize.deserialize_then_decompress_v at hdd
+  show (hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+      (RANK := K) (csz, ciphertext, du) (⟨BitVec.ofNat _ k⟩ : Std.Usize)) = _
+  unfold
+    hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+  -- the captured triple `(cs, ciphertext, du)` destructures definitionally
+  show (do
+      let start ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) * csz
+      let i2 ← start + csz
+      let s1 ← CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
+        ciphertext { start := start, «end» := i2 }
+      let a ← hacspec_ml_kem.serialize.byte_decode_dyn s1 du
+      let a1 ← hacspec_ml_kem.compress.decompress a du
+      Result.ok (a1, csz, ciphertext, du)) = Result.ok (f k, csz, ciphertext, du)
+  rw [hst_eq]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hen_eq]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hidx]
+  simp only [Aeneas.Std.bind_tc_ok]
+  obtain ⟨a, ha_bd, ha_dc⟩ := bind_ok_inv _ _ _ hdd
+  rw [ha_bd]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [ha_dc]
+  simp only [Aeneas.Std.bind_tc_ok]
+
+/-- The `vector_ntt` `createi` closure at index `k`: read cell `k`, apply the hacspec NTT. -/
+private theorem vntt_closure_eq (K : Std.Usize)
+    (a : Std.Array FePoly K)
+    (g : Nat → FePoly)
+    (hg : ∀ k : Nat, k < K.val → hacspec_ml_kem.ntt.ntt (a.val[k]!) = .ok (g k))
+    (hK_le : K.val ≤ Std.Usize.max)
+    (k : Nat) (hk : k < K.val) :
+    (hacspec_ml_kem.ntt.vector_ntt.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+        K).call_mut a (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+      = .ok (g k, a) := by
+  have halen : a.val.length = K.val := a.property
+  have hkval : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
+    usize_ofNat_val_le k (by omega)
+  show (hacspec_ml_kem.ntt.vector_ntt.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+      (RANK := K) a (⟨BitVec.ofNat _ k⟩ : Std.Usize)) = _
+  unfold
+    hacspec_ml_kem.ntt.vector_ntt.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+  rw [array_index_usize_get a (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [hkval, halen]; exact hk)]
+  simp only [Aeneas.Std.bind_tc_ok, hkval]
+  rw [hg k hk]
+  rfl
+
+/-- The `i`-th cell of the DECODE half of the spec, before the NTT is applied. -/
+private def uCell (ciphertext : Slice Std.U8) (du : Std.Usize) (cs i : Nat) : FePoly :=
+  match hacspec_ml_kem.serialize.deserialize_then_decompress_v (uWin ciphertext cs i) du with
+  | .ok a => a
+  | _ => default
+
+set_option maxHeartbeats 4000000 in
+/-- **The spec bridge.** Given the per-cell chain (decode → decompress → hacspec NTT) at
+    every index `< K`, the whole `deserialize_then_decompress_u_then_ntt` IS the lift of the
+    impl's output slice. Both halves are `createi`s normalised by `from_fn_pure_eq`. -/
+private theorem spec_ddu_then_ntt_eq (K du csz : Std.Usize) (ciphertext : Slice Std.U8)
+    (hdu : du.val = 10 ∨ du.val = 11) (hcs : csz.val = 32 * du.val)
+    (h_ct : ciphertext.val.length = K.val * csz.val)
+    (p : Slice SPoly)
+    (hcell : ∀ i : Nat, i < K.val →
+      (do
+        let a ← hacspec_ml_kem.serialize.deserialize_then_decompress_v
+                  (uWin ciphertext csz.val i) du
+        hacspec_ml_kem.ntt.ntt a) = .ok (lift_poly (p.val[i]!))) :
+    hacspec_ml_kem.serialize.deserialize_then_decompress_u_then_ntt K ciphertext du
+      = .ok (lift_vec_slice p K) := by
+  have hcs0 : 0 < csz.val := by rcases hdu with h | h <;> omega
+  have hKmax : K.val * csz.val ≤ Std.Usize.max := by rw [← h_ct]; exact ciphertext.property
+  have hK_le : K.val ≤ Std.Usize.max := le_trans (Nat.le_mul_of_pos_right _ hcs0) hKmax
+  -- Split the per-cell chain into its decode half and its NTT half.
+  have hboth : ∀ i : Nat, i < K.val →
+      hacspec_ml_kem.serialize.deserialize_then_decompress_v (uWin ciphertext csz.val i) du
+          = .ok (uCell ciphertext du csz.val i)
+      ∧ hacspec_ml_kem.ntt.ntt (uCell ciphertext du csz.val i)
+          = .ok (lift_poly (p.val[i]!)) := by
+    intro i hi
+    obtain ⟨x, hx, hnx⟩ := bind_ok_inv _ _ _ (hcell i hi)
+    have hfc : uCell ciphertext du csz.val i = x := by unfold uCell; rw [hx]
+    rw [hfc]; exact ⟨hx, hnx⟩
+  -- `256 * du / 8 = 32 * du`, the spec's own chunk width.
+  have hcoef_val : (hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT : Std.Usize).val
+      = 256 := by
+    simp only [hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT]; rfl
+  have h256 : 256 * du.val ≤ Std.Usize.max := by
+    rcases hdu with h | h <;> rw [h] <;> scalar_tac
+  obtain ⟨m, hm_eq, hm_val⟩ :=
+    usize_mul_ok_e hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT du
+      (by rw [hcoef_val]; exact h256)
+  rw [hcoef_val] at hm_val
+  have hdiv : (m / (8#usize : Std.Usize) : Result Std.Usize) = .ok csz :=
+    usize_div_lit m 8#usize csz (by scalar_tac)
+      (by rw [hm_val, hcs, show (256 : Nat) * du.val = 8 * (32 * du.val) from by ring]
+          exact Nat.mul_div_cancel_left _ (by omega))
+  -- The DECODE `createi`.
+  have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := FePoly) K
+      (hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+        K)
+      ((csz, ciphertext, du) :
+        hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure K)
+      (uCell ciphertext du csz.val)
+      (fun k hk => ddu_closure_eq K du csz ciphertext hcs0 h_ct _
+        (fun i hi => (hboth i hi).1) k hk)
+  have hAcell : ∀ k : Nat, k < K.val →
+      ((List.range K.val).map (uCell ciphertext du csz.val))[k]!
+        = uCell ciphertext du csz.val k := by
+    intro k hk
+    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk]
+    rfl
+  -- The NTT `createi`, over exactly that array.
+  have hgn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := FePoly) K
+      (hacspec_ml_kem.ntt.vector_ntt.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+        K)
+      (⟨(List.range K.val).map (uCell ciphertext du csz.val), by simp⟩ : Std.Array FePoly K)
+      (fun i => lift_poly (p.val[i]!))
+      (fun k hk => vntt_closure_eq K
+        (⟨(List.range K.val).map (uCell ciphertext du csz.val), by simp⟩ : Std.Array FePoly K)
+        (fun i => lift_poly (p.val[i]!))
+        (fun i hi => by
+          have h2 := (hboth i hi).2
+          rw [← hAcell i hi] at h2
+          exact h2) hK_le k hk)
+  unfold hacspec_ml_kem.serialize.deserialize_then_decompress_u_then_ntt
+    hacspec_ml_kem.serialize.deserialize_then_decompress_u
+    hacspec_ml_kem.parameters.createi
+  rw [hm_eq]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hdiv]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hfn]
+  simp only [Aeneas.Std.bind_tc_ok]
+  unfold hacspec_ml_kem.ntt.vector_ntt hacspec_ml_kem.parameters.createi
+  rw [hgn]
+  rfl
+
+end DDUBank
+
 /-- **INC-2a.7** — `ind_cpa.deserialize_then_decompress_u`: the WHOLE-VECTOR ciphertext-`u`
     decode, with the NTT FUSED into the loop.
 
@@ -2861,6 +3304,53 @@ theorem deserialize_then_decompress_u_fc
                 ∧ (∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
                     (((p.1.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
                       ≤ 3328) ⌝ ⦄ := by
-  sorry
+  -- The chunk width `csz = 256·du/8 = 32·du`, as a `Usize`.
+  have h_ct' : ciphertext.val.length = K.val * 32 * U_COMPRESSION_FACTOR.val := h_ct
+  have h32 : ((32#usize : Std.Usize)).val = 32 := by scalar_tac
+  have hcoef_val :
+      (libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT : Std.Usize).val = 256 := by
+    simp only [libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT]; rfl
+  have h256 : 256 * U_COMPRESSION_FACTOR.val ≤ Std.Usize.max := by
+    rcases h_du with h | h <;> rw [h] <;> scalar_tac
+  obtain ⟨m, hm_eq, hm_val⟩ :=
+    usize_mul_ok_e libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
+      U_COMPRESSION_FACTOR (by rw [hcoef_val]; exact h256)
+  rw [hcoef_val] at hm_val
+  obtain ⟨csz, -, hcsz_val⟩ :=
+    usize_mul_ok_e (32#usize : Std.Usize) U_COMPRESSION_FACTOR (by rw [h32]; omega)
+  rw [h32] at hcsz_val
+  have hdiv : (m / (8#usize : Std.Usize) : Result Std.Usize) = .ok csz :=
+    usize_div_lit m 8#usize csz (by scalar_tac)
+      (by rw [hm_val, hcsz_val,
+              show (256 : Nat) * U_COMPRESSION_FACTOR.val
+                = 8 * (32 * U_COMPRESSION_FACTOR.val) from by ring]
+          exact Nat.mul_div_cancel_left _ (by omega))
+  have h_ctK : ciphertext.val.length = K.val * csz.val := by rw [h_ct', hcsz_val]; ring
+  -- The fused loop, then the two-`createi` spec bridge.
+  obtain ⟨p, hp_eq, hp_holds⟩ :=
+    triple_exists_ok_fc
+      (ddu_loop_fc K U_COMPRESSION_FACTOR csz ciphertext h_du hcsz_val h_ctK
+        u_as_ntt scratch h_out_len)
+  obtain ⟨hp_len, hp_cell, hp_bnd⟩ := (holds_ok _).mp hp_holds
+  refine triple_of_ok_fc (v := p) ?_ ?_
+  · unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u
+    rw [hm_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hdiv]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [show (CoreModels.core.slice.Slice.chunks_exact ciphertext csz)
+          = .ok { cs := csz, elements := ciphertext } from rfl]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [show (CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
+          (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+            Std.U8)
+          { cs := csz, elements := ciphertext })
+        = .ok ({ iter := { cs := csz, elements := ciphertext }, count := 0#usize } :
+                libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl.EnumCE) from rfl]
+    simp only [Aeneas.Std.bind_tc_ok]
+    exact hp_eq
+  · exact ⟨hp_len,
+      spec_ddu_then_ntt_eq K U_COMPRESSION_FACTOR csz ciphertext h_du hcsz_val h_ctK p.1 hp_cell,
+      hp_bnd⟩
 
 end libcrux_iot_ml_kem.IndCpaFc
