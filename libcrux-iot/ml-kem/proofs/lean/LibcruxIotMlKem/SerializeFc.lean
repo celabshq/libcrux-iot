@@ -3,10 +3,11 @@
 
   **All seven INC-1 obligations in this file are PROVED as of 2026-08-19.** (It was a
   scaffold when written; the header said so, and said so for one commit too long — the last
-  close is what made it false.) As of 2026-08-20 the file is NO LONGER sorry-free: the two
-  INC-2a `_u` per-element obligations at the bottom (`deserialize_then_decompress_ring_element_u_fc`,
-  `compress_then_serialize_ring_element_u_fc`) are freshly SCAFFOLDED and sorried, awaiting
-  their prover dispatch. Nothing above them is affected.
+  close is what made it false.) As of 2026-08-20 the file carries the two INC-2a `_u`
+  per-element obligations at the bottom. `deserialize_then_decompress_ring_element_u_fc` is
+  **PROVED** (2026-08-20), axiom-clean `[propext, Classical.choice, Quot.sound]`, on the
+  `LuBank` section that precedes it; `compress_then_serialize_ring_element_u_fc` is still
+  SCAFFOLDED and sorried, awaiting its prover dispatch. Nothing above them is affected.
 
   The obligations were authored by the HELPER as a *low-distance binding* to the EXISTING
   `HacspecMlKem` model (skill §0.2) — nothing here invents a spec — then frozen by the
@@ -41,8 +42,8 @@
   * `compress_then_serialize_{4,5,10,11}` / `deserialize_then_decompress_{4,5,10,11}`
     — impl-internal specializations of a `d`-parametric operation. No named
     hacspec counterpart; they are step lemmas feeding the `_u`/`_v` apexes above and are
-    proved as private banks inside those obligations (L53Bank/L54Bank at d ∈ {4,5}), not as
-    obligations of their own.
+    proved as private banks inside those obligations (L53Bank/L54Bank at d ∈ {4,5}, LuBank
+    at d ∈ {10,11}), not as obligations of their own.
   * `to_unsigned_field_modulus` — an impl-internal helper with no spec image.
 -/
 
@@ -9664,6 +9665,1231 @@ theorem compress_then_serialize_ring_element_v_fc
     is `deserialize_then_decompress_u_then_ntt`, not plain `_u`.
 -/
 
+section LuBank
+
+open Aeneas.Std
+open libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl
+
+/-! ### `I16`-level seam toolkit — what the `d ∈ {4,5}` seams did not need.
+
+    `deserialize_4_int` / `deserialize_5_int` do all their bit work at `U8` and widen
+    once at the end, because a 4- or 5-bit lane fits in a byte. At `d ∈ {10,11}` a lane
+    does NOT, so the impl widens FIRST (`as_i16` on each byte) and masks/shifts at
+    `I16`. So the `u8_and_mask_val` / `u8_shl_lit` / `u8_shr_lit` trio has to be
+    restated at `I16`; the shapes are identical and the payload-pinned
+    `i16_shl_bvp` / `i16_shr_bvp` (from the L5.4 bank) do the `Result` half. -/
+
+/-- `c16 x &&& (2 ^ k - 1)` is `x % 2 ^ k`. The `I16` counterpart of
+    `u8_and_mask_val`, fused with `c16_bv_toNat` because every mask in the two `_u`
+    seams is applied to a freshly widened byte. -/
+private theorem Lu_c16_and_mask (x : Std.U8) (c : Std.I16) (k : Nat)
+    (hc : c.bv.toNat = 2 ^ k - 1) : ((c16 x &&& c : Std.I16)).bv.toNat = x.val % 2 ^ k := by
+  show ((c16 x).bv &&& c.bv).toNat = _
+  rw [BitVec.toNat_and, hc, Nat.and_two_pow_sub_one_eq_mod, c16_bv_toNat]
+
+/-- `x <<< k` at `I16`, value kept symbolic as `* 2 ^ k`; the `< 65536` guard is the
+    no-truncation side condition. -/
+private theorem Lu_i16_shl (x : Std.I16) (t : Std.I32) (k : Nat)
+    (htv : t.val = (k : Int)) (hk : k < 16) (hx : x.bv.toNat * 2 ^ k < 65536) :
+    ∃ z : Std.I16, (x <<< t : Result Std.I16) = .ok z ∧ z.bv.toNat = x.bv.toNat * 2 ^ k :=
+  ⟨⟨x.bv <<< k⟩, i16_shl_bvp x t k htv hk, bv16_shl_p x.bv k hx⟩
+
+/-- `x >>> k` at `I16`, kept symbolic as `/ 2 ^ k`; nonnegative, so arithmetic shift
+    IS floor division. -/
+private theorem Lu_i16_shr (x : Std.I16) (t : Std.I32) (k : Nat)
+    (htv : t.val = (k : Int)) (hk : k < 16) (hx : x.bv.toNat < 32768) :
+    ∃ z : Std.I16, (x >>> t : Result Std.I16) = .ok z ∧ z.bv.toNat = x.bv.toNat / 2 ^ k :=
+  ⟨⟨x.bv.sshiftRight k⟩, i16_shr_bvp x t k htv hk, bv16_sshr_p x.bv k hx⟩
+
+/-- "OR == + when the fields are disjoint", at `I16`. The `I16` counterpart of
+    `lane_or_val`; `or_shl_add` is the shared content. -/
+private theorem Lu_i16_or_add (x y : Std.I16) (hi lo e : Nat)
+    (hx : x.bv.toNat = hi * 2 ^ e) (hy : y.bv.toNat = lo) (hlo : lo < 2 ^ e) :
+    ((x ||| y : Std.I16)).bv.toNat = hi * 2 ^ e + lo := by
+  show ((x.bv ||| y.bv)).toNat = _
+  rw [BitVec.toNat_or, hx, hy, or_shl_add _ _ _ hlo]
+
+/-- Small nonnegative `I16`s: `.val` is the `BitVec.toNat`, at the width the two `_u`
+    seams produce (`< 2048 < 4096`). -/
+private theorem Lu_i16_val (x : Std.I16) (n : Nat) (h : x.bv.toNat = n) (hn : n < 4096) :
+    x.val = (n : Int) := by
+  rw [i16_val_of_toNat x (by rw [h]; exact hn), h]
+
+/-! ### The four pure-`Nat` lane identities at `d = 10`.
+
+    Pulled OUT of the seam proof rather than left as eight in-line `omega`s. Measured:
+    in-line, each `omega` sees the seam's ~40 byte / mask / shift / window hypotheses
+    and the declaration blows the 200k heartbeat budget at the sixth lane; as separate
+    three-variable lemmas the whole seam is cheap. The four shapes repeat verbatim on
+    the second half of the chunk (bytes 5–9), so eight lanes cost four lemmas. -/
+
+private theorem Lu10_w0 (b0 b1 b2 : Nat) (h0 : b0 < 256) (h1 : b1 < 256) :
+    b1 % 2 ^ 2 * 2 ^ 8 + b0 % 2 ^ 8 < 4096
+    ∧ b1 % 2 ^ 2 * 2 ^ 8 + b0 % 2 ^ 8
+        = (b0 + 256 * b1 + 65536 * b2) % 1024 := by omega
+
+private theorem Lu10_w1 (b1 b2 b3 : Nat) (h1 : b1 < 256) (h2 : b2 < 256) :
+    b2 % 2 ^ 4 * 2 ^ 6 + b1 / 2 ^ 2 < 4096
+    ∧ b2 % 2 ^ 4 * 2 ^ 6 + b1 / 2 ^ 2
+        = (b1 + 256 * b2 + 65536 * b3) / 4 % 1024 := by omega
+
+private theorem Lu10_w2 (b2 b3 b4 : Nat) (h2 : b2 < 256) (h3 : b3 < 256) :
+    b3 % 2 ^ 6 * 2 ^ 4 + b2 / 2 ^ 4 < 4096
+    ∧ b3 % 2 ^ 6 * 2 ^ 4 + b2 / 2 ^ 4
+        = (b2 + 256 * b3 + 65536 * b4) / 16 % 1024 := by omega
+
+private theorem Lu10_w3 (b3 b4 b5 : Nat) (h3 : b3 < 256) (h4 : b4 < 256) :
+    b4 * 2 ^ 2 + b3 / 2 ^ 6 < 4096
+    ∧ b4 * 2 ^ 2 + b3 / 2 ^ 6
+        = (b3 + 256 * b4 + 65536 * b5) / 64 % 1024 := by omega
+
+/-- The no-truncation guard every masked `<<<` in the two `_u` seams needs. -/
+private theorem Lu_mod_shl_lt (x k e : Nat) (h : 2 ^ k * 2 ^ e ≤ 65536) :
+    x % 2 ^ k * 2 ^ e < 65536 :=
+  lt_of_lt_of_le
+    ((Nat.mul_lt_mul_right (Nat.two_pow_pos e)).mpr (Nat.mod_lt _ (Nat.two_pow_pos k))) h
+
+/-- Same guard for the unmasked `<<<`s (`d = 10` lanes 3, 7; `d = 11` lanes 2, 5, 7). -/
+private theorem Lu_byte_shl_lt (x e : Nat) (hx : x < 256) (h : 256 * 2 ^ e ≤ 65536) :
+    x * 2 ^ e < 65536 :=
+  lt_of_lt_of_le ((Nat.mul_lt_mul_right (Nat.two_pow_pos e)).mpr hx) h
+
+/-- A byte is never near the `I16` sign bit, so `>>>` is floor division. -/
+private theorem Lu_byte_lt_32768 (x : Nat) (hx : x < 256) : x < 32768 := by omega
+
+/-! The three field-width facts the `d = 11` seam feeds to `Lu_i16_or_add`. Stated as
+    lemmas rather than in-line `omega`s for the reason recorded above the `d = 10`
+    shape lemmas: the `d = 11` seam's branch context is larger still. -/
+
+private theorem Lu_byte_lt_pow (x f : Nat) (hx : x < 256) (h : 256 ≤ 2 ^ f) : x < 2 ^ f :=
+  lt_of_lt_of_le hx h
+
+private theorem Lu_byte_shl_lt' (x e f : Nat) (hx : x < 256) (h : 256 * 2 ^ e ≤ 2 ^ f) :
+    x * 2 ^ e < 2 ^ f :=
+  lt_of_lt_of_le ((Nat.mul_lt_mul_right (Nat.two_pow_pos e)).mpr hx) h
+
+private theorem Lu_byte_div_lt (x e f : Nat) (hx : x < 256) (h : 256 ≤ 2 ^ e * 2 ^ f) :
+    x / 2 ^ e < 2 ^ f :=
+  Nat.div_lt_of_lt_mul (lt_of_lt_of_le hx h)
+
+/-! ### IMPL SEAM at `d = 10`. The SHAPE is `deserialize_5_int_lanes_eq`'s (M-C(3)):
+    name every `Result` payload existentially, push each lane to a pure `Nat`
+    expression in the ten bytes, convert the spec side to `decw` with M-C(1) once, and
+    close the eight identities by `omega`. Two differences from `d = 5`, both from the
+    lane no longer fitting in a byte: the algebra is at `I16` (see the toolkit above),
+    and every lane straddles, so all eight are `(hi_field << e) ||| (lo >> s)` — the
+    `d = 4` seam's mask-only lanes have no analogue here. -/
+
+private theorem deserialize_10_int_lanes_eq (bytes : Slice Std.U8)
+    (h_len : bytes.val.length = 10) :
+    ∃ v0 v1 v2 v3 v4 v5 v6 v7 : Std.I16,
+      libcrux_iot_ml_kem.vector.portable.serialize.deserialize_10_int bytes
+          = .ok (v0, v1, v2, v3, v4, v5, v6, v7)
+      ∧ ∀ k : Nat, k < 8 →
+          (([v0, v1, v2, v3, v4, v5, v6, v7] : List Std.I16)[k]!).val
+            = (win bytes.val 10 k : Int) := by
+  have hb0 := u8_val_lt bytes.val 0
+  have hb1 := u8_val_lt bytes.val 1
+  have hb2 := u8_val_lt bytes.val 2
+  have hb3 := u8_val_lt bytes.val 3
+  have hb4 := u8_val_lt bytes.val 4
+  have hb5 := u8_val_lt bytes.val 5
+  have hb6 := u8_val_lt bytes.val 6
+  have hb7 := u8_val_lt bytes.val 7
+  have hb8 := u8_val_lt bytes.val 8
+  have hb9 := u8_val_lt bytes.val 9
+  have h17 : (10:Nat) ≤ 17 := by norm_num
+  have hi0 : Slice.index_usize bytes 0#usize = .ok bytes.val[0]! :=
+    slice_index_usize_eq bytes 0#usize (by simp [h_len])
+  have hi1 : Slice.index_usize bytes 1#usize = .ok bytes.val[1]! :=
+    slice_index_usize_eq bytes 1#usize (by simp [h_len])
+  have hi2 : Slice.index_usize bytes 2#usize = .ok bytes.val[2]! :=
+    slice_index_usize_eq bytes 2#usize (by simp [h_len])
+  have hi3 : Slice.index_usize bytes 3#usize = .ok bytes.val[3]! :=
+    slice_index_usize_eq bytes 3#usize (by simp [h_len])
+  have hi4 : Slice.index_usize bytes 4#usize = .ok bytes.val[4]! :=
+    slice_index_usize_eq bytes 4#usize (by simp [h_len])
+  have hi5 : Slice.index_usize bytes 5#usize = .ok bytes.val[5]! :=
+    slice_index_usize_eq bytes 5#usize (by simp [h_len])
+  have hi6 : Slice.index_usize bytes 6#usize = .ok bytes.val[6]! :=
+    slice_index_usize_eq bytes 6#usize (by simp [h_len])
+  have hi7 : Slice.index_usize bytes 7#usize = .ok bytes.val[7]! :=
+    slice_index_usize_eq bytes 7#usize (by simp [h_len])
+  have hi8 : Slice.index_usize bytes 8#usize = .ok bytes.val[8]! :=
+    slice_index_usize_eq bytes 8#usize (by simp [h_len])
+  have hi9 : Slice.index_usize bytes 9#usize = .ok bytes.val[9]! :=
+    slice_index_usize_eq bytes 9#usize (by simp [h_len])
+  -- the eight masks, `ma<byte>`
+  have ma0 : ((c16 bytes.val[0]! &&& 255#i16 : Std.I16)).bv.toNat = bytes.val[0]!.val % 2 ^ 8 :=
+    Lu_c16_and_mask _ _ 8 rfl
+  have ma1 : ((c16 bytes.val[1]! &&& 3#i16 : Std.I16)).bv.toNat = bytes.val[1]!.val % 2 ^ 2 :=
+    Lu_c16_and_mask _ _ 2 rfl
+  have ma2 : ((c16 bytes.val[2]! &&& 15#i16 : Std.I16)).bv.toNat = bytes.val[2]!.val % 2 ^ 4 :=
+    Lu_c16_and_mask _ _ 4 rfl
+  have ma3 : ((c16 bytes.val[3]! &&& 63#i16 : Std.I16)).bv.toNat = bytes.val[3]!.val % 2 ^ 6 :=
+    Lu_c16_and_mask _ _ 6 rfl
+  have ma5 : ((c16 bytes.val[5]! &&& 255#i16 : Std.I16)).bv.toNat = bytes.val[5]!.val % 2 ^ 8 :=
+    Lu_c16_and_mask _ _ 8 rfl
+  have ma6 : ((c16 bytes.val[6]! &&& 3#i16 : Std.I16)).bv.toNat = bytes.val[6]!.val % 2 ^ 2 :=
+    Lu_c16_and_mask _ _ 2 rfl
+  have ma7 : ((c16 bytes.val[7]! &&& 15#i16 : Std.I16)).bv.toNat = bytes.val[7]!.val % 2 ^ 4 :=
+    Lu_c16_and_mask _ _ 4 rfl
+  have ma8 : ((c16 bytes.val[8]! &&& 63#i16 : Std.I16)).bv.toNat = bytes.val[8]!.val % 2 ^ 6 :=
+    Lu_c16_and_mask _ _ 6 rfl
+  -- the eight left shifts, one per lane; `s<lane>`
+  obtain ⟨s0, hs0, hs0v⟩ := Lu_i16_shl (c16 bytes.val[1]! &&& 3#i16) 8#i32 8
+    (by scalar_tac) (by norm_num) (by rw [ma1]; exact Lu_mod_shl_lt _ 2 8 (by norm_num))
+  obtain ⟨s1, hs1, hs1v⟩ := Lu_i16_shl (c16 bytes.val[2]! &&& 15#i16) 6#i32 6
+    (by scalar_tac) (by norm_num) (by rw [ma2]; exact Lu_mod_shl_lt _ 4 6 (by norm_num))
+  obtain ⟨s2, hs2, hs2v⟩ := Lu_i16_shl (c16 bytes.val[3]! &&& 63#i16) 4#i32 4
+    (by scalar_tac) (by norm_num) (by rw [ma3]; exact Lu_mod_shl_lt _ 6 4 (by norm_num))
+  obtain ⟨s3, hs3, hs3v⟩ := Lu_i16_shl (c16 bytes.val[4]!) 2#i32 2
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_shl_lt _ 2 (by scalar_tac) (by norm_num))
+  obtain ⟨s4, hs4, hs4v⟩ := Lu_i16_shl (c16 bytes.val[6]! &&& 3#i16) 8#i32 8
+    (by scalar_tac) (by norm_num) (by rw [ma6]; exact Lu_mod_shl_lt _ 2 8 (by norm_num))
+  obtain ⟨s5, hs5, hs5v⟩ := Lu_i16_shl (c16 bytes.val[7]! &&& 15#i16) 6#i32 6
+    (by scalar_tac) (by norm_num) (by rw [ma7]; exact Lu_mod_shl_lt _ 4 6 (by norm_num))
+  obtain ⟨s6, hs6, hs6v⟩ := Lu_i16_shl (c16 bytes.val[8]! &&& 63#i16) 4#i32 4
+    (by scalar_tac) (by norm_num) (by rw [ma8]; exact Lu_mod_shl_lt _ 6 4 (by norm_num))
+  obtain ⟨s7, hs7, hs7v⟩ := Lu_i16_shl (c16 bytes.val[9]!) 2#i32 2
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_shl_lt _ 2 (by scalar_tac) (by norm_num))
+  -- the six right shifts; `y<byte><amount>`
+  obtain ⟨y12, hy12, hy12v⟩ := Lu_i16_shr (c16 bytes.val[1]!) 2#i32 2
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y24, hy24, hy24v⟩ := Lu_i16_shr (c16 bytes.val[2]!) 4#i32 4
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y36, hy36, hy36v⟩ := Lu_i16_shr (c16 bytes.val[3]!) 6#i32 6
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y62, hy62, hy62v⟩ := Lu_i16_shr (c16 bytes.val[6]!) 2#i32 2
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y74, hy74, hy74v⟩ := Lu_i16_shr (c16 bytes.val[7]!) 4#i32 4
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y86, hy86, hy86v⟩ := Lu_i16_shr (c16 bytes.val[8]!) 6#i32 6
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  refine ⟨s0 ||| (c16 bytes.val[0]! &&& 255#i16), s1 ||| y12, s2 ||| y24, s3 ||| y36,
+    s4 ||| (c16 bytes.val[5]! &&& 255#i16), s5 ||| y62, s6 ||| y74, s7 ||| y86, ?_, ?_⟩
+  · -- the straight-line body walk: every step is one of the facts above
+    simp only [libcrux_iot_ml_kem.vector.portable.serialize.deserialize_10_int,
+      hi0, hi1, hi2, hi3, hi4, hi5, hi6, hi7, hi8, hi9, as_i16_eq, as_i16_id,
+      hs0, hs1, hs2, hs3, hs4, hs5, hs6, hs7,
+      hy12, hy24, hy36, hy62, hy74, hy86, Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  · intro k hk
+    -- the eight lane values, in ℕ, powers kept symbolic
+    have f0 : s0.bv.toNat = bytes.val[1]!.val % 2 ^ 2 * 2 ^ 8 := by rw [hs0v, ma1]
+    have f1 : s1.bv.toNat = bytes.val[2]!.val % 2 ^ 4 * 2 ^ 6 := by rw [hs1v, ma2]
+    have f2 : s2.bv.toNat = bytes.val[3]!.val % 2 ^ 6 * 2 ^ 4 := by rw [hs2v, ma3]
+    have f3 : s3.bv.toNat = bytes.val[4]!.val * 2 ^ 2 := by rw [hs3v, c16_bv_toNat]
+    have f4 : s4.bv.toNat = bytes.val[6]!.val % 2 ^ 2 * 2 ^ 8 := by rw [hs4v, ma6]
+    have f5 : s5.bv.toNat = bytes.val[7]!.val % 2 ^ 4 * 2 ^ 6 := by rw [hs5v, ma7]
+    have f6 : s6.bv.toNat = bytes.val[8]!.val % 2 ^ 6 * 2 ^ 4 := by rw [hs6v, ma8]
+    have f7 : s7.bv.toNat = bytes.val[9]!.val * 2 ^ 2 := by rw [hs7v, c16_bv_toNat]
+    have g12 : y12.bv.toNat = bytes.val[1]!.val / 2 ^ 2 := by rw [hy12v, c16_bv_toNat]
+    have g24 : y24.bv.toNat = bytes.val[2]!.val / 2 ^ 4 := by rw [hy24v, c16_bv_toNat]
+    have g36 : y36.bv.toNat = bytes.val[3]!.val / 2 ^ 6 := by rw [hy36v, c16_bv_toNat]
+    have g62 : y62.bv.toNat = bytes.val[6]!.val / 2 ^ 2 := by rw [hy62v, c16_bv_toNat]
+    have g74 : y74.bv.toNat = bytes.val[7]!.val / 2 ^ 4 := by rw [hy74v, c16_bv_toNat]
+    have g86 : y86.bv.toNat = bytes.val[8]!.val / 2 ^ 6 := by rw [hy86v, c16_bv_toNat]
+    have n0 : ((s0 ||| (c16 bytes.val[0]! &&& 255#i16) : Std.I16)).bv.toNat
+        = bytes.val[1]!.val % 2 ^ 2 * 2 ^ 8 + bytes.val[0]!.val % 2 ^ 8 :=
+      Lu_i16_or_add _ _ _ _ 8 f0 ma0 (by omega)
+    have n1 : ((s1 ||| y12 : Std.I16)).bv.toNat
+        = bytes.val[2]!.val % 2 ^ 4 * 2 ^ 6 + bytes.val[1]!.val / 2 ^ 2 :=
+      Lu_i16_or_add _ _ _ _ 6 f1 g12 (by omega)
+    have n2 : ((s2 ||| y24 : Std.I16)).bv.toNat
+        = bytes.val[3]!.val % 2 ^ 6 * 2 ^ 4 + bytes.val[2]!.val / 2 ^ 4 :=
+      Lu_i16_or_add _ _ _ _ 4 f2 g24 (by omega)
+    have n3 : ((s3 ||| y36 : Std.I16)).bv.toNat
+        = bytes.val[4]!.val * 2 ^ 2 + bytes.val[3]!.val / 2 ^ 6 :=
+      Lu_i16_or_add _ _ _ _ 2 f3 g36 (by omega)
+    have n4 : ((s4 ||| (c16 bytes.val[5]! &&& 255#i16) : Std.I16)).bv.toNat
+        = bytes.val[6]!.val % 2 ^ 2 * 2 ^ 8 + bytes.val[5]!.val % 2 ^ 8 :=
+      Lu_i16_or_add _ _ _ _ 8 f4 ma5 (by omega)
+    have n5 : ((s5 ||| y62 : Std.I16)).bv.toNat
+        = bytes.val[7]!.val % 2 ^ 4 * 2 ^ 6 + bytes.val[6]!.val / 2 ^ 2 :=
+      Lu_i16_or_add _ _ _ _ 6 f5 g62 (by omega)
+    have n6 : ((s6 ||| y74 : Std.I16)).bv.toNat
+        = bytes.val[8]!.val % 2 ^ 6 * 2 ^ 4 + bytes.val[7]!.val / 2 ^ 4 :=
+      Lu_i16_or_add _ _ _ _ 4 f6 g74 (by omega)
+    have n7 : ((s7 ||| y86 : Std.I16)).bv.toNat
+        = bytes.val[9]!.val * 2 ^ 2 + bytes.val[8]!.val / 2 ^ 6 :=
+      Lu_i16_or_add _ _ _ _ 2 f7 g86 (by omega)
+    have key : ∀ v : Std.I16, v.val = (decw bytes.val (10 * k) 10 : Int) →
+        v.val = (win bytes.val 10 k : Int) := by
+      intro v h
+      rw [win_eq_decw bytes.val 10 k h17]
+      exact h
+    -- `decw` at the eight offsets. Kept SEPARATE from the `omega` steps: `norm_num`
+    -- rewrites `l[i]!` to `l[i]?.getD default`, and inside an `omega` goal the byte
+    -- atoms would stop matching the `hb*` / `hoob10` hypotheses.
+    have d0 : decw bytes.val (10 * 0) 10
+        = (bytes.val[0]!.val + 256 * bytes.val[1]!.val + 65536 * bytes.val[2]!.val)
+            % 1024 := by norm_num [decw]
+    have d1 : decw bytes.val (10 * 1) 10
+        = (bytes.val[1]!.val + 256 * bytes.val[2]!.val + 65536 * bytes.val[3]!.val)
+            / 4 % 1024 := by norm_num [decw]
+    have d2 : decw bytes.val (10 * 2) 10
+        = (bytes.val[2]!.val + 256 * bytes.val[3]!.val + 65536 * bytes.val[4]!.val)
+            / 16 % 1024 := by norm_num [decw]
+    have d3 : decw bytes.val (10 * 3) 10
+        = (bytes.val[3]!.val + 256 * bytes.val[4]!.val + 65536 * bytes.val[5]!.val)
+            / 64 % 1024 := by norm_num [decw]
+    have d4 : decw bytes.val (10 * 4) 10
+        = (bytes.val[5]!.val + 256 * bytes.val[6]!.val + 65536 * bytes.val[7]!.val)
+            % 1024 := by norm_num [decw]
+    have d5 : decw bytes.val (10 * 5) 10
+        = (bytes.val[6]!.val + 256 * bytes.val[7]!.val + 65536 * bytes.val[8]!.val)
+            / 4 % 1024 := by norm_num [decw]
+    have d6 : decw bytes.val (10 * 6) 10
+        = (bytes.val[7]!.val + 256 * bytes.val[8]!.val + 65536 * bytes.val[9]!.val)
+            / 16 % 1024 := by norm_num [decw]
+    have d7 : decw bytes.val (10 * 7) 10
+        = (bytes.val[8]!.val + 256 * bytes.val[9]!.val + 65536 * bytes.val[10]!.val)
+            / 64 % 1024 := by norm_num [decw]
+    refine key _ ?_
+    interval_cases k
+    · obtain ⟨p0, q0⟩ := Lu10_w0 bytes.val[0]!.val bytes.val[1]!.val bytes.val[2]!.val hb0 hb1
+      show ((s0 ||| (c16 bytes.val[0]! &&& 255#i16) : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n0 p0, d0, q0]
+    · obtain ⟨p1, q1⟩ := Lu10_w1 bytes.val[1]!.val bytes.val[2]!.val bytes.val[3]!.val hb1 hb2
+      show ((s1 ||| y12 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n1 p1, d1, q1]
+    · obtain ⟨p2, q2⟩ := Lu10_w2 bytes.val[2]!.val bytes.val[3]!.val bytes.val[4]!.val hb2 hb3
+      show ((s2 ||| y24 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n2 p2, d2, q2]
+    · obtain ⟨p3, q3⟩ := Lu10_w3 bytes.val[3]!.val bytes.val[4]!.val bytes.val[5]!.val hb3 hb4
+      show ((s3 ||| y36 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n3 p3, d3, q3]
+    · obtain ⟨p4, q4⟩ := Lu10_w0 bytes.val[5]!.val bytes.val[6]!.val bytes.val[7]!.val hb5 hb6
+      show ((s4 ||| (c16 bytes.val[5]! &&& 255#i16) : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n4 p4, d4, q4]
+    · obtain ⟨p5, q5⟩ := Lu10_w1 bytes.val[6]!.val bytes.val[7]!.val bytes.val[8]!.val hb6 hb7
+      show ((s5 ||| y62 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n5 p5, d5, q5]
+    · obtain ⟨p6, q6⟩ := Lu10_w2 bytes.val[7]!.val bytes.val[8]!.val bytes.val[9]!.val hb7 hb8
+      show ((s6 ||| y74 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n6 p6, d6, q6]
+    · obtain ⟨p7, q7⟩ := Lu10_w3 bytes.val[8]!.val bytes.val[9]!.val bytes.val[10]!.val hb8 hb9
+      show ((s7 ||| y86 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n7 p7, d7, q7]
+
+/-! ### The eight pure-`Nat` lane identities at `d = 11`.
+
+    Eight, not four: at `d = 10` the bit offset advances by 10 ≡ 2 (mod 8) and the
+    pattern repeats after four lanes, whereas at `d = 11` it advances by 3 (mod 8) and
+    the cycle is the full eight. Lanes 2 and 5 are the ones that genuinely span THREE
+    bytes — `(b_{i+2} & 1) << 10 | b_{i+1} << 2 | b_i >> 6` — which no seam in this
+    tree previously exercised; the extra `|||` is why their left-hand sides are
+    parenthesised as `(hi * 2 ^ 8 + mid) * 2 ^ 2`, i.e. one application of
+    `Lu_i16_or_add` per `|||` with the accumulated field re-associated in between. -/
+
+private theorem Lu11_w0 (b0 b1 b2 : Nat) (h0 : b0 < 256) (h1 : b1 < 256) :
+    b1 % 2 ^ 3 * 2 ^ 8 + b0 < 4096
+    ∧ b1 % 2 ^ 3 * 2 ^ 8 + b0
+        = (b0 + 256 * b1 + 65536 * b2) % 2048 := by omega
+
+private theorem Lu11_w1 (b1 b2 b3 : Nat) (h1 : b1 < 256) (h2 : b2 < 256) :
+    b2 % 2 ^ 6 * 2 ^ 5 + b1 / 2 ^ 3 < 4096
+    ∧ b2 % 2 ^ 6 * 2 ^ 5 + b1 / 2 ^ 3
+        = (b1 + 256 * b2 + 65536 * b3) / 8 % 2048 := by omega
+
+private theorem Lu11_w2 (b2 b3 b4 : Nat) (h2 : b2 < 256) (h3 : b3 < 256) :
+    (b4 % 2 ^ 1 * 2 ^ 8 + b3) * 2 ^ 2 + b2 / 2 ^ 6 < 4096
+    ∧ (b4 % 2 ^ 1 * 2 ^ 8 + b3) * 2 ^ 2 + b2 / 2 ^ 6
+        = (b2 + 256 * b3 + 65536 * b4) / 64 % 2048 := by omega
+
+private theorem Lu11_w3 (b4 b5 b6 : Nat) (h4 : b4 < 256) (h5 : b5 < 256) :
+    b5 % 2 ^ 4 * 2 ^ 7 + b4 / 2 ^ 1 < 4096
+    ∧ b5 % 2 ^ 4 * 2 ^ 7 + b4 / 2 ^ 1
+        = (b4 + 256 * b5 + 65536 * b6) / 2 % 2048 := by omega
+
+private theorem Lu11_w4 (b5 b6 b7 : Nat) (h5 : b5 < 256) (h6 : b6 < 256) :
+    b6 % 2 ^ 7 * 2 ^ 4 + b5 / 2 ^ 4 < 4096
+    ∧ b6 % 2 ^ 7 * 2 ^ 4 + b5 / 2 ^ 4
+        = (b5 + 256 * b6 + 65536 * b7) / 16 % 2048 := by omega
+
+private theorem Lu11_w5 (b6 b7 b8 : Nat) (h6 : b6 < 256) (h7 : b7 < 256) :
+    (b8 % 2 ^ 2 * 2 ^ 8 + b7) * 2 ^ 1 + b6 / 2 ^ 7 < 4096
+    ∧ (b8 % 2 ^ 2 * 2 ^ 8 + b7) * 2 ^ 1 + b6 / 2 ^ 7
+        = (b6 + 256 * b7 + 65536 * b8) / 128 % 2048 := by omega
+
+private theorem Lu11_w6 (b8 b9 b10 : Nat) (h8 : b8 < 256) (h9 : b9 < 256) :
+    b9 % 2 ^ 5 * 2 ^ 6 + b8 / 2 ^ 2 < 4096
+    ∧ b9 % 2 ^ 5 * 2 ^ 6 + b8 / 2 ^ 2
+        = (b8 + 256 * b9 + 65536 * b10) / 4 % 2048 := by omega
+
+private theorem Lu11_w7 (b9 b10 b11 : Nat) (h9 : b9 < 256) (h10 : b10 < 256) :
+    b10 * 2 ^ 3 + b9 / 2 ^ 5 < 4096
+    ∧ b10 * 2 ^ 3 + b9 / 2 ^ 5
+        = (b9 + 256 * b10 + 65536 * b11) / 32 % 2048 := by omega
+
+/-! ### IMPL SEAM at `d = 11`. Same shape as the `d = 10` seam above; the two
+    three-byte lanes are the only structural difference. -/
+
+private theorem deserialize_11_int_lanes_eq (bytes : Slice Std.U8)
+    (h_len : bytes.val.length = 11) :
+    ∃ v0 v1 v2 v3 v4 v5 v6 v7 : Std.I16,
+      libcrux_iot_ml_kem.vector.portable.serialize.deserialize_11_int bytes
+          = .ok (v0, v1, v2, v3, v4, v5, v6, v7)
+      ∧ ∀ k : Nat, k < 8 →
+          (([v0, v1, v2, v3, v4, v5, v6, v7] : List Std.I16)[k]!).val
+            = (win bytes.val 11 k : Int) := by
+  have hb0 := u8_val_lt bytes.val 0
+  have hb1 := u8_val_lt bytes.val 1
+  have hb2 := u8_val_lt bytes.val 2
+  have hb3 := u8_val_lt bytes.val 3
+  have hb4 := u8_val_lt bytes.val 4
+  have hb5 := u8_val_lt bytes.val 5
+  have hb6 := u8_val_lt bytes.val 6
+  have hb7 := u8_val_lt bytes.val 7
+  have hb8 := u8_val_lt bytes.val 8
+  have hb9 := u8_val_lt bytes.val 9
+  have hb10 := u8_val_lt bytes.val 10
+  have h17 : (11:Nat) ≤ 17 := by norm_num
+  have hi0 : Slice.index_usize bytes 0#usize = .ok bytes.val[0]! :=
+    slice_index_usize_eq bytes 0#usize (by simp [h_len])
+  have hi1 : Slice.index_usize bytes 1#usize = .ok bytes.val[1]! :=
+    slice_index_usize_eq bytes 1#usize (by simp [h_len])
+  have hi2 : Slice.index_usize bytes 2#usize = .ok bytes.val[2]! :=
+    slice_index_usize_eq bytes 2#usize (by simp [h_len])
+  have hi3 : Slice.index_usize bytes 3#usize = .ok bytes.val[3]! :=
+    slice_index_usize_eq bytes 3#usize (by simp [h_len])
+  have hi4 : Slice.index_usize bytes 4#usize = .ok bytes.val[4]! :=
+    slice_index_usize_eq bytes 4#usize (by simp [h_len])
+  have hi5 : Slice.index_usize bytes 5#usize = .ok bytes.val[5]! :=
+    slice_index_usize_eq bytes 5#usize (by simp [h_len])
+  have hi6 : Slice.index_usize bytes 6#usize = .ok bytes.val[6]! :=
+    slice_index_usize_eq bytes 6#usize (by simp [h_len])
+  have hi7 : Slice.index_usize bytes 7#usize = .ok bytes.val[7]! :=
+    slice_index_usize_eq bytes 7#usize (by simp [h_len])
+  have hi8 : Slice.index_usize bytes 8#usize = .ok bytes.val[8]! :=
+    slice_index_usize_eq bytes 8#usize (by simp [h_len])
+  have hi9 : Slice.index_usize bytes 9#usize = .ok bytes.val[9]! :=
+    slice_index_usize_eq bytes 9#usize (by simp [h_len])
+  have hi10 : Slice.index_usize bytes 10#usize = .ok bytes.val[10]! :=
+    slice_index_usize_eq bytes 10#usize (by simp [h_len])
+  -- the seven masks, `ma<byte>`
+  have ma1 : ((c16 bytes.val[1]! &&& 7#i16 : Std.I16)).bv.toNat = bytes.val[1]!.val % 2 ^ 3 :=
+    Lu_c16_and_mask _ _ 3 rfl
+  have ma2 : ((c16 bytes.val[2]! &&& 63#i16 : Std.I16)).bv.toNat = bytes.val[2]!.val % 2 ^ 6 :=
+    Lu_c16_and_mask _ _ 6 rfl
+  have ma4 : ((c16 bytes.val[4]! &&& 1#i16 : Std.I16)).bv.toNat = bytes.val[4]!.val % 2 ^ 1 :=
+    Lu_c16_and_mask _ _ 1 rfl
+  have ma5 : ((c16 bytes.val[5]! &&& 15#i16 : Std.I16)).bv.toNat = bytes.val[5]!.val % 2 ^ 4 :=
+    Lu_c16_and_mask _ _ 4 rfl
+  have ma6 : ((c16 bytes.val[6]! &&& 127#i16 : Std.I16)).bv.toNat = bytes.val[6]!.val % 2 ^ 7 :=
+    Lu_c16_and_mask _ _ 7 rfl
+  have ma8 : ((c16 bytes.val[8]! &&& 3#i16 : Std.I16)).bv.toNat = bytes.val[8]!.val % 2 ^ 2 :=
+    Lu_c16_and_mask _ _ 2 rfl
+  have ma9 : ((c16 bytes.val[9]! &&& 31#i16 : Std.I16)).bv.toNat = bytes.val[9]!.val % 2 ^ 5 :=
+    Lu_c16_and_mask _ _ 5 rfl
+  -- the ten left shifts
+  obtain ⟨s0, hs0, hs0v⟩ := Lu_i16_shl (c16 bytes.val[1]! &&& 7#i16) 8#i32 8
+    (by scalar_tac) (by norm_num) (by rw [ma1]; exact Lu_mod_shl_lt _ 3 8 (by norm_num))
+  obtain ⟨s1, hs1, hs1v⟩ := Lu_i16_shl (c16 bytes.val[2]! &&& 63#i16) 5#i32 5
+    (by scalar_tac) (by norm_num) (by rw [ma2]; exact Lu_mod_shl_lt _ 6 5 (by norm_num))
+  obtain ⟨s2a, hs2a, hs2av⟩ := Lu_i16_shl (c16 bytes.val[4]! &&& 1#i16) 10#i32 10
+    (by scalar_tac) (by norm_num) (by rw [ma4]; exact Lu_mod_shl_lt _ 1 10 (by norm_num))
+  obtain ⟨s2b, hs2b, hs2bv⟩ := Lu_i16_shl (c16 bytes.val[3]!) 2#i32 2
+    (by scalar_tac) (by norm_num)
+    (by rw [c16_bv_toNat]; exact Lu_byte_shl_lt _ 2 (by scalar_tac) (by norm_num))
+  obtain ⟨s3, hs3, hs3v⟩ := Lu_i16_shl (c16 bytes.val[5]! &&& 15#i16) 7#i32 7
+    (by scalar_tac) (by norm_num) (by rw [ma5]; exact Lu_mod_shl_lt _ 4 7 (by norm_num))
+  obtain ⟨s4, hs4, hs4v⟩ := Lu_i16_shl (c16 bytes.val[6]! &&& 127#i16) 4#i32 4
+    (by scalar_tac) (by norm_num) (by rw [ma6]; exact Lu_mod_shl_lt _ 7 4 (by norm_num))
+  obtain ⟨s5a, hs5a, hs5av⟩ := Lu_i16_shl (c16 bytes.val[8]! &&& 3#i16) 9#i32 9
+    (by scalar_tac) (by norm_num) (by rw [ma8]; exact Lu_mod_shl_lt _ 2 9 (by norm_num))
+  obtain ⟨s5b, hs5b, hs5bv⟩ := Lu_i16_shl (c16 bytes.val[7]!) 1#i32 1
+    (by scalar_tac) (by norm_num)
+    (by rw [c16_bv_toNat]; exact Lu_byte_shl_lt _ 1 (by scalar_tac) (by norm_num))
+  obtain ⟨s6, hs6, hs6v⟩ := Lu_i16_shl (c16 bytes.val[9]! &&& 31#i16) 6#i32 6
+    (by scalar_tac) (by norm_num) (by rw [ma9]; exact Lu_mod_shl_lt _ 5 6 (by norm_num))
+  obtain ⟨s7, hs7, hs7v⟩ := Lu_i16_shl (c16 bytes.val[10]!) 3#i32 3
+    (by scalar_tac) (by norm_num)
+    (by rw [c16_bv_toNat]; exact Lu_byte_shl_lt _ 3 (by scalar_tac) (by norm_num))
+  -- the seven right shifts; `y<byte><amount>`
+  obtain ⟨y13, hy13, hy13v⟩ := Lu_i16_shr (c16 bytes.val[1]!) 3#i32 3
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y26, hy26, hy26v⟩ := Lu_i16_shr (c16 bytes.val[2]!) 6#i32 6
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y41, hy41, hy41v⟩ := Lu_i16_shr (c16 bytes.val[4]!) 1#i32 1
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y54, hy54, hy54v⟩ := Lu_i16_shr (c16 bytes.val[5]!) 4#i32 4
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y67, hy67, hy67v⟩ := Lu_i16_shr (c16 bytes.val[6]!) 7#i32 7
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y82, hy82, hy82v⟩ := Lu_i16_shr (c16 bytes.val[8]!) 2#i32 2
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  obtain ⟨y95, hy95, hy95v⟩ := Lu_i16_shr (c16 bytes.val[9]!) 5#i32 5
+    (by scalar_tac) (by norm_num) (by rw [c16_bv_toNat]; exact Lu_byte_lt_32768 _ (by scalar_tac))
+  refine ⟨s0 ||| c16 bytes.val[0]!, s1 ||| y13, (s2a ||| s2b) ||| y26, s3 ||| y41,
+    s4 ||| y54, (s5a ||| s5b) ||| y67, s6 ||| y82, s7 ||| y95, ?_, ?_⟩
+  · simp only [libcrux_iot_ml_kem.vector.portable.serialize.deserialize_11_int,
+      hi0, hi1, hi2, hi3, hi4, hi5, hi6, hi7, hi8, hi9, hi10, as_i16_eq,
+      hs0, hs1, hs2a, hs2b, hs3, hs4, hs5a, hs5b, hs6, hs7,
+      hy13, hy26, hy41, hy54, hy67, hy82, hy95,
+      Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  · intro k hk
+    have f0 : s0.bv.toNat = bytes.val[1]!.val % 2 ^ 3 * 2 ^ 8 := by rw [hs0v, ma1]
+    have f1 : s1.bv.toNat = bytes.val[2]!.val % 2 ^ 6 * 2 ^ 5 := by rw [hs1v, ma2]
+    have f2a : s2a.bv.toNat = bytes.val[4]!.val % 2 ^ 1 * 2 ^ 10 := by rw [hs2av, ma4]
+    have f2b : s2b.bv.toNat = bytes.val[3]!.val * 2 ^ 2 := by rw [hs2bv, c16_bv_toNat]
+    have f3 : s3.bv.toNat = bytes.val[5]!.val % 2 ^ 4 * 2 ^ 7 := by rw [hs3v, ma5]
+    have f4 : s4.bv.toNat = bytes.val[6]!.val % 2 ^ 7 * 2 ^ 4 := by rw [hs4v, ma6]
+    have f5a : s5a.bv.toNat = bytes.val[8]!.val % 2 ^ 2 * 2 ^ 9 := by rw [hs5av, ma8]
+    have f5b : s5b.bv.toNat = bytes.val[7]!.val * 2 ^ 1 := by rw [hs5bv, c16_bv_toNat]
+    have f6 : s6.bv.toNat = bytes.val[9]!.val % 2 ^ 5 * 2 ^ 6 := by rw [hs6v, ma9]
+    have f7 : s7.bv.toNat = bytes.val[10]!.val * 2 ^ 3 := by rw [hs7v, c16_bv_toNat]
+    have g00 : ((c16 bytes.val[0]! : Std.I16)).bv.toNat = bytes.val[0]!.val := c16_bv_toNat _
+    have g13 : y13.bv.toNat = bytes.val[1]!.val / 2 ^ 3 := by rw [hy13v, c16_bv_toNat]
+    have g26 : y26.bv.toNat = bytes.val[2]!.val / 2 ^ 6 := by rw [hy26v, c16_bv_toNat]
+    have g41 : y41.bv.toNat = bytes.val[4]!.val / 2 ^ 1 := by rw [hy41v, c16_bv_toNat]
+    have g54 : y54.bv.toNat = bytes.val[5]!.val / 2 ^ 4 := by rw [hy54v, c16_bv_toNat]
+    have g67 : y67.bv.toNat = bytes.val[6]!.val / 2 ^ 7 := by rw [hy67v, c16_bv_toNat]
+    have g82 : y82.bv.toNat = bytes.val[8]!.val / 2 ^ 2 := by rw [hy82v, c16_bv_toNat]
+    have g95 : y95.bv.toNat = bytes.val[9]!.val / 2 ^ 5 := by rw [hy95v, c16_bv_toNat]
+    have n0 : ((s0 ||| c16 bytes.val[0]! : Std.I16)).bv.toNat
+        = bytes.val[1]!.val % 2 ^ 3 * 2 ^ 8 + bytes.val[0]!.val :=
+      Lu_i16_or_add _ _ _ _ 8 f0 g00 (Lu_byte_lt_pow _ 8 (by scalar_tac) (by norm_num))
+    have n1 : ((s1 ||| y13 : Std.I16)).bv.toNat
+        = bytes.val[2]!.val % 2 ^ 6 * 2 ^ 5 + bytes.val[1]!.val / 2 ^ 3 :=
+      Lu_i16_or_add _ _ _ _ 5 f1 g13 (Lu_byte_div_lt _ 3 5 (by scalar_tac) (by norm_num))
+    -- lane 2, the first THREE-byte lane: one `Lu_i16_or_add` per `|||`, with the
+    -- accumulated field re-associated as `(… * 2 ^ 8 + b3) * 2 ^ 2` in between.
+    have n2a : ((s2a ||| s2b : Std.I16)).bv.toNat
+        = (bytes.val[4]!.val % 2 ^ 1 * 2 ^ 8 + bytes.val[3]!.val) * 2 ^ 2 := by
+      rw [Lu_i16_or_add _ _ _ _ 10 f2a f2b
+        (Lu_byte_shl_lt' _ 2 10 (by scalar_tac) (by norm_num))]
+      ring
+    have n2 : (((s2a ||| s2b) ||| y26 : Std.I16)).bv.toNat
+        = (bytes.val[4]!.val % 2 ^ 1 * 2 ^ 8 + bytes.val[3]!.val) * 2 ^ 2
+          + bytes.val[2]!.val / 2 ^ 6 :=
+      Lu_i16_or_add _ _ _ _ 2 n2a g26 (Lu_byte_div_lt _ 6 2 (by scalar_tac) (by norm_num))
+    have n3 : ((s3 ||| y41 : Std.I16)).bv.toNat
+        = bytes.val[5]!.val % 2 ^ 4 * 2 ^ 7 + bytes.val[4]!.val / 2 ^ 1 :=
+      Lu_i16_or_add _ _ _ _ 7 f3 g41 (Lu_byte_div_lt _ 1 7 (by scalar_tac) (by norm_num))
+    have n4 : ((s4 ||| y54 : Std.I16)).bv.toNat
+        = bytes.val[6]!.val % 2 ^ 7 * 2 ^ 4 + bytes.val[5]!.val / 2 ^ 4 :=
+      Lu_i16_or_add _ _ _ _ 4 f4 g54 (Lu_byte_div_lt _ 4 4 (by scalar_tac) (by norm_num))
+    have n5a : ((s5a ||| s5b : Std.I16)).bv.toNat
+        = (bytes.val[8]!.val % 2 ^ 2 * 2 ^ 8 + bytes.val[7]!.val) * 2 ^ 1 := by
+      rw [Lu_i16_or_add _ _ _ _ 9 f5a f5b
+        (Lu_byte_shl_lt' _ 1 9 (by scalar_tac) (by norm_num))]
+      ring
+    have n5 : (((s5a ||| s5b) ||| y67 : Std.I16)).bv.toNat
+        = (bytes.val[8]!.val % 2 ^ 2 * 2 ^ 8 + bytes.val[7]!.val) * 2 ^ 1
+          + bytes.val[6]!.val / 2 ^ 7 :=
+      Lu_i16_or_add _ _ _ _ 1 n5a g67 (Lu_byte_div_lt _ 7 1 (by scalar_tac) (by norm_num))
+    have n6 : ((s6 ||| y82 : Std.I16)).bv.toNat
+        = bytes.val[9]!.val % 2 ^ 5 * 2 ^ 6 + bytes.val[8]!.val / 2 ^ 2 :=
+      Lu_i16_or_add _ _ _ _ 6 f6 g82 (Lu_byte_div_lt _ 2 6 (by scalar_tac) (by norm_num))
+    have n7 : ((s7 ||| y95 : Std.I16)).bv.toNat
+        = bytes.val[10]!.val * 2 ^ 3 + bytes.val[9]!.val / 2 ^ 5 :=
+      Lu_i16_or_add _ _ _ _ 3 f7 g95 (Lu_byte_div_lt _ 5 3 (by scalar_tac) (by norm_num))
+    have key : ∀ v : Std.I16, v.val = (decw bytes.val (11 * k) 11 : Int) →
+        v.val = (win bytes.val 11 k : Int) := by
+      intro v h
+      rw [win_eq_decw bytes.val 11 k h17]
+      exact h
+    have d0 : decw bytes.val (11 * 0) 11
+        = (bytes.val[0]!.val + 256 * bytes.val[1]!.val + 65536 * bytes.val[2]!.val)
+            % 2048 := by norm_num [decw]
+    have d1 : decw bytes.val (11 * 1) 11
+        = (bytes.val[1]!.val + 256 * bytes.val[2]!.val + 65536 * bytes.val[3]!.val)
+            / 8 % 2048 := by norm_num [decw]
+    have d2 : decw bytes.val (11 * 2) 11
+        = (bytes.val[2]!.val + 256 * bytes.val[3]!.val + 65536 * bytes.val[4]!.val)
+            / 64 % 2048 := by norm_num [decw]
+    have d3 : decw bytes.val (11 * 3) 11
+        = (bytes.val[4]!.val + 256 * bytes.val[5]!.val + 65536 * bytes.val[6]!.val)
+            / 2 % 2048 := by norm_num [decw]
+    have d4 : decw bytes.val (11 * 4) 11
+        = (bytes.val[5]!.val + 256 * bytes.val[6]!.val + 65536 * bytes.val[7]!.val)
+            / 16 % 2048 := by norm_num [decw]
+    have d5 : decw bytes.val (11 * 5) 11
+        = (bytes.val[6]!.val + 256 * bytes.val[7]!.val + 65536 * bytes.val[8]!.val)
+            / 128 % 2048 := by norm_num [decw]
+    have d6 : decw bytes.val (11 * 6) 11
+        = (bytes.val[8]!.val + 256 * bytes.val[9]!.val + 65536 * bytes.val[10]!.val)
+            / 4 % 2048 := by norm_num [decw]
+    have d7 : decw bytes.val (11 * 7) 11
+        = (bytes.val[9]!.val + 256 * bytes.val[10]!.val + 65536 * bytes.val[11]!.val)
+            / 32 % 2048 := by norm_num [decw]
+    refine key _ ?_
+    interval_cases k
+    · obtain ⟨p0, q0⟩ := Lu11_w0 bytes.val[0]!.val bytes.val[1]!.val bytes.val[2]!.val hb0 hb1
+      show ((s0 ||| c16 bytes.val[0]! : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n0 p0, d0, q0]
+    · obtain ⟨p1, q1⟩ := Lu11_w1 bytes.val[1]!.val bytes.val[2]!.val bytes.val[3]!.val hb1 hb2
+      show ((s1 ||| y13 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n1 p1, d1, q1]
+    · obtain ⟨p2, q2⟩ := Lu11_w2 bytes.val[2]!.val bytes.val[3]!.val bytes.val[4]!.val hb2 hb3
+      show (((s2a ||| s2b) ||| y26 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n2 p2, d2, q2]
+    · obtain ⟨p3, q3⟩ := Lu11_w3 bytes.val[4]!.val bytes.val[5]!.val bytes.val[6]!.val hb4 hb5
+      show ((s3 ||| y41 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n3 p3, d3, q3]
+    · obtain ⟨p4, q4⟩ := Lu11_w4 bytes.val[5]!.val bytes.val[6]!.val bytes.val[7]!.val hb5 hb6
+      show ((s4 ||| y54 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n4 p4, d4, q4]
+    · obtain ⟨p5, q5⟩ := Lu11_w5 bytes.val[6]!.val bytes.val[7]!.val bytes.val[8]!.val hb6 hb7
+      show (((s5a ||| s5b) ||| y67 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n5 p5, d5, q5]
+    · obtain ⟨p6, q6⟩ := Lu11_w6 bytes.val[8]!.val bytes.val[9]!.val bytes.val[10]!.val hb8 hb9
+      show ((s6 ||| y82 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n6 p6, d6, q6]
+    · obtain ⟨p7, q7⟩ := Lu11_w7 bytes.val[9]!.val bytes.val[10]!.val bytes.val[11]!.val hb9 hb10
+      show ((s7 ||| y95 : Std.I16)).val = _
+      rw [Lu_i16_val _ _ n7 p7, d7, q7]
+
+/-! ### Impl side — one 16-lane chunk, at both `d`.
+
+    `deserialize_10` / `deserialize_11` are `deserialize_5` with the half-chunk width
+    `5 → 10 → 11`: sub-slice the low half, eight `Array.update`s, sub-slice the high
+    half, eight more. REUSES `put16` / `put16_get` and `win_at_offset` from the L5.3
+    bank unchanged — the only per-`d` content is the two sub-slice widths. -/
+
+private theorem deserialize_10_eq (bytes : Slice Std.U8) (h_len : bytes.val.length = 20)
+    (out : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ∃ v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector,
+      libcrux_iot_ml_kem.vector.portable.serialize.deserialize_10 bytes out = .ok v
+      ∧ ∀ k : Nat, k < 16 → (v.elements.val[k]!).val = (win bytes.val 10 k : Int) := by
+  obtain ⟨s0, hs0, hs0len, hs0get⟩ :=
+    slice_index_range_strict bytes 0#usize 10#usize (by scalar_tac) (by rw [h_len]; scalar_tac)
+  obtain ⟨s1, hs1, hs1len, hs1get⟩ :=
+    slice_index_range_strict bytes 10#usize 20#usize (by scalar_tac) (by rw [h_len]; scalar_tac)
+  have hs0len' : s0.val.length = 10 := by rw [hs0len]; scalar_tac
+  have hs1len' : s1.val.length = 10 := by rw [hs1len]; scalar_tac
+  obtain ⟨a0, a1, a2, a3, a4, a5, a6, a7, hlo, hlow⟩ := deserialize_10_int_lanes_eq s0 hs0len'
+  obtain ⟨b0, b1, b2, b3, b4, b5, b6, b7, hhi, hhiw⟩ := deserialize_10_int_lanes_eq s1 hs1len'
+  -- the two halves sit at byte offsets 0 and 10, i.e. lane offsets 0 and 8
+  have hlow' : ∀ k : Nat, k < 8 →
+      (([a0, a1, a2, a3, a4, a5, a6, a7] : List Std.I16)[k]!).val
+        = (win bytes.val 10 k : Int) := by
+    intro k hk
+    rw [hlow k hk, win_at_offset bytes.val s0.val 0 10 10 k 0
+      (fun t ht => by simpa using hs0get t (by scalar_tac))
+      (by omega) (fun t ht => by omega), Nat.zero_add]
+  have hhiw' : ∀ k : Nat, k < 8 →
+      (([b0, b1, b2, b3, b4, b5, b6, b7] : List Std.I16)[k]!).val
+        = (win bytes.val 10 (8 + k) : Int) := by
+    intro k hk
+    rw [hhiw k hk, win_at_offset bytes.val s1.val 10 10 10 k 8
+      (fun t ht => by simpa using hs1get t (by scalar_tac))
+      (by omega) (fun t ht => by omega)]
+  have hu := fun (i : Std.Usize) (hi : i.val < 16) =>
+    fun (A : Std.Array Std.I16 16#usize) (x : Std.I16) => array_update16 A i x hi
+  refine ⟨{ elements := put16 out.elements a0 a1 a2 a3 a4 a5 a6 a7 b0 b1 b2 b3 b4 b5 b6 b7 },
+    ?_, ?_⟩
+  · unfold libcrux_iot_ml_kem.vector.portable.serialize.deserialize_10 put16
+    simp only [hs0, hs1, hlo, hhi, Aeneas.Std.bind_tc_ok,
+      hu 0#usize (by scalar_tac), hu 1#usize (by scalar_tac), hu 2#usize (by scalar_tac),
+      hu 3#usize (by scalar_tac), hu 4#usize (by scalar_tac), hu 5#usize (by scalar_tac),
+      hu 6#usize (by scalar_tac), hu 7#usize (by scalar_tac), hu 8#usize (by scalar_tac),
+      hu 9#usize (by scalar_tac), hu 10#usize (by scalar_tac), hu 11#usize (by scalar_tac),
+      hu 12#usize (by scalar_tac), hu 13#usize (by scalar_tac), hu 14#usize (by scalar_tac),
+      hu 15#usize (by scalar_tac)]
+    rfl
+  · intro k hk
+    show ((put16 out.elements a0 a1 a2 a3 a4 a5 a6 a7 b0 b1 b2 b3 b4 b5 b6 b7).val)[k]!.val = _
+    rw [put16_get (k := k) (hk := hk)]
+    interval_cases k
+    · exact hlow' 0 (by omega)
+    · exact hlow' 1 (by omega)
+    · exact hlow' 2 (by omega)
+    · exact hlow' 3 (by omega)
+    · exact hlow' 4 (by omega)
+    · exact hlow' 5 (by omega)
+    · exact hlow' 6 (by omega)
+    · exact hlow' 7 (by omega)
+    · exact hhiw' 0 (by omega)
+    · exact hhiw' 1 (by omega)
+    · exact hhiw' 2 (by omega)
+    · exact hhiw' 3 (by omega)
+    · exact hhiw' 4 (by omega)
+    · exact hhiw' 5 (by omega)
+    · exact hhiw' 6 (by omega)
+    · exact hhiw' 7 (by omega)
+
+private theorem deserialize_11_eq (bytes : Slice Std.U8) (h_len : bytes.val.length = 22)
+    (out : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ∃ v : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector,
+      libcrux_iot_ml_kem.vector.portable.serialize.deserialize_11 bytes out = .ok v
+      ∧ ∀ k : Nat, k < 16 → (v.elements.val[k]!).val = (win bytes.val 11 k : Int) := by
+  obtain ⟨s0, hs0, hs0len, hs0get⟩ :=
+    slice_index_range_strict bytes 0#usize 11#usize (by scalar_tac) (by rw [h_len]; scalar_tac)
+  obtain ⟨s1, hs1, hs1len, hs1get⟩ :=
+    slice_index_range_strict bytes 11#usize 22#usize (by scalar_tac) (by rw [h_len]; scalar_tac)
+  have hs0len' : s0.val.length = 11 := by rw [hs0len]; scalar_tac
+  have hs1len' : s1.val.length = 11 := by rw [hs1len]; scalar_tac
+  obtain ⟨a0, a1, a2, a3, a4, a5, a6, a7, hlo, hlow⟩ := deserialize_11_int_lanes_eq s0 hs0len'
+  obtain ⟨b0, b1, b2, b3, b4, b5, b6, b7, hhi, hhiw⟩ := deserialize_11_int_lanes_eq s1 hs1len'
+  have hlow' : ∀ k : Nat, k < 8 →
+      (([a0, a1, a2, a3, a4, a5, a6, a7] : List Std.I16)[k]!).val
+        = (win bytes.val 11 k : Int) := by
+    intro k hk
+    rw [hlow k hk, win_at_offset bytes.val s0.val 0 11 11 k 0
+      (fun t ht => by simpa using hs0get t (by scalar_tac))
+      (by omega) (fun t ht => by omega), Nat.zero_add]
+  have hhiw' : ∀ k : Nat, k < 8 →
+      (([b0, b1, b2, b3, b4, b5, b6, b7] : List Std.I16)[k]!).val
+        = (win bytes.val 11 (8 + k) : Int) := by
+    intro k hk
+    rw [hhiw k hk, win_at_offset bytes.val s1.val 11 11 11 k 8
+      (fun t ht => by simpa using hs1get t (by scalar_tac))
+      (by omega) (fun t ht => by omega)]
+  have hu := fun (i : Std.Usize) (hi : i.val < 16) =>
+    fun (A : Std.Array Std.I16 16#usize) (x : Std.I16) => array_update16 A i x hi
+  refine ⟨{ elements := put16 out.elements a0 a1 a2 a3 a4 a5 a6 a7 b0 b1 b2 b3 b4 b5 b6 b7 },
+    ?_, ?_⟩
+  · unfold libcrux_iot_ml_kem.vector.portable.serialize.deserialize_11 put16
+    simp only [hs0, hs1, hlo, hhi, Aeneas.Std.bind_tc_ok,
+      hu 0#usize (by scalar_tac), hu 1#usize (by scalar_tac), hu 2#usize (by scalar_tac),
+      hu 3#usize (by scalar_tac), hu 4#usize (by scalar_tac), hu 5#usize (by scalar_tac),
+      hu 6#usize (by scalar_tac), hu 7#usize (by scalar_tac), hu 8#usize (by scalar_tac),
+      hu 9#usize (by scalar_tac), hu 10#usize (by scalar_tac), hu 11#usize (by scalar_tac),
+      hu 12#usize (by scalar_tac), hu 13#usize (by scalar_tac), hu 14#usize (by scalar_tac),
+      hu 15#usize (by scalar_tac)]
+    rfl
+  · intro k hk
+    show ((put16 out.elements a0 a1 a2 a3 a4 a5 a6 a7 b0 b1 b2 b3 b4 b5 b6 b7).val)[k]!.val = _
+    rw [put16_get (k := k) (hk := hk)]
+    interval_cases k
+    · exact hlow' 0 (by omega)
+    · exact hlow' 1 (by omega)
+    · exact hlow' 2 (by omega)
+    · exact hlow' 3 (by omega)
+    · exact hlow' 4 (by omega)
+    · exact hlow' 5 (by omega)
+    · exact hlow' 6 (by omega)
+    · exact hlow' 7 (by omega)
+    · exact hhiw' 0 (by omega)
+    · exact hhiw' 1 (by omega)
+    · exact hhiw' 2 (by omega)
+    · exact hhiw' 3 (by omega)
+    · exact hhiw' 4 (by omega)
+    · exact hhiw' 5 (by omega)
+    · exact hhiw' 6 (by omega)
+    · exact hhiw' 7 (by omega)
+
+/-! ### Impl side — the two `chunks_exact` loops.
+
+    The SAME K1 combinator `loop_chunks_exact_pk_spec` at a new chunk size (20 / 22
+    where `d = 5` has 10), and the SAME `dcplane` invariant and `chunk_decompress_ok`
+    step, which are generic in `d`. Two separate proofs only because the
+    machine-generated body names differ per width, exactly as at `dv ∈ {4,5}`. -/
+
+private theorem Lu_loop_10_fc
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 320)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10_loop
+      (vectortraitsOperationsInst := portable_ops_inst)
+      { iter := { cs := 20#usize, elements := serialized }, count := 0#usize } re
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (dcplane serialized.val 10 p 16)).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10_loop
+  refine loop_chunks_exact_pk_spec _ re serialized 20#usize 16
+    (fun k acc => .ok (dcplane serialized.val 10 acc k)) (by scalar_tac)
+    (by simpa [Aeneas.Std.Slice.length] using h_len)
+    ((holds_ok _).mpr (by intro i hi; omega)) ?_
+  intro acc k rest cnt hk hcnt hrest hsuf hinv
+  have hinv' : dcplane serialized.val 10 acc k := (holds_ok _).mp hinv
+  have h20 : ((20#usize : Std.Usize).val) = 20 := by scalar_tac
+  rw [h20] at hrest
+  simp only [h20] at hsuf
+  by_cases hlt : k < 16
+  · have hrest20 : 20 ≤ rest.length := by
+      rw [hrest]
+      have h1 : 1 ≤ 16 - k := by omega
+      calc (20:Nat) = 1 * 20 := by ring
+      _ ≤ (16 - k) * 20 := Nat.mul_le_mul_right 20 h1
+    obtain ⟨chunk, drop, cnt', hnext, hcnt', hclen, hdlen, hcget, hdget⟩ :=
+      enumerate_chunks_next_cont_drop rest 20#usize cnt
+        (by rw [h20]; simpa [Aeneas.Std.Slice.length] using hrest20) (by scalar_tac)
+    have hcnt16 : cnt.val < 16 := by omega
+    have hlen1 : cnt.val < acc.coefficients.val.length := by
+      have hc : acc.coefficients.val.length = 16 := by
+        have := acc.coefficients.property; simpa using this
+      omega
+    have hchunk_len : chunk.val.length = 20 := by
+      simpa [Aeneas.Std.Slice.length] using hclen
+    have hcser : ∀ m : Nat, m < 20 → chunk.val[m]! = serialized.val[20 * k + m]! := by
+      intro m hm
+      rw [hcget m (by rw [h20]; omega), hsuf m]
+      congr 1; omega
+    have hwin : ∀ ℓ : Nat, ℓ < 16 →
+        win chunk.val 10 ℓ = win serialized.val 10 (16 * k + ℓ) := by
+      intro ℓ hℓ
+      exact win_at_offset serialized.val chunk.val (20 * k) 20 10 ℓ (16 * k)
+        (fun t ht => hcser t ht) (by ring) (fun t ht => by omega)
+    obtain ⟨v, hv_eq, hv⟩ :=
+      deserialize_10_eq chunk hchunk_len (acc.coefficients.val[cnt.val]'hlen1)
+    have hvwin : ∀ ℓ : Nat, ℓ < 16 →
+        (v.elements.val[ℓ]!).val = (win serialized.val 10 (16 * k + ℓ) : Int) := by
+      intro ℓ hℓ
+      rw [hv ℓ hℓ, hwin ℓ hℓ]
+    obtain ⟨w, hw_eq, hw⟩ :=
+      chunk_decompress_ok serialized.val 10 (by omega) 10#i32 (by scalar_tac) k v hvwin
+    have hlen2 : cnt.val < (Std.Array.set acc.coefficients cnt v).val.length := by
+      have hc : (Std.Array.set acc.coefficients cnt v).val.length = 16 := by
+        have := (Std.Array.set acc.coefficients cnt v).property; simpa using this
+      omega
+    have hgi : (Std.Array.set acc.coefficients cnt v).val[cnt.val]!
+        = (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 :=
+      getElem!_pos (Std.Array.set acc.coefficients cnt v).val cnt.val hlen2
+    have hself : (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 = v := by
+      rw [← hgi, array_set_get16 acc.coefficients cnt v cnt.val hcnt16 hcnt16, if_pos rfl]
+    refine triple_of_ok_fc
+      (v := .cont ({ iter := { cs := 20#usize, elements := drop }, count := cnt' },
+                   { coefficients :=
+                       Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w })) ?_ ?_
+    · show libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10_loop.body
+        portable_ops_inst { iter := { cs := 20#usize, elements := rest }, count := cnt } acc = _
+      unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := 20#usize, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.Some (cnt, chunk),
+                 { iter := { cs := 20#usize, elements := drop }, count := cnt' }) from hnext]
+      show (do
+          let (t, back) ← Aeneas.Std.Array.index_mut_usize acc.coefficients cnt
+          let t1 ← libcrux_iot_ml_kem.vector.portable.serialize.deserialize_10 chunk t
+          let (t2, back1) ← Aeneas.Std.Array.index_mut_usize (back t1) cnt
+          let t3 ← libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient
+            10#i32 t2
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := 20#usize, elements := drop }, count := cnt' } : EnumCE),
+             ({ coefficients := back1 t3 } :
+               libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)))) = _
+      rw [array_index_mut16 acc.coefficients cnt hlen1]
+      simp only [Aeneas.Std.bind_tc_ok]
+      show (do
+          let t1 ← libcrux_iot_ml_kem.vector.portable.serialize.deserialize_10 chunk
+            (acc.coefficients.val[cnt.val]'hlen1)
+          let (t2, back1) ← Aeneas.Std.Array.index_mut_usize
+            (Std.Array.set acc.coefficients cnt t1) cnt
+          let t3 ← libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient
+            10#i32 t2
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := 20#usize, elements := drop }, count := cnt' } : EnumCE),
+             ({ coefficients := back1 t3 } :
+               libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)))) = _
+      rw [hv_eq]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [array_index_mut16 (Std.Array.set acc.coefficients cnt v) cnt hlen2]
+      simp only [Aeneas.Std.bind_tc_ok]
+      show (do
+          let t3 ← libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient
+            10#i32 ((Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2)
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := 20#usize, elements := drop }, count := cnt' } : EnumCE),
+             ({ coefficients :=
+                 Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt t3 } :
+               libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)))) = _
+      rw [hself, hw_eq]
+      rfl
+    · refine ⟨hlt, rfl, (by show cnt'.val = k + 1; rw [hcnt', hcnt]), ?_, ?_, ?_⟩
+      · show drop.length = (16 - (k + 1)) * (20#usize : Std.Usize).val
+        rw [h20, hdlen, hrest]
+        have h : (16 - k) = (16 - (k + 1)) + 1 := by omega
+        rw [h]; ring_nf; omega
+      · intro ℓ
+        simp only [h20]
+        rw [hdget ℓ]
+        simp only [h20]
+        rw [hsuf (20 + ℓ)]
+        congr 1 <;> omega
+      · refine (holds_ok _).mpr ?_
+        intro i hi ℓ hℓ
+        show ((Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w).val[i]!).elements.val[ℓ]!.val
+          = _
+        by_cases hik : i = k
+        · subst hik
+          rw [array_set_get16 _ _ _ _ (by omega) (by omega), if_pos (by omega)]
+          exact hw ℓ hℓ
+        · rw [array_set_get16 _ _ _ _ (by omega) (by omega), if_neg (by omega),
+            array_set_get16 _ _ _ _ (by omega) (by omega), if_neg (by omega)]
+          exact hinv' i (by omega) ℓ hℓ
+  · have hk16 : k = 16 := by omega
+    subst hk16
+    have hrest0 : rest.length = 0 := by simp [hrest]
+    refine triple_of_ok_fc (v := .done acc) ?_ ?_
+    · show libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10_loop.body
+        portable_ops_inst { iter := { cs := 20#usize, elements := rest }, count := cnt } acc = _
+      unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := 20#usize, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.None,
+                 { iter := { cs := 20#usize, elements := rest }, count := cnt }) from
+          enumerate_chunks_next_done rest 20#usize cnt (by rw [h20, hrest0]; omega)]
+      rfl
+    · exact (holds_ok _).mpr hinv'
+
+private theorem Lu_loop_11_fc
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 352)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11_loop
+      (vectortraitsOperationsInst := portable_ops_inst)
+      { iter := { cs := 22#usize, elements := serialized }, count := 0#usize } re
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (dcplane serialized.val 11 p 16)).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11_loop
+  refine loop_chunks_exact_pk_spec _ re serialized 22#usize 16
+    (fun k acc => .ok (dcplane serialized.val 11 acc k)) (by scalar_tac)
+    (by simpa [Aeneas.Std.Slice.length] using h_len)
+    ((holds_ok _).mpr (by intro i hi; omega)) ?_
+  intro acc k rest cnt hk hcnt hrest hsuf hinv
+  have hinv' : dcplane serialized.val 11 acc k := (holds_ok _).mp hinv
+  have h22 : ((22#usize : Std.Usize).val) = 22 := by scalar_tac
+  rw [h22] at hrest
+  simp only [h22] at hsuf
+  by_cases hlt : k < 16
+  · have hrest22 : 22 ≤ rest.length := by
+      rw [hrest]
+      have h1 : 1 ≤ 16 - k := by omega
+      calc (22:Nat) = 1 * 22 := by ring
+      _ ≤ (16 - k) * 22 := Nat.mul_le_mul_right 22 h1
+    obtain ⟨chunk, drop, cnt', hnext, hcnt', hclen, hdlen, hcget, hdget⟩ :=
+      enumerate_chunks_next_cont_drop rest 22#usize cnt
+        (by rw [h22]; simpa [Aeneas.Std.Slice.length] using hrest22) (by scalar_tac)
+    have hcnt16 : cnt.val < 16 := by omega
+    have hlen1 : cnt.val < acc.coefficients.val.length := by
+      have hc : acc.coefficients.val.length = 16 := by
+        have := acc.coefficients.property; simpa using this
+      omega
+    have hchunk_len : chunk.val.length = 22 := by
+      simpa [Aeneas.Std.Slice.length] using hclen
+    have hcser : ∀ m : Nat, m < 22 → chunk.val[m]! = serialized.val[22 * k + m]! := by
+      intro m hm
+      rw [hcget m (by rw [h22]; omega), hsuf m]
+      congr 1; omega
+    have hwin : ∀ ℓ : Nat, ℓ < 16 →
+        win chunk.val 11 ℓ = win serialized.val 11 (16 * k + ℓ) := by
+      intro ℓ hℓ
+      exact win_at_offset serialized.val chunk.val (22 * k) 22 11 ℓ (16 * k)
+        (fun t ht => hcser t ht) (by ring) (fun t ht => by omega)
+    obtain ⟨v, hv_eq, hv⟩ :=
+      deserialize_11_eq chunk hchunk_len (acc.coefficients.val[cnt.val]'hlen1)
+    have hvwin : ∀ ℓ : Nat, ℓ < 16 →
+        (v.elements.val[ℓ]!).val = (win serialized.val 11 (16 * k + ℓ) : Int) := by
+      intro ℓ hℓ
+      rw [hv ℓ hℓ, hwin ℓ hℓ]
+    obtain ⟨w, hw_eq, hw⟩ :=
+      chunk_decompress_ok serialized.val 11 (by omega) 11#i32 (by scalar_tac) k v hvwin
+    have hlen2 : cnt.val < (Std.Array.set acc.coefficients cnt v).val.length := by
+      have hc : (Std.Array.set acc.coefficients cnt v).val.length = 16 := by
+        have := (Std.Array.set acc.coefficients cnt v).property; simpa using this
+      omega
+    have hgi : (Std.Array.set acc.coefficients cnt v).val[cnt.val]!
+        = (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 :=
+      getElem!_pos (Std.Array.set acc.coefficients cnt v).val cnt.val hlen2
+    have hself : (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 = v := by
+      rw [← hgi, array_set_get16 acc.coefficients cnt v cnt.val hcnt16 hcnt16, if_pos rfl]
+    refine triple_of_ok_fc
+      (v := .cont ({ iter := { cs := 22#usize, elements := drop }, count := cnt' },
+                   { coefficients :=
+                       Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w })) ?_ ?_
+    · show libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11_loop.body
+        portable_ops_inst { iter := { cs := 22#usize, elements := rest }, count := cnt } acc = _
+      unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := 22#usize, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.Some (cnt, chunk),
+                 { iter := { cs := 22#usize, elements := drop }, count := cnt' }) from hnext]
+      show (do
+          let (t, back) ← Aeneas.Std.Array.index_mut_usize acc.coefficients cnt
+          let t1 ← libcrux_iot_ml_kem.vector.portable.serialize.deserialize_11 chunk t
+          let (t2, back1) ← Aeneas.Std.Array.index_mut_usize (back t1) cnt
+          let t3 ← libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient
+            11#i32 t2
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := 22#usize, elements := drop }, count := cnt' } : EnumCE),
+             ({ coefficients := back1 t3 } :
+               libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)))) = _
+      rw [array_index_mut16 acc.coefficients cnt hlen1]
+      simp only [Aeneas.Std.bind_tc_ok]
+      show (do
+          let t1 ← libcrux_iot_ml_kem.vector.portable.serialize.deserialize_11 chunk
+            (acc.coefficients.val[cnt.val]'hlen1)
+          let (t2, back1) ← Aeneas.Std.Array.index_mut_usize
+            (Std.Array.set acc.coefficients cnt t1) cnt
+          let t3 ← libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient
+            11#i32 t2
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := 22#usize, elements := drop }, count := cnt' } : EnumCE),
+             ({ coefficients := back1 t3 } :
+               libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)))) = _
+      rw [hv_eq]
+      simp only [Aeneas.Std.bind_tc_ok]
+      rw [array_index_mut16 (Std.Array.set acc.coefficients cnt v) cnt hlen2]
+      simp only [Aeneas.Std.bind_tc_ok]
+      show (do
+          let t3 ← libcrux_iot_ml_kem.vector.portable.compress.decompress_ciphertext_coefficient
+            11#i32 ((Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2)
+          Result.ok (ControlFlow.cont
+            (({ iter := { cs := 22#usize, elements := drop }, count := cnt' } : EnumCE),
+             ({ coefficients :=
+                 Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt t3 } :
+               libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)))) = _
+      rw [hself, hw_eq]
+      rfl
+    · refine ⟨hlt, rfl, (by show cnt'.val = k + 1; rw [hcnt', hcnt]), ?_, ?_, ?_⟩
+      · show drop.length = (16 - (k + 1)) * (22#usize : Std.Usize).val
+        rw [h22, hdlen, hrest]
+        have h : (16 - k) = (16 - (k + 1)) + 1 := by omega
+        rw [h]; ring_nf; omega
+      · intro ℓ
+        simp only [h22]
+        rw [hdget ℓ]
+        simp only [h22]
+        rw [hsuf (22 + ℓ)]
+        congr 1 <;> omega
+      · refine (holds_ok _).mpr ?_
+        intro i hi ℓ hℓ
+        show ((Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w).val[i]!).elements.val[ℓ]!.val
+          = _
+        by_cases hik : i = k
+        · subst hik
+          rw [array_set_get16 _ _ _ _ (by omega) (by omega), if_pos (by omega)]
+          exact hw ℓ hℓ
+        · rw [array_set_get16 _ _ _ _ (by omega) (by omega), if_neg (by omega),
+            array_set_get16 _ _ _ _ (by omega) (by omega), if_neg (by omega)]
+          exact hinv' i (by omega) ℓ hℓ
+  · have hk16 : k = 16 := by omega
+    subst hk16
+    have hrest0 : rest.length = 0 := by simp [hrest]
+    refine triple_of_ok_fc (v := .done acc) ?_ ?_
+    · show libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11_loop.body
+        portable_ops_inst { iter := { cs := 22#usize, elements := rest }, count := cnt } acc = _
+      unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11_loop.body
+      rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
+            (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
+            { iter := { cs := 22#usize, elements := rest }, count := cnt })
+          = .ok (CoreModels.core.option.Option.None,
+                 { iter := { cs := 22#usize, elements := rest }, count := cnt }) from
+          enumerate_chunks_next_done rest 22#usize cnt (by rw [h22, hrest0]; omega)]
+      rfl
+    · exact (holds_ok _).mpr hinv'
+
+/-- Impl apex at `d = 10`: `chunks_exact 20` + `enumerate` is the initial loop state. -/
+private theorem Lu_impl_10_fc
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 320)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10
+      (vectortraitsOperationsInst := portable_ops_inst) serialized re
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (dcplane serialized.val 10 p 16)).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10
+  rw [show (CoreModels.core.slice.Slice.chunks_exact serialized (20#usize : Std.Usize))
+        = .ok { cs := 20#usize, elements := serialized } from rfl]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [show (CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
+        (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+          Std.U8)
+        { cs := (20#usize : Std.Usize), elements := serialized })
+      = .ok ({ iter := { cs := 20#usize, elements := serialized }, count := 0#usize } : EnumCE)
+      from rfl]
+  simp only [Aeneas.Std.bind_tc_ok]
+  exact Lu_loop_10_fc serialized h_len re
+
+/-- Impl apex at `d = 11`. -/
+private theorem Lu_impl_11_fc
+    (serialized : Slice Std.U8) (h_len : serialized.val.length = 352)
+    (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11
+      (vectortraitsOperationsInst := portable_ops_inst) serialized re
+    ⦃ ⇓ p => ⌜ (Aeneas.Std.Result.ok (dcplane serialized.val 11 p 16)).holds ⌝ ⦄ := by
+  unfold libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11
+  rw [show (CoreModels.core.slice.Slice.chunks_exact serialized (22#usize : Std.Usize))
+        = .ok { cs := 22#usize, elements := serialized } from rfl]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [show (CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
+        (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
+          Std.U8)
+        { cs := (22#usize : Std.Usize), elements := serialized })
+      = .ok ({ iter := { cs := 22#usize, elements := serialized }, count := 0#usize } : EnumCE)
+      from rfl]
+  simp only [Aeneas.Std.bind_tc_ok]
+  exact Lu_loop_11_fc serialized h_len re
+
+/-! ### Spec side — `byte_decode_dyn` at `du ∈ {10, 11}`.
+
+    The `d`-generic decode ladder (`bytes_to_bits_gen` … `byte_decode_gen_eq`) built for
+    L5.3 is REUSED verbatim: its side conditions are `d ≤ 12` and `2 ^ d ≤ 3329`, and
+    `2 ^ 11 = 2048 ≤ 3329`, so both new widths are inside it. Only the `match d.val`
+    dispatch is per-`d`, so this is the `byte_decode_dyn_45_eq` argument at the 10 and
+    11 arms (320 / 2560 and 352 / 2816 in place of 128 / 1024 and 160 / 1280). -/
+
+private theorem byte_decode_dyn_1011_eq (b : Slice Std.U8) (du : Std.Usize)
+    (hdu : du.val = 10 ∨ du.val = 11) (hb : b.val.length = 32 * du.val) :
+    ∃ arr : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
+      hacspec_ml_kem.serialize.byte_decode_dyn b du = .ok arr
+      ∧ ∀ k : Nat, k < 256 →
+          arr.val[k]! = ({ val := u16OfNat (win b.val du.val k) }
+                          : hacspec_ml_kem.parameters.FieldElement) := by
+  rcases hdu with h | h
+  · have hdu10 : du = 10#usize := Aeneas.Std.UScalar.eq_of_val_eq (by rw [h]; scalar_tac)
+    subst hdu10
+    have hb320 : b.val.length = ((320#usize : Std.Usize)).val := by rw [hb]; scalar_tac
+    have hle : ((10#usize : Std.Usize) ≤ (12#usize : Std.Usize)) := by scalar_tac
+    have h10 : ((10#usize : Std.Usize)).val = 10 := by scalar_tac
+    have e2 : ((32#usize : Std.Usize) * (10#usize : Std.Usize) : Result Std.Usize)
+        = .ok (320#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+    obtain ⟨arr, harr, harrget⟩ :=
+      byte_decode_gen_eq 10#usize (⟨b.val, hb320⟩ : Std.Array Std.U8 320#usize) 2560#usize
+        (by scalar_tac) (by rw [h10]; norm_num) (by scalar_tac) (by scalar_tac)
+    refine ⟨arr, ?_, harrget⟩
+    unfold hacspec_ml_kem.serialize.byte_decode_dyn
+    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+      if_pos hle, if_true, Aeneas.Std.bind_tc_ok, slice_len_of b 320#usize hb320, e2]
+    show (do
+        let r ←
+          CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+            (320#usize : Std.Usize) b
+        let a ←
+          CoreModels.core.result.Result.unwrap
+            CoreModels.core.array.TryFromSliceError.Insts.CoreFmtDebug r
+        hacspec_ml_kem.serialize.byte_decode (D32 := 320#usize) 2560#usize a 10#usize) = _
+    rw [show
+        CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+            (320#usize : Std.Usize) b
+          = .ok (CoreModels.core.result.Result.Ok
+              (⟨b.val, hb320⟩ : Std.Array Std.U8 320#usize)) from by
+      unfold
+        CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+      rw [dif_pos (slice_len_eq_of b 320#usize hb320)]]
+    simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
+    exact harr
+  · have hdu11 : du = 11#usize := Aeneas.Std.UScalar.eq_of_val_eq (by rw [h]; scalar_tac)
+    subst hdu11
+    have hb352 : b.val.length = ((352#usize : Std.Usize)).val := by rw [hb]; scalar_tac
+    have hle : ((11#usize : Std.Usize) ≤ (12#usize : Std.Usize)) := by scalar_tac
+    have h11 : ((11#usize : Std.Usize)).val = 11 := by scalar_tac
+    have e2 : ((32#usize : Std.Usize) * (11#usize : Std.Usize) : Result Std.Usize)
+        = .ok (352#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
+    obtain ⟨arr, harr, harrget⟩ :=
+      byte_decode_gen_eq 11#usize (⟨b.val, hb352⟩ : Std.Array Std.U8 352#usize) 2816#usize
+        (by scalar_tac) (by rw [h11]; norm_num) (by scalar_tac) (by scalar_tac)
+    refine ⟨arr, ?_, harrget⟩
+    unfold hacspec_ml_kem.serialize.byte_decode_dyn
+    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
+      if_pos hle, if_true, Aeneas.Std.bind_tc_ok, slice_len_of b 352#usize hb352, e2]
+    show (do
+        let r ←
+          CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+            (352#usize : Std.Usize) b
+        let a ←
+          CoreModels.core.result.Result.unwrap
+            CoreModels.core.array.TryFromSliceError.Insts.CoreFmtDebug r
+        hacspec_ml_kem.serialize.byte_decode (D32 := 352#usize) 2816#usize a 11#usize) = _
+    rw [show
+        CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+            (352#usize : Std.Usize) b
+          = .ok (CoreModels.core.result.Result.Ok
+              (⟨b.val, hb352⟩ : Std.Array Std.U8 352#usize)) from by
+      unfold
+        CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
+      rw [dif_pos (slice_len_eq_of b 352#usize hb352)]]
+    simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
+    exact harr
+
+/-- **Spec-side apex.** `L53_spec_eq` at the other two widths: `decompress_gen_eq` and
+    `decompress_closure_gen` are already generic in `d < 12`, so the ONLY change is the
+    `byte_decode_dyn` citation. -/
+private theorem Lu_spec_eq (serialized : Slice Std.U8) (du : Std.Usize)
+    (hdu : du.val = 10 ∨ du.val = 11) (hlen : serialized.val.length = 32 * du.val)
+    (p : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (hdc : dcplane serialized.val du.val p 16) :
+    hacspec_ml_kem.serialize.deserialize_then_decompress_v serialized du
+      = .ok (lift_poly p) := by
+  have hd : du.val < 12 := by rcases hdu with h | h <;> omega
+  have hp2 : (2:Nat) ^ du.val ≤ 2048 := by rcases hdu with h | h <;> rw [h] <;> norm_num
+  obtain ⟨arr, harr, harrget⟩ := byte_decode_dyn_1011_eq serialized du hdu hlen
+  have hval : ∀ k : Nat, k < 256 → (arr.val[k]!).val.val = win serialized.val du.val k := by
+    intro k hk
+    rw [harrget k hk]
+    exact u16OfNat_val _ (by have h1 := win_lt serialized.val du.val k; scalar_tac)
+  rw [L53_spec_unfold, harr]
+  simp only [Aeneas.Std.bind_tc_ok]
+  refine decompress_gen_eq du arr hd p ?_ ?_
+  · intro k hk
+    rw [hval k hk]
+    exact win_lt _ _ _
+  · intro k hk
+    rw [hval k hk]
+    have h := hdc (k / 16) (by omega) (k % 16) (by omega)
+    rw [show 16 * (k / 16) + k % 16 = k from by omega] at h
+    exact h
+
+/-! ### The dispatcher rung.
+
+    COPIES `L53_dispatch_of_pre` (K9, private): the impl match is the same shape,
+    `match U_COMPRESSION_FACTOR as u32 { 10, 11, _ => panic }`. Cheaper here than at
+    L5.3, which had to DERIVE `dv ∈ {4,5}` from `h_rank` + `h_cf` through
+    `vector_v_compression_factor`; upstream states the width condition directly on this
+    function, so `h_cf` pins `du` with no intermediate step. -/
+
+private theorem Lu_dispatch_eq_d10 (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_u
+      (vectortraitsOperationsInst := portable_ops_inst) 10#usize serialized output
+    = libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10
+        (vectortraitsOperationsInst := portable_ops_inst) serialized output := by
+  simp only [libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_u,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+private theorem Lu_dispatch_eq_d11 (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_u
+      (vectortraitsOperationsInst := portable_ops_inst) 11#usize serialized output
+    = libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11
+        (vectortraitsOperationsInst := portable_ops_inst) serialized output := by
+  simp only [libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_u,
+    Aeneas.Std.lift, Aeneas.Std.bind_tc_ok, Std.UScalar.cast, Std.UScalarTy.U32_numBits_eq]
+  simp
+
+/-- Under `h_cf`, the dispatcher reduces to exactly one of the two real arms — the
+    `unreachable!()` arm is gone. -/
+private theorem Lu_dispatch_of_pre (U_COMPRESSION_FACTOR : Std.Usize)
+    (serialized : Slice Std.U8)
+    (output : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+                libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_du : U_COMPRESSION_FACTOR.val = 10 ∨ U_COMPRESSION_FACTOR.val = 11) :
+    libcrux_iot_ml_kem.serialize.deserialize_then_decompress_ring_element_u
+      (vectortraitsOperationsInst := portable_ops_inst)
+      U_COMPRESSION_FACTOR serialized output
+    = if U_COMPRESSION_FACTOR.val = 10 then
+        libcrux_iot_ml_kem.serialize.deserialize_then_decompress_10
+          (vectortraitsOperationsInst := portable_ops_inst) serialized output
+      else
+        libcrux_iot_ml_kem.serialize.deserialize_then_decompress_11
+          (vectortraitsOperationsInst := portable_ops_inst) serialized output := by
+  rcases h_du with h | h
+  · rw [show U_COMPRESSION_FACTOR = 10#usize from
+        Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac), Lu_dispatch_eq_d10]
+    simp
+  · rw [show U_COMPRESSION_FACTOR = 11#usize from
+        Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac), Lu_dispatch_eq_d11]
+    simp
+
+end LuBank
+
 /-- **INC-2a.4** — `serialize.deserialize_then_decompress_ring_element_u`.
 
     `ByteDecode_du` then `Decompress_du` over ONE ring element, at `du ∈ {10, 11}`.
@@ -9696,7 +10922,35 @@ theorem deserialize_then_decompress_ring_element_u_fc
                 = .ok (lift_poly p)
                 ∧ (∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
                     ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328) ⌝ ⦄ := by
-  sorry
+  have hlen' : serialized.val.length = 32 * U_COMPRESSION_FACTOR.val := h_len
+  -- FIRST RUNG (`Lu_dispatch_of_pre`): the `unreachable!()` arm is gone.
+  rw [Lu_dispatch_of_pre U_COMPRESSION_FACTOR serialized output h_cf]
+  rcases h_cf with h10 | h11
+  · rw [if_pos h10]
+    have hlen10 : serialized.val.length = 320 := by rw [hlen', h10]
+    obtain ⟨p, hp_eq, hp⟩ := triple_exists_ok_fc (Lu_impl_10_fc serialized hlen10 output)
+    have hdc : dcplane serialized.val 10 p 16 := (holds_ok _).mp hp
+    have hdc' : dcplane serialized.val U_COMPRESSION_FACTOR.val p 16 := by rw [h10]; exact hdc
+    refine triple_of_ok_fc hp_eq
+      ⟨Lu_spec_eq serialized U_COMPRESSION_FACTOR (Or.inl h10) hlen' p hdc', ?_⟩
+    -- BOUND CONJUNCT: every lane is `(2·w·q + 2^d) / 2^(d+1)` with `w < 2^d`, hence
+    -- < 3329, i.e. ≤ 3328. The tight maxima are 3326 (du = 10) / 3327 (du = 11), so
+    -- the contract's 3328 is sound with one to spare.
+    intro chunk hchunk ℓ hℓ
+    have h := hdc chunk hchunk ℓ hℓ
+    have hb := win_dec_lt (win serialized.val 10 (16 * chunk + ℓ)) 10 (win_lt _ _ _) (by omega)
+    omega
+  · rw [if_neg (by omega)]
+    have hlen11 : serialized.val.length = 352 := by rw [hlen', h11]
+    obtain ⟨p, hp_eq, hp⟩ := triple_exists_ok_fc (Lu_impl_11_fc serialized hlen11 output)
+    have hdc : dcplane serialized.val 11 p 16 := (holds_ok _).mp hp
+    have hdc' : dcplane serialized.val U_COMPRESSION_FACTOR.val p 16 := by rw [h11]; exact hdc
+    refine triple_of_ok_fc hp_eq
+      ⟨Lu_spec_eq serialized U_COMPRESSION_FACTOR (Or.inr h11) hlen' p hdc', ?_⟩
+    intro chunk hchunk ℓ hℓ
+    have h := hdc chunk hchunk ℓ hℓ
+    have hb := win_dec_lt (win serialized.val 11 (16 * chunk + ℓ)) 11 (win_lt _ _ _) (by omega)
+    omega
 
 /-- **INC-2a.5** — `serialize.compress_then_serialize_ring_element_u`.
 
