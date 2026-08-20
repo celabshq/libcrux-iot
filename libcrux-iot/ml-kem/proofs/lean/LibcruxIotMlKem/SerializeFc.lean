@@ -4002,6 +4002,16 @@ theorem deserialize_ring_elements_reduced_fc
     (deserialized_pk : Slice
         (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
+    -- UNIFORMITY (KB, 2026-08-20): `is_rank` is transcribed wherever UPSTREAM carries it,
+    -- even where a measurement says the statement is true without it. Rationale: every
+    -- caller has it, so discharging it is free — unlike a bound such as `h_bnd`, which is
+    -- real work for the consumer and therefore belongs in exactly one measured place. The
+    -- rule it replaces ("drop what is measured unnecessary") was applied correctly here and
+    -- then GENERALISED to `serialize_public_key_mut_fc`, where it was false and cost three
+    -- rungs. Uniform transcription removes that judgement call per obligation.
+    -- This statement remains TRUE without it (measured at K = 0, 1 and 5); adding a
+    -- hypothesis only WEAKENS it, so the existing proof stands unchanged.
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
     (h_pk_len : public_key.length = K.val * 384)
     (h_out_len : deserialized_pk.length = K.val) :
     ⦃ ⌜ True ⌝ ⦄

@@ -1092,6 +1092,16 @@ theorem serialize_vector_fc
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
     (out : Slice Std.U8)
     (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    -- UNIFORMITY (KB, 2026-08-20): `is_rank` is transcribed wherever UPSTREAM carries it,
+    -- even where a measurement says the statement is true without it. Rationale: every
+    -- caller has it, so discharging it is free — unlike a bound such as `h_bnd`, which is
+    -- real work for the consumer and therefore belongs in exactly one measured place. The
+    -- rule it replaces ("drop what is measured unnecessary") was applied correctly here and
+    -- then GENERALISED to `serialize_public_key_mut_fc`, where it was false and cost three
+    -- rungs. Uniform transcription removes that judgement call per obligation.
+    -- This statement remains TRUE without it (measured at K = 0, 1 and 5); adding a
+    -- hypothesis only WEAKENS it, so the existing proof stands unchanged.
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
     (h_out_len : out.length = K.val * 384)
     (h_tsize : T_SIZE.val = K.val * 384)
     -- ENCODE precondition. Machine-refuted without it: lane 3400 diverges (impl [72,13,0],
@@ -1480,6 +1490,11 @@ private theorem spkm_core
     -- the multiplication overflows well before `K * 384 + 32` does. Machine-refuted at
     -- `K = 48038396025285290`: `Error.integerOverflow`.
     (h_K_bnd : K.val * 3072 ≤ Std.Usize.max)
+    -- Added 2026-08-20 with the uniformity change: `serialize_vector_fc` now carries
+    -- upstream's `is_rank`, so its consumer must supply it. h_K_pos/h_K_bnd cannot
+    -- discharge it (K = 5 satisfies both and is NOT a rank), and the only caller — the
+    -- locked theorem below — has `h_rank` to hand, so it is threaded, not re-derived.
+    (h_rank : hacspec_ml_kem.parameters.is_rank K = .ok true)
     (h_seed_len : seed_for_a.length = 32)
     (h_pk_size : PUBLIC_KEY_SIZE.val = K.val * 384 + 32)
     (h_ser_len : serialized.length = PUBLIC_KEY_SIZE.val)
@@ -1511,7 +1526,7 @@ private theorem spkm_core
   -- (3) L(row 1): `serialize_vector` writes the encode model into every byte `< 384K`
   obtain ⟨p1, hp1_eq, encv, hencv_eq, hp1_len, hp1_get⟩ :=
     triple_exists_ok_fc
-      (serialize_vector_fc K i t_as_ntt s scratch hs384 hi_val h_bnd)
+      (serialize_vector_fc K i t_as_ntt s scratch h_rank hs384 hi_val h_bnd)
   obtain ⟨out1, scr1⟩ := p1
   -- identify `serialize_vector`'s spec-side witness with the pure byte model
   obtain ⟨enc2, henc2_eq, henc2_get⟩ := spec_serialize_secret_key_eq K i t_as_ntt hi_val
@@ -2006,6 +2021,6 @@ theorem serialize_public_key_mut_fc
   have hmax : (12288 : Nat) ≤ Std.Usize.max := by scalar_tac
   exact spkm_core K PUBLIC_KEY_SIZE t_as_ntt seed_for_a serialized scratch
     (by rcases hK with h | h | h <;> omega) (by rcases hK with h | h | h <;> omega)
-    h_seed_len h_pk_size h_ser_len h_bnd
+    h_rank h_seed_len h_pk_size h_ser_len h_bnd
 
 end libcrux_iot_ml_kem.IndCpaFc
