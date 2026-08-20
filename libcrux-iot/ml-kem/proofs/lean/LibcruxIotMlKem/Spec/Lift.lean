@@ -7,6 +7,8 @@ import LibcruxIotMlKem.Spec.AlgEquiv
 import LibcruxIotMlKem.Spec.ModularArith
 import LibcruxIotMlKem.Extraction.Funs
 import HacspecMlKem.Extraction.Funs
+-- `interval_cases` for the 128-entry zeta-table bridge in §NB.1.
+import Mathlib.Tactic.IntervalCases
 
 set_option mvcgen.warning false
 set_option linter.unusedVariables false
@@ -1126,6 +1128,1017 @@ theorem Spec.zeta_at_one_eq_layer_7 :
     libcrux_iot_ml_kem.Spec.i16_to_spec_fe_plain
   congr 1
 
+/-! ## §NB — machinery for THE NTT BRIDGE.
+
+    Route: (1) reduce `hacspec_ml_kem.ntt.ntt_layer p L` to an explicit FLAT
+    per-lane butterfly array; (2) reduce each of the seven pure layer models to
+    the SAME flat lane; (3) compose. Everything here is pure — no impl, no
+    Triple, no `mvcgen`.
+
+    The scalar/monadic and `createi` helpers below are local copies: the shared
+    ones (`Matrix/ComputeMessage/Hacspec.lean`, `Vector/.../Element.lean`) sit
+    DOWNSTREAM of `Spec/Lift.lean` in the import order, so they cannot be cited
+    from here. -/
+
+section NttBridge
+
+/-! ### §NB.0 — monadic scalar + indexing helpers. -/
+
+private theorem nb_umul_ok (a b : Std.Usize) (h : a.val * b.val ≤ Std.Usize.max) :
+    ∃ c : Std.Usize, (a * b : Result Std.Usize) = .ok c ∧ c.val = a.val * b.val := by
+  have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec a b)
+    (fun e => by cases e <;> scalar_tac) (by simp)
+  obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
+  exact ⟨v, h_eq, h_v⟩
+
+private theorem nb_uadd_ok (a b : Std.Usize) (h : a.val + b.val ≤ Std.Usize.max) :
+    ∃ c : Std.Usize, (a + b : Result Std.Usize) = .ok c ∧ c.val = a.val + b.val := by
+  have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec a b)
+    (fun e => by cases e <;> scalar_tac) (by simp)
+  obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
+  exact ⟨v, h_eq, h_v⟩
+
+private theorem nb_usub_ok (a b : Std.Usize) (h : b.val ≤ a.val) :
+    ∃ c : Std.Usize, (a - b : Result Std.Usize) = .ok c ∧ c.val = a.val - b.val := by
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec a b)
+    (fun e => by cases e <;> scalar_tac) (by simp)
+  obtain ⟨c, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
+  exact ⟨c, h_eq, h_v.1⟩
+
+private theorem nb_udiv_ok (a b : Std.Usize) (h : b.val ≠ 0) :
+    ∃ c : Std.Usize, (a / b : Result Std.Usize) = .ok c ∧ c.val = a.val / b.val := by
+  obtain ⟨v, h_eq, h_v⟩ := Std.UScalar.div_spec a h
+  exact ⟨v, h_eq, h_v⟩
+
+private theorem nb_umod_ok (a b : Std.Usize) (h : b.val ≠ 0) :
+    ∃ c : Std.Usize, (a % b : Result Std.Usize) = .ok c ∧ c.val = a.val % b.val := by
+  obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists (Std.UScalar.rem_spec a h)
+  exact ⟨v, h_eq, h_v⟩
+
+/-- `(1#usize <<< n)` succeeds with value `2^n.val`. -/
+private theorem nb_shl_one_ok (n : Std.Usize) (hn : n.val < UScalarTy.Usize.numBits) :
+    ∃ len : Std.Usize, (1#usize <<< n : Result Std.Usize) = .ok len ∧ len.val = 2 ^ n.val := by
+  have h_one_shl_pow : ((1#usize : Std.Usize).val <<< n.val) < 2 ^ System.Platform.numBits := by
+    have h_one_eq : (1#usize : Std.Usize).val = 1 := rfl
+    rw [h_one_eq, Nat.shiftLeft_eq, Nat.one_mul]
+    have hnb : n.val < System.Platform.numBits := by
+      rwa [Std.UScalarTy.Usize_numBits_eq] at hn
+    rcases System.Platform.numBits_eq with h32 | h64
+    · rw [h32]; rw [h32] at hnb; exact Nat.pow_lt_pow_right (by decide) hnb
+    · rw [h64]; rw [h64] at hnb; exact Nat.pow_lt_pow_right (by decide) hnb
+  have hT := Aeneas.Std.UScalar.ShiftLeft_spec (1#usize : Std.Usize) n
+    (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) hn rfl
+  obtain ⟨z, h_eq, h_v_mod, _h_bv⟩ := Std.WP.spec_imp_exists hT
+  refine ⟨z, h_eq, ?_⟩
+  have h_one_eq : (1#usize : Std.Usize).val = 1 := rfl
+  have h_size_eq : (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize)
+      = 2 ^ System.Platform.numBits := by
+    rw [Aeneas.Std.UScalar.size]; rw [Std.UScalarTy.Usize_numBits_eq]
+  rw [h_v_mod, h_one_eq, h_size_eq, Nat.shiftLeft_eq, Nat.one_mul, Nat.mod_eq_of_lt]
+  rw [h_one_eq, Nat.shiftLeft_eq, Nat.one_mul] at h_one_shl_pow
+  exact h_one_shl_pow
+
+private theorem nb_numbits_ge (n : Nat) (hn : n ≤ 7) : n < UScalarTy.Usize.numBits := by
+  rw [Std.UScalarTy.Usize_numBits_eq]
+  rcases System.Platform.numBits_eq with h | h <;> (rw [h]; omega)
+
+private theorem nb_div128_ok (len : Std.Usize) (hlen : len.val ≠ 0) :
+    ∃ g : Std.Usize, (128#usize / len : Result Std.Usize) = .ok g ∧ g.val = 128 / len.val := by
+  obtain ⟨g, h_eq, h_v⟩ := Std.UScalar.div_spec (128#usize : Std.Usize) hlen
+  exact ⟨g, h_eq, by simpa using h_v⟩
+
+/-- `BitVec.ofNat _ k` round-trips through `Usize.val` when `k < 256`. -/
+private theorem nb_usize_ofNat_val (k : Nat) (h : k < 256) :
+    (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
+  show (BitVec.ofNat System.Platform.numBits k).toNat = k
+  rw [BitVec.toNat_ofNat]
+  apply Nat.mod_eq_of_lt
+  have h_max : k ≤ Std.Usize.max := by scalar_tac
+  have h_max_def : Std.Usize.max + 1 = 2 ^ System.Platform.numBits := by scalar_tac
+  omega
+
+private theorem nb_array_index_ok {α : Type} [Inhabited α] {n : Std.Usize}
+    (v : Std.Array α n) (i : Std.Usize) (h : i.val < v.val.length) :
+    Aeneas.Std.Array.index_usize v i = .ok (v.val[i.val]!) := by
+  obtain ⟨x, hx, hxv⟩ := libcrux_iot_ml_kem.Util.SliceSpecs.Array.index_usize_exists v i h
+  rw [hx, getElem!_pos v.val i.val h, hxv]
+
+private theorem nb_slice_index_ok {α : Type} [Inhabited α]
+    (s : Slice α) (i : Std.Usize) (h : i.val < s.val.length) :
+    Aeneas.Std.Slice.index_usize s i = .ok (s.val[i.val]!) := by
+  rw [getElem!_pos s.val i.val h]
+  simp only [Aeneas.Std.Slice.index_usize, Aeneas.Std.Slice.getElem?_Usize_eq,
+             List.getElem?_eq_getElem h]
+
+/-- `bind` distributes over `ite` (dedicated form — `apply_ite` won't
+    higher-order match `Bind.bind (ite …) k`). -/
+private theorem nb_res_bind_ite {α β : Type} (c : Prop) [Decidable c]
+    (a b : Result α) (g : α → Result β) :
+    (if c then a else b) >>= g = if c then a >>= g else b >>= g := by
+  split <;> rfl
+
+/-- `(List.slice a b l)[k]! = l[a+k]!` when `a + k < b ≤ l.length`. -/
+private theorem nb_slice_getElem {α} [Inhabited α]
+    (l : List α) (a b k : Nat) (hb : b ≤ l.length) (hk : a + k < b) :
+    (List.slice a b l)[k]! = l[a + k]! := by
+  have hidx : ((l.drop a).take (b - a))[k]? = l[a + k]? := by
+    rw [List.getElem?_take_of_lt (by omega), List.getElem?_drop]
+  show ((l.drop a).take (b - a))[k]! = l[a + k]!
+  rw [List.getElem!_eq_getElem?_getD, List.getElem!_eq_getElem?_getD, hidx]
+
+/-! ### §NB.1 — the zeta table bridge.
+
+    `hacspec_ml_kem.ntt.ZETAS` is a pure `.ok`-total `do`-chain of 128
+    `FieldElement.new` calls in the PLAIN domain; `Spec.zeta_at i` reads the
+    impl's MONTGOMERY table and strips one `R`. The two agree entry-by-entry
+    as canonical field elements. -/
+
+private noncomputable def nb_zetasArr :
+    Std.Array hacspec_ml_kem.parameters.FieldElement 128#usize :=
+  match hacspec_ml_kem.ntt.ZETAS with
+  | .ok a => a
+  | _ => Std.Array.make 128#usize (List.replicate 128 ⟨0#u16⟩) (by simp)
+
+set_option maxRecDepth 20000 in
+private theorem nb_ntt_zetas_eq_ok : hacspec_ml_kem.ntt.ZETAS = .ok nb_zetasArr := by
+  unfold nb_zetasArr
+  unfold hacspec_ml_kem.ntt.ZETAS
+  rfl
+
+set_option maxRecDepth 20000 in
+set_option maxHeartbeats 4000000 in
+/-- **The zeta bridge.** Entry `i` of the hacspec plain-domain table IS
+    `Spec.zeta_at i` (the impl Mont-domain table with `R` stripped), as a
+    canonical `FieldElement`. Proven over all 128 entries by case split. -/
+private theorem nb_zetas_bridge (i : Nat) (hi : i < 128) :
+    nb_zetasArr.val[i]! = Spec.zeta_at i := by
+  unfold nb_zetasArr Spec.zeta_at lift_fe_mont
+  unfold libcrux_iot_ml_kem.Spec.i16_to_spec_fe_mont
+  unfold hacspec_ml_kem.ntt.ZETAS
+  unfold hacspec_ml_kem.parameters.FieldElement.new
+  simp only [bind_tc_ok]
+  unfold libcrux_iot_ml_kem.polynomial.ZETAS_TIMES_MONTGOMERY_R
+  interval_cases i <;> rfl
+
+/-! ### §NB.2 — `FieldElement` primitives the forward butterfly needs.
+
+    `Spec.Pure.FieldElement.sub_eq_ok` / `Canonical_sub_pure` require BOTH
+    arguments canonical. The forward NTT's `sub` is `a − ζ·b` where only the
+    SUBTRAHEND `ζ·b` is a `mul` output (hence canonical); `a` is an arbitrary
+    input lane at layer 7. The two `'`-variants below drop the unused
+    `Canonical a` hypothesis — that is what makes the locked statement
+    hypothesis-free. -/
+
+private theorem nb_uscalar_rem_ok_U32 (z m : Std.U32) (hm : m.val ≠ 0) :
+    ∃ w : Std.U32, (z % m : Result Std.U32) = .ok w ∧ w.val = z.val % m.val := by
+  have heq : (z % m : Result Std.U32) = Std.UScalar.rem z m := rfl
+  unfold Std.UScalar.rem at heq
+  simp [hm] at heq
+  refine ⟨_, heq, ?_⟩
+  show (BitVec.umod z.bv m.bv).toNat = z.val % m.val
+  unfold BitVec.umod
+  simp only [BitVec.toNat_ofNatLT]
+  rfl
+
+/-- `sub_eq_ok` needing only the SUBTRAHEND canonical. -/
+private theorem nb_sub_eq_ok (a b : hacspec_ml_kem.parameters.FieldElement)
+    (hb : libcrux_iot_ml_kem.Spec.Pure.Canonical b) :
+    hacspec_ml_kem.parameters.FieldElement.sub a b
+      = .ok (libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure a b) := by
+  unfold libcrux_iot_ml_kem.Spec.Pure.Canonical at hb
+  unfold hacspec_ml_kem.parameters.FIELD_MODULUS at hb
+  simp at hb
+  unfold libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure
+  suffices h : ∃ r, hacspec_ml_kem.parameters.FieldElement.sub a b = .ok r by
+    obtain ⟨r, hr⟩ := h; rw [hr]
+  unfold hacspec_ml_kem.parameters.FieldElement.sub
+  simp only [lift, bind_tc_ok]
+  have hA := a.val.hBounds; have hB := b.val.hBounds
+  simp [Std.UScalarTy.numBits] at hA hB
+  set x : Std.U32 := Std.UScalar.cast .U32 a.val
+  set y : Std.U32 := Std.UScalar.cast .U32 b.val
+  set q : Std.U32 := Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS
+  have hxval : x.val = a.val.val := Std.U16.cast_U32_val_eq a.val
+  have hyval : y.val = b.val.val := Std.U16.cast_U32_val_eq b.val
+  have hqval : q.val = 3329 := by
+    show (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS).val = 3329
+    unfold hacspec_ml_kem.parameters.FIELD_MODULUS; simp
+  have hae := Std.UScalar.add_equiv x q
+  cases hxq : (x + q : Result Std.U32) with
+  | ok s =>
+    rw [hxq] at hae; simp at hae
+    obtain ⟨_, hsval, _⟩ := hae
+    simp only [bind_tc_ok]
+    have hae2 := Std.UScalar.sub_equiv s y
+    cases hsy : (s - y : Result Std.U32) with
+    | ok u =>
+      rw [hsy] at hae2; simp at hae2
+      simp only [bind_tc_ok]
+      have hq_ne : q.val ≠ 0 := by rw [hqval]; decide
+      obtain ⟨w, hw_eq, _⟩ := nb_uscalar_rem_ok_U32 u q hq_ne
+      rw [hw_eq]; simp only [bind_tc_ok]
+      exact ⟨_, rfl⟩
+    | fail e =>
+      rw [hsy] at hae2; simp [] at hae2
+      rw [hsval, hxval, hqval, hyval] at hae2
+      omega
+    | div => rw [hsy] at hae2; exact hae2.elim
+  | fail e =>
+    rw [hxq] at hae; simp [Std.UScalar.inBounds] at hae
+    rw [hxval, hqval] at hae
+    omega
+  | div => rw [hxq] at hae; exact hae.elim
+
+/-- `Canonical_sub_pure` needing only the SUBTRAHEND canonical. -/
+private theorem nb_Canonical_sub_pure (a b : hacspec_ml_kem.parameters.FieldElement)
+    (hb : libcrux_iot_ml_kem.Spec.Pure.Canonical b) :
+    libcrux_iot_ml_kem.Spec.Pure.Canonical
+      (libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure a b) := by
+  have hsub : hacspec_ml_kem.parameters.FieldElement.sub a b
+      = .ok (libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure a b) :=
+    nb_sub_eq_ok a b hb
+  unfold libcrux_iot_ml_kem.Spec.Pure.Canonical at hb
+  unfold hacspec_ml_kem.parameters.FIELD_MODULUS at hb
+  simp at hb
+  unfold hacspec_ml_kem.parameters.FieldElement.sub at hsub
+  simp only [lift, bind_tc_ok] at hsub
+  have hA := a.val.hBounds; have hB := b.val.hBounds
+  simp [Std.UScalarTy.numBits] at hA hB
+  set x : Std.U32 := Std.UScalar.cast .U32 a.val
+  set y : Std.U32 := Std.UScalar.cast .U32 b.val
+  set q : Std.U32 := Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS
+  have hxval : x.val = a.val.val := Std.U16.cast_U32_val_eq a.val
+  have hyval : y.val = b.val.val := Std.U16.cast_U32_val_eq b.val
+  have hqval : q.val = 3329 := by
+    show (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS).val = 3329
+    unfold hacspec_ml_kem.parameters.FIELD_MODULUS; simp
+  have hae := Std.UScalar.add_equiv x q
+  cases hxq : (x + q : Result Std.U32) with
+  | ok s =>
+    rw [hxq] at hae hsub; simp at hae
+    obtain ⟨_, hsval, _⟩ := hae
+    simp only [bind_tc_ok] at hsub
+    have hae2 := Std.UScalar.sub_equiv s y
+    cases hsy : (s - y : Result Std.U32) with
+    | ok u =>
+      rw [hsy] at hae2 hsub; simp at hae2
+      simp only [bind_tc_ok] at hsub
+      have hq_ne : q.val ≠ 0 := by rw [hqval]; decide
+      obtain ⟨w, hw_eq, hwval⟩ := nb_uscalar_rem_ok_U32 u q hq_ne
+      rw [hw_eq] at hsub; simp only [bind_tc_ok] at hsub
+      unfold hacspec_ml_kem.parameters.FieldElement.new at hsub
+      simp at hsub
+      have hwbnd : w.val < 3329 := by
+        rw [hwval, hqval]; exact Nat.mod_lt _ (by decide)
+      have hwcast : (Std.UScalar.cast .U16 w).val = w.val := by
+        apply Std.UScalar.cast_val_mod_pow_of_inBounds_eq
+        simp [Std.UScalarTy.numBits]; omega
+      unfold libcrux_iot_ml_kem.Spec.Pure.Canonical
+      rw [← hsub]
+      show (Std.UScalar.cast .U16 w).val < hacspec_ml_kem.parameters.FIELD_MODULUS.val
+      unfold hacspec_ml_kem.parameters.FIELD_MODULUS
+      simp
+      omega
+    | fail e =>
+      rw [hsy] at hae2; simp at hae2
+      rw [hsval, hxval, hqval, hyval] at hae2
+      omega
+    | div => rw [hsy] at hae2; exact hae2.elim
+  | fail e =>
+    rw [hxq] at hae; simp [Std.UScalar.inBounds] at hae
+    rw [hxval, hqval] at hae
+    omega
+  | div => rw [hxq] at hae; exact hae.elim
+
+/-- `Result`-valued U32 multiplication is commutative (`UScalar.mul x y
+    = tryMk (x.val * y.val)`). -/
+private theorem nb_u32_mul_comm (x y : Std.U32) :
+    (x * y : Result Std.U32) = (y * x : Result Std.U32) := by
+  show Std.UScalar.mul x y = Std.UScalar.mul y x
+  unfold Std.UScalar.mul
+  rw [Nat.mul_comm]
+
+/-- `mul_pure` is commutative. The hacspec `butterfly` computes `ζ · b`
+    while the tree's pure layer models write `b · ζ`. -/
+private theorem nb_mul_pure_comm (a b : hacspec_ml_kem.parameters.FieldElement) :
+    libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure a b
+      = libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure b a := by
+  unfold libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure
+  unfold hacspec_ml_kem.parameters.FieldElement.mul
+  simp only [lift, bind_tc_ok]
+  rw [nb_u32_mul_comm]
+
+/-- Pure projection of the hacspec forward `butterfly`: with the zeta
+    product written on the RIGHT (as the tree's pure models write it),
+    `butterfly z a b = .ok (a + b·z, a − b·z)`. Needs NO canonicity on
+    `a` or `b` — the subtrahend `b·z` is a `mul` output. -/
+private theorem nb_butterfly_eq (z a b : hacspec_ml_kem.parameters.FieldElement) :
+    hacspec_ml_kem.ntt.butterfly z a b
+      = .ok (libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure a
+              (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure b z),
+             libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure a
+              (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure b z)) := by
+  unfold hacspec_ml_kem.ntt.butterfly
+  rw [libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_eq_ok z b]
+  simp only [bind_tc_ok]
+  rw [nb_mul_pure_comm z b]
+  rw [libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_eq_ok a _]
+  simp only [bind_tc_ok]
+  rw [nb_sub_eq_ok a _ (libcrux_iot_ml_kem.Spec.Pure.Canonical_mul_pure b z)]
+  simp only [bind_tc_ok]
+
+/-! ### §NB.3 — the FLAT per-lane normal form for one hacspec `ntt_layer`.
+
+    `ntt_layer p L` is `createi 256` over a Cooley–Tukey butterfly whose
+    a/b role at flat index `i` is decided by `i % (2·len) < len`
+    (`len = 2^L`), with the layer zeta indexed by `i / (2·len)`. -/
+
+/-- Flat lane `i` of one forward NTT layer of half-width `len`, zetas `zf`. -/
+private def nb_flat_lane
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (len : Nat) (zf : Nat → hacspec_ml_kem.parameters.FieldElement) (i : Nat) :
+    hacspec_ml_kem.parameters.FieldElement :=
+  if i % (2 * len) < len then
+    libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure (p.val[i]!)
+      (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure
+        (p.val[i + len]!) (zf (i / (2 * len))))
+  else
+    libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure (p.val[i - len]!)
+      (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure
+        (p.val[i]!) (zf (i / (2 * len))))
+
+private def nb_flat_arr
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (len : Nat) (zf : Nat → hacspec_ml_kem.parameters.FieldElement) :
+    Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
+  ⟨(List.range 256).map (nb_flat_lane p len zf),
+   by simp [List.length_map, List.length_range]⟩
+
+private theorem nb_flat_arr_lane
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (len : Nat) (zf : Nat → hacspec_ml_kem.parameters.FieldElement)
+    (i : Nat) (hi : i < 256) :
+    (nb_flat_arr p len zf).val[i]! = nb_flat_lane p len zf i := by
+  show ((List.range 256).map (nb_flat_lane p len zf))[i]! = _
+  rw [getElem!_pos _ i (by simp [List.length_map, List.length_range, hi])]
+  rw [List.getElem_map, List.getElem_range]
+
+/-- Every lane of a flat layer array is canonical (`add_pure` unconditionally,
+    `sub_pure` because its subtrahend is a `mul_pure`). -/
+private theorem nb_flat_arr_canon
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (len : Nat) (zf : Nat → hacspec_ml_kem.parameters.FieldElement)
+    (i : Nat) (hi : i < 256) :
+    libcrux_iot_ml_kem.Spec.Pure.Canonical ((nb_flat_arr p len zf).val[i]!) := by
+  rw [nb_flat_arr_lane p len zf i hi]
+  unfold nb_flat_lane
+  split
+  · exact libcrux_iot_ml_kem.Spec.Pure.Canonical_add_pure _ _
+  · exact nb_Canonical_sub_pure _ _ (libcrux_iot_ml_kem.Spec.Pure.Canonical_mul_pure _ _)
+
+set_option maxHeartbeats 4000000 in
+/-- Per-lane reduction of the `ntt_layer_n` closure. -/
+private theorem nb_layer_n_call_mut_eq
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (len : Std.Usize) (s : Slice hacspec_ml_kem.parameters.FieldElement)
+    (hlen : 0 < len.val) (h2len : 2 * len.val ≤ Std.Usize.max)
+    (k : Nat) (hk : k < 256)
+    (hslen : k / (2 * len.val) < s.val.length)
+    (hapart : k % (2 * len.val) < len.val → k + len.val < 256)
+    (hbpart : ¬ (k % (2 * len.val) < len.val) → len.val ≤ k) :
+    (hacspec_ml_kem.ntt.ntt_layer_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+        256#usize).call_mut (len, s, p) ⟨BitVec.ofNat _ k⟩
+      = .ok (nb_flat_lane p len.val (fun g => s.val[g]!) k, (len, s, p)) := by
+  have hk_us : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := nb_usize_ofNat_val k hk
+  show (do
+      let i1 ← 2#usize * len
+      let group ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) / i1
+      let idx ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) % i1
+      if idx < len then do
+          let fe ← Aeneas.Std.Slice.index_usize s group
+          let fe1 ← Aeneas.Std.Array.index_usize p (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+          let i2 ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) + len
+          let fe2 ← Aeneas.Std.Array.index_usize p i2
+          let (fe3, _) ← hacspec_ml_kem.ntt.butterfly fe fe1 fe2
+          Result.ok (fe3, (len, s, p))
+        else do
+          let fe ← Aeneas.Std.Slice.index_usize s group
+          let i2 ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) - len
+          let fe1 ← Aeneas.Std.Array.index_usize p i2
+          let fe2 ← Aeneas.Std.Array.index_usize p (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+          let (_, fe3) ← hacspec_ml_kem.ntt.butterfly fe fe1 fe2
+          Result.ok (fe3, (len, s, p)))
+    = .ok (nb_flat_lane p len.val (fun g => s.val[g]!) k, (len, s, p))
+  obtain ⟨i1, hi1, hi1v⟩ := nb_umul_ok 2#usize len (by simpa using h2len)
+  rw [hi1]; simp only [bind_tc_ok]
+  have hi1ne : i1.val ≠ 0 := by rw [hi1v]; simp; omega
+  obtain ⟨grp, hgrp, hgrpv⟩ := nb_udiv_ok ⟨BitVec.ofNat _ k⟩ i1 hi1ne
+  rw [hgrp]; simp only [bind_tc_ok]
+  obtain ⟨idx, hidx, hidxv⟩ := nb_umod_ok ⟨BitVec.ofNat _ k⟩ i1 hi1ne
+  rw [hidx]; simp only [bind_tc_ok]
+  have hgrpv' : grp.val = k / (2 * len.val) := by
+    rw [hgrpv, hi1v, hk_us]; simp
+  have hidxv' : idx.val = k % (2 * len.val) := by
+    rw [hidxv, hi1v, hk_us]; simp
+  have hdec : (idx < len) = (idx.val < len.val) := by
+    simp [Std.UScalar.lt_equiv]
+  unfold nb_flat_lane
+  by_cases hbr : idx.val < len.val
+  · rw [if_pos (by rw [hdec]; exact hbr : idx < len)]
+    have hbr' : k % (2 * len.val) < len.val := by rw [← hidxv']; exact hbr
+    rw [if_pos hbr']
+    rw [nb_slice_index_ok s grp (by rw [hgrpv']; exact hslen)]
+    simp only [bind_tc_ok]
+    rw [nb_array_index_ok p ⟨BitVec.ofNat _ k⟩
+        (by show (⟨BitVec.ofNat _ k⟩ : Std.Usize).val < p.val.length
+            rw [hk_us, p.property]; exact hk)]
+    simp only [bind_tc_ok]
+    obtain ⟨i2, hi2, hi2v⟩ := nb_uadd_ok ⟨BitVec.ofNat _ k⟩ len (by
+      rw [hk_us]; have : (256:Nat) ≤ Std.Usize.max := by scalar_tac
+      have := hapart hbr'; omega)
+    rw [hi2]; simp only [bind_tc_ok]
+    have hi2v' : i2.val = k + len.val := by rw [hi2v, hk_us]
+    have hi2lt : i2.val < 256 := by rw [hi2v']; exact hapart hbr'
+    rw [nb_array_index_ok p i2
+        (by show i2.val < p.val.length; rw [p.property]; exact hi2lt)]
+    simp only [bind_tc_ok]
+    rw [nb_butterfly_eq]
+    simp only [bind_tc_ok, hk_us, hi2v', hgrpv']
+  · rw [if_neg (by rw [hdec]; exact hbr : ¬ (idx < len))]
+    have hbr' : ¬ (k % (2 * len.val) < len.val) := by rw [← hidxv']; exact hbr
+    rw [if_neg hbr']
+    rw [nb_slice_index_ok s grp (by rw [hgrpv']; exact hslen)]
+    simp only [bind_tc_ok]
+    obtain ⟨i2, hi2, hi2v⟩ := nb_usub_ok ⟨BitVec.ofNat _ k⟩ len (by
+      rw [hk_us]; exact hbpart hbr')
+    rw [hi2]; simp only [bind_tc_ok]
+    have hi2v' : i2.val = k - len.val := by rw [hi2v, hk_us]
+    have hi2lt : i2.val < 256 := by rw [hi2v']; omega
+    rw [nb_array_index_ok p i2
+        (by show i2.val < p.val.length; rw [p.property]; exact hi2lt)]
+    simp only [bind_tc_ok]
+    rw [nb_array_index_ok p ⟨BitVec.ofNat _ k⟩
+        (by show (⟨BitVec.ofNat _ k⟩ : Std.Usize).val < p.val.length
+            rw [hk_us, p.property]; exact hk)]
+    simp only [bind_tc_ok]
+    rw [nb_butterfly_eq]
+    simp only [bind_tc_ok, hk_us, hi2v', hgrpv']
+
+/-- Full `ntt_layer_n` reduction to the flat array. -/
+private theorem nb_ntt_layer_n_flat
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (len : Std.Usize) (s : Slice hacspec_ml_kem.parameters.FieldElement)
+    (hlen : 0 < len.val) (h2len : 2 * len.val ≤ Std.Usize.max)
+    (hslen : ∀ i : Nat, i < 256 → i / (2 * len.val) < s.val.length)
+    (hpart : ∀ i : Nat, i < 256 →
+      (i % (2 * len.val) < len.val → i + len.val < 256) ∧
+      (¬ (i % (2 * len.val) < len.val) → len.val ≤ i)) :
+    hacspec_ml_kem.ntt.ntt_layer_n p len s
+      = .ok (nb_flat_arr p len.val (fun g => s.val[g]!)) := by
+  unfold hacspec_ml_kem.ntt.ntt_layer_n
+  unfold hacspec_ml_kem.parameters.createi
+  show CoreModels.core.array.from_fn 256#usize _ (len, s, p) = _
+  exact libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq 256#usize
+    (hacspec_ml_kem.ntt.ntt_layer_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+      256#usize)
+    (len, s, p) (nb_flat_lane p len.val (fun g => s.val[g]!))
+    (fun k hk => nb_layer_n_call_mut_eq p len s hlen h2len k hk
+      (hslen k hk) (hpart k hk).1 (hpart k hk).2)
+
+/-- `Slice.subslice` on a STRICTLY non-empty in-bounds range, straight from the
+    definition. (`Util.SliceSpecs.Slice.index_RangeUsize_eq` would do this too,
+    but it goes through the `AENEAS-SUBSLICE-STRICT` axiom, which exists only to
+    cover `start = end`. Here `start = groups ≥ 1` and `end = 2·groups`, so the
+    strict inequality holds and no axiom is needed.) -/
+private theorem nb_subslice_ok {T : Type} (s : Slice T) (a b : Std.Usize)
+    (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
+    ∃ ns : Slice T, Aeneas.Std.Slice.subslice s ⟨a, b⟩ = .ok ns ∧
+      ns.val = s.val.slice a.val b.val := by
+  unfold Aeneas.Std.Slice.subslice
+  rw [if_pos (show (⟨a, b⟩ : CoreModels.core.ops.range.Range Std.Usize).start.val
+        < (⟨a, b⟩ : CoreModels.core.ops.range.Range Std.Usize).end.val ∧
+      (⟨a, b⟩ : CoreModels.core.ops.range.Range Std.Usize).end.val ≤ s.length from ⟨h0, h1⟩)]
+  exact ⟨_, rfl, rfl⟩
+
+/-- Axiom-free `Range<usize>` slice index for strictly non-empty ranges. -/
+private theorem nb_index_RangeUsize_eq {T : Type} (s : Slice T) (a b : Std.Usize)
+    (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
+    ∃ ns : Slice T,
+      CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
+        ⟨a, b⟩ = .ok ns ∧ ns.val = s.val.slice a.val b.val := by
+  obtain ⟨ns, hns_eq, hns_val⟩ := nb_subslice_ok s a b h0 h1
+  refine ⟨ns, ?_, hns_val⟩
+  unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
+         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
+         CoreModels.rust_primitives.slice.slice_slice
+         CoreModels.rust_primitives.slice.slice_length
+  simp only [hns_eq, bind_tc_ok]
+  split_ifs with hc1 hc2
+  · rfl
+  · exfalso; scalar_tac
+  · exfalso; scalar_tac
+
+/-- The hacspec range-slice `ZETAS[a..b]` reduces to `List.slice a b`. -/
+private theorem nb_zetas_range_slice
+    (zs : Std.Array hacspec_ml_kem.parameters.FieldElement 128#usize)
+    (a b : Std.Usize) (h0 : a.val < b.val) (h1 : b.val ≤ 128) :
+    CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
+      (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+      (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
+      hacspec_ml_kem.parameters.FieldElement)) zs
+      { start := a, «end» := b }
+    = .ok (⟨List.slice a.val b.val zs.val, by
+            unfold List.slice
+            have h : zs.val.length = 128 := zs.property
+            simp only [List.length_take, List.length_drop, h]
+            scalar_tac⟩ : Slice hacspec_ml_kem.parameters.FieldElement) := by
+  have hzl : zs.val.length = 128 := zs.property
+  obtain ⟨ns, hns_eq, hns_val⟩ :=
+    nb_index_RangeUsize_eq (Aeneas.Std.Array.to_slice zs) a b h0
+      (by rw [Aeneas.Std.Array.val_to_slice]; omega)
+  unfold CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
+         CoreModels.core.array.Array.as_slice
+         CoreModels.rust_primitives.slice.array_as_slice
+         CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+  simp only [bind_tc_ok]
+  rw [hns_eq]
+  apply congrArg
+  apply Subtype.ext
+  rw [hns_val, Aeneas.Std.Array.val_to_slice]
+
+set_option maxHeartbeats 2000000 in
+/-- **§NB.3 apex.** One hacspec `ntt_layer` at layer `L ∈ [1,7]` IS the flat
+    butterfly array of half-width `2^L` whose group-`g` zeta is
+    `Spec.zeta_at (128/2^L + g)`. -/
+private theorem nb_ntt_layer_flat
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (layer : Std.Usize) (L : Nat)
+    (hL : layer.val = L) (hL1 : 1 ≤ L) (hL7 : L ≤ 7) :
+    hacspec_ml_kem.ntt.ntt_layer p layer
+      = .ok (nb_flat_arr p (2 ^ L) (fun g => Spec.zeta_at (128 / 2 ^ L + g))) := by
+  have hmax : (256 : Nat) ≤ Std.Usize.max := by scalar_tac
+  have hpowlo : (2 : Nat) ≤ 2 ^ L := by
+    calc (2 : Nat) = 2 ^ 1 := by norm_num
+      _ ≤ 2 ^ L := Nat.pow_le_pow_right (by omega) hL1
+  have hpowhi : (2 : Nat) ^ L ≤ 128 := by
+    calc (2 : Nat) ^ L ≤ 2 ^ 7 := Nat.pow_le_pow_right (by omega) hL7
+      _ = 128 := by norm_num
+  have hdvd : (2 : Nat) ^ L ∣ 128 := by
+    calc (2 : Nat) ^ L ∣ 2 ^ 7 := pow_dvd_pow 2 hL7
+      _ = 128 := by norm_num
+  have hlg : 2 ^ L * (128 / 2 ^ L) = 128 := Nat.mul_div_cancel' hdvd
+  unfold hacspec_ml_kem.ntt.ntt_layer
+  obtain ⟨len, hlen_def, hlenv⟩ := nb_shl_one_ok layer (by rw [hL]; exact nb_numbits_ge L (by omega))
+  have hlenv2 : len.val = 2 ^ L := by rw [hlenv, hL]
+  rw [hlen_def]; simp only [bind_tc_ok]
+  rw [nb_ntt_zetas_eq_ok]; simp only [bind_tc_ok]
+  obtain ⟨groups, hg_def, hgv⟩ := nb_div128_ok len (by omega)
+  have hgv2 : groups.val = 128 / 2 ^ L := by rw [hgv, hlenv2]
+  have hg64 : groups.val ≤ 64 := by
+    rw [hgv2]
+    calc 128 / 2 ^ L ≤ 128 / 2 := Nat.div_le_div_left hpowlo (by omega)
+      _ = 64 := by norm_num
+  have hgpos : 0 < groups.val := by
+    rw [hgv2]; exact Nat.div_pos hpowhi (by omega)
+  rw [hg_def]; simp only [bind_tc_ok]
+  obtain ⟨iend, hi_def, hiv⟩ := nb_umul_ok 2#usize groups (by
+    show (2#usize : Std.Usize).val * groups.val ≤ Std.Usize.max
+    have h2 : (2#usize : Std.Usize).val = 2 := by scalar_tac
+    rw [h2]; omega)
+  have h2u : (2#usize : Std.Usize).val = 2 := by scalar_tac
+  have hiv2 : iend.val = 2 * groups.val := by rw [hiv, h2u]
+  rw [hi_def]; simp only [bind_tc_ok]
+  rw [nb_zetas_range_slice nb_zetasArr groups iend (by omega) (by omega)]
+  simp only [bind_tc_ok]
+  -- the slice's lane `g` is `zetasArr[groups + g]`, i.e. `Spec.zeta_at (groups + g)`
+  have hslice_lane : ∀ g : Nat, g < groups.val →
+      (List.slice groups.val iend.val nb_zetasArr.val)[g]!
+        = Spec.zeta_at (128 / 2 ^ L + g) := by
+    intro g hg
+    have hzl : nb_zetasArr.val.length = 128 := nb_zetasArr.property
+    rw [nb_slice_getElem nb_zetasArr.val groups.val iend.val g (by omega) (by omega)]
+    rw [nb_zetas_bridge (groups.val + g) (by omega), hgv2]
+  have h256 : 2 * len.val * groups.val = 256 := by
+    rw [hlenv2, hgv2]
+    calc 2 * 2 ^ L * (128 / 2 ^ L) = 2 * (2 ^ L * (128 / 2 ^ L)) := by ring
+      _ = 256 := by rw [hlg]
+  rw [nb_ntt_layer_n_flat p len _ (by omega) (by omega)
+    (fun i hi => by
+      have hsl : (List.slice groups.val iend.val nb_zetasArr.val).length = groups.val := by
+        unfold List.slice
+        have hzl : nb_zetasArr.val.length = 128 := nb_zetasArr.property
+        simp only [List.length_take, List.length_drop, hzl]
+        omega
+      show i / (2 * len.val) < _
+      rw [hsl]
+      exact Nat.div_lt_of_lt_mul (by omega))
+    (fun i hi => ⟨fun hc => by
+        have hdm : i = 2 * len.val * (i / (2 * len.val)) + i % (2 * len.val) :=
+          (Nat.div_add_mod i (2 * len.val)).symm
+        have hblk : i / (2 * len.val) < groups.val := Nat.div_lt_of_lt_mul (by omega)
+        have hmul : 2 * len.val * (i / (2 * len.val) + 1) ≤ 2 * len.val * groups.val :=
+          Nat.mul_le_mul (Nat.le_refl _) (by omega)
+        rw [Nat.mul_add] at hmul; omega,
+      fun hc => by
+        have hle : i % (2 * len.val) ≤ i := Nat.mod_le _ _
+        omega⟩)]
+  -- match the two zeta functions lane-by-lane
+  apply congrArg
+  apply Subtype.ext
+  show (List.range 256).map
+      (nb_flat_lane p len.val (fun g => (List.slice groups.val iend.val nb_zetasArr.val)[g]!))
+    = (List.range 256).map (nb_flat_lane p (2 ^ L) (fun g => Spec.zeta_at (128 / 2 ^ L + g)))
+  apply List.map_congr_left
+  intro i hi
+  have hi256 : i < 256 := List.mem_range.mp hi
+  have hglt : i / (2 * len.val) < groups.val := Nat.div_lt_of_lt_mul (by omega)
+  simp only [nb_flat_lane]
+  rw [hslice_lane _ hglt, hlenv2]
+
+/-! ### §NB.4 — the seven pure layer models in the same flat normal form. -/
+
+private theorem nb_arr_ext
+    (u v : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (h : ∀ i : Nat, i < 256 → u.val[i]! = v.val[i]!) : u = v := by
+  apply Subtype.ext
+  apply List.ext_getElem
+  · simp only [Aeneas.Std.Array.length_eq]
+  · intro j hj1 _
+    have hj : j < 256 := by
+      rw [Aeneas.Std.Array.length_eq u] at hj1; simpa using hj1
+    have hu : u.val[j]! = u.val[j] :=
+      getElem!_pos u.val j (by rw [Aeneas.Std.Array.length_eq u]; exact hj)
+    have hv : v.val[j]! = v.val[j] :=
+      getElem!_pos v.val j (by rw [Aeneas.Std.Array.length_eq v]; exact hj)
+    rw [← hu, ← hv]; exact h j hj
+
+private theorem nb_make16_lane {α : Type} [Inhabited α] (g : Nat → α)
+    (h : ((List.range 16).map g).length = (16#usize : Std.Usize).val)
+    (c : Nat) (hc : c < 16) :
+    (Std.Array.make 16#usize ((List.range 16).map g) h).val[c]! = g c := by
+  show ((List.range 16).map g)[c]! = g c
+  rw [getElem!_pos _ c (by simp [List.length_map, List.length_range, hc])]
+  rw [List.getElem_map, List.getElem_range]
+
+/-- Flat lane `i` of `flatten_chunks` applied to a `createi`-shaped chunk array:
+    it is lane `i % 16` of chunk `i / 16`. (Stated on the `Array.make` form the
+    seven layer models actually use, so that the nested
+    `Array (Array FE 16) 16` type never has to be written out.) -/
+private theorem nb_flatten_make_lane
+    (g : Nat → Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
+    (h : ((List.range 16).map g).length = (16#usize : Std.Usize).val)
+    (i : Nat) (hi : i < 256) :
+    (Spec.flatten_chunks (Std.Array.make 16#usize ((List.range 16).map g) h)).val[i]!
+      = (g (i / 16)).val[i % 16]! := by
+  unfold Spec.flatten_chunks
+  show ((List.range 256).map (fun j =>
+      ((Std.Array.make 16#usize ((List.range 16).map g) h).val[j / 16]!).val[j % 16]!))[i]! = _
+  rw [getElem!_pos _ i (by simp [List.length_map, List.length_range, hi])]
+  rw [List.getElem_map, List.getElem_range]
+  rw [nb_make16_lane g h (i / 16) (by omega)]
+
+private theorem nb_chunk_at_lane
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (k ℓ : Nat) (hℓ : ℓ < 16) :
+    (Spec.chunk_at p k).val[ℓ]! = p.val[16 * k + ℓ]! := by
+  unfold Spec.chunk_at
+  show ((List.range 16).map (fun j => p.val[16 * k + j]!))[ℓ]! = _
+  rw [getElem!_pos _ ℓ (by simp [List.length_map, List.length_range, hℓ])]
+  rw [List.getElem_map, List.getElem_range]
+
+private theorem nb_bf_a_lane
+    (ca cb : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
+    (z : hacspec_ml_kem.parameters.FieldElement) (ℓ : Nat) (hℓ : ℓ < 16) :
+    (Spec.chunk_pair_butterfly_a_pure ca cb z).val[ℓ]!
+      = libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure (ca.val[ℓ]!)
+          (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (cb.val[ℓ]!) z) := by
+  unfold Spec.chunk_pair_butterfly_a_pure
+  show ((List.range 16).map (fun j =>
+      libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure (ca.val[j]!)
+        (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (cb.val[j]!) z)))[ℓ]! = _
+  rw [getElem!_pos _ ℓ (by simp [List.length_map, List.length_range, hℓ])]
+  rw [List.getElem_map, List.getElem_range]
+
+private theorem nb_bf_b_lane
+    (ca cb : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
+    (z : hacspec_ml_kem.parameters.FieldElement) (ℓ : Nat) (hℓ : ℓ < 16) :
+    (Spec.chunk_pair_butterfly_b_pure ca cb z).val[ℓ]!
+      = libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure (ca.val[ℓ]!)
+          (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (cb.val[ℓ]!) z) := by
+  unfold Spec.chunk_pair_butterfly_b_pure
+  show ((List.range 16).map (fun j =>
+      libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure (ca.val[j]!)
+        (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (cb.val[j]!) z)))[ℓ]! = _
+  rw [getElem!_pos _ ℓ (by simp [List.length_map, List.length_range, hℓ])]
+  rw [List.getElem_map, List.getElem_range]
+
+/-- Mod-chunk identity: `i % (2·(16·step)) = 16·((i/16) % (2·step)) + i%16`. -/
+private theorem nb_mod_chunk_eq (i step : Nat) (hstep : 0 < step) :
+    i % (2 * (16 * step)) = 16 * ((i / 16) % (2 * step)) + i % 16 := by
+  have h1 : i = 16 * (i / 16) + i % 16 := (Nat.div_add_mod i 16).symm
+  have key : (16 * (i / 16)) % (16 * (2 * step)) = 16 * ((i / 16) % (2 * step)) :=
+    Nat.mul_mod_mul_left 16 (i / 16) (2 * step)
+  have h16 : i % 16 < 16 := Nat.mod_lt _ (by decide)
+  have hxlt : (i / 16) % (2 * step) + 1 ≤ 2 * step := Nat.mod_lt _ (by omega)
+  have hml : 16 * ((i / 16) % (2 * step) + 1) ≤ 16 * (2 * step) :=
+    Nat.mul_le_mul (Nat.le_refl 16) hxlt
+  have hbound : 16 * ((i / 16) % (2 * step)) + i % 16 < 16 * (2 * step) := by
+    rw [Nat.mul_add] at hml; omega
+  have hstep_eq : 2 * (16 * step) = 16 * (2 * step) := by ring
+  have h16' : i % 16 < 16 * (2 * step) := by
+    have hge : 16 * 1 ≤ 16 * (2 * step) := Nat.mul_le_mul (Nat.le_refl 16) (by omega)
+    omega
+  rw [hstep_eq]
+  conv_lhs => rw [h1]
+  rw [Nat.add_mod, key, Nat.mod_eq_of_lt h16', Nat.mod_eq_of_lt hbound]
+
+/-- On the a-side the chunk partner `c + step` stays inside the 16 chunks. -/
+private theorem nb_layer4_partner_lt (c step : Nat) (hc : c < 16) (hs : 0 < step)
+    (hdvd : (2 * step) ∣ 16) (hoff : c % (2 * step) < step) : c + step < 16 := by
+  obtain ⟨m, hm⟩ := hdvd
+  have hdm : c = 2 * step * (c / (2 * step)) + c % (2 * step) :=
+    (Nat.div_add_mod c (2 * step)).symm
+  have hcomm : m * (2 * step) = 16 := by rw [Nat.mul_comm]; exact hm.symm
+  have hlt : c / (2 * step) < m := Nat.div_lt_of_lt_mul (by omega)
+  have hmul : 2 * step * (c / (2 * step) + 1) ≤ 2 * step * m :=
+    Nat.mul_le_mul (Nat.le_refl _) (by omega)
+  rw [Nat.mul_add] at hmul; omega
+
+set_option maxHeartbeats 2000000 in
+/-- **Layers 4–7.** `Spec.ntt_at_layer_4_plus_pure` in the flat normal form. -/
+private theorem nb_spec_layer_4_plus_lane
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (zeta_i layer : Std.Usize) (L : Nat)
+    (hL : layer.val = L) (hL4 : 4 ≤ L) (hL7 : L ≤ 7)
+    (i : Nat) (hi : i < 256) :
+    (Spec.ntt_at_layer_4_plus_pure p zeta_i layer).val[i]!
+      = nb_flat_lane p (2 ^ L) (fun g => Spec.zeta_at (zeta_i.val + g + 1)) i := by
+  set step : Nat := 2 ^ L / 16 with hstep_def
+  have h16dvd : (16 : Nat) ∣ 2 ^ L := by
+    calc (16 : Nat) = 2 ^ 4 := by norm_num
+      _ ∣ 2 ^ L := pow_dvd_pow 2 hL4
+  have hstep_pos : 0 < step := by
+    rw [hstep_def]
+    have : (16 : Nat) ≤ 2 ^ L := by
+      calc (16 : Nat) = 2 ^ 4 := by norm_num
+        _ ≤ 2 ^ L := Nat.pow_le_pow_right (by omega) hL4
+    omega
+  have hlen16 : 2 ^ L = 16 * step := by
+    rw [hstep_def]; exact (Nat.mul_div_cancel' h16dvd).symm
+  have hdvd : (2 * step) ∣ 16 := by rw [hstep_def]; interval_cases L <;> decide
+  have hshl : (1 <<< layer.val) / 16 = step := by
+    rw [hstep_def, hL, Nat.shiftLeft_eq, Nat.one_mul]
+  have hc : i / 16 < 16 := by omega
+  have hℓ : i % 16 < 16 := Nat.mod_lt _ (by decide)
+  -- the flat a/b decision and the chunk a/b decision agree
+  have hmce : i % (2 * (2 ^ L)) = 16 * ((i / 16) % (2 * step)) + i % 16 := by
+    rw [hlen16]; exact nb_mod_chunk_eq i step hstep_pos
+  have hdecf : (i % (2 * (2 ^ L)) < 2 ^ L) ↔ ((i / 16) % (2 * step) < step) := by
+    rw [hmce, hlen16]
+    constructor
+    · intro h; by_contra hco
+      have hco' : step ≤ (i / 16) % (2 * step) := Nat.le_of_not_lt hco
+      have : 16 * step ≤ 16 * ((i / 16) % (2 * step)) := Nat.mul_le_mul (Nat.le_refl 16) hco'
+      omega
+    · intro h
+      have : 16 * ((i / 16) % (2 * step) + 1) ≤ 16 * step :=
+        Nat.mul_le_mul (Nat.le_refl 16) (by omega)
+      rw [Nat.mul_add] at this; omega
+  -- the flat group index and the chunk group index agree
+  have hgrp : i / (2 * (2 ^ L)) = (i / 16) / (2 * step) := by
+    rw [hlen16, show 2 * (16 * step) = 16 * (2 * step) from by ring,
+        Nat.div_div_eq_div_mul]
+  unfold Spec.ntt_at_layer_4_plus_pure
+  rw [nb_flatten_make_lane _ _ i hi]
+  unfold Spec.chunk_at_layer_4_plus_pure
+  simp only [hshl, nb_flat_lane]
+  rw [hgrp]
+  by_cases hbr : (i / 16) % (2 * step) < step
+  · rw [if_pos hbr, if_pos (hdecf.mpr hbr)]
+    have hub : (i / 16) + step < 16 :=
+      nb_layer4_partner_lt (i / 16) step hc hstep_pos hdvd hbr
+    rw [nb_bf_a_lane _ _ _ (i % 16) hℓ]
+    rw [nb_make16_lane _ _ (i / 16) hc, nb_make16_lane _ _ ((i / 16) + step) hub]
+    rw [nb_chunk_at_lane p (i / 16) (i % 16) hℓ,
+        nb_chunk_at_lane p ((i / 16) + step) (i % 16) hℓ]
+    have e1 : 16 * (i / 16) + i % 16 = i := by omega
+    have e2 : 16 * ((i / 16) + step) + i % 16 = i + 2 ^ L := by
+      rw [hlen16, Nat.mul_add]; omega
+    rw [e1, e2]
+  · rw [if_neg hbr, if_neg (fun hc2 => hbr (hdecf.mp hc2))]
+    have hstep_le : step ≤ i / 16 := by
+      have hr : (i / 16) % (2 * step) ≤ i / 16 := Nat.mod_le _ _
+      omega
+    rw [nb_bf_b_lane _ _ _ (i % 16) hℓ]
+    rw [nb_make16_lane _ _ ((i / 16) - step) (by omega), nb_make16_lane _ _ (i / 16) hc]
+    rw [nb_chunk_at_lane p ((i / 16) - step) (i % 16) hℓ,
+        nb_chunk_at_lane p (i / 16) (i % 16) hℓ]
+    have e1 : 16 * (i / 16) + i % 16 = i := by omega
+    have e2 : 16 * ((i / 16) - step) + i % 16 = i - 2 ^ L := by
+      rw [hlen16, Nat.mul_sub]; omega
+    rw [e1, e2]
+
+/-! #### Layers 3, 2, 1 — the within-chunk layers.
+
+    Each chunk step is 8 sequential `chunk_ntt_step_pure` writes on DISJOINT
+    lane pairs, so lane `ℓ` is written exactly once; `interval_cases` resolves
+    the nested `.set`s. The zeta is indexed by `ℓ / (len/2)` inside the chunk. -/
+
+set_option maxHeartbeats 2000000 in
+private theorem nb_chunk_layer_3_lane
+    (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
+    (z : hacspec_ml_kem.parameters.FieldElement) (ℓ : Nat) (hℓ : ℓ < 16) :
+    (Spec.chunk_ntt_layer_3_step_pure a z).val[ℓ]!
+      = if ℓ % 16 < 8 then
+          libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure (a.val[ℓ]!)
+            (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (a.val[ℓ + 8]!) z)
+        else
+          libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure (a.val[ℓ - 8]!)
+            (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (a.val[ℓ]!) z) := by
+  unfold Spec.chunk_ntt_layer_3_step_pure Spec.chunk_ntt_step_pure
+  interval_cases ℓ <;>
+    simp only [Aeneas.Std.Array.set_val_eq] <;> norm_num
+
+set_option maxHeartbeats 2000000 in
+private theorem nb_chunk_layer_2_lane
+    (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
+    (z : Nat → hacspec_ml_kem.parameters.FieldElement) (ℓ : Nat) (hℓ : ℓ < 16) :
+    (Spec.chunk_ntt_layer_2_step_pure a (z 1) (z 2)).val[ℓ]!
+      = if ℓ % 8 < 4 then
+          libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure (a.val[ℓ]!)
+            (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (a.val[ℓ + 4]!)
+              (z (ℓ / 8 + 1)))
+        else
+          libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure (a.val[ℓ - 4]!)
+            (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (a.val[ℓ]!)
+              (z (ℓ / 8 + 1))) := by
+  unfold Spec.chunk_ntt_layer_2_step_pure Spec.chunk_ntt_step_pure
+  interval_cases ℓ <;>
+    simp only [Aeneas.Std.Array.set_val_eq] <;> norm_num
+
+set_option maxHeartbeats 4000000 in
+private theorem nb_chunk_layer_1_lane
+    (a : Std.Array hacspec_ml_kem.parameters.FieldElement 16#usize)
+    (z : Nat → hacspec_ml_kem.parameters.FieldElement) (ℓ : Nat) (hℓ : ℓ < 16) :
+    (Spec.chunk_ntt_layer_1_step_pure a (z 1) (z 2) (z 3) (z 4)).val[ℓ]!
+      = if ℓ % 4 < 2 then
+          libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure (a.val[ℓ]!)
+            (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (a.val[ℓ + 2]!)
+              (z (ℓ / 4 + 1)))
+        else
+          libcrux_iot_ml_kem.Spec.Pure.FieldElement.sub_pure (a.val[ℓ - 2]!)
+            (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure (a.val[ℓ]!)
+              (z (ℓ / 4 + 1))) := by
+  unfold Spec.chunk_ntt_layer_1_step_pure Spec.chunk_ntt_step_pure
+  interval_cases ℓ <;>
+    simp only [Aeneas.Std.Array.set_val_eq] <;> norm_num
+
+private theorem nb_spec_layer_3_lane
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (i : Nat) (hi : i < 256) :
+    (Spec.ntt_layer_3_pure p 15#usize).val[i]!
+      = nb_flat_lane p 8 (fun g => Spec.zeta_at (16 + g)) i := by
+  have hℓ : i % 16 < 16 := Nat.mod_lt _ (by decide)
+  have hzu : (15#usize : Std.Usize).val = 15 := by scalar_tac
+  unfold Spec.ntt_layer_3_pure
+  rw [nb_flatten_make_lane _ _ i hi]
+  rw [nb_chunk_layer_3_lane (Spec.chunk_at p (i / 16))
+        (Spec.zeta_at ((15#usize : Std.Usize).val + (i / 16) + 1)) (i % 16) hℓ]
+  simp only [nb_flat_lane, show 2 * 8 = 16 from by norm_num, hzu]
+  have hzi : 16 + i / 16 = 15 + i / 16 + 1 := by omega
+  rw [hzi]
+  by_cases hbr : i % 16 < 8
+  · rw [if_pos (by omega : i % 16 % 16 < 8), if_pos hbr]
+    rw [nb_chunk_at_lane p (i / 16) (i % 16) hℓ,
+        nb_chunk_at_lane p (i / 16) (i % 16 + 8) (by omega)]
+    rw [show 16 * (i / 16) + i % 16 = i from by omega,
+        show 16 * (i / 16) + (i % 16 + 8) = i + 8 from by omega]
+  · rw [if_neg (by omega : ¬ (i % 16 % 16 < 8)), if_neg hbr]
+    rw [nb_chunk_at_lane p (i / 16) (i % 16 - 8) (by omega),
+        nb_chunk_at_lane p (i / 16) (i % 16) hℓ]
+    rw [show 16 * (i / 16) + i % 16 = i from by omega,
+        show 16 * (i / 16) + (i % 16 - 8) = i - 8 from by omega]
+
+private theorem nb_spec_layer_2_lane
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (i : Nat) (hi : i < 256) :
+    (Spec.ntt_layer_2_pure p 31#usize).val[i]!
+      = nb_flat_lane p 4 (fun g => Spec.zeta_at (32 + g)) i := by
+  have hℓ : i % 16 < 16 := Nat.mod_lt _ (by decide)
+  have hzu : (31#usize : Std.Usize).val = 31 := by scalar_tac
+  unfold Spec.ntt_layer_2_pure
+  rw [nb_flatten_make_lane _ _ i hi]
+  rw [nb_chunk_layer_2_lane (Spec.chunk_at p (i / 16))
+        (fun m => Spec.zeta_at ((31#usize : Std.Usize).val + 2 * (i / 16) + m))
+        (i % 16) hℓ]
+  simp only [nb_flat_lane, show 2 * 4 = 8 from by norm_num, hzu]
+  have hzi : 32 + i / 8 = 31 + 2 * (i / 16) + (i % 16 / 8 + 1) := by omega
+  rw [hzi]
+  by_cases hbr : i % 8 < 4
+  · rw [if_pos (by omega : i % 16 % 8 < 4), if_pos hbr]
+    rw [nb_chunk_at_lane p (i / 16) (i % 16) hℓ,
+        nb_chunk_at_lane p (i / 16) (i % 16 + 4) (by omega)]
+    rw [show 16 * (i / 16) + i % 16 = i from by omega,
+        show 16 * (i / 16) + (i % 16 + 4) = i + 4 from by omega]
+  · rw [if_neg (by omega : ¬ (i % 16 % 8 < 4)), if_neg hbr]
+    rw [nb_chunk_at_lane p (i / 16) (i % 16 - 4) (by omega),
+        nb_chunk_at_lane p (i / 16) (i % 16) hℓ]
+    rw [show 16 * (i / 16) + i % 16 = i from by omega,
+        show 16 * (i / 16) + (i % 16 - 4) = i - 4 from by omega]
+
+private theorem nb_spec_layer_1_lane
+    (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (i : Nat) (hi : i < 256) :
+    (Spec.ntt_layer_1_pure p 63#usize).val[i]!
+      = nb_flat_lane p 2 (fun g => Spec.zeta_at (64 + g)) i := by
+  have hℓ : i % 16 < 16 := Nat.mod_lt _ (by decide)
+  have hzu : (63#usize : Std.Usize).val = 63 := by scalar_tac
+  unfold Spec.ntt_layer_1_pure
+  rw [nb_flatten_make_lane _ _ i hi]
+  rw [nb_chunk_layer_1_lane (Spec.chunk_at p (i / 16))
+        (fun m => Spec.zeta_at ((63#usize : Std.Usize).val + 4 * (i / 16) + m))
+        (i % 16) hℓ]
+  simp only [nb_flat_lane, show 2 * 2 = 4 from by norm_num, hzu]
+  have hzi : 64 + i / 4 = 63 + 4 * (i / 16) + (i % 16 / 4 + 1) := by omega
+  rw [hzi]
+  by_cases hbr : i % 4 < 2
+  · rw [if_pos (by omega : i % 16 % 4 < 2), if_pos hbr]
+    rw [nb_chunk_at_lane p (i / 16) (i % 16) hℓ,
+        nb_chunk_at_lane p (i / 16) (i % 16 + 2) (by omega)]
+    rw [show 16 * (i / 16) + i % 16 = i from by omega,
+        show 16 * (i / 16) + (i % 16 + 2) = i + 2 from by omega]
+  · rw [if_neg (by omega : ¬ (i % 16 % 4 < 2)), if_neg hbr]
+    rw [nb_chunk_at_lane p (i / 16) (i % 16 - 2) (by omega),
+        nb_chunk_at_lane p (i / 16) (i % 16) hℓ]
+    rw [show 16 * (i / 16) + i % 16 = i from by omega,
+        show 16 * (i / 16) + (i % 16 - 2) = i - 2 from by omega]
+
+/-! ### §NB.5 — the seven per-layer matches. -/
+
+private theorem nb_match_4_plus
+    (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (layer zeta_i : Std.Usize) (L : Nat)
+    (hL : layer.val = L) (hL4 : 4 ≤ L) (hL7 : L ≤ 7)
+    (hzi : zeta_i.val + 1 = 128 / 2 ^ L) :
+    hacspec_ml_kem.ntt.ntt_layer q layer
+      = .ok (Spec.ntt_at_layer_4_plus_pure q zeta_i layer) := by
+  rw [nb_ntt_layer_flat q layer L hL (by omega) hL7]
+  apply congrArg
+  refine nb_arr_ext _ _ (fun i hi => ?_)
+  rw [nb_flat_arr_lane _ _ _ i hi,
+      nb_spec_layer_4_plus_lane q zeta_i layer L hL hL4 hL7 i hi]
+  have hzf : (fun g : Nat => Spec.zeta_at (128 / 2 ^ L + g))
+      = (fun g : Nat => Spec.zeta_at (zeta_i.val + g + 1)) := by
+    funext g; congr 1; omega
+  rw [hzf]
+
+private theorem nb_match_3
+    (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    hacspec_ml_kem.ntt.ntt_layer q 3#usize
+      = .ok (Spec.ntt_layer_3_pure q 15#usize) := by
+  rw [nb_ntt_layer_flat q 3#usize 3 (by scalar_tac) (by omega) (by omega)]
+  apply congrArg
+  refine nb_arr_ext _ _ (fun i hi => ?_)
+  rw [nb_flat_arr_lane _ _ _ i hi, nb_spec_layer_3_lane q i hi]
+  norm_num
+
+private theorem nb_match_2
+    (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    hacspec_ml_kem.ntt.ntt_layer q 2#usize
+      = .ok (Spec.ntt_layer_2_pure q 31#usize) := by
+  rw [nb_ntt_layer_flat q 2#usize 2 (by scalar_tac) (by omega) (by omega)]
+  apply congrArg
+  refine nb_arr_ext _ _ (fun i hi => ?_)
+  rw [nb_flat_arr_lane _ _ _ i hi, nb_spec_layer_2_lane q i hi]
+  norm_num
+
+private theorem nb_match_1
+    (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
+    hacspec_ml_kem.ntt.ntt_layer q 1#usize
+      = .ok (Spec.ntt_layer_1_pure q 63#usize) := by
+  rw [nb_ntt_layer_flat q 1#usize 1 (by scalar_tac) (by omega) (by omega)]
+  apply congrArg
+  refine nb_arr_ext _ _ (fun i hi => ?_)
+  rw [nb_flat_arr_lane _ _ _ i hi, nb_spec_layer_1_lane q i hi]
+  norm_num
+
+/-- Every lane of the layer-1 output is canonical, so the tail
+    `poly_barrett_reduce_pure` is the identity. -/
+private theorem nb_layer_1_canon
+    (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    (k : Nat) (hk : k < 256) :
+    libcrux_iot_ml_kem.Spec.Pure.Canonical
+      ((Spec.ntt_layer_1_pure q 63#usize).val[k]!) := by
+  rw [nb_spec_layer_1_lane q k hk]
+  unfold nb_flat_lane
+  split
+  · exact libcrux_iot_ml_kem.Spec.Pure.Canonical_add_pure _ _
+  · exact nb_Canonical_sub_pure _ _ (libcrux_iot_ml_kem.Spec.Pure.Canonical_mul_pure _ _)
+
+end NttBridge
+
 /-- **THE NTT BRIDGE** — the hacspec forward NTT IS this tree's pure model of it.
 
     `Spec.ntt_pure_vec_u` (above) mirrors the layer chain `ntt_vector_u` actually runs;
@@ -1155,7 +2168,27 @@ theorem Spec.zeta_at_one_eq_layer_7 :
 theorem Spec.ntt_pure_vec_u_eq_hacspec
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
     hacspec_ml_kem.ntt.ntt p = .ok (Spec.ntt_pure_vec_u p) := by
-  sorry
+  unfold hacspec_ml_kem.ntt.ntt
+  rw [nb_match_4_plus p 7#usize 0#usize 7 (by scalar_tac) (by omega) (by omega)
+      (by rw [show ((0#usize : Std.Usize)).val = 0 from by scalar_tac]; norm_num)]
+  simp only [bind_tc_ok]
+  rw [nb_match_4_plus _ 6#usize 1#usize 6 (by scalar_tac) (by omega) (by omega)
+      (by rw [show ((1#usize : Std.Usize)).val = 1 from by scalar_tac]; norm_num)]
+  simp only [bind_tc_ok]
+  rw [nb_match_4_plus _ 5#usize 3#usize 5 (by scalar_tac) (by omega) (by omega)
+      (by rw [show ((3#usize : Std.Usize)).val = 3 from by scalar_tac]; norm_num)]
+  simp only [bind_tc_ok]
+  rw [nb_match_4_plus _ 4#usize 7#usize 4 (by scalar_tac) (by omega) (by omega)
+      (by rw [show ((7#usize : Std.Usize)).val = 7 from by scalar_tac]; norm_num)]
+  simp only [bind_tc_ok]
+  rw [nb_match_3 _]
+  simp only [bind_tc_ok]
+  rw [nb_match_2 _]
+  simp only [bind_tc_ok]
+  rw [nb_match_1 _]
+  simp only [Spec.ntt_pure_vec_u]
+  rw [libcrux_iot_ml_kem.Spec.Pure.polynomial.poly_barrett_reduce_pure_id_of_canonical _
+      (nb_layer_1_canon _)]
 
 /-- Per-chunk pure projection of `polynomial.add_error_reduce`: for the
     `ℓ`-th lane of a 16-lane chunk,
