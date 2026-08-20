@@ -1696,9 +1696,11 @@ private theorem w32_len : w32.length = 32 := by
   show (List.replicate 32 (0#u8)).length = 32
   simp
 
-/-- **THE REFUTATION.** The locked statement of `serialize_public_key_mut_fc`, ∀-closed over
-    exactly its own binders and hypotheses, is FALSE — machine-checked, axioms
-    `propext / Classical.choice / Quot.sound`.
+/-- **THE REFUTATION.** The PRE-2026-08-19 statement of `serialize_public_key_mut_fc` — the
+    one WITHOUT `h_rank` — ∀-closed over exactly its own binders and hypotheses, is FALSE:
+    machine-checked, axioms `propext / Classical.choice / Quot.sound`. It is kept after the
+    re-lock because it is the standing evidence for why `h_rank` is in the statement; note
+    that its hypothesis list below is deliberately NOT that of the current theorem.
 
     Read together with `spkm_core` (the same statement plus `h_K_pos` and `h_K_bnd`, PROVED),
     this is a completed decomposition: the obligation is true exactly on the hypotheses the
@@ -1755,13 +1757,21 @@ end SPKMBank
     Post transcribed from `libcrux-ml-kem/src/ind_cpa.rs:114`:
     `serialized_future == Hacspec_ml_kem.Serialize.serialize_public_key $K $PUBLIC_KEY_SIZE
     (vector_to_spec $K $t_as_ntt) $seed_for_a`.
-    `h_seed_len` and `h_pk_size` are the upstream `requires`, transcribed; `is_rank` is NOT,
-    for the same measured reason as INC-2a.2.
+    `h_seed_len`, `h_pk_size` AND `is_rank` are the upstream `requires`, transcribed. Dropping
+    `is_rank` (as INC-2a.2 legitimately does) made this statement FALSE; see the SPECREQ below.
 
     ────────────────────────────────────────────────────────────────────────────────────────
-    # SPECREQ INC-2a.3 — THIS STATEMENT IS FALSE AS LOCKED (PROVER, 2026-08-19)
+    # SPECREQ INC-2a.3 — RESOLVED 2026-08-19 by re-locking with `is_rank` (option 1 below).
+    # CLOSED 2026-08-20, axioms `propext / Classical.choice / Quot.sound`.
+    # Everything from here to the end of this docstring describes the PREVIOUS lock, the one
+    # WITHOUT `h_rank`. It is kept because the two counterexamples remain the reason the
+    # hypothesis is there, and because they are still banked as theorems in this file. Read
+    # "this statement" below as "the statement without `h_rank`".
+    #
+    # The closing proof is three lines: `is_rank K = .ok true` is a three-way literal test, so
+    # it pins `K.val ∈ {2,3,4}`, which yields `h_K_pos` and `h_K_bnd` and hence `spkm_core`.
 
-    It is under-constrained in exactly two places, and BOTH are machine-refuted (`#eval` on
+    It was under-constrained in exactly two places, and BOTH are machine-refuted (`#eval` on
     the extracted impl, all four hypotheses satisfied at the witness). The obligation is
     otherwise true and PROVED: `spkm_core` above is this statement plus the two missing
     hypotheses, closed, axioms `propext / Classical.choice / Quot.sound`.
@@ -1896,11 +1906,22 @@ theorem serialize_public_key_mut_fc
                     = .ok enc
                   ∧ p.1.length = PUBLIC_KEY_SIZE.val
                   ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val → p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄ := by
-  -- NOT PROVABLE: this statement is FALSE at `K = 0` and at `K * 3072 > Usize.max`, both
-  -- machine-refuted. See SPECREQ INC-2a.3 in the docstring above. The proof it WOULD have is
-  -- `spkm_core`, closed and axiom-clean; correcting the statement per option 1 or 2 of the
-  -- SPECREQ turns this `sorry` into one application of it. The statement is left byte-for-byte
-  -- as locked, per the freeze.
-  sorry
+  -- The re-locked statement is `spkm_core` plus `h_rank` in place of `h_K_pos`/`h_K_bnd`, so
+  -- all this proof does is discharge those two from upstream's rank contract. `is_rank` is a
+  -- three-way literal test, so it pins `K.val ∈ {2,3,4}`: that gives `0 < K` (counterexample
+  -- A — the subslice `[0, 384K)` is non-empty) and `K * 3072 ≤ Usize.max` (counterexample B —
+  -- `ranked_bytes_per_ring_element` multiplies at the BIT count, so `12288 ≤ Usize.max`, which
+  -- `scalar_tac` supplies from the platform width, is the bound that matters, not `K * 384`).
+  have hK : K.val = 2 ∨ K.val = 3 ∨ K.val = 4 := by
+    unfold hacspec_ml_kem.parameters.is_rank at h_rank
+    split_ifs at h_rank with h2 h3
+    · exact Or.inl (by rw [h2]; rfl)
+    · exact Or.inr (Or.inl (by rw [h3]; rfl))
+    · have h4 : K = 4#usize := by simpa using h_rank
+      exact Or.inr (Or.inr (by rw [h4]; rfl))
+  have hmax : (12288 : Nat) ≤ Std.Usize.max := by scalar_tac
+  exact spkm_core K PUBLIC_KEY_SIZE t_as_ntt seed_for_a serialized scratch
+    (by rcases hK with h | h | h <;> omega) (by rcases hK with h | h | h <;> omega)
+    h_seed_len h_pk_size h_ser_len h_bnd
 
 end libcrux_iot_ml_kem.IndCpaFc
