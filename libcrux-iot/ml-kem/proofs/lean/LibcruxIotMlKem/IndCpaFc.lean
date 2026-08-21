@@ -3634,6 +3634,7 @@ private theorem bind_ok_triple3 {α β γ δ : Type} {x : Result (α × β × γ
 
 end DUBank
 
+@[spec]
 theorem decrypt_unpacked_fc
     (K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR :
       Std.Usize)

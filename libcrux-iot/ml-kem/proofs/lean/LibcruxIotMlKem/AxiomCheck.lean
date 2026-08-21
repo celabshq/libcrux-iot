@@ -96,6 +96,16 @@ def elabAssertNoSorry : CommandElab := fun stx => do
 -- `compress_then_serialize_ring_element_u_fc` above, so a `sorry` in that leaf is a `sorry`
 -- here too — and this is the guard that says so at build time rather than at review time.
 #assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.compress_then_serialize_u_fc
+-- INC-2a.7 / INC-2b.D. `deserialize_then_decompress_u_fc` closed in INC-2a.7 and was never
+-- registered here; the header above says to add each one as it closes, so both go in now.
+-- `decrypt_unpacked_fc` carries FIVE axioms, not three: it inherits
+-- `Util.SliceSpecs.Array.update_subslice_le_eq` and `Util.SliceSpecs.Slice.subslice_le_eq`
+-- from `compute_message_fc` (plans/INC-2-scope.md §9.9.7 predicted exactly this, and the
+-- queue row's Field 5 predicted it before the dispatch; the fresh-file `#print axioms`
+-- confirms it). `#assert_no_sorry` asserts sorry-freedom, not an axiom list, so it is the
+-- right guard here either way.
+#assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.deserialize_then_decompress_u_fc
+#assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.decrypt_unpacked_fc
 
 /-! ## Kind exemplars the campaign's readiness gate depends on.
     If one of these acquires a `sorry`, every "FULL" verdict resting on it is void. -/
