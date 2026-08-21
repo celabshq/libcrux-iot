@@ -1105,7 +1105,7 @@ theorem compute_vector_u_row0_acc_bridge {K : Std.Usize}
     intro k i j; rw [h_r_arr k.val k.isLt]; exact h_r_bnd k.val k.isLt i j
   -- Apply the L7.4 bridge on `(mp, r_arr)`.
   have h_bridge :=
-    compute_message_acc_bridge mp r_arr acc_init acc2 h_acc_init_zero h_secret_bnd h_u_bnd h_char
+    compute_message_acc_bridge mp r_arr acc_init acc2 h_acc_init_zero h_char
   -- Rewrite the two vector args: `lift_vec mp = lm0`, `lift_vec r_arr = lift_vec_slice r_as_ntt K`.
   have h_mp_vec : lift_vec mp = lm0 :=
     lift_vec_mp_eq mp lm0 (fun c hc => (h_mp_agree c hc).1)
@@ -1890,7 +1890,7 @@ theorem compute_vector_u_rowi_acc_bridge {K : Std.Usize}
     intro k i j; rw [h_r_arr k.val k.isLt]; exact h_r_bnd k.val k.isLt i j
   -- Apply the L7.4 bridge on `(mp, r_arr)`.
   have h_bridge :=
-    compute_message_acc_bridge mp r_arr acc_init acc2 h_acc_init_zero h_secret_bnd h_u_bnd h_char
+    compute_message_acc_bridge mp r_arr acc_init acc2 h_acc_init_zero h_char
   -- Rewrite the two vector args: `lift_vec mp = lm_i`, `lift_vec r_arr = lift_vec_slice r_as_ntt K`.
   have h_mp_vec : lift_vec mp = lm_i :=
     lift_vec_mp_eq mp lm_i (fun c hc => (h_mp_agree c hc).1)

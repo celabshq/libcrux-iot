@@ -739,6 +739,57 @@ theorem subtract_reduce_fc
         simpa [Std.Do.SPred.down_pure] using hh
       simpa [ReducingFromI32ArrayFC.step_post] using hP
 
+/-- **OBLIGATION INC-2b.B — the bounds-only sibling of `subtract_reduce_fc`.**
+
+    BOUNDS ONLY, and ADDITIVE: this does NOT restate the banked `subtract_reduce_fc`
+    above, which stays exactly as it is. This is the tree's own `*_fc` / `*_spec` split —
+    cf. the bounds-only `PolynomialRingElement_poly_barrett_reduce_spec`, cited at
+    `Polynomial/NttDrivers.lean:4084` and `:4365`.
+
+    ## Why it exists
+    `SerializeFc.compress_then_serialize_message_fc` (:6829) REQUIRES `natAbs ≤ 3328` on the
+    message. `matrix.compute_message` PRODUCES that message and `compute_message_fc`'s post
+    carries NO bound. The message is an internal local of `ind_cpa::decrypt_unpacked`
+    (`ind_cpa.rs:903-911` hands `&mut message` straight on), so the bound cannot be lifted
+    into a caller's hypothesis, and it is NOT recoverable from the lift equation either:
+    `lift_poly` lands in `ZMod 3329`, pinning the residue and leaving the representative
+    free. Without this theorem `decrypt_unpacked` cannot close at all.
+    Record: `plans/INC-2-scope.md` §9.9.1.
+
+    ## The leaf fact is ALREADY BANKED — this is threading, not new mathematics
+    `subtract_reduce`'s per-chunk body ends in `Vector::barrett_reduce`
+    (`ml-kem/src/polynomial.rs:76`), and the element-level `barrett_reduce_fc`
+    (`Vector/Portable/Arithmetic/Element.lean:2003`, `@[spec high]`) exports BOTH
+    `≤ 3328` AND the lift equation. What drops it is `ReducingFromI32ArrayFC.inv`
+    (:43-58), whose conjuncts are the FC equation and "undone chunks unchanged", with no
+    bound. So: add a bound conjunct to the loop invariant and carry it to the post.
+
+    ## Hypotheses
+    Transcribed verbatim from `subtract_reduce_fc` (:640) — the SAME preconditions, because
+    it is the same call. `29439 = 32767 - 3328` and `32767 = 2^15 - 1` are SATURATING (I16
+    max), i.e. already the loosest true statements; do not try to generalise them.
+
+    ## MEASURED before dispatch (`plans/INC-2-scope.md` §9.9.1) — do NOT re-run
+    Max `|lane|` of `compute_message`'s result over 12 random K=3 and 12 random K=4 trials:
+    **1646-1664**; at the all-3328 corner, **9**. That is barrett's `q/2` output. The bound
+    is TRUE with ~2x room — it is MISSING, not false. Barrett's output range was separately
+    verified EXHAUSTIVELY over all 65,536 i16 inputs: exactly `[-1664, 1664]`.
+    So `≤ 3328` is sound and loose by ~2x; it is stated at 3328 because that is exactly what
+    the consumer `compress_then_serialize_message_fc` requires. -/
+theorem subtract_reduce_bnd
+    (self b : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+            libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (h_self_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+      ((self.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 29439)
+    (h_b_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+      ((b.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 32767) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.polynomial.PolynomialRingElement.subtract_reduce
+      (vectortraitsOperationsInst := portable_ops_inst) self b
+    ⦃ ⇓ p => ⌜ ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                ((p.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328 ⌝ ⦄ := by
+  sorry
+
 /-! ### L6.3 — `add_to_ring_element` (DOCUMENTED, NO STANDALONE FC).
 
     The impl-side `PolynomialRingElement.add_to_ring_element` is NOT

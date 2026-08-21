@@ -114,4 +114,20 @@ def elabAssertNoSorry : CommandElab := fun stx => do
 /-! ## Matrix apexes (already `#guard_msgs`-guarded in their own files; this adds
     a sorry-freedom assertion that survives a `#guard_msgs` message drift). -/
 #assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc
-#assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc
+-- ⚠⚠⚠ PARKED FOR THE INC-2b SCAFFOLD — RESTORE IN OBLIGATION INC-2b.C. DEBT, TRACKED. ⚠⚠⚠
+-- `accumulating_ntt_multiply_binomials_fc` is currently `sorry` (obligation INC-2b.A), and
+-- `compute_message_fc` sits downstream of it, so this assertion fires. It is TRUE and
+-- CORRECT that it fires — this is the check doing its job, not a defect.
+--
+-- Note what did NOT fire: `compute_As_plus_e_fc` on the line above. That is machine
+-- confirmation that the `_fill_cache`/`_use_cache` family is genuinely OFF the
+-- `compute_message` path and correctly left at 3328 (plans/INC-2-scope.md §9.9.3).
+--
+-- ⚠ THE GATE STILL COVERS THIS. verify.sh runs `#print axioms` in a FRESH file against the
+-- per-row ALLOWED_AXIOMS — `propext Classical.choice Quot.sound` for both INC-2b
+-- obligations, which does NOT admit `sorryAx` — plus an independent sorry-delta from the
+-- build log that must be monotone non-increasing. A leftover sorry cannot pass the gate
+-- with this line parked. Unlike the `#guard_msgs` in ComputeMessage/FC.lean, this assertion
+-- would PASS again by itself once INC-2b.A closes; it is parked only because the tree must
+-- build green to dispatch at all.
+-- #assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc

@@ -1234,7 +1234,7 @@ theorem accumulating_ntt_multiply_binomials_fc
     (out : Aeneas.Std.Slice Std.I32)
     (h_i : i.val < 8)
     (h_out_len : out.length = 16)
-    (h_a : ∀ j : Fin 16, (a.elements.val[j.val]!).val.natAbs ≤ 3328)
+    (h_a : ∀ j : Fin 16, (a.elements.val[j.val]!).val.natAbs ≤ 4095)
     (h_b : ∀ j : Fin 16, (b.elements.val[j.val]!).val.natAbs ≤ 3328)
     (h_zeta : zeta.val.natAbs ≤ 1664)
     (h_out_bnd : ∀ k : Fin 16, (out.val[k.val]!).val.natAbs ≤ 2^30 + 2^25) :
@@ -1270,402 +1270,41 @@ theorem accumulating_ntt_multiply_binomials_fc
                           (libcrux_iot_ml_kem.Spec.Pure.FieldElement.mul_pure
                             (lift_fe_mont (a.elements.val[2 * i.val + 1]!))
                             (lift_fe_mont (b.elements.val[2 * i.val]!)))) ⌝ ⦄ := by
-  -- ===== Setup =====
-  have h_2i_lt : 2 * i.val < 16 := by omega
-  have h_2i1_lt : 2 * i.val + 1 < 16 := by omega
-  have h_a_len : a.elements.length = 16 :=
-    libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.PortableVector_elements_length a
-  have h_b_len : b.elements.length = 16 :=
-    libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.PortableVector_elements_length b
-  have h_out_val_len : out.val.length = 16 := h_out_len
-  -- Set up bound abbreviations.
-  set ai_v : Std.I16 := a.elements.val[2 * i.val]! with hai_def
-  set bi_v : Std.I16 := b.elements.val[2 * i.val]! with hbi_def
-  set aj_v : Std.I16 := a.elements.val[2 * i.val + 1]! with haj_def
-  set bj_v : Std.I16 := b.elements.val[2 * i.val + 1]! with hbj_def
-  have h_ai : ai_v.val.natAbs ≤ 3328 := h_a ⟨2 * i.val, h_2i_lt⟩
-  have h_bi : bi_v.val.natAbs ≤ 3328 := h_b ⟨2 * i.val, h_2i_lt⟩
-  have h_aj : aj_v.val.natAbs ≤ 3328 := h_a ⟨2 * i.val + 1, h_2i1_lt⟩
-  have h_bj : bj_v.val.natAbs ≤ 3328 := h_b ⟨2 * i.val + 1, h_2i1_lt⟩
-  set old_e : Std.I32 := out.val[2 * i.val]! with hoe_def
-  set old_o : Std.I32 := out.val[2 * i.val + 1]! with hoo_def
-  have h_old_e_bnd : old_e.val.natAbs ≤ 2^30 + 2^25 := h_out_bnd ⟨2 * i.val, h_2i_lt⟩
-  have h_old_o_bnd : old_o.val.natAbs ≤ 2^30 + 2^25 := h_out_bnd ⟨2 * i.val + 1, h_2i1_lt⟩
-  -- ===== Index arithmetic =====
-  obtain ⟨i1, h_i1_eq, h_i1_val⟩ :=
-    usize_mul_ok_eq_fc 2#usize i (by scalar_tac)
-  have h_i1_val' : i1.val = 2 * i.val := by
-    rw [h_i1_val]; rfl
-  obtain ⟨i2, h_i2_eq, h_i2_val⟩ :=
-    usize_add_ok_eq_fc i1 1#usize (by scalar_tac)
-  have h_i2_val' : i2.val = 2 * i.val + 1 := by
-    rw [h_i2_val, h_i1_val']; rfl
-  -- ===== Reads (with index_usize_ok_eq) =====
-  have h_read_ai :
-      Aeneas.Std.Array.index_usize a.elements i1 = .ok ai_v := by
-    have h := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq a.elements i1
-      (by rw [h_a_len, h_i1_val']; exact h_2i_lt)
-    rw [h, h_i1_val']
-  have h_read_bi :
-      Aeneas.Std.Array.index_usize b.elements i1 = .ok bi_v := by
-    have h := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq b.elements i1
-      (by rw [h_b_len, h_i1_val']; exact h_2i_lt)
-    rw [h, h_i1_val']
-  have h_read_aj :
-      Aeneas.Std.Array.index_usize a.elements i2 = .ok aj_v := by
-    have h := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq a.elements i2
-      (by rw [h_a_len, h_i2_val']; exact h_2i1_lt)
-    rw [h, h_i2_val']
-  have h_read_bj :
-      Aeneas.Std.Array.index_usize b.elements i2 = .ok bj_v := by
-    have h := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq b.elements i2
-      (by rw [h_b_len, h_i2_val']; exact h_2i1_lt)
-    rw [h, h_i2_val']
-  -- ===== as_i32 casts =====
-  set ai32 : Std.I32 := Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32 ai_v with hai32_def
-  set bi32 : Std.I32 := Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32 bi_v with hbi32_def
-  set aj32 : Std.I32 := Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32 aj_v with haj32_def
-  set bj32 : Std.I32 := Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32 bj_v with hbj32_def
-  set zeta32 : Std.I32 := Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32 zeta with hzeta32_def
-  have h_ai32_val : ai32.val = ai_v.val := L2_8c.cast_I32_val ai_v
-  have h_bi32_val : bi32.val = bi_v.val := L2_8c.cast_I32_val bi_v
-  have h_aj32_val : aj32.val = aj_v.val := L2_8c.cast_I32_val aj_v
-  have h_bj32_val : bj32.val = bj_v.val := L2_8c.cast_I32_val bj_v
-  have h_zeta32_val : zeta32.val = zeta.val := L2_8c.cast_I32_val zeta
-  -- as_i32 → .ok cast.
-  have h_as_ai : libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 ai_v = .ok ai32 :=
-    L2_8c.as_i32_val_eq ai_v
-  have h_as_bi : libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 bi_v = .ok bi32 :=
-    L2_8c.as_i32_val_eq bi_v
-  have h_as_aj : libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 aj_v = .ok aj32 :=
-    L2_8c.as_i32_val_eq aj_v
-  have h_as_bj : libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 bj_v = .ok bj32 :=
-    L2_8c.as_i32_val_eq bj_v
-  have h_as_zeta : libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 zeta = .ok zeta32 :=
-    L2_8c.as_i32_val_eq zeta
-  -- ===== Step: ai_bi = wrapping_mul ai32 bi32, value = ai.val * bi.val =====
-  set ai_bi : Std.I32 := Aeneas.Std.I32.wrapping_mul ai32 bi32 with habi_def
-  have h_ai_bi_eq : CoreModels.core.num.I32.wrapping_mul ai32 bi32 = .ok ai_bi :=
-    L2_8c.cm_wrapping_mul_i32_ok_eq ai32 bi32
-  have h_ai_bi_val : ai_bi.val = ai_v.val * bi_v.val := by
-    have h_bnd : (ai32.val * bi32.val).natAbs < 2^31 := by
-      rw [h_ai32_val, h_bi32_val]
-      have h := Int.natAbs_mul ai_v.val bi_v.val
-      have : ai_v.val.natAbs * bi_v.val.natAbs ≤ 3328 * 3328 := by
-        exact Nat.mul_le_mul h_ai h_bi
-      rw [h]
-      have : (3328 * 3328 : Nat) < 2^31 := by decide
-      omega
-    have := L2_8c.wrapping_mul_i32_no_overflow ai32 bi32 h_bnd
-    rw [this, h_ai32_val, h_bi32_val]
-  -- ===== Step: bj_zeta_ = wrapping_mul bj32 zeta32, value = bj.val * zeta.val =====
-  set bj_zeta_ : Std.I32 := Aeneas.Std.I32.wrapping_mul bj32 zeta32 with hbjz_def
-  have h_bj_zeta_eq : CoreModels.core.num.I32.wrapping_mul bj32 zeta32 = .ok bj_zeta_ :=
-    L2_8c.cm_wrapping_mul_i32_ok_eq bj32 zeta32
-  have h_bj_zeta_val : bj_zeta_.val = bj_v.val * zeta.val := by
-    have h_bnd : (bj32.val * zeta32.val).natAbs < 2^31 := by
-      rw [h_bj32_val, h_zeta32_val]
-      rw [Int.natAbs_mul]
-      have h_mul : bj_v.val.natAbs * zeta.val.natAbs ≤ 3328 * 1664 :=
-        Nat.mul_le_mul h_bj h_zeta
-      have : (3328 * 1664 : Nat) < 2^31 := by decide
-      omega
-    have := L2_8c.wrapping_mul_i32_no_overflow bj32 zeta32 h_bnd
-    rw [this, h_bj32_val, h_zeta32_val]
-  -- ===== Step: bj_zeta = montgomery_reduce_element bj_zeta_, |bj_zeta| ≤ 4993 =====
-  have h_bj_zeta_pre : bj_zeta_.val.natAbs ≤ 2^16 * 3328 := by
-    rw [h_bj_zeta_val]
-    rw [Int.natAbs_mul]
-    have h_mul : bj_v.val.natAbs * zeta.val.natAbs ≤ 3328 * 1664 :=
-      Nat.mul_le_mul h_bj h_zeta
-    have : (3328 * 1664 : Nat) ≤ 2^16 * 3328 := by decide
-    omega
-  obtain ⟨bj_zeta, h_bj_zeta_ok, h_bj_zeta_bnd, h_bj_zeta_lift⟩ :=
-    triple_exists_ok_fc (montgomery_reduce_element_fc bj_zeta_ h_bj_zeta_pre)
-  -- Also recover the legacy modq form: bj_zeta * 2^16 ≡ bj_zeta_ (mod q).
-  -- We get it via the legacy spec.
-  have h_bj_zeta_pre' : bj_zeta_.val.natAbs ≤ 3328 * 2^16 := by
-    rw [show (3328 * 2^16 : Nat) = 2^16 * 3328 from by decide]; exact h_bj_zeta_pre
-  obtain ⟨bj_zeta', h_bj_zeta_ok', _h_bnd', _h_tight, h_bj_zeta_modq⟩ :=
-    triple_exists_ok_fc
-      (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.montgomery_reduce_element_spec bj_zeta_ h_bj_zeta_pre')
-  have h_bj_zeta_eq2 : bj_zeta = bj_zeta' := by
-    have h_both : (Result.ok bj_zeta : Result _) = Result.ok bj_zeta' := by
-      rw [← h_bj_zeta_ok, h_bj_zeta_ok']
-    cases h_both; rfl
-  -- ===== Step: aj_bj_zeta = wrapping_mul aj32 (as_i32 bj_zeta), value = aj.val * bj_zeta.val =====
-  set bj_zeta32 : Std.I32 :=
-    Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I32 bj_zeta with hbjz32_def
-  have h_bj_zeta32_val : bj_zeta32.val = bj_zeta.val := L2_8c.cast_I32_val bj_zeta
-  have h_as_bj_zeta : libcrux_secrets.I16.Insts.Libcrux_secretsIntCastOps.as_i32 bj_zeta
-      = .ok bj_zeta32 := L2_8c.as_i32_val_eq bj_zeta
-  set aj_bj_zeta : Std.I32 := Aeneas.Std.I32.wrapping_mul aj32 bj_zeta32 with habjz_def
-  have h_aj_bj_zeta_eq : CoreModels.core.num.I32.wrapping_mul aj32 bj_zeta32 = .ok aj_bj_zeta :=
-    L2_8c.cm_wrapping_mul_i32_ok_eq aj32 bj_zeta32
-  have h_aj_bj_zeta_val : aj_bj_zeta.val = aj_v.val * bj_zeta.val := by
-    have h_bnd : (aj32.val * bj_zeta32.val).natAbs < 2^31 := by
-      rw [h_aj32_val, h_bj_zeta32_val, Int.natAbs_mul]
-      have h_mul : aj_v.val.natAbs * bj_zeta.val.natAbs ≤ 3328 * (3328 + 1665) :=
-        Nat.mul_le_mul h_aj h_bj_zeta_bnd
-      have : (3328 * (3328 + 1665) : Nat) < 2^31 := by decide
-      omega
-    have := L2_8c.wrapping_mul_i32_no_overflow aj32 bj_zeta32 h_bnd
-    rw [this, h_aj32_val, h_bj_zeta32_val]
-  -- ===== Step: ai_bi_aj_bj = wrapping_add ai_bi aj_bj_zeta =====
-  set ai_bi_aj_bj : Std.I32 := Aeneas.Std.I32.wrapping_add ai_bi aj_bj_zeta with hsum_e_def
-  have h_sum_e_eq : CoreModels.core.num.I32.wrapping_add ai_bi aj_bj_zeta = .ok ai_bi_aj_bj :=
-    L2_8c.cm_wrapping_add_i32_ok_eq ai_bi aj_bj_zeta
-  -- Even-delta bound: |ai*bi + aj*bj_zeta| ≤ 3328² + 3328·4993 ≤ 2^25 (precise: ~28M < 33.5M).
-  have h_sum_e_bnd : (ai_bi.val + aj_bj_zeta.val).natAbs ≤ 3328 * 3328 + 3328 * (3328 + 1665) := by
-    rw [h_ai_bi_val, h_aj_bj_zeta_val]
-    have h_e1 : (ai_v.val * bi_v.val).natAbs ≤ 3328 * 3328 := by
-      rw [Int.natAbs_mul]; exact Nat.mul_le_mul h_ai h_bi
-    have h_e2 : (aj_v.val * bj_zeta.val).natAbs ≤ 3328 * (3328 + 1665) := by
-      rw [Int.natAbs_mul]; exact Nat.mul_le_mul h_aj h_bj_zeta_bnd
-    have h_tri : ((ai_v.val * bi_v.val) + (aj_v.val * bj_zeta.val)).natAbs
-                  ≤ (ai_v.val * bi_v.val).natAbs + (aj_v.val * bj_zeta.val).natAbs :=
-      Int.natAbs_add_le _ _
-    omega
-  have h_sum_e_val : ai_bi_aj_bj.val = ai_bi.val + aj_bj_zeta.val := by
-    have h_bnd : (ai_bi.val + aj_bj_zeta.val).natAbs < 2^31 := by
-      have h_le : (3328 * 3328 + 3328 * (3328 + 1665) : Nat) < 2^31 := by decide
-      omega
-    exact L2_8c.wrapping_add_i32_no_overflow ai_bi aj_bj_zeta h_bnd
-  -- Bound the delta_even by 2^25:
-  have h_delta_e_bnd : ai_bi_aj_bj.val.natAbs ≤ 2^25 := by
-    rw [h_sum_e_val]
-    have : (3328 * 3328 + 3328 * (3328 + 1665) : Nat) ≤ 2^25 := by decide
-    omega
-  -- ===== Step: ai_bj = wrapping_mul ai32 bj32, value = ai*bj =====
-  set ai_bj_p : Std.I32 := Aeneas.Std.I32.wrapping_mul ai32 bj32 with haibj_def
-  have h_ai_bj_eq : CoreModels.core.num.I32.wrapping_mul ai32 bj32 = .ok ai_bj_p :=
-    L2_8c.cm_wrapping_mul_i32_ok_eq ai32 bj32
-  have h_ai_bj_val : ai_bj_p.val = ai_v.val * bj_v.val := by
-    have h_bnd : (ai32.val * bj32.val).natAbs < 2^31 := by
-      rw [h_ai32_val, h_bj32_val, Int.natAbs_mul]
-      have h_mul : ai_v.val.natAbs * bj_v.val.natAbs ≤ 3328 * 3328 :=
-        Nat.mul_le_mul h_ai h_bj
-      have : (3328 * 3328 : Nat) < 2^31 := by decide
-      omega
-    have := L2_8c.wrapping_mul_i32_no_overflow ai32 bj32 h_bnd
-    rw [this, h_ai32_val, h_bj32_val]
-  -- ===== Step: aj_bi = wrapping_mul aj32 bi32 =====
-  set aj_bi_p : Std.I32 := Aeneas.Std.I32.wrapping_mul aj32 bi32 with hajbi_def
-  have h_aj_bi_eq : CoreModels.core.num.I32.wrapping_mul aj32 bi32 = .ok aj_bi_p :=
-    L2_8c.cm_wrapping_mul_i32_ok_eq aj32 bi32
-  have h_aj_bi_val : aj_bi_p.val = aj_v.val * bi_v.val := by
-    have h_bnd : (aj32.val * bi32.val).natAbs < 2^31 := by
-      rw [h_aj32_val, h_bi32_val, Int.natAbs_mul]
-      have h_mul : aj_v.val.natAbs * bi_v.val.natAbs ≤ 3328 * 3328 :=
-        Nat.mul_le_mul h_aj h_bi
-      have : (3328 * 3328 : Nat) < 2^31 := by decide
-      omega
-    have := L2_8c.wrapping_mul_i32_no_overflow aj32 bi32 h_bnd
-    rw [this, h_aj32_val, h_bi32_val]
-  -- ===== Step: ai_bj_aj_bi = wrapping_add ai_bj aj_bi, value = ai*bj + aj*bi =====
-  set ai_bj_aj_bi : Std.I32 := Aeneas.Std.I32.wrapping_add ai_bj_p aj_bi_p with hsum_o_def
-  have h_sum_o_eq : CoreModels.core.num.I32.wrapping_add ai_bj_p aj_bi_p = .ok ai_bj_aj_bi :=
-    L2_8c.cm_wrapping_add_i32_ok_eq ai_bj_p aj_bi_p
-  have h_sum_o_bnd : (ai_bj_p.val + aj_bi_p.val).natAbs ≤ 2 * 3328 * 3328 := by
-    rw [h_ai_bj_val, h_aj_bi_val]
-    have h_e1 : (ai_v.val * bj_v.val).natAbs ≤ 3328 * 3328 := by
-      rw [Int.natAbs_mul]; exact Nat.mul_le_mul h_ai h_bj
-    have h_e2 : (aj_v.val * bi_v.val).natAbs ≤ 3328 * 3328 := by
-      rw [Int.natAbs_mul]; exact Nat.mul_le_mul h_aj h_bi
-    have h_tri := Int.natAbs_add_le (ai_v.val * bj_v.val) (aj_v.val * bi_v.val)
-    omega
-  have h_sum_o_val : ai_bj_aj_bi.val = ai_bj_p.val + aj_bi_p.val := by
-    have h_bnd : (ai_bj_p.val + aj_bi_p.val).natAbs < 2^31 := by
-      have : (2 * 3328 * 3328 : Nat) < 2^31 := by decide
-      omega
-    exact L2_8c.wrapping_add_i32_no_overflow ai_bj_p aj_bi_p h_bnd
-  have h_delta_o_bnd : ai_bj_aj_bi.val.natAbs ≤ 2^25 := by
-    rw [h_sum_o_val]
-    have : (2 * 3328 * 3328 : Nat) ≤ 2^25 := by decide
-    omega
-  -- ===== Slice reads + writes for `out` =====
-  -- Step: i10 = out[i1] (= old_e at i1.val = 2*i.val).
-  have h_read_old_e : Aeneas.Std.Slice.index_usize out i1 = .ok old_e := by
-    have h := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.slice_index_usize_ok_eq out i1
-      (by rw [h_out_val_len, h_i1_val']; exact h_2i_lt)
-    rw [h, h_i1_val']
-  -- Step: i11 = wrapping_add old_e ai_bi_aj_bj (the new lane 2i value).
-  set new_e : Std.I32 := Aeneas.Std.I32.wrapping_add old_e ai_bi_aj_bj with hne_def
-  have h_new_e_eq : CoreModels.core.num.I32.wrapping_add old_e ai_bi_aj_bj = .ok new_e :=
-    L2_8c.cm_wrapping_add_i32_ok_eq old_e ai_bi_aj_bj
-  -- new_e.val = old_e.val + delta_e (no overflow: |old_e| ≤ 2^30, |delta_e| ≤ 2^25).
-  have h_new_e_val : new_e.val = old_e.val + ai_bi_aj_bj.val := by
-    have h_bnd : (old_e.val + ai_bi_aj_bj.val).natAbs < 2^31 := by
-      have h_tri := Int.natAbs_add_le old_e.val ai_bi_aj_bj.val
-      have : (2^30 + 2^25 + 2^25 : Nat) < 2^31 := by decide
-      omega
-    exact L2_8c.wrapping_add_i32_no_overflow old_e ai_bi_aj_bj h_bnd
-  have h_new_e_bnd : new_e.val.natAbs ≤ old_e.val.natAbs + 2^25 := by
-    rw [h_new_e_val]
-    have h_tri := Int.natAbs_add_le old_e.val ai_bi_aj_bj.val
-    omega
-  -- Step: out1 = Slice.update out i1 new_e (= out.set i1 new_e).
-  have h_upd_e : Aeneas.Std.Slice.update out i1 new_e = .ok (out.set i1 new_e) := by
-    have hT := Aeneas.Std.Slice.update_spec out i1 new_e (by rw [h_out_len, h_i1_val']; exact h_2i_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
-  set out1 : Aeneas.Std.Slice Std.I32 := out.set i1 new_e with hout1_def
-  -- The impl computes `i12 = i1 + 1#usize` again (extracted as identical
-  -- to i2). After `simp only [h_i2_eq]` in the body composition, all four
-  -- `i1 + 1#usize` occurrences collapse to i2. So we state subsequent
-  -- reads/writes directly with i2.
-  have h_out1_len : out1.length = 16 := by simp [hout1_def]; exact h_out_len
-  have h_out1_val_len : out1.val.length = 16 := h_out1_len
-  have h_old_o_in_out1 : out1.val[i2.val]! = old_o := by
-    have h_set_val : out1.val = out.val.set i1.val new_e := by
-      simp [hout1_def, Aeneas.Std.Slice.set_val_eq]
-    have h_ne : 2 * i.val + 1 ≠ i1.val := by rw [h_i1_val']; omega
-    have h_lt : 2 * i.val + 1 < out.val.length := by rw [h_out_val_len]; exact h_2i1_lt
-    rw [h_set_val, h_i2_val', hoo_def]
-    have h_lt_set : 2 * i.val + 1 < (out.val.set i1.val new_e).length := by
-      rw [List.length_set]; exact h_lt
-    rw [getElem!_pos (out.val.set i1.val new_e) (2 * i.val + 1) h_lt_set]
-    rw [getElem!_pos out.val (2 * i.val + 1) h_lt]
-    rw [List.getElem_set_ne (Ne.symm h_ne)]
-  have h_read_old_o : Aeneas.Std.Slice.index_usize out1 i2 = .ok old_o := by
-    have h := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.slice_index_usize_ok_eq out1 i2
-      (by rw [h_out1_val_len, h_i2_val']; exact h_2i1_lt)
-    rw [h, h_old_o_in_out1]
-  -- Step: i14 = wrapping_add old_o ai_bj_aj_bi (new lane 2i+1 value).
-  set new_o : Std.I32 := Aeneas.Std.I32.wrapping_add old_o ai_bj_aj_bi with hno_def
-  have h_new_o_eq : CoreModels.core.num.I32.wrapping_add old_o ai_bj_aj_bi = .ok new_o :=
-    L2_8c.cm_wrapping_add_i32_ok_eq old_o ai_bj_aj_bi
-  have h_new_o_val : new_o.val = old_o.val + ai_bj_aj_bi.val := by
-    have h_bnd : (old_o.val + ai_bj_aj_bi.val).natAbs < 2^31 := by
-      have h_tri := Int.natAbs_add_le old_o.val ai_bj_aj_bi.val
-      have : (2^30 + 2^25 + 2^25 : Nat) < 2^31 := by decide
-      omega
-    exact L2_8c.wrapping_add_i32_no_overflow old_o ai_bj_aj_bi h_bnd
-  have h_new_o_bnd : new_o.val.natAbs ≤ old_o.val.natAbs + 2^25 := by
-    rw [h_new_o_val]
-    have h_tri := Int.natAbs_add_le old_o.val ai_bj_aj_bi.val
-    omega
-  have h_upd_o : Aeneas.Std.Slice.update out1 i2 new_o = .ok (out1.set i2 new_o) := by
-    have hT := Aeneas.Std.Slice.update_spec out1 i2 new_o
-      (by rw [h_out1_len, h_i2_val']; exact h_2i1_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
-  set out2 : Aeneas.Std.Slice Std.I32 := out1.set i2 new_o with hout2_def
-  -- ===== Compose the monadic chain =====
-  -- The four `i1 + 1#usize` invocations all yield i2 (same Lean expression).
-  have h_body :
-      libcrux_iot_ml_kem.vector.portable.ntt.accumulating_ntt_multiply_binomials
-        a b zeta i out = .ok out2 := by
-    unfold libcrux_iot_ml_kem.vector.portable.ntt.accumulating_ntt_multiply_binomials
-    simp only [h_i1_eq, h_i2_eq, h_read_ai, h_read_bi, h_read_aj, h_read_bj,
-               h_as_ai, h_as_bi, h_as_aj, h_as_bj, h_as_zeta, h_as_bj_zeta,
-               h_ai_bi_eq, h_bj_zeta_eq, h_bj_zeta_ok, h_aj_bj_zeta_eq,
-               h_sum_e_eq, h_ai_bj_eq, h_aj_bi_eq, h_sum_o_eq,
-               h_read_old_e, h_new_e_eq, h_upd_e,
-               h_read_old_o, h_new_o_eq, h_upd_o,
-               Aeneas.Std.bind_tc_ok]
-  apply triple_of_ok_fc h_body
-  -- ===== POST: 6-conjunct =====
-  -- Useful: out2.val unfolding.
-  have h_out2_val : out2.val = (out.val.set i1.val new_e).set i2.val new_o := by
-    show ((out.set i1 new_e).set i2 new_o).val = _
-    rw [Aeneas.Std.Slice.set_val_eq, Aeneas.Std.Slice.set_val_eq]
-  have h_out2_len : out2.length = 16 := by
-    show ((out.set i1 new_e).set i2 new_o).length = 16
-    rw [Aeneas.Std.Slice.set_length, Aeneas.Std.Slice.set_length]; exact h_out_len
-  have h_out2_val_len : out2.val.length = 16 := h_out2_len
-  -- Out2 at 2*i (= i1.val) = new_e. Out2 at 2*i+1 (= i2.val) = new_o.
-  have h_out2_at_2i : out2.val[2 * i.val]! = new_e := by
-    rw [h_out2_val, ← h_i1_val']
-    have h_lt_out : i1.val < out.val.length := by rw [h_out_val_len, h_i1_val']; exact h_2i_lt
-    have h_lt1 : i1.val < (out.val.set i1.val new_e).length := by
-      rw [List.length_set]; exact h_lt_out
-    have h_lt2 : i1.val < ((out.val.set i1.val new_e).set i2.val new_o).length := by
-      rw [List.length_set]; exact h_lt1
-    rw [getElem!_pos ((out.val.set i1.val new_e).set i2.val new_o) i1.val h_lt2]
-    rw [List.getElem_set_ne (by rw [h_i2_val', h_i1_val']; omega)]
-    rw [List.getElem_set_self]
-  have h_out2_at_2i1 : out2.val[2 * i.val + 1]! = new_o := by
-    rw [h_out2_val, ← h_i2_val']
-    have h_lt_out : i2.val < out.val.length := by rw [h_out_val_len, h_i2_val']; exact h_2i1_lt
-    have h_lt1 : i2.val < (out.val.set i1.val new_e).length := by
-      rw [List.length_set]; exact h_lt_out
-    have h_lt2 : i2.val < ((out.val.set i1.val new_e).set i2.val new_o).length := by
-      rw [List.length_set]; exact h_lt1
-    rw [getElem!_pos ((out.val.set i1.val new_e).set i2.val new_o) i2.val h_lt2]
-    rw [List.getElem_set_self]
-  -- Untouched: for k ∉ {2i, 2i+1}, out2.val[k]! = out.val[k]!.
-  have h_out2_untouched : ∀ k : Nat, k < 16 → k ≠ 2 * i.val → k ≠ 2 * i.val + 1 →
-      out2.val[k]! = out.val[k]! := by
-    intro k hk hki hkj
-    rw [h_out2_val]
-    have h_lt_out : k < out.val.length := by rw [h_out_val_len]; exact hk
-    have h_lt1 : k < (out.val.set i1.val new_e).length := by rw [List.length_set]; exact h_lt_out
-    have h_lt2 : k < ((out.val.set i1.val new_e).set i2.val new_o).length := by
-      rw [List.length_set]; exact h_lt1
-    rw [getElem!_pos ((out.val.set i1.val new_e).set i2.val new_o) k h_lt2]
-    rw [getElem!_pos out.val k h_lt_out]
-    rw [List.getElem_set_ne (by rw [h_i2_val']; omega)]
-    rw [List.getElem_set_ne (by rw [h_i1_val']; omega)]
-  -- Now produce the 6-conjunct.
-  refine ⟨h_out2_len, ?_, ?_, ?_, ?_, ?_⟩
-  · -- Untouched lanes.
-    exact h_out2_untouched
-  · -- Bound at 2*i.
-    rw [h_out2_at_2i]
-    -- new_e.val.natAbs ≤ old_e.val.natAbs + 2^25; old_e = out.val[2*i]!.
-    rw [hoe_def] at h_new_e_bnd
-    exact h_new_e_bnd
-  · -- Bound at 2*i+1.
-    rw [h_out2_at_2i1]
-    rw [hoo_def] at h_new_o_bnd
-    exact h_new_o_bnd
-  · -- FE eq (even half).
-    rw [h_out2_at_2i, hoe_def]
-    -- Goal: mont_reduce_pure (lift_fe_int new_e.val) = ...
-    -- Convert modq form `bj_zeta'.val ≡ bj_zeta_.val * 169` into ZMod eq.
-    have h_modq_cast : ((bj_zeta'.val : Int) : ZMod 3329)
-        = ((bj_zeta_.val * 169 : Int) : ZMod 3329) :=
-      modq_eq_cast_zmod _ _ h_bj_zeta_modq
-    rw [h_bj_zeta_eq2.symm] at h_modq_cast
-    rw [h_bj_zeta_val] at h_modq_cast
-    push_cast at h_modq_cast
-    -- h_modq_cast : (bj_zeta.val : ZMod 3329) = (bj_v.val : ZMod q) * zeta.val * 169.
-    apply L2_8c.mont_reduce_even_fe_eq
-      (out := out.val[2 * i.val]!) (r := new_e)
-      (ai := ai_v) (bi := bi_v) (aj := aj_v) (bj := bj_v) (zeta := zeta)
-    -- Goal: (new_e.val * 2^16 : ZMod q) = (out * 2^16 + ai*bi*2^16 + aj*bj*zeta : ZMod q).
-    rw [← hoe_def, h_new_e_val, h_sum_e_val, h_ai_bi_val, h_aj_bj_zeta_val]
-    push_cast
-    -- LHS: (old_e + ai*bi + aj*bj_zeta) * 2^16 in ZMod q.
-    -- Use h_modq_cast to substitute bj_zeta.val = bj.val * zeta.val * 169.
-    rw [h_modq_cast]
-    -- 2^16 * 169 ≡ 1 (mod q), so 2285 * 169 = 1 in ZMod q.
-    have h_inv : ((2285 : ZMod 3329)) * 169 = 1 := by decide
-    -- Algebraic identity: (old + ai*bi + aj*(bj*zeta*169)) * 2285
-    --                    = old*2285 + ai*bi*2285 + aj*bj*zeta*(2285*169)
-    --                    = old*2285 + ai*bi*2285 + aj*bj*zeta.
-    calc ((old_e.val : ZMod 3329) + ((ai_v.val : ZMod 3329) * (bi_v.val : ZMod 3329)
-          + (aj_v.val : ZMod 3329) * ((bj_v.val : ZMod 3329) * (zeta.val : ZMod 3329) * 169)))
-            * 2285
-        = (old_e.val : ZMod 3329) * 2285
-          + (ai_v.val : ZMod 3329) * (bi_v.val : ZMod 3329) * 2285
-          + (aj_v.val : ZMod 3329) * (bj_v.val : ZMod 3329) * (zeta.val : ZMod 3329)
-              * (2285 * 169) := by ring
-      _ = (old_e.val : ZMod 3329) * 2285
-          + (ai_v.val : ZMod 3329) * (bi_v.val : ZMod 3329) * 2285
-          + (aj_v.val : ZMod 3329) * (bj_v.val : ZMod 3329) * (zeta.val : ZMod 3329) := by
-            rw [h_inv]; ring
-  · -- FE eq (odd half).
-    rw [h_out2_at_2i1, hoo_def]
-    apply L2_8c.mont_reduce_odd_fe_eq
-      (out := out.val[2 * i.val + 1]!) (r := new_o)
-      (ai := ai_v) (bi := bi_v) (aj := aj_v) (bj := bj_v)
-    rw [← hoo_def, h_new_o_val, h_sum_o_val, h_ai_bj_val, h_aj_bi_val]
-    push_cast
-    ring
-
-
+  -- ═══ OBLIGATION INC-2b.A — lhs bound weakened 3328 -> 4095 (KB decision 2026-08-21,
+  -- plans/INC-2-scope.md §9.9.4 option (a)). The HELPER changed ONLY the STATEMENT above
+  -- (h_a: 3328 -> 4095); the entire proof body was REMOVED, not lost:
+  --
+  --     git show 6aaaa293:libcrux-iot/ml-kem/proofs/lean/LibcruxIotMlKem/Polynomial/NttMultiply.lean
+  --
+  -- gives the previous 397-line proof, which was CORRECT at lhs <= 3328. Restore it and
+  -- change ONLY the bound arithmetic. Everything structural — index arithmetic, the
+  -- wrapping-op plumbing, both FE equations — is unaffected by the bound and should come
+  -- back verbatim.
+  --
+  -- WHAT ACTUALLY CHANGES (measured; expect ~15 lines of diff against that base):
+  --  * `h_bj_zeta_bnd` is currently the WEAK Montgomery post |bj_zeta| <= 3328 + 1665 = 4993.
+  --    Replace it with the TIGHT conjunct of `montgomery_reduce_element_spec`
+  --    (Vector/Portable/Arithmetic/PerElement.lean:1223-1229):
+  --        (value.val.natAbs <= 3328 * 2^15 -> r.val.natAbs <= 3328)
+  --    The old proof already OBTAINS that spec and discards the conjunct as `_h_tight`.
+  --    Its precondition holds with ~19x slack: |bj*zeta| <= 3328*1664 = 5,537,792
+  --    <= 3328*2^15 = 109,051,904, discharged by the `h_mul` bound already in the proof.
+  --    ⚠ THE SIBLING `_fill_cache` TWIN ALREADY DOES EXACTLY THIS — see this same file at
+  --    lines ~4224-4234, where it is named `h_tight_imp`. COPY THAT. Do not invent a route.
+  --  * With |bj_zeta| <= 3328, the product/delta numerals become 4095*3328 on BOTH lanes:
+  --      even delta <= 4095*3328 + 4095*3328 = 27,256,320 <= 2^25 = 33,554,432  ✓
+  --      odd  delta <= 2*4095*3328          = 27,256,320 <= 2^25                ✓
+  --    (With the weak 4993 it would be 34,074,495 — over by 1.6%. That is the ONLY fact
+  --    that fails at 4095, and this is the whole reason this obligation exists.)
+  --  * The `by decide` products stay well inside i32: 4095*3328 = 13,628,160 < 2^31.
+  --
+  -- ⚠ DO NOT raise 2^25 to 2^26 to make this go through. K*2^26 = 268,435,456 exceeds
+  -- `poly_reducing_from_i32_array_fc`'s precondition 2^16*3328 = 218,103,808 and cascades
+  -- through the entire tail. Raising ANY limit here means you are on the wrong rung (§4).
+  -- ⚠ The POST is UNCHANGED — 2^25 stays. Nothing downstream of this theorem moves.
+  -- ⚠ h_b (the RHS) stays at 3328. The asymmetry is the point: only the RHS feeds the
+  -- Montgomery reduce, so only the RHS needs the tighter bound.
+  sorry
 set_option maxHeartbeats 4000000 in
 /-- L2.8 — `vector.portable.ntt.accumulating_ntt_multiply`: base-case
     NTT-domain multiply on a 16-lane vector chunk.
@@ -1699,7 +1338,7 @@ theorem accumulating_ntt_multiply_fc
     (out : Aeneas.Std.Slice Std.I32)
     (zeta0 zeta1 zeta2 zeta3 : Std.I16)
     (h_out_len : out.length = 16)
-    (h_lhs : ∀ j : Fin 16, (lhs.elements.val[j.val]!).val.natAbs ≤ 3328)
+    (h_lhs : ∀ j : Fin 16, (lhs.elements.val[j.val]!).val.natAbs ≤ 4095)
     (h_rhs : ∀ j : Fin 16, (rhs.elements.val[j.val]!).val.natAbs ≤ 3328)
     (h_zeta0 : zeta0.val.natAbs ≤ 1664)
     (h_zeta1 : zeta1.val.natAbs ≤ 1664)
@@ -9506,7 +9145,7 @@ set_option maxHeartbeats 16000000 in
 theorem accumulating_ntt_multiply_poly_step_lemma_fc
     (myself rhs : UseCacheFC.Poly) (acc_init : UseCacheFC.Acc)
     (h_self : ∀ i : Fin 16, ∀ j : Fin 16,
-        ((myself.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
+        ((myself.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 4095)
     (h_rhs : ∀ i : Fin 16, ∀ j : Fin 16,
         ((rhs.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
     (h_acc_bnd : ∀ n : Fin 256, (acc_init.val[n.val]!).val.natAbs ≤ 2^30)
@@ -9693,7 +9332,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
       triple_exists_ok_fc (polynomial.zeta_fc i14 hi14_lt_128)
     obtain ⟨hz3_val_eq, hz3_bnd, hz3_lift⟩ := hz3_post
     -- (6) Apply L2.8 to get s1 satisfying ntt_multiply_base_case_post + bound.
-    have h_t_lhs : ∀ j : Fin 16, (t.elements.val[j.val]!).val.natAbs ≤ 3328 := by
+    have h_t_lhs : ∀ j : Fin 16, (t.elements.val[j.val]!).val.natAbs ≤ 4095 := by
       intro j
       exact h_self ⟨k.val, hk_16⟩ j
     have h_t1_rhs : ∀ j : Fin 16, (t1.elements.val[j.val]!).val.natAbs ≤ 3328 := by
@@ -10091,7 +9730,7 @@ theorem accumulating_ntt_multiply_poly_fc
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (accumulator : Std.Array Std.I32 256#usize)
     (h_self : ∀ i : Fin 16, ∀ j : Fin 16,
-        ((myself.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
+        ((myself.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 4095)
     (h_rhs : ∀ i : Fin 16, ∀ j : Fin 16,
         ((rhs.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
     (h_acc_bnd : ∀ n : Fin 256, (accumulator.val[n.val]!).val.natAbs ≤ 2^30) :

@@ -154,7 +154,7 @@ private theorem compute_message_loop_step_lemma_fc
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
     (acc_init : S1LoopFC.Acc)
     (h_secret_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
-        ((secret_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
+        ((secret_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 4095)
     (h_u_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
         ((u_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
     (h_acc_bnd : ∀ n : Fin 256,
@@ -210,7 +210,7 @@ private theorem compute_message_loop_step_lemma_fc
         (by rw [h_u_len]; exact h_lt)
     -- (4) Apply L6.3 per-column forward dep at column k.
     have h_t_secret_bnd : ∀ a : Fin 16, ∀ b : Fin 16,
-        ((t_secret.coefficients.val[a.val]!).elements.val[b.val]!).val.natAbs ≤ 3328 :=
+        ((t_secret.coefficients.val[a.val]!).elements.val[b.val]!).val.natAbs ≤ 4095 :=
       fun a b => h_secret_bnd ⟨k.val, h_lt⟩ a b
     have h_t_u_bnd : ∀ a : Fin 16, ∀ b : Fin 16,
         ((t_u.coefficients.val[a.val]!).elements.val[b.val]!).val.natAbs ≤ 3328 :=
@@ -442,7 +442,7 @@ theorem compute_message_loop_fc
         libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
     (accumulator : Std.Array Std.I32 256#usize)
     (h_secret_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
-        ((secret_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
+        ((secret_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 4095)
     (h_u_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
         ((u_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
     (h_acc_bnd : ∀ n : Fin 256,
@@ -1174,10 +1174,6 @@ theorem compute_message_acc_bridge {K : Std.Usize}
     (acc_init : Std.Array Std.I32 256#usize)
     (acc2 : Std.Array Std.I32 256#usize)
     (h_acc_init_zero : ∀ n : Nat, n < 256 → (acc_init.val[n]!).val = 0)
-    (_h_secret_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
-        ((secret_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
-    (_h_u_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,
-        ((u_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328)
     (h_char : (S1LoopFC.loop_inv secret_as_ntt u_as_ntt acc_init K acc2).holds) :
     hacspec_ml_kem.matrix.multiply_vectors (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
       = .ok (scaleZ 2285 (Impl.mont_strip_pure
