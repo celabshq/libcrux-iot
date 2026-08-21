@@ -106,6 +106,7 @@ def elabAssertNoSorry : CommandElab := fun stx => do
 -- right guard here either way.
 #assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.deserialize_then_decompress_u_fc
 #assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.decrypt_unpacked_fc
+#assert_no_sorry libcrux_iot_ml_kem.IndCpaFc.decrypt_fc
 
 /-! ## Kind exemplars the campaign's readiness gate depends on.
     If one of these acquires a `sorry`, every "FULL" verdict resting on it is void. -/

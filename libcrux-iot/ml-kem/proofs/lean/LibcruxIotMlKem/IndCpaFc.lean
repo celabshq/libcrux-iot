@@ -4020,8 +4020,14 @@ theorem decrypt_fc
       apply Aeneas.Std.UScalar.eq_of_val_eq
       rw [Aeneas.Std.Slice.len_val]
       exact h_ctlen
-    -- `rw [hlen_ct]` makes both sides of this assert the same term, and `simp only`'s
-    -- `eq_self` simproc collapses it to `True` before we get here.
+    -- ⚠ CORRECTED after review (2026-08-21), and the correction is the useful part.
+    -- The spec's assert is `massert (i3 = i8)` where `i8` is itself bound by
+    -- `let i8 ← i7 / 8#usize` (spec `Extraction/Funs.lean:3418-3435`). `rw [slice_len_gen,
+    -- hlen_ct]` below resolves the LHS `i3` ONLY; `i8` stays an unreduced bind until
+    -- `rw [hi5]`, so the two sides coincide — and `simp only`'s `eq_self` simproc collapses
+    -- the assert to `True` — at the `simp only` that FOLLOWS `hi5`, five rewrites later.
+    -- The rewrite order below is its own evidence: `rw [hmassert_ct]` sits immediately
+    -- after that `simp only`, not after the length rewrite.
     have hmassert_ct : Aeneas.Std.massert True = .ok () := by
       unfold Aeneas.Std.massert
       rw [if_pos trivial]
