@@ -261,7 +261,15 @@ theorem compute_message_fc
       -- `h_result2_b_bnd`) and posts `natAbs ≤ 3328` on the very same call whose
       -- result is `result3`. `subtract_reduce` is the LAST operation the impl
       -- performs, so its result IS `p.1`.
-      sorry
+      obtain ⟨result3', h_sub_eq', h_bnd⟩ :=
+        triple_exists_ok_fc
+          (subtract_reduce_bnd v result2 h_v_self_bnd h_result2_b_bnd)
+      -- Same call, so same result: `.ok` is injective.
+      have h_r3 : result3' = result3 := by
+        have h := h_sub_eq'.symm.trans h_sub_eq
+        simpa using h
+      subst h_r3
+      exact h_bnd
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════
 -- ⚠⚠⚠ PARKED FOR THE INC-2b.C SCAFFOLD — RESTORE THE MOMENT THIS OBLIGATION CLOSES. ⚠⚠⚠
