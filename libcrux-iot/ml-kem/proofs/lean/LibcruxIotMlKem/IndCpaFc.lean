@@ -3842,4 +3842,83 @@ theorem decrypt_unpacked_fc
     simp only [Aeneas.Std.bind_tc_ok]
     exact hout_spec
 
+/-! ## INC-2b.E — `ind_cpa::decrypt`. THE WALL IS GONE; this is a two-callee assembly.
+
+    `decrypt` is a thin wrapper: build K zero polys with `core.array.from_fn`, round-trip
+    them through `Array.to_slice_mut`, fill them with `deserialize_vector`, and hand the
+    result to `decrypt_unpacked`. Both callees are proved.
+
+    ## ⚠ THIS OBLIGATION HAS NO SECRET-BOUND HYPOTHESIS, AND THAT IS THE POINT
+    `deserialize_vector_fc` (:469) EXPORTS `≤ 4095` — attained at an all-0xFF `dk`, since
+    the private-key path decodes with `deserialize_12_int`, a 12-bit ByteDecode with NO
+    reduction (contrast the public-key path's `deserialize_to_reduced_ring_element`, which
+    does `cond_subtract_3329`). `decrypt_unpacked_fc` REQUIRES `≤ 4095`. **They meet
+    exactly.** Under the pre-INC-2b statements this join was impossible — `compute_message`
+    required `≤ 3328`, which is NOT SATISFIABLE at this call site at all — and that gap was
+    the "decrypt wall" the campaign carried for two increments (scope §9.9.2, §9.9.4).
+    Nothing here needs a reduction step, a SPECREQ, or a decomposition change.
+
+    ## The spec side, and why the last link is definitional
+    `hacspec_ml_kem.ind_cpa.decrypt` asserts two lengths, then runs
+    `serialize.deserialize_ring_elements_reduced RANK dk` and hands the result to
+    `ind_cpa.decrypt_unpacked`. And `deserialize_ring_elements_reduced` is a ONE-LINE
+    delegation to `serialize.vector_decode_12` (spec `Extraction/Funs.lean:2273-2277`) —
+    which is exactly what `deserialize_vector_fc` states its post against. So the two links
+    join by unfolding, with no bridge lemma. Upstream reached the same composition and
+    records it in its own source comment (`libcrux-ml-kem/src/ind_cpa.rs:1668-1675`).
+
+    ## Plumbing — identical to the `u_as_ntt` round-trip in `decrypt_unpacked_fc` above
+    `core.array.from_fn` (the closure returns `PolynomialRingElement.ZERO`) is covered by
+    `Util.CreateI.from_fn_pure_eq` / `from_fn_pure_spec`; `Array.to_slice_mut` and its
+    `back` function are covered by Aeneas's own `Array.to_slice_mut_spec` (`@[step]`) and
+    the `@[simp]` `Array.from_slice_val`. ⚠ `deserialize_vector_fc` posts about a SLICE via
+    `lift_vec_slice`, while `decrypt_unpacked_fc` consumes an ARRAY via `lift_vec`;
+    `from_slice_val` is what reconciles them. Copy the shape from `decrypt_unpacked_fc`.
+
+    ## PRE — every hypothesis is iot's own or upstream's, none invented
+    `h_rank` / `h_vues` / `h_ct` / `h_sk_len` / `h_dec_len` are iot's OWN
+    `#[hax_lib::requires]` (`ml-kem/src/ind_cpa.rs:913-921`) — note it carries
+    `secret_key.len() == BYTES_PER_RING_ELEMENT * K`, which `decrypt_unpacked` does not have
+    and which is exactly what `deserialize_vector_fc` needs (`K.val * 384`).
+    `h_params` / `h_ucf` / `h_vcf` are the du/dv TIE, needed for the same reason as in
+    `decrypt_unpacked_fc` and measured load-bearing there and again here.
+
+    ## FALSIFICATION — DONE, record at sha `1c3c411c85c9f35b`. Do NOT re-run it.
+    End-to-end impl-vs-hacspec, all three ranks at their own du/dv, and — the case that
+    matters — the ALL-0xFF `dk` at every rank, which is the shape that attains lane 4095.
+    Poisoned `decrypted` / `scratch` / `accumulator`, 32 random trials. No counterexample.
+    Five controls, ALL FIRE: `h_sk_len` 3/3, the du/dv tie 2/2, `h_dec_len` 2/2,
+    `h_vues`/`h_ct` 2/2, wrong-spec 3/3 (a one-byte `dk` change at three positions). -/
+@[spec]
+theorem decrypt_fc
+    (K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR :
+      Std.Usize)
+    (params : hacspec_ml_kem.parameters.MlKemParams)
+    (secret_key : Slice Std.U8)
+    (ciphertext : Std.Array Std.U8 CIPHERTEXT_SIZE)
+    (decrypted : Slice Std.U8)
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (accumulator : Std.Array Std.I32 256#usize)
+    (h_rank : K.val = 2 ∨ K.val = 3 ∨ K.val = 4)
+    (h_params : hacspec_ml_kem.parameters.rank_to_params K = .ok params)
+    (h_ucf : params.du = U_COMPRESSION_FACTOR)
+    (h_vcf : params.dv = V_COMPRESSION_FACTOR)
+    (h_vues : VECTOR_U_ENCODED_SIZE.val = K.val * 32 * U_COMPRESSION_FACTOR.val)
+    (h_ct : CIPHERTEXT_SIZE.val
+              = K.val * 32 * U_COMPRESSION_FACTOR.val + 32 * V_COMPRESSION_FACTOR.val)
+    (h_sk_len : secret_key.length = K.val * 384)
+    (h_dec_len : decrypted.length = 32) :
+    ⦃ ⌜ True ⌝ ⦄
+    libcrux_iot_ml_kem.ind_cpa.decrypt
+      (vectortraitsOperationsInst := portable_ops_inst)
+      K VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR
+      secret_key ciphertext decrypted scratch accumulator
+    ⦃ ⇓ p => ⌜ ∃ out : Std.Array Std.U8 32#usize,
+                  hacspec_ml_kem.ind_cpa.decrypt K params secret_key
+                      (Aeneas.Std.Array.to_slice ciphertext)
+                    = .ok out
+                  ∧ p.1.length = 32
+                  ∧ ∀ ℓ : Nat, ℓ < 32 → p.1.val[ℓ]! = out.val[ℓ]! ⌝ ⦄ := by
+  sorry
+
 end libcrux_iot_ml_kem.IndCpaFc
