@@ -248,40 +248,14 @@ theorem compute_message_fc
     -- subtract_reduce_pure (lift_poly v) (lift_poly result2) = lift_poly result3.
     rw [← h_result3_lift]
 
--- ═══════════════════════════════════════════════════════════════════════════════════════
--- ⚠⚠⚠ TEMPORARILY DISABLED FOR THE INC-2b SCAFFOLD — RESTORE THIS. DEBT, TRACKED. ⚠⚠⚠
---
--- `accumulating_ntt_multiply_binomials_fc` (Polynomial/NttMultiply.lean) is currently
--- `sorry`, so EVERY theorem downstream of it — including `compute_message_fc` — reports
--- `sorryAx`. That is inherent to scaffolding an obligation in the middle of a proved chain,
--- not a defect in this guard.
---
--- ⚠ WHY THIS IS COMMENTED OUT RATHER THAN UPDATED TO EXPECT `sorryAx`:
--- if the docstring listed `sorryAx`, then the moment INC-2b.A CLOSES the axiom vanishes,
--- this `#guard_msgs` FAILS, the build goes red, and the GATE REVERTS A CORRECT PROOF.
--- That is exactly the false-failure that nearly destroyed the 1033-line NTT bridge
--- (runs/mlkem-campaign/STATE.md, 2026-08-20; only the HALT-and-preserve rule saved it).
--- A guard that must be wrong during the work and right after it cannot be left armed.
---
--- ⚠ THIS IS NOT AN UNGUARDED WINDOW. The DRIVER's own gate is the real check and it is
--- STRICTER: verify.sh runs `#print axioms` in a fresh file against the per-row
--- ALLOWED_AXIOMS, which lists only [propext, Classical.choice, Quot.sound] and does NOT
--- include `sorryAx`; plus the sorry-delta must be monotone non-increasing. A leftover sorry
--- cannot pass the gate whether or not this line is active.
---
--- RESTORE IT AS PART OF OBLIGATION INC-2b.C (the `compute_message_fc` post-bound
--- restatement), which re-authors this statement anyway. The expected list is UNCHANGED
--- from the block below — five axioms, the three standard ones plus the two
--- `Util.SliceSpecs` ones this theorem has always carried.
--- ═══════════════════════════════════════════════════════════════════════════════════════
--- /--
--- info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,
---  Classical.choice,
---  Quot.sound,
---  Util.SliceSpecs.Array.update_subslice_le_eq,
---  Util.SliceSpecs.Slice.subslice_le_eq]
--- -/
--- #guard_msgs in
--- #print axioms compute_message_fc
+/--
+info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ Util.SliceSpecs.Array.update_subslice_le_eq,
+ Util.SliceSpecs.Slice.subslice_le_eq]
+-/
+#guard_msgs in
+#print axioms compute_message_fc
 
 end libcrux_iot_ml_kem.Matrix.ComputeMessage.FC
