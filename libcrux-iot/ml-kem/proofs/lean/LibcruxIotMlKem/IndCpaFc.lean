@@ -3919,6 +3919,145 @@ theorem decrypt_fc
                     = .ok out
                   ∧ p.1.length = 32
                   ∧ ∀ ℓ : Nat, ℓ < 32 → p.1.val[ℓ]! = out.val[ℓ]! ⌝ ⦄ := by
-  sorry
+  -- ═══ 0. The du/dv TIE, unpacked — `decrypt_unpacked_fc`'s step 0, verbatim. ═══
+  obtain ⟨h_prank, h_du_p, h_dv_p, h_vvcf, h_isrank⟩ :=
+    rank_params_facts K params h_rank h_params
+  rw [h_ucf] at h_du_p
+  rw [h_vcf] at h_dv_p h_vvcf
+  have hK4 : K.val ≤ 4 := by rcases h_rank with h | h | h <;> omega
+  have h_sk : secret_key.val.length = K.val * 384 := h_sk_len
+  -- ═══ 1. `secret_as_ntt = [ZERO; K]` — the `from_fn` whose closure returns ZERO. ═══
+  obtain ⟨zp, hzp⟩ : ∃ zp, libcrux_iot_ml_kem.polynomial.PolynomialRingElement.ZERO
+      (Vector := libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+      portable_ops_inst = .ok zp := ⟨_, rfl⟩
+  obtain ⟨A, hff⟩ : ∃ A : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+        libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K,
+      CoreModels.core.array.from_fn K
+        (libcrux_iot_ml_kem.ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement
+          K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR V_COMPRESSION_FACTOR
+          portable_ops_inst) () = .ok A :=
+    ⟨_, libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq K _ () (fun _ => zp) (by
+      intro k _
+      simp only
+        [libcrux_iot_ml_kem.ind_cpa.decrypt.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut,
+         hzp, Aeneas.Std.bind_tc_ok])⟩
+  have hA_len : A.val.length = K.val := Std.Array.length_eq A
+  -- ═══ 2. `ind_cpa.deserialize_vector` (INC-2a.1, this file) — EXPORTS `≤ 4095`. ═══
+  obtain ⟨ps, hps_eq, hps_len, hps_spec, hps_bnd⟩ :=
+    triple_exists_ok_fc
+      (deserialize_vector_fc K secret_key (Aeneas.Std.Array.to_slice A) h_sk_len
+        (show (Aeneas.Std.Array.to_slice A).length = K.val from hA_len))
+  have hps_len' : ps.val.length = K.val := hps_len
+  -- ═══ 3. `ind_cpa.decrypt_unpacked` (INC-2b.D, above) — REQUIRES `≤ 4095`. They MEET. ═══
+  have h_sk_bnd : ∀ k : Nat, k < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+      ((((Aeneas.Std.Array.from_slice A ps).val[k]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs
+        ≤ 4095 := by
+    intro k hk c hc l hl
+    rw [Aeneas.Std.Array.from_slice_val A ps hps_len']
+    exact hps_bnd k hk c hc l hl
+  obtain ⟨pd, hpd_eq, out, hout_spec, hpd_len, hpd_bytes⟩ :=
+    triple_exists_ok_fc
+      (decrypt_unpacked_fc K CIPHERTEXT_SIZE VECTOR_U_ENCODED_SIZE U_COMPRESSION_FACTOR
+        V_COMPRESSION_FACTOR params
+        { secret_as_ntt := Aeneas.Std.Array.from_slice A ps } ciphertext decrypted scratch
+        accumulator h_rank h_params h_ucf h_vcf h_vues h_ct h_dec_len h_sk_bnd)
+  refine triple_of_ok_fc (v := pd) ?_ ⟨out, ?_, hpd_len, hpd_bytes⟩
+  · -- IMPL: the straight-line body, one rewrite per step.
+    unfold libcrux_iot_ml_kem.ind_cpa.decrypt
+    simp only [hff, Aeneas.Std.bind_tc_ok]
+    rw [to_slice_mut_bind, hps_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    exact hpd_eq
+  · -- SPEC: two `massert`s BY COMPUTATION, then the two callees' posts.
+    have h_ctlen : ciphertext.val.length = CIPHERTEXT_SIZE.val := Std.Array.length_eq ciphertext
+    have hcoef : hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT = 256#usize := by
+      simp [hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT]
+    have h256 : (256#usize : Std.Usize).val = 256 := by scalar_tac
+    have h384 : (384#usize : Std.Usize).val = 384 := by scalar_tac
+    have h8 : (8#usize : Std.Usize).val = 8 := by scalar_tac
+    have hmax : (12544 : Nat) ≤ Std.Usize.max := by scalar_tac
+    have hdu11 : U_COMPRESSION_FACTOR.val ≤ 11 := by rcases h_du_p with hd | hd <;> omega
+    have hdv5 : V_COMPRESSION_FACTOR.val ≤ 5 := by rcases h_dv_p with hd | hd <;> omega
+    -- (a) the `dk` length assert: `dk.len() = K * BYTES_PER_RING_ELEMENT`, from `h_sk_len`.
+    obtain ⟨skb, hskb, hskb_v⟩ := usize_mul_ok_e K (384#usize : Std.Usize)
+      (by rw [h384, ← h_sk]; exact secret_key.property)
+    have hskb_eq : Aeneas.Std.Slice.len secret_key = skb :=
+      Aeneas.Std.UScalar.eq_of_val_eq (by
+        rw [Aeneas.Std.Slice.len_val, h_sk_len, hskb_v, h384])
+    have hmassert_sk :
+        Aeneas.Std.massert (Aeneas.Std.Slice.len secret_key = skb) = .ok () := by
+      unfold Aeneas.Std.massert
+      rw [if_pos hskb_eq]
+    -- (b) the ciphertext length assert: `(K·256·du + 256·dv)/8 = K·32·du + 32·dv`, from `h_ct`.
+    obtain ⟨i1, hi1, hi1v⟩ := usize_mul_ok_e K (256#usize : Std.Usize)
+      (Nat.le_trans (by rw [h256]; omega) hmax)
+    obtain ⟨i2, hi2, hi2v⟩ := usize_mul_ok_e i1 U_COMPRESSION_FACTOR
+      (Nat.le_trans (by
+        rw [hi1v, h256]
+        calc K.val * 256 * U_COMPRESSION_FACTOR.val
+            ≤ 4 * 256 * 11 := Nat.mul_le_mul (Nat.mul_le_mul_right 256 hK4) hdu11
+          _ ≤ 12544 := by norm_num) hmax)
+    obtain ⟨i3, hi3, hi3v⟩ := usize_mul_ok_e (256#usize : Std.Usize) V_COMPRESSION_FACTOR
+      (Nat.le_trans (by
+        rw [h256]
+        calc 256 * V_COMPRESSION_FACTOR.val ≤ 256 * 5 := Nat.mul_le_mul_left 256 hdv5
+          _ ≤ 12544 := by norm_num) hmax)
+    obtain ⟨i4, hi4, hi4v⟩ := usize_add_ok_e i2 i3
+      (Nat.le_trans (by
+        rw [hi2v, hi3v, hi1v, h256]
+        calc K.val * 256 * U_COMPRESSION_FACTOR.val + 256 * V_COMPRESSION_FACTOR.val
+            ≤ 4 * 256 * 11 + 256 * 5 :=
+              Nat.add_le_add (Nat.mul_le_mul (Nat.mul_le_mul_right 256 hK4) hdu11)
+                (Nat.mul_le_mul_left 256 hdv5)
+          _ ≤ 12544 := by norm_num) hmax)
+    have hi4_8 : i4.val = 8 * CIPHERTEXT_SIZE.val := by
+      rw [hi4v, hi2v, hi3v, hi1v, h256, h_ct]; ring
+    have hi5 : (i4 / (8#usize : Std.Usize) : Result Std.Usize) = .ok CIPHERTEXT_SIZE :=
+      usize_div_lit i4 (8#usize : Std.Usize) CIPHERTEXT_SIZE (by rw [h8]; omega)
+        (by rw [h8, hi4_8]; omega)
+    have hlen_ct :
+        Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice ciphertext) = CIPHERTEXT_SIZE := by
+      apply Aeneas.Std.UScalar.eq_of_val_eq
+      rw [Aeneas.Std.Slice.len_val]
+      exact h_ctlen
+    -- `rw [hlen_ct]` makes both sides of this assert the same term, and `simp only`'s
+    -- `eq_self` simproc collapses it to `True` before we get here.
+    have hmassert_ct : Aeneas.Std.massert True = .ok () := by
+      unfold Aeneas.Std.massert
+      rw [if_pos trivial]
+    -- (c) the last spec link is DEFINITIONAL: `deserialize_ring_elements_reduced` is a
+    -- one-line delegation to `vector_decode_12`, which is what `deserialize_vector_fc` posts
+    -- against (spec `Extraction/Funs.lean:2273-2277`). No bridge lemma.
+    have hdrer : hacspec_ml_kem.serialize.deserialize_ring_elements_reduced K secret_key
+        = hacspec_ml_kem.serialize.vector_decode_12 K secret_key := rfl
+    -- (d) the `to_slice_mut` round-trip, at lift level: SLICE post meets ARRAY consumer.
+    rw [lift_vec_from_slice_eq A ps hps_len'] at hout_spec
+    -- One `rw` per spec step; each callee's post supplies the `.ok`.
+    unfold hacspec_ml_kem.ind_cpa.decrypt
+    rw [slice_len_gen]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [SerializeFc.hacspec_bpre]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hskb]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hmassert_sk]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [slice_len_gen, hlen_ct]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hcoef, hi1]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [h_ucf, hi2]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [h_vcf, hi3]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hi4]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hi5]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hmassert_ct]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hdrer, hps_spec]
+    simp only [Aeneas.Std.bind_tc_ok]
+    exact hout_spec
 
 end libcrux_iot_ml_kem.IndCpaFc
