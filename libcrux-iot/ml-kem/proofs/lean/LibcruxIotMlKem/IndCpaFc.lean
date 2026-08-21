@@ -2836,18 +2836,16 @@ private theorem uWin_len (ciphertext : Slice Std.U8) (cs i : Nat)
     (h : i * cs + cs ≤ ciphertext.val.length) :
     (uWin ciphertext cs i).val.length = cs := by
   show (List.slice (i * cs) (i * cs + cs) ciphertext.val).length = cs
-  unfold List.slice
-  rw [List.length_take, List.length_drop]
-  omega
+  rw [List.slice_length]; omega
 
 private theorem uWin_get (ciphertext : Slice Std.U8) (cs i ℓ : Nat) (hℓ : ℓ < cs)
     (h : i * cs + cs ≤ ciphertext.val.length) :
     (uWin ciphertext cs i).val[ℓ]! = ciphertext.val[i * cs + ℓ]! := by
+  -- CITES the public generic slice lemma rather than re-walking take/drop (reviewer
+  -- finding, INC-2a.7 r1 low/debt): this was the tree's third spelling of the same fact.
   show (List.slice (i * cs) (i * cs + cs) ciphertext.val)[ℓ]! = _
-  unfold List.slice
-  rw [List.getElem!_take_of_lt _ _ _ (by omega),
-      getElem!_pos _ _ (by rw [List.length_drop]; omega), getElem!_pos _ _ (by omega),
-      List.getElem_drop]
+  exact libcrux_iot_ml_kem.Polynomial.NttMultiply.HelpersFC.slice_getElem_at
+    ciphertext.val (i * cs) (i * cs + cs) (by omega) h ℓ (by omega)
 
 /-- A `chunks_exact` chunk at count `i`, characterised by length + byte content, IS the
     `i`-th window. This is the whole content of the impl↔spec slicing agreement. -/
@@ -2870,13 +2868,25 @@ private theorem slice_set_set {α : Type} (v : Slice α) (i : Std.Usize) (x y : 
   show (v.val.set i.val x).set i.val y = v.val.set i.val y
   simp
 
-/-- `Array.index_usize` at a bounded index, in `getElem!` form (no dependent proof to
-    transport when the index is a `BitVec.ofNat` literal). -/
-private theorem array_index_usize_get {α : Type} [Inhabited α] {n : Std.Usize}
-    (v : Std.Array α n) (i : Std.Usize) (h : i.val < v.val.length) :
-    Aeneas.Std.Array.index_usize v i = .ok (v.val[i.val]!) := by
-  obtain ⟨x, hx, hxv⟩ := libcrux_iot_ml_kem.Util.SliceSpecs.Array.index_usize_exists v i h
-  rw [hx, hxv, getElem!_pos v.val i.val h]
+/-- `c * du / 8 = csz` when `c` is 256 and `csz` is `32 * du`. The hacspec and the impl each
+    spell 256 with their OWN constant (`hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT`
+    vs `libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT`), which is the only thing
+    that differed between the two ~14-line copies of this derivation; taking the constant as a
+    parameter covers both. (Reviewer finding, INC-2a.7 r1 low/debt: it was the largest
+    copy-paste block in the diff, and the same constant pair recurs in every `_u`/`_v`
+    chunk-width obligation.) -/
+private theorem ddu_width_div (c du csz : Std.Usize) (hc : c.val = 256)
+    (hdu : du.val = 10 ∨ du.val = 11) (hcs : csz.val = 32 * du.val) :
+    ∃ m : Std.Usize, (c * du : Result Std.Usize) = .ok m
+      ∧ (m / (8#usize : Std.Usize) : Result Std.Usize) = .ok csz := by
+  have h256 : 256 * du.val ≤ Std.Usize.max := by
+    rcases hdu with h | h <;> rw [h] <;> scalar_tac
+  obtain ⟨m, hm_eq, hm_val⟩ := usize_mul_ok_e c du (by rw [hc]; exact h256)
+  rw [hc] at hm_val
+  refine ⟨m, hm_eq, ?_⟩
+  exact usize_div_lit m 8#usize csz (by scalar_tac)
+    (by rw [hm_val, hcs, show (256 : Nat) * du.val = 8 * (32 * du.val) from by ring]
+        exact Nat.mul_div_cancel_left _ (by omega))
 
 /-! ### IMPL side — the rank-K `Enumerate (ChunksExact (32·du))` loop with the fused NTT. -/
 
@@ -3140,7 +3150,10 @@ private theorem vntt_closure_eq (K : Std.Usize)
       (RANK := K) a (⟨BitVec.ofNat _ k⟩ : Std.Usize)) = _
   unfold
     hacspec_ml_kem.ntt.vector_ntt.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
-  rw [array_index_usize_get a (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [hkval, halen]; exact hk)]
+  rw [libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq a
+        (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+        (by show (⟨BitVec.ofNat _ k⟩ : Std.Usize).val < a.val.length
+            rw [hkval, halen]; exact hk)]
   simp only [Aeneas.Std.bind_tc_ok, hkval]
   rw [hg k hk]
   rfl
@@ -3180,19 +3193,9 @@ private theorem spec_ddu_then_ntt_eq (K du csz : Std.Usize) (ciphertext : Slice 
     have hfc : uCell ciphertext du csz.val i = x := by unfold uCell; rw [hx]
     rw [hfc]; exact ⟨hx, hnx⟩
   -- `256 * du / 8 = 32 * du`, the spec's own chunk width.
-  have hcoef_val : (hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT : Std.Usize).val
-      = 256 := by
-    simp only [hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT]; rfl
-  have h256 : 256 * du.val ≤ Std.Usize.max := by
-    rcases hdu with h | h <;> rw [h] <;> scalar_tac
-  obtain ⟨m, hm_eq, hm_val⟩ :=
-    usize_mul_ok_e hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT du
-      (by rw [hcoef_val]; exact h256)
-  rw [hcoef_val] at hm_val
-  have hdiv : (m / (8#usize : Std.Usize) : Result Std.Usize) = .ok csz :=
-    usize_div_lit m 8#usize csz (by scalar_tac)
-      (by rw [hm_val, hcs, show (256 : Nat) * du.val = 8 * (32 * du.val) from by ring]
-          exact Nat.mul_div_cancel_left _ (by omega))
+  obtain ⟨m, hm_eq, hdiv⟩ :=
+    ddu_width_div hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT du csz
+      (by simp only [hacspec_ml_kem.parameters.COEFFICIENTS_IN_RING_ELEMENT]; rfl) hdu hcs
   -- The DECODE `createi`.
   have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq (T := FePoly) K
       (hacspec_ml_kem.serialize.deserialize_then_decompress_u.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
@@ -3307,24 +3310,15 @@ theorem deserialize_then_decompress_u_fc
   -- The chunk width `csz = 256·du/8 = 32·du`, as a `Usize`.
   have h_ct' : ciphertext.val.length = K.val * 32 * U_COMPRESSION_FACTOR.val := h_ct
   have h32 : ((32#usize : Std.Usize)).val = 32 := by scalar_tac
-  have hcoef_val :
-      (libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT : Std.Usize).val = 256 := by
-    simp only [libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT]; rfl
-  have h256 : 256 * U_COMPRESSION_FACTOR.val ≤ Std.Usize.max := by
-    rcases h_du with h | h <;> rw [h] <;> scalar_tac
-  obtain ⟨m, hm_eq, hm_val⟩ :=
-    usize_mul_ok_e libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
-      U_COMPRESSION_FACTOR (by rw [hcoef_val]; exact h256)
-  rw [hcoef_val] at hm_val
   obtain ⟨csz, -, hcsz_val⟩ :=
-    usize_mul_ok_e (32#usize : Std.Usize) U_COMPRESSION_FACTOR (by rw [h32]; omega)
+    usize_mul_ok_e (32#usize : Std.Usize) U_COMPRESSION_FACTOR
+      (by rw [h32]; rcases h_du with h | h <;> rw [h] <;> scalar_tac)
   rw [h32] at hcsz_val
-  have hdiv : (m / (8#usize : Std.Usize) : Result Std.Usize) = .ok csz :=
-    usize_div_lit m 8#usize csz (by scalar_tac)
-      (by rw [hm_val, hcsz_val,
-              show (256 : Nat) * U_COMPRESSION_FACTOR.val
-                = 8 * (32 * U_COMPRESSION_FACTOR.val) from by ring]
-          exact Nat.mul_div_cancel_left _ (by omega))
+  obtain ⟨m, hm_eq, hdiv⟩ :=
+    ddu_width_div libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
+      U_COMPRESSION_FACTOR csz
+      (by simp only [libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT]; rfl)
+      h_du hcsz_val
   have h_ctK : ciphertext.val.length = K.val * csz.val := by rw [h_ct', hcsz_val]; ring
   -- The fused loop, then the two-`createi` spec bridge.
   obtain ⟨p, hp_eq, hp_holds⟩ :=
