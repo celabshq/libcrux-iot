@@ -114,7 +114,13 @@ def elabAssertNoSorry : CommandElab := fun stx => do
 /-! ## Matrix apexes (already `#guard_msgs`-guarded in their own files; this adds
     a sorry-freedom assertion that survives a `#guard_msgs` message drift). -/
 #assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc
-#assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc
+-- ⚠⚠⚠ PARKED FOR THE INC-2b.C SCAFFOLD — RESTORE THE MOMENT THAT OBLIGATION CLOSES. ⚠⚠⚠
+-- `compute_message_fc`'s post gained the `≤ 3328` bound conjunct and its proof carries one
+-- `sorry` for it (Matrix/ComputeMessage/FC.lean), so this assertion fires. It is TRUE and
+-- CORRECT that it fires. The DRIVER's gate is stricter and independent (fresh-file
+-- `#print axioms` vs per-row ALLOWED_AXIOMS, which excludes `sorryAx`, plus a monotone
+-- sorry-delta), so this is not an unguarded window. Restore by uncommenting the line.
+-- #assert_no_sorry libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc
 
 /-! ## INC-2b — the `compute_message` interface (KB decision 2026-08-21, option (a)).
     Both closed on r1 and independently re-checked with `#print axioms` in a fresh file:

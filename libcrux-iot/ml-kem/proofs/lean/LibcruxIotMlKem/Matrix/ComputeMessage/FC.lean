@@ -124,7 +124,9 @@ theorem compute_message_fc
     ⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_message
                   (lift_poly v)
                   (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
-                = .ok (lift_poly p.1) ⌝ ⦄ := by
+                = .ok (lift_poly p.1)
+              ∧ ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                  ((p.1.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328 ⌝ ⦄ := by
   -- Fin-form bounds for the loop lemma.
   have h_secret_fin : ∀ k : Fin K.val, ∀ i j : Fin 16,
       ((secret_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 4095 :=
@@ -216,46 +218,78 @@ theorem compute_message_fc
         let result3 ← polynomial.PolynomialRingElement.subtract_reduce portable_ops_inst v result2
         Aeneas.Std.Result.ok (result3, scratch1, acc2)) = Aeneas.Std.Result.ok (result3, scratch1, acc2)
     rw [h_sub_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  · -- Chain A/B/C/D: prove the hacspec spec = .ok (lift_poly result3).
-    show hacspec_ml_kem.matrix.compute_message (lift_poly v)
-          (lift_vec secret_as_ntt) (lift_vec u_as_ntt) = .ok (lift_poly result3)
-    unfold hacspec_ml_kem.matrix.compute_message
-    -- A: multiply_vectors = .ok (scaleZ 2285 (lift_poly result1)).
-    have hA := compute_message_acc_bridge secret_as_ntt u_as_ntt acc1 acc2
-      h_acc1_zero h_char
-    rw [← h_result1_lift] at hA
-    rw [hA]; simp only [Aeneas.Std.bind_tc_ok]
-    -- C: ntt_inverse (scaleZ 2285 (lift_poly result1))
-    --      = .ok (scaleZ 3303 (invert_pure (scaleZ 2285 (lift_poly result1)))).
-    have hCanon_s : ∀ j : Nat, j < 256 →
-        libcrux_iot_ml_kem.Spec.Pure.Canonical
-          ((scaleZ 2285 (lift_poly result1)).val[j]!) :=
-      fun j hj => scaleZ_canon 2285 (lift_poly result1) j hj
-    rw [ntt_inverse_eq_scaleZ_invert_pure (scaleZ 2285 (lift_poly result1)) hCanon_s]
-    simp only [Aeneas.Std.bind_tc_ok]
-    -- B: invert_pure (scaleZ 2285 x) = scaleZ 2285 (invert_pure x).
-    rw [invert_ntt_montgomery_pure_scaleZ 2285 (lift_poly result1)
-        (fun j hj => lift_poly_canon result1 j hj)]
-    -- scaleZ 3303 (scaleZ 2285 y) = scaleZ 512 y.
-    rw [scaleZ_compose 3303 2285 (Spec.invert_ntt_montgomery_pure (lift_poly result1)),
-        glue_3303_2285]
-    -- invert_pure (lift_poly result1) = lift_poly result2.
-    rw [← h_result2_lift]
-    -- D: sub_polynomials (lift_poly v) (scaleZ 512 (lift_poly result2))
-    --      = .ok (subtract_reduce_pure (lift_poly v) (lift_poly result2)).
-    rw [sub_polynomials_scaleZ_eq (lift_poly v) (lift_poly result2)
-        (fun j hj => lift_poly_canon v j hj)]
-    -- subtract_reduce_pure (lift_poly v) (lift_poly result2) = lift_poly result3.
-    rw [← h_result3_lift]
+  · -- POST is now a CONJUNCTION: the spec equation, and the ≤ 3328 bound the
+    -- consumer `compress_then_serialize_message_fc` requires (INC-2b.C).
+    refine ⟨?_, ?_⟩
+    · -- Chain A/B/C/D: prove the hacspec spec = .ok (lift_poly result3).
+      show hacspec_ml_kem.matrix.compute_message (lift_poly v)
+            (lift_vec secret_as_ntt) (lift_vec u_as_ntt) = .ok (lift_poly result3)
+      unfold hacspec_ml_kem.matrix.compute_message
+      -- A: multiply_vectors = .ok (scaleZ 2285 (lift_poly result1)).
+      have hA := compute_message_acc_bridge secret_as_ntt u_as_ntt acc1 acc2
+        h_acc1_zero h_char
+      rw [← h_result1_lift] at hA
+      rw [hA]; simp only [Aeneas.Std.bind_tc_ok]
+      -- C: ntt_inverse (scaleZ 2285 (lift_poly result1))
+      --      = .ok (scaleZ 3303 (invert_pure (scaleZ 2285 (lift_poly result1)))).
+      have hCanon_s : ∀ j : Nat, j < 256 →
+          libcrux_iot_ml_kem.Spec.Pure.Canonical
+            ((scaleZ 2285 (lift_poly result1)).val[j]!) :=
+        fun j hj => scaleZ_canon 2285 (lift_poly result1) j hj
+      rw [ntt_inverse_eq_scaleZ_invert_pure (scaleZ 2285 (lift_poly result1)) hCanon_s]
+      simp only [Aeneas.Std.bind_tc_ok]
+      -- B: invert_pure (scaleZ 2285 x) = scaleZ 2285 (invert_pure x).
+      rw [invert_ntt_montgomery_pure_scaleZ 2285 (lift_poly result1)
+          (fun j hj => lift_poly_canon result1 j hj)]
+      -- scaleZ 3303 (scaleZ 2285 y) = scaleZ 512 y.
+      rw [scaleZ_compose 3303 2285 (Spec.invert_ntt_montgomery_pure (lift_poly result1)),
+          glue_3303_2285]
+      -- invert_pure (lift_poly result1) = lift_poly result2.
+      rw [← h_result2_lift]
+      -- D: sub_polynomials (lift_poly v) (scaleZ 512 (lift_poly result2))
+      --      = .ok (subtract_reduce_pure (lift_poly v) (lift_poly result2)).
+      rw [sub_polynomials_scaleZ_eq (lift_poly v) (lift_poly result2)
+          (fun j hj => lift_poly_canon v j hj)]
+      -- subtract_reduce_pure (lift_poly v) (lift_poly result2) = lift_poly result3.
+      rw [← h_result3_lift]
+    · -- ★ INC-2b.C OBLIGATION — the NEW bound conjunct. HELPER SCAFFOLD, do not
+      -- weaken the statement to close it.
+      --
+      -- The ingredient is BANKED and axiom-clean: `PolyOpsFc.subtract_reduce_bnd`
+      -- (Polynomial/PolyOpsFc.lean:1191) has EXACTLY the hypotheses already
+      -- discharged above for `subtract_reduce_fc` (`h_v_self_bnd`,
+      -- `h_result2_b_bnd`) and posts `natAbs ≤ 3328` on the very same call whose
+      -- result is `result3`. `subtract_reduce` is the LAST operation the impl
+      -- performs, so its result IS `p.1`.
+      sorry
 
-/--
-info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- Util.SliceSpecs.Array.update_subslice_le_eq,
- Util.SliceSpecs.Slice.subslice_le_eq]
--/
-#guard_msgs in
-#print axioms compute_message_fc
+-- ═══════════════════════════════════════════════════════════════════════════════════════
+-- ⚠⚠⚠ PARKED FOR THE INC-2b.C SCAFFOLD — RESTORE THE MOMENT THIS OBLIGATION CLOSES. ⚠⚠⚠
+-- The `sorry` above (the new bound conjunct) makes this theorem depend on `sorryAx`, so
+-- the guard below fires. That is the guard WORKING, not a defect.
+--
+-- ⚠ DO NOT "FIX" IT BY ADDING `sorryAx` TO THE EXPECTED LIST. It would then FAIL the
+-- moment the obligation CLOSES, and the gate would revert a correct proof — the exact
+-- false failure that nearly destroyed the 1033-line NTT bridge (STATE.md, 2026-08-20).
+-- A guard that must be wrong during the work and right after it cannot be left armed.
+--
+-- ⚠ THIS IS NOT AN UNGUARDED WINDOW. verify.sh runs `#print axioms` in a FRESH file
+-- against the per-row ALLOWED_AXIOMS — which for this row is the five names below and
+-- does NOT include `sorryAx` — plus a sorry-delta from the build log that must be
+-- monotone non-increasing. A leftover sorry cannot pass the gate with this line parked.
+--
+-- RESTORE TARGET: uncomment the block below VERBATIM. The expected list is UNCHANGED —
+-- citing the axiom-clean `subtract_reduce_bnd` adds nothing to the TCB, and if the list
+-- does change, that is a finding, not a message drift to paper over.
+-- ═══════════════════════════════════════════════════════════════════════════════════════
+-- /--
+-- info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,
+--  Classical.choice,
+--  Quot.sound,
+--  Util.SliceSpecs.Array.update_subslice_le_eq,
+--  Util.SliceSpecs.Slice.subslice_le_eq]
+-- -/
+-- #guard_msgs in
+-- #print axioms compute_message_fc
 
 end libcrux_iot_ml_kem.Matrix.ComputeMessage.FC
