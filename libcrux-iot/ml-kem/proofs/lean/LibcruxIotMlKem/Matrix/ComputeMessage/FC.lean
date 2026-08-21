@@ -271,33 +271,14 @@ theorem compute_message_fc
       subst h_r3
       exact h_bnd
 
--- ═══════════════════════════════════════════════════════════════════════════════════════
--- ⚠⚠⚠ PARKED FOR THE INC-2b.C SCAFFOLD — RESTORE THE MOMENT THIS OBLIGATION CLOSES. ⚠⚠⚠
--- The `sorry` above (the new bound conjunct) makes this theorem depend on `sorryAx`, so
--- the guard below fires. That is the guard WORKING, not a defect.
---
--- ⚠ DO NOT "FIX" IT BY ADDING `sorryAx` TO THE EXPECTED LIST. It would then FAIL the
--- moment the obligation CLOSES, and the gate would revert a correct proof — the exact
--- false failure that nearly destroyed the 1033-line NTT bridge (STATE.md, 2026-08-20).
--- A guard that must be wrong during the work and right after it cannot be left armed.
---
--- ⚠ THIS IS NOT AN UNGUARDED WINDOW. verify.sh runs `#print axioms` in a FRESH file
--- against the per-row ALLOWED_AXIOMS — which for this row is the five names below and
--- does NOT include `sorryAx` — plus a sorry-delta from the build log that must be
--- monotone non-increasing. A leftover sorry cannot pass the gate with this line parked.
---
--- RESTORE TARGET: uncomment the block below VERBATIM. The expected list is UNCHANGED —
--- citing the axiom-clean `subtract_reduce_bnd` adds nothing to the TCB, and if the list
--- does change, that is a finding, not a message drift to paper over.
--- ═══════════════════════════════════════════════════════════════════════════════════════
--- /--
--- info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,
---  Classical.choice,
---  Quot.sound,
---  Util.SliceSpecs.Array.update_subslice_le_eq,
---  Util.SliceSpecs.Slice.subslice_le_eq]
--- -/
--- #guard_msgs in
--- #print axioms compute_message_fc
+/--
+info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ Util.SliceSpecs.Array.update_subslice_le_eq,
+ Util.SliceSpecs.Slice.subslice_le_eq]
+-/
+#guard_msgs in
+#print axioms compute_message_fc
 
 end libcrux_iot_ml_kem.Matrix.ComputeMessage.FC
