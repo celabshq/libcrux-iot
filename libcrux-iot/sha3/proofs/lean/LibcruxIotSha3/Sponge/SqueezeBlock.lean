@@ -339,11 +339,10 @@ theorem keccak.squeeze_last_spec
   -- Step 5: discharge `copy_from_slice out s2`. Length check: out.val.length = s2.val.length.
   have h_copy : CoreModels.core.slice.Slice.copy_from_slice
         CoreModels.core.U8.Insts.CoreMarkerCopy out s2 = .ok s2 := by
-    unfold CoreModels.core.slice.Slice.copy_from_slice
-    have h_len_eq : Std.Slice.len out = Std.Slice.len s2 := by
-      apply Std.UScalar.eq_of_val_eq
-      simp [Std.Slice.len, h_s2_len']
-    simp [h_len_eq]
+    -- CoreModels v0.3.12 clones each element here, so the equation now needs the
+    -- instance's `clone` to be effect-free; `U8`'s is literally `ok self`.
+    refine core_models_slice_Slice_copy_from_slice_eq _ out s2 ?_ (by intro x; rfl)
+    simp [h_s2_len']
   -- Step 6: assemble impl-side equality. (The wrapped Array index spec already
   -- matches the extracted `Array…index (Slice.Insts.CoreOpsIndexIndex …)` call.)
   have h_impl_eq :
@@ -428,11 +427,10 @@ theorem keccak.squeeze_first_and_last_spec
   -- Step 4: discharge `copy_from_slice out s2`.
   have h_copy : CoreModels.core.slice.Slice.copy_from_slice
         CoreModels.core.U8.Insts.CoreMarkerCopy out s2 = .ok s2 := by
-    unfold CoreModels.core.slice.Slice.copy_from_slice
-    have h_len_eq : Std.Slice.len out = Std.Slice.len s2 := by
-      apply Std.UScalar.eq_of_val_eq
-      simp [Std.Slice.len, h_s2_len']
-    simp [h_len_eq]
+    -- CoreModels v0.3.12 clones each element here, so the equation now needs the
+    -- instance's `clone` to be effect-free; `U8`'s is literally `ok self`.
+    refine core_models_slice_Slice_copy_from_slice_eq _ out s2 ?_ (by intro x; rfl)
+    simp [h_s2_len']
   -- Step 5: assemble impl-side equality. (The wrapped Array index spec already
   -- matches the extracted `Array…index (Slice.Insts.CoreOpsIndexIndex …)` call.)
   have h_impl_eq :

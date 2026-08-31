@@ -233,6 +233,9 @@ theorem lane.Lane2U32.interleave_spec (self : lane.Lane2U32) :
        refine Prod.mk.injEq .. |>.mpr ⟨?_, ?_⟩ <;> rw [BitVec.or_comm])
 
 /-! ## Aeneas-`RustM` lift of `Lane2U32.deinterleave`. -/
+-- The bit-level close got more expensive under aeneas nightly-2026.08.24 and
+-- exceeds the default 200000 heartbeats; raised as elsewhere in this development.
+set_option maxHeartbeats 1600000 in
 @[spec]
 theorem lane.Lane2U32.deinterleave_spec (self : lane.Lane2U32) :
     ⦃ ⌜ True ⌝ ⦄

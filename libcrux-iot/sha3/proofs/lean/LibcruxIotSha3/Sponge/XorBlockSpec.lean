@@ -56,32 +56,34 @@ a `FnMut` instance directly (no `Fn` wrapper). Required because
 `sponge.xor_block_into_state` calls `CoreModels.core.array.from_fn` directly
 with the `FnMut` instance of its closure. -/
 
-private theorem from_fn_foldlM_pure_aux
+private theorem array_from_fn_go_pure
     {T F : Type}
     (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (f : Nat → T)
-    (l : List Nat) (acc : List T)
-    (hpure : ∀ k ∈ l,
+    (n : Nat)
+    (hpure : ∀ k : Nat, k < n →
       inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c)) :
-    l.foldlM
-      (fun (s : List T × F) (i : Nat) => do
-        let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        RustM.ok (s.1 ++ [v], f'))
-      (acc, c) = .ok (acc ++ l.map f, c) := by
-  induction l generalizing acc with
-  | nil =>
-      simp only [List.foldlM_nil, List.map_nil, List.append_nil]; rfl
-  | cons h t ih =>
-      have hh : inst.call_mut c ⟨BitVec.ofNat _ h⟩ = .ok (f h, c) :=
-        hpure h List.mem_cons_self
-      have ht : ∀ k ∈ t, inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
-        fun k hk => hpure k (List.mem_cons_of_mem _ hk)
-      have hih := ih (acc ++ [f h]) ht
-      simp only [List.foldlM_cons, hh, bind_tc_ok, List.map_cons]
-      rw [hih]
-      simp [List.append_assoc]
+    CoreModels.rust_primitives.slice.array_from_fn_go inst c n
+      = .ok ((List.range n).map f, c) := by
+  induction n with
+  | zero =>
+      simp [CoreModels.rust_primitives.slice.array_from_fn_go]
+  | succ n ih =>
+      have ht : ∀ k : Nat, k < n →
+          inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
+        fun k hk => hpure k (Nat.lt_succ_of_lt hk)
+      simp only [CoreModels.rust_primitives.slice.array_from_fn_go, ih ht, bind_tc_ok,
+        hpure n (Nat.lt_succ_self n), List.range_succ, List.map_append, List.map_cons,
+        List.map_nil]
 
-/-- Lean-level equation for `from_fn` over pure closures. -/
-private theorem from_fn_pure_eq
+/-- Lean-level equation for `from_fn` over pure closures.
+
+    CoreModels v0.3.12 builds the array by structural recursion over the index
+    count (`array_from_fn_go`) plus a length-guarded `if`, rather than by folding
+    `List.range`, so the previous `from_fn_foldlM_pure_aux` characterization and
+    the `split` over the fold's three outcomes are replaced by the induction
+    above. (Kept local, mirroring the parallel copy in
+    Foundation/ThetaLiftDefs.lean, rather than adding an import edge.) -/
+theorem from_fn_pure_eq
     {T F : Type} (N : Std.Usize)
     (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (f : Nat → T)
     (hpure : ∀ k : Nat, k < N.val →
@@ -89,24 +91,11 @@ private theorem from_fn_pure_eq
     CoreModels.core.array.from_fn N inst c =
       .ok ⟨(List.range N.val).map f,
            by simp [List.length_map, List.length_range]⟩ := by
-  have hf : ∀ k ∈ List.range N.val,
-      inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) := by
-    intro k hk; exact hpure k (List.mem_range.mp hk)
-  have h_fold :=
-    from_fn_foldlM_pure_aux inst c f (List.range N.val) [] hf
-  simp only [List.nil_append] at h_fold
-  unfold CoreModels.core.array.from_fn CoreModels.rust_primitives.slice.array_from_fn
-  split
-  · rename_i e heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i result heq
-    rw [h_fold] at heq
-    have hres : result = ((List.range N.val).map f, c) :=
-      (RustM.ok.inj heq).symm
-    subst hres
-    rfl
+  unfold CoreModels.core.array.from_fn
+    CoreModels.rust_primitives.slice.array_from_fn
+  rw [array_from_fn_go_pure inst c f N.val hpure]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp : ((List.range N.val).map f).length = N.val)]
 
 /-- **Generic pure-closure `[spec]` for `CoreModels.core.array.from_fn`.**
 
