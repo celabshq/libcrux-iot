@@ -38,32 +38,31 @@ We characterize each function by a pure `_applied` form through a generic
 plus six per-closure purity lemmas (one for each of θ's 3, ρ/π/χ's 1
 closures). -/
 
-/-- Per-element foldlM evaluation for pure closures. The closure state `c`
-    is invariant; the result list is `acc ++ l.map f`. -/
-private theorem createi_foldlM_pure_aux
+/-- Per-index evaluation of `array_from_fn_go` for pure closures. The closure
+    state `c` is invariant, and the list produced for `n` indices is
+    `(List.range n).map f`.
+
+    `array_from_fn` is a structural recursion over the index count as of
+    CoreModels v0.3.12 (it used to be a `List.foldlM`, characterized here by a
+    `createi_foldlM_pure_aux` phrased in those terms). -/
+private theorem array_from_fn_go_pure
     {T F : Type}
     (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (f : Nat → T)
-    (l : List Nat) (acc : List T)
-    (hpure : ∀ k ∈ l,
+    (n : Nat)
+    (hpure : ∀ k : Nat, k < n →
       inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c)) :
-    l.foldlM
-      (fun (s : List T × F) (i : Nat) => do
-        let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        RustM.ok (s.1 ++ [v], f'))
-      (acc, c) = .ok (acc ++ l.map f, c) := by
-  induction l generalizing acc with
-  | nil =>
-      simp only [List.foldlM_nil, List.map_nil, List.append_nil]
-      rfl
-  | cons h t ih =>
-      have hh : inst.call_mut c ⟨BitVec.ofNat _ h⟩ = .ok (f h, c) :=
-        hpure h List.mem_cons_self
-      have ht : ∀ k ∈ t, inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
-        fun k hk => hpure k (List.mem_cons_of_mem _ hk)
-      have hih := ih (acc ++ [f h]) ht
-      simp only [List.foldlM_cons, hh, bind_tc_ok, List.map_cons]
-      rw [hih]
-      simp [List.append_assoc]
+    CoreModels.rust_primitives.slice.array_from_fn_go inst c n
+      = .ok ((List.range n).map f, c) := by
+  induction n with
+  | zero =>
+      simp [CoreModels.rust_primitives.slice.array_from_fn_go]
+  | succ n ih =>
+      have ht : ∀ k : Nat, k < n →
+          inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
+        fun k hk => hpure k (Nat.lt_succ_of_lt hk)
+      simp only [CoreModels.rust_primitives.slice.array_from_fn_go, ih ht, bind_tc_ok,
+        hpure n (Nat.lt_succ_self n), List.range_succ, List.map_append, List.map_cons,
+        List.map_nil]
 
 /-- Lean-level equation for `createi` over pure closures. Used to power
     `createi_pure_spec` (Triple form). -/
@@ -75,24 +74,11 @@ theorem createi_pure_eq
     createi N inst c =
       .ok ⟨(List.range N.val).map f,
            by simp [List.length_map, List.length_range]⟩ := by
-  have hf : ∀ k ∈ List.range N.val,
-      inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) := by
-    intro k hk; exact hpure k (List.mem_range.mp hk)
-  have h_fold :=
-    createi_foldlM_pure_aux inst c f (List.range N.val) [] hf
-  simp only [List.nil_append] at h_fold
-  unfold createi CoreModels.core.array.from_fn CoreModels.rust_primitives.slice.array_from_fn
-  split
-  · rename_i e heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i result heq
-    rw [h_fold] at heq
-    have hres : result = ((List.range N.val).map f, c) :=
-      (RustM.ok.inj heq).symm
-    subst hres
-    rfl
+  unfold createi CoreModels.core.array.from_fn
+    CoreModels.rust_primitives.slice.array_from_fn
+  rw [array_from_fn_go_pure inst c f N.val hpure]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp : ((List.range N.val).map f).length = N.val)]
 
 /-- **Generic pure-closure `[spec]` for `createi`.**
 
@@ -662,8 +648,16 @@ private theorem theta_d_spec (s : state.KeccakState) :
     | scalar_tac
     | (refine ⟨trivial, trivial, trivial, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
        (apply Std.U32.bv_eq_imp_eq
-        simp_all [WP.uncurry', Std.Array.set_val_eq,
-                  Std.UScalar.bv_xor, rot32]))
+        -- `WP.uncurry'` is no longer part of the goal shape (the file's
+        -- `attribute [local spec] Aeneas.Std.uncurry` handles it), so it is
+        -- dropped from the simp set.
+        -- `theta_d` writes all ten `d` cells through `index_mut`, so mvcgen binds
+        -- the intermediate arrays as local *definitions*
+        -- (`a17 := (r₁, r₂).2 (Array.set (r₁, r₂).1 0#usize ..)`) rather than as
+        -- equations. Reading a cell back means walking that chain, which needs
+        -- those `let`s unfolded: hence `+zetaDelta`, which plain `simp_all` does
+        -- not do.
+        simp_all +zetaDelta [Std.Array.set_val_eq, Std.UScalar.bv_xor, rot32]))
 
 /-! ### Composed θ-round spec
 

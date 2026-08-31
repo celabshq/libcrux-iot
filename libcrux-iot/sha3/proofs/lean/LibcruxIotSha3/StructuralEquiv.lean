@@ -847,7 +847,11 @@ private theorem round1_theta_d_spec_fc (s : state.KeccakState) :
     | scalar_tac
     | (refine ⟨trivial, trivial, trivial, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
        (apply Std.U32.bv_eq_imp_eq
-        simp_all [WP.uncurry', Std.Array.set_val_eq,
+        -- `+zetaDelta`: mvcgen binds the intermediate `d` arrays as local
+        -- definitions, and reading a cell back walks that chain, so the `let`s
+        -- have to be unfolded (see theta_d_spec in Foundation/ThetaLiftDefs.lean).
+        -- `WP.uncurry'` is no longer part of the goal shape and is dropped.
+        simp_all +zetaDelta [Std.Array.set_val_eq,
                   Std.UScalar.bv_xor, Foundation.rot32]))
 
 set_option maxHeartbeats 8000000 in
@@ -1670,7 +1674,11 @@ private theorem round2_theta_d_spec_fc (s : state.KeccakState) :
     | scalar_tac
     | (refine ⟨trivial, trivial, trivial, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
        (apply Std.U32.bv_eq_imp_eq
-        simp_all [WP.uncurry', Std.Array.set_val_eq,
+        -- `+zetaDelta`: mvcgen binds the intermediate `d` arrays as local
+        -- definitions, and reading a cell back walks that chain, so the `let`s
+        -- have to be unfolded (see theta_d_spec in Foundation/ThetaLiftDefs.lean).
+        -- `WP.uncurry'` is no longer part of the goal shape and is dropped.
+        simp_all +zetaDelta [Std.Array.set_val_eq,
                   Std.UScalar.bv_xor, Foundation.rot32]))
 
 set_option maxHeartbeats 8000000 in
@@ -2428,7 +2436,11 @@ private theorem round3_theta_d_spec_fc (s : state.KeccakState) :
     | scalar_tac
     | (refine ⟨trivial, trivial, trivial, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
        (apply Std.U32.bv_eq_imp_eq
-        simp_all [WP.uncurry', Std.Array.set_val_eq,
+        -- `+zetaDelta`: mvcgen binds the intermediate `d` arrays as local
+        -- definitions, and reading a cell back walks that chain, so the `let`s
+        -- have to be unfolded (see theta_d_spec in Foundation/ThetaLiftDefs.lean).
+        -- `WP.uncurry'` is no longer part of the goal shape and is dropped.
+        simp_all +zetaDelta [Std.Array.set_val_eq,
                   Std.UScalar.bv_xor, Foundation.rot32]))
 
 set_option maxHeartbeats 8000000 in

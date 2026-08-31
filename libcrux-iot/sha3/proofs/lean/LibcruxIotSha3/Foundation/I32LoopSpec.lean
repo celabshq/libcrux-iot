@@ -75,7 +75,12 @@ theorem IteratorRange_next_spec_i32 (i e : Std.I32)
              { start := Std.I32.wrapping_add i
                  (UScalar.hcast IScalarTy.I32 (UScalar.cast UScalarTy.U32 1#usize)),
                «end» := e }) := by
+      -- `iter.range.IteratorRange.next` is only an `abbrev` for
+      -- `CoreModels.core.IteratorRange.next` as of CoreModels v0.3.12, so
+      -- unfolding the alias alone leaves the body untouched and the simp set
+      -- below with nothing to rewrite.
       unfold CoreModels.core.iter.range.IteratorRange.next
+             CoreModels.core.IteratorRange.next
       simp [CoreModels.core.I32.Insts.CoreCmpPartialOrdI32,
             CoreModels.core.mkIPartialOrd,
             CoreModels.core.I32.Insts.CoreCloneClone.clone,
@@ -90,7 +95,12 @@ theorem IteratorRange_next_spec_i32 (i e : Std.I32)
     have h_eq : CoreModels.core.iter.range.IteratorRange.next
         CoreModels.core.I32.Insts.CoreIterRangeStep { start := i, «end» := e }
       = .ok (CoreModels.core.option.Option.None, { start := i, «end» := e }) := by
+      -- `iter.range.IteratorRange.next` is only an `abbrev` for
+      -- `CoreModels.core.IteratorRange.next` as of CoreModels v0.3.12, so
+      -- unfolding the alias alone leaves the body untouched and the simp set
+      -- below with nothing to rewrite.
       unfold CoreModels.core.iter.range.IteratorRange.next
+             CoreModels.core.IteratorRange.next
       simp only [CoreModels.core.I32.Insts.CoreCmpPartialOrdI32,
                  CoreModels.core.mkIPartialOrd]
       have hcmp : compare i.val e.val ≠ Ordering.lt := Int.compare_ne_lt.mpr hge
