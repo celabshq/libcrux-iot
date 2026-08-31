@@ -563,7 +563,7 @@ theorem lemma_to_unsigned_representative_chunk_commutes
     `lemma_compress_message_chunk_commutes`,
     `lemma_decompress_message_chunk_commutes`) are blocked by Open
     Question I.4: `HacspecMlKem.compress.compress_d` is
-    `Result`-monadic, and the lift design (pure-vs-Result return type,
+    `RustM`-monadic, and the lift design (pure-vs-RustM return type,
     `Vector (Fin (2^d)) 256` vs `Vector (ZMod 3329) 256` shape) is not
     pinned down. M.1's `bit_compress` / `bit_decompress` are
     placeholder stubs, so any chunk commute stated against them would
@@ -576,7 +576,7 @@ theorem lemma_to_unsigned_representative_chunk_commutes
     Block-C lemma takes the impl post as an explicit per-lane
     hypothesis `hr : ∀ i j : Fin 16, …` and conclusion is stated in
     BIT-SIDE terms (`bit_<op>` from M.1), not in `HP.<op>` terms (those
-    are `Result`-monadic in the hacspec spec; a later pass will bridge
+    are `RustM`-monadic in the hacspec spec; a later pass will bridge
     `bit_*` ↔ `HP.*`).
 
     ### `@[scoped grind]` policy (matches Block B).

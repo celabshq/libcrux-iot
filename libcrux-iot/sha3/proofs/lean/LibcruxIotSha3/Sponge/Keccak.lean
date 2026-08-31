@@ -46,7 +46,7 @@ import LibcruxIotSha3.Sponge.Squeeze
 import LibcruxIotSha3.Sponge.Absorb
 import LibcruxIotSha3.Sponge.SqueezeBlock
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -61,12 +61,12 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 
 /-! ### Local helpers. -/
 
-private theorem triple_of_ok_kk {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_kk {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
 
-private theorem triple_exists_ok_kk {α : Type} {x : Result α}
+private theorem triple_exists_ok_kk {α : Type} {x : RustM α}
     {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
@@ -93,7 +93,7 @@ theorem state_KeccakState_new_eq :
   refine ⟨_, rfl, rfl, ?_⟩
   rfl
 
-/-! ### Helper: `CoreModels.core.slice.Slice.len` Result-level equation. -/
+/-! ### Helper: `CoreModels.core.slice.Slice.len` RustM-level equation. -/
 
 private theorem slice_len_eq (s : Slice Std.U8) :
     CoreModels.core.slice.Slice.len s = .ok (Std.Slice.len s) := by
@@ -358,7 +358,7 @@ theorem keccak.keccak_keccak_spec_blocks_zero
         -- Both produce a buffer; they differ only in the `s1` slice extracted.
         -- Reduce both `let i ← off + remaining`.
         -- LHS: 0#usize + rem_us = .ok rem_us.
-        have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : Result Std.Usize) := by
+        have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : RustM Std.Usize) := by
           have h_bnd : (0#usize : Std.Usize).val + rem_us.val ≤ Std.UScalar.max .Usize := by
             rw [Std.UScalar.max_USize_eq]; show 0 + rem_us.val ≤ Std.Usize.max
             rw [h_rem_us_val]; omega
@@ -371,7 +371,7 @@ theorem keccak.keccak_keccak_spec_blocks_zero
           rw [h_eq_v, h_v_eq]
         rw [h_lhs_add]; simp only [bind_tc_ok]
         -- RHS: i3_us + rem_us = .ok i_us (since i3_us.val + rem_us.val = n*RATE + rem = data.length = i_us.val).
-        have h_rhs_add : i3_us + rem_us = (.ok i_us : Result Std.Usize) := by
+        have h_rhs_add : i3_us + rem_us = (.ok i_us : RustM Std.Usize) := by
           have h_bnd : i3_us.val + rem_us.val ≤ Std.UScalar.max .Usize := by
             rw [Std.UScalar.max_USize_eq, h_i3_us_val, h_rem_us_val]; omega
           obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
@@ -642,7 +642,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
     apply Std.UScalar.eq_of_val_eq
     rw [h_last_us_val, h_offset_eq_last]
   have h_massert :
-      (massert ((¬ (last_us < outlen_us)) || (last_us = offset)) : Result Unit)
+      (massert ((¬ (last_us < outlen_us)) || (last_us = offset)) : RustM Unit)
         = .ok () := by
     unfold Aeneas.Std.massert
     have h_or : ((¬ (last_us < outlen_us)) || (last_us = offset)) = true := by
@@ -744,7 +744,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
             sponge.pad_last_block tail 0#usize rem_us RATE DELIM
               = sponge.pad_last_block data i3_us rem_us RATE DELIM := by
           unfold sponge.pad_last_block
-          have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : Result Std.Usize) := by
+          have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : RustM Std.Usize) := by
             have h_bnd : (0#usize : Std.Usize).val + rem_us.val ≤ Std.UScalar.max .Usize := by
               rw [Std.UScalar.max_USize_eq]; show 0 + rem_us.val ≤ Std.Usize.max
               rw [h_rem_us_val]; omega
@@ -756,7 +756,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
             have h_v_eq : v = rem_us := Std.UScalar.eq_of_val_eq h_v_val
             rw [h_eq_v, h_v_eq]
           rw [h_lhs_add]; simp only [bind_tc_ok]
-          have h_rhs_add : i3_us + rem_us = (.ok i_us : Result Std.Usize) := by
+          have h_rhs_add : i3_us + rem_us = (.ok i_us : RustM Std.Usize) := by
             have h_bnd : i3_us.val + rem_us.val ≤ Std.UScalar.max .Usize := by
               rw [Std.UScalar.max_USize_eq, h_i3_us_val, h_rem_us_val]; omega
             obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
@@ -945,7 +945,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
           rw [h_blocks_eq, Nat.fold_succ]
           -- Goal: (fold (blocks_nat - 1) ... ) >>= keccak_f.keccak_f = .ok s_spec_last.
           have h_inner : Nat.fold (blocks_nat - 1)
-              (init := (.ok (Foundation.lift s2) : Result _))
+              (init := (.ok (Foundation.lift s2) : RustM _))
               (fun _ _ acc => acc >>= fun st => keccak_f.keccak_f st)
               = .ok (Foundation.lift s3) := by
             have h_blocks_us_minus : blocks_us.val - 1 = blocks_nat - 1 := by
@@ -1012,9 +1012,9 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
           have h2 := h_fold_loop
           -- h1 : squeeze_fold s2 ((k - RATE.val)/RATE.val + 1) = .ok (Classical.choose ...).
           -- h2 : squeeze_fold s2 ((k - RATE.val)/RATE.val + 1) = .ok s_bj_loop.
-          have : (.ok (Classical.choose (h_loop_bytes (k - RATE.val) h_j_lt)) : Result _)
+          have : (.ok (Classical.choose (h_loop_bytes (k - RATE.val) h_j_lt)) : RustM _)
                   = .ok s_bj_loop := by rw [← h1, h2]
-          exact (Result.ok.injEq _ _).mp this
+          exact (RustM.ok.injEq _ _).mp this
         rw [h_s_b_eq]
         have h_div_ge_1 : 1 ≤ k / RATE.val := (Nat.one_le_div_iff (by omega)).mpr hk_RATE
         have h_kmRATE_mod : (k - RATE.val) % RATE.val = k % RATE.val := by
@@ -1133,7 +1133,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
             sponge.pad_last_block tail 0#usize rem_us RATE DELIM
               = sponge.pad_last_block data i3_us rem_us RATE DELIM := by
           unfold sponge.pad_last_block
-          have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : Result Std.Usize) := by
+          have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : RustM Std.Usize) := by
             have h_bnd : (0#usize : Std.Usize).val + rem_us.val ≤ Std.UScalar.max .Usize := by
               rw [Std.UScalar.max_USize_eq]; show 0 + rem_us.val ≤ Std.Usize.max
               rw [h_rem_us_val]; omega
@@ -1145,7 +1145,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
             have h_v_eq : v = rem_us := Std.UScalar.eq_of_val_eq h_v_val
             rw [h_eq_v, h_v_eq]
           rw [h_lhs_add]; simp only [bind_tc_ok]
-          have h_rhs_add : i3_us + rem_us = (.ok i_us : Result Std.Usize) := by
+          have h_rhs_add : i3_us + rem_us = (.ok i_us : RustM Std.Usize) := by
             have h_bnd : i3_us.val + rem_us.val ≤ Std.UScalar.max .Usize := by
               rw [Std.UScalar.max_USize_eq, h_i3_us_val, h_rem_us_val]; omega
             obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
@@ -1324,9 +1324,9 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
       have h_s_b_eq : Classical.choose (h_loop_bytes (k - RATE.val) h_j_lt) = s_bj_loop := by
         have h1 := h_choose_spec.1
         have h2 := h_fold_loop
-        have : (.ok (Classical.choose (h_loop_bytes (k - RATE.val) h_j_lt)) : Result _)
+        have : (.ok (Classical.choose (h_loop_bytes (k - RATE.val) h_j_lt)) : RustM _)
                 = .ok s_bj_loop := by rw [← h1, h2]
-        exact (Result.ok.injEq _ _).mp this
+        exact (RustM.ok.injEq _ _).mp this
       rw [h_s_b_eq]
       have h_div_ge_1 : 1 ≤ k / RATE.val := (Nat.one_le_div_iff (by omega)).mpr hk_RATE
       have h_kmRATE_mod : (k - RATE.val) % RATE.val = k % RATE.val := by

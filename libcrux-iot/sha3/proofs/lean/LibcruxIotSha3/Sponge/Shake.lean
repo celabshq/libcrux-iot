@@ -35,7 +35,7 @@
 -/
 import LibcruxIotSha3.Sponge.Keccak
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -50,7 +50,7 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 
 /-! ### Local helpers. -/
 
-private theorem triple_of_ok_sh {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_sh {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
@@ -63,7 +63,7 @@ private theorem keccakx1_eq_keccak
     keccakx1 RATE DELIM data out = keccak.keccak RATE DELIM data out := by
   unfold keccakx1; rfl
 
-/-! ### Helper: `CoreModels.core.slice.Slice.len` Result-level equation. -/
+/-! ### Helper: `CoreModels.core.slice.Slice.len` RustM-level equation. -/
 
 private theorem slice_len_eq_sh (s : Slice Std.U8) :
     CoreModels.core.slice.Slice.len s = .ok (Std.Slice.len s) := by
@@ -73,7 +73,7 @@ private theorem slice_len_eq_sh (s : Slice Std.U8) :
 
 private theorem lift_cast_U32_MAX :
     (Std.lift (Std.UScalar.cast .Usize CoreModels.core.num.U32.MAX)
-      : Result Std.Usize)
+      : RustM Std.Usize)
       = .ok 4294967295#usize := by
   unfold Std.lift
   congr 1
@@ -86,7 +86,7 @@ private theorem lift_cast_U32_MAX :
 
 /-! ### Helper: extract Triple post into existential form. -/
 
-private theorem triple_exists_ok_sh {α : Type} {x : Result α}
+private theorem triple_exists_ok_sh {α : Type} {x : RustM α}
     {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
@@ -112,11 +112,11 @@ theorem shake128_spec
   -- Set up the internal arrays.
   set a : Std.Array Std.U8 BYTES := Std.Array.repeat BYTES 0#u8 with ha_def
   have h_classify : libcrux_secrets.traits.Classify.Blanket.classify a
-                      = (Result.ok a : Result _) := rfl
+                      = (RustM.ok a : RustM _) := rfl
   -- `Array.to_slice_mut a = (a.to_slice, Array.from_slice a)`.
   have h_to_slice_mut :
       (Std.lift (Std.Array.to_slice_mut a)
-        : Result (Slice Std.U8 × (Slice Std.U8 → Std.Array Std.U8 BYTES)))
+        : RustM (Slice Std.U8 × (Slice Std.U8 → Std.Array Std.U8 BYTES)))
         = .ok (Std.Array.to_slice a, Std.Array.from_slice a) := rfl
   set s : Slice Std.U8 := Std.Array.to_slice a with hs_def
   have h_s_len : s.val.length = BYTES.val := by
@@ -205,10 +205,10 @@ theorem shake256_spec
                     r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
   set a : Std.Array Std.U8 BYTES := Std.Array.repeat BYTES 0#u8 with ha_def
   have h_classify : libcrux_secrets.traits.Classify.Blanket.classify a
-                      = (Result.ok a : Result _) := rfl
+                      = (RustM.ok a : RustM _) := rfl
   have h_to_slice_mut :
       (Std.lift (Std.Array.to_slice_mut a)
-        : Result (Slice Std.U8 × (Slice Std.U8 → Std.Array Std.U8 BYTES)))
+        : RustM (Slice Std.U8 × (Slice Std.U8 → Std.Array Std.U8 BYTES)))
         = .ok (Std.Array.to_slice a, Std.Array.from_slice a) := rfl
   set s : Slice Std.U8 := Std.Array.to_slice a with hs_def
   have h_s_len : s.val.length = BYTES.val := by
@@ -313,7 +313,7 @@ theorem sha224_ema_spec
     rw [h_payload_len_val]; exact h_payload_bnd
   have h_massert_le :
       (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
   -- `SHA3_224_DIGEST_SIZE = 28#usize`.
@@ -323,7 +323,7 @@ theorem sha224_ema_spec
     rw [h_slice_len_digest_eq, h_dsize]
   have h_massert_eq :
       (massert ((Std.Slice.len digest) = SHA3_224_DIGEST_SIZE)
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_eq_dsize]
   -- Apply `keccak_keccak_spec` with RATE := 144, DELIM := 6.
@@ -408,7 +408,7 @@ theorem sha256_ema_spec
     rw [h_payload_len_val]; exact h_payload_bnd
   have h_massert_le :
       (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
   have h_dsize : SHA3_256_DIGEST_SIZE = 32#usize := by
@@ -417,7 +417,7 @@ theorem sha256_ema_spec
     rw [h_slice_len_digest_eq, h_dsize]
   have h_massert_eq :
       (massert ((Std.Slice.len digest) = SHA3_256_DIGEST_SIZE)
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_eq_dsize]
   have h_RATE_mod : (136#usize : Std.Usize).val % 8 = 0 := by decide
@@ -497,7 +497,7 @@ theorem sha384_ema_spec
     rw [h_payload_len_val]; exact h_payload_bnd
   have h_massert_le :
       (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
   have h_dsize : SHA3_384_DIGEST_SIZE = 48#usize := by
@@ -506,7 +506,7 @@ theorem sha384_ema_spec
     rw [h_slice_len_digest_eq, h_dsize]
   have h_massert_eq :
       (massert ((Std.Slice.len digest) = SHA3_384_DIGEST_SIZE)
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_eq_dsize]
   have h_RATE_mod : (104#usize : Std.Usize).val % 8 = 0 := by decide
@@ -586,7 +586,7 @@ theorem sha512_ema_spec
     rw [h_payload_len_val]; exact h_payload_bnd
   have h_massert_le :
       (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
   have h_dsize : SHA3_512_DIGEST_SIZE = 64#usize := by
@@ -595,7 +595,7 @@ theorem sha512_ema_spec
     rw [h_slice_len_digest_eq, h_dsize]
   have h_massert_eq :
       (massert ((Std.Slice.len digest) = SHA3_512_DIGEST_SIZE)
-        : Result Unit) = .ok () := by
+        : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_eq_dsize]
   have h_RATE_mod : (72#usize : Std.Usize).val % 8 = 0 := by decide

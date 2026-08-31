@@ -200,7 +200,7 @@ theorem add_message_error_scaleZ_eq
               ((Spec.add_error_reduce_pure result2 e2).val[k]!) (msg.val[k]!)))[j]! = _
     rw [getElem!_pos _ j (by simp [List.length_map, List.length_range, hj])]
     rw [List.getElem_map, List.getElem_range]
-  apply congrArg Result.ok
+  apply congrArg RustM.ok
   apply eq_of_zmod_lane_canon''
   · -- L lanes canonical
     intro j hj

@@ -25,7 +25,7 @@ set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_dsa.Vector.Portable.InvNttDriver
-open CoreModels Aeneas Aeneas.Std Std.Do Result
+open CoreModels Aeneas Aeneas.Std Std.Do RustM
 open libcrux_iot_ml_dsa.Spec
 open libcrux_iot_ml_dsa.Spec.Lift libcrux_iot_ml_dsa.Spec.Montgomery
   libcrux_iot_ml_dsa.Spec.Parameters
@@ -39,7 +39,7 @@ private theorem classify_ok (z : Std.I32) :
 /-- Reflect a `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` Triple into an `.ok` witness plus the post
     (file-scoped copy of the §13.5 helper). -/
 private theorem triple_exists_ok
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -50,7 +50,7 @@ private theorem triple_exists_ok
 
 /-- `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v` (file-scoped §13.5 copy). -/
 private theorem triple_of_ok
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -85,7 +85,7 @@ abbrev FinAcc := Aeneas.Std.Array libcrux_iot_ml_dsa.simd.portable.vector_type.C
 
 /-- Finalize loop invariant. Units `[0, k)` carry the `×41978` lift + `≤2^24`
     bound; units `[k, 32)` are unchanged (`= re8`). -/
-def finInv (re8 : FinAcc) : Std.Usize → FinAcc → Result Prop :=
+def finInv (re8 : FinAcc) : Std.Usize → FinAcc → RustM Prop :=
   fun k acc => pure (
     (∀ u : Nat, u < k.val →
         ∀ l : Nat, l < 8 →
@@ -118,7 +118,7 @@ theorem finalize_step_lemma
     ⦃ ⇓ r => ⌜ finStepPost re8 e k r ⌝ ⦄ := by
   have h_acc_len : acc.length = 32 := Std.Array.length_eq _
   obtain ⟨h_swept, h_unswept⟩ := by
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_dsa.simd.portable.invntt.invert_ntt_montgomery_loop.body
   by_cases h_lt : k.val < e.val
   · -- `Some k` branch.
@@ -216,8 +216,8 @@ theorem finalize_step_lemma
             Aeneas.Std.Array.getElem!_Nat_set_ne acc k u c1 (Ne.symm h_u_ne_k)
         rw [h_a_u]
         exact h_unswept u (by omega)
-    show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ e, done.
     have hk_ge : k.val ≥ e.val := Nat.not_lt.mp h_lt
     have h_iter_none := iter_next_none_eq k e hk_ge
@@ -252,8 +252,8 @@ theorem finalize_step_lemma
       refine ⟨?_, ?_⟩
       · intro u hu l hl; rw [← hk_eq] at hu; exact h_swept u hu l hl
       · intro u hu; rw [← hk_eq] at hu; exact h_unswept u hu
-    show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- `Slice.len (Array.to_slice re8) = 32#usize` for the finalize length plumbing. -/
 private theorem fin_slice_len_eq (re8 : FinAcc) :
@@ -285,7 +285,7 @@ theorem finalize_loop_fc (re8 : FinAcc) :
       (by decide)
       (by
         -- h_init at k = 0: swept range empty, unswept trivial.
-        show (pure _ : Result Prop).holds
+        show (pure _ : RustM Prop).holds
         have h_init_pure :
             (∀ u : Nat, u < (0#usize : Std.Usize).val →
                 ∀ l : Nat, l < 8 →
@@ -298,7 +298,7 @@ theorem finalize_loop_fc (re8 : FinAcc) :
             have : (0#usize : Std.Usize).val = 0 := by decide
             rw [this] at hu; exact absurd hu (Nat.not_lt_zero u)
           · intro u _; rfl
-        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_init_pure)
+        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_init_pure)
       ?_)
   · -- Post-entailment: inv at k = 32 yields the per-unit post.
     rw [PostCond.entails_noThrow]
@@ -306,7 +306,7 @@ theorem finalize_loop_fc (re8 : FinAcc) :
     have h_inv_holds : (finInv re8 (32#usize) r).holds := by
       simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
     obtain ⟨h_swept, _h_unswept⟩ := by
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_holds
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_holds
     intro u hu l hl
     exact h_swept u (by simpa using hu) l hl
   · -- Step lemma dispatch.

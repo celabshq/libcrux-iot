@@ -22,7 +22,7 @@
 import LibcruxIotSha3.Sponge.SliceSpecs
 import LibcruxIotSha3.Sponge.Interleave
 
-open Aeneas Aeneas.Std Result ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -42,8 +42,8 @@ attribute [local spec] Aeneas.Std.uncurry
 /-! ### Local helpers -/
 
 /-- Local copy of the private `triple_of_ok_local` pattern: an `.ok v`
-    `Result` satisfies any `Triple` whose post `P r` holds at `v`. -/
-private theorem triple_of_ok_local {α : Type} {x : Result α} {v : α}
+    `RustM` satisfies any `Triple` whose post `P r` holds at `v`. -/
+private theorem triple_of_ok_local {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
@@ -208,7 +208,7 @@ theorem state.load_block_2u32_loop0_spec
     apply triple_imp_intro
     rcases o with _ | i
     · rintro ⟨hge, hiter1_eq⟩
-      show ⦃⌜True⌝⦄ (Aeneas.Std.Result.ok (done acc) : Result _) ⦃_⦄
+      show ⦃⌜True⌝⦄ (Aeneas.Std.RustM.ok (done acc) : RustM _) ⦃_⦄
       -- Loop-exhaustion branch: `k = iter_end`, so the inv's `j < k`
       -- clause already gives the post.
       have hk_eq : k.val = iter_end.val := Nat.le_antisymm h_le_k hge
@@ -531,7 +531,7 @@ theorem state.load_block_2u32_loop1_spec
     apply triple_imp_intro
     rcases o with _ | i
     · rintro ⟨hge, hiter1_eq⟩
-      show ⦃⌜True⌝⦄ (Aeneas.Std.Result.ok (done acc) : Result _) ⦃_⦄
+      show ⦃⌜True⌝⦄ (Aeneas.Std.RustM.ok (done acc) : RustM _) ⦃_⦄
       -- We have `k ≥ iter_end` in the loop-exhaustion branch and
       -- `k ≤ iter_end` from `loop_range_spec_usize`, so `k = iter_end`.
       -- The inv's `j < k` clause then weakens to `j < iter_end`, and
@@ -927,7 +927,7 @@ theorem state.store_block_2u32_loop_spec
     apply triple_imp_intro
     rcases o with _ | i
     · rintro ⟨hge, hiter1_eq⟩
-      show ⦃⌜True⌝⦄ (Aeneas.Std.Result.ok (done acc) : Result _) ⦃_⦄
+      show ⦃⌜True⌝⦄ (Aeneas.Std.RustM.ok (done acc) : RustM _) ⦃_⦄
       -- Loop exhaustion: `k = iter_end`. Inv's `b < 8*k` clause covers the post.
       have hk_eq : k.val = iter_end.val := Nat.le_antisymm h_le_k hge
       refine triple_of_ok_local rfl (pure_prop_holds ⟨h_acc_len, ?_, ?_⟩)

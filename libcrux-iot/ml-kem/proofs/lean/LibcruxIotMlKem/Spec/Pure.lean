@@ -2,18 +2,18 @@
   # `Spec/Pure.lean` — Open Question I.7 resolution.
 
   The hacspec ML-KEM extraction (`HacspecMlKem.Extraction.Funs`) wraps
-  every spec function in the Aeneas `Result` monad, even when the
+  every spec function in the Aeneas `RustM` monad, even when the
   body is mathematically pure (no panic / divergence). The bit-side
   intermediate spec (`BitMlKem.Spec`) operates on `MontPoly =
   Vector (ZMod 3329) 256`, which is genuinely pure.
 
   Layer M.4 alg-equiv lemmas state equations of the form
     `bit_<op> (lift hacspec_input) = lift (Spec.<op>_pure hacspec_input)`
-  where `Spec.<op>_pure` is the `Result`-stripped pure projection of
+  where `Spec.<op>_pure` is the `RustM`-stripped pure projection of
   the hacspec spec. This file defines those `_pure` aliases.
 
   arch plan §F.2 option (b): each alias is defined by pattern
-  match on the `Result`. The companion **pure-projection side lemmas**
+  match on the `RustM`. The companion **pure-projection side lemmas**
   of the form `Spec.<op> args = .ok (Spec.<op>_pure args)` pin the
   impl's `.ok` value to the projected `_pure` value. They are the
   equational input to `libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq` (the index-wise spec
@@ -31,7 +31,7 @@
 
   ## Discipline
 
-  - All `_pure` defs are `noncomputable` because the match-on-Result
+  - All `_pure` defs are `noncomputable` because the match-on-RustM
     extraction does not reduce by `decide` for arbitrary inputs;
     callers reason about them via the side lemmas (TODO) or by
     direct `simp only [<op>_pure]` rewriting through M.4 proofs.
@@ -169,8 +169,8 @@ def Canonical (fe : parameters.FieldElement) : Prop :=
   fe.val.val < parameters.FIELD_MODULUS.val
 
 private theorem uscalar_rem_ok_U32 (z m : Std.U32) (hm : m.val ≠ 0) :
-    ∃ w : Std.U32, (z % m : Result Std.U32) = .ok w ∧ w.val = z.val % m.val := by
-  have heq : (z % m : Result Std.U32) = Std.UScalar.rem z m := rfl
+    ∃ w : Std.U32, (z % m : RustM Std.U32) = .ok w ∧ w.val = z.val % m.val := by
+  have heq : (z % m : RustM Std.U32) = Std.UScalar.rem z m := rfl
   unfold Std.UScalar.rem at heq
   simp [hm] at heq
   refine ⟨_, heq, ?_⟩
@@ -182,8 +182,8 @@ private theorem uscalar_rem_ok_U32 (z m : Std.U32) (hm : m.val ≠ 0) :
 /-- U16 variant of `uscalar_rem_ok_U32` — used by `neg_eq_ok` whose
     `% q` step is at U16 width (no widening). -/
 private theorem uscalar_rem_ok_U16 (z m : Std.U16) (hm : m.val ≠ 0) :
-    ∃ w : Std.U16, (z % m : Result Std.U16) = .ok w ∧ w.val = z.val % m.val := by
-  have heq : (z % m : Result Std.U16) = Std.UScalar.rem z m := rfl
+    ∃ w : Std.U16, (z % m : RustM Std.U16) = .ok w ∧ w.val = z.val % m.val := by
+  have heq : (z % m : RustM Std.U16) = Std.UScalar.rem z m := rfl
   unfold Std.UScalar.rem at heq
   simp [hm] at heq
   refine ⟨_, heq, ?_⟩
@@ -246,8 +246,8 @@ theorem FieldElement.mul_eq_ok (a b : parameters.FieldElement) :
   have hxval : x.val = a.val.val := Std.U16.cast_U32_val_eq a.val
   have hyval : y.val = b.val.val := Std.U16.cast_U32_val_eq b.val
   have hae := Std.UScalar.mul_equiv x y
-  have heqmul : (x * y : Result Std.U32) = Std.UScalar.mul x y := rfl
-  cases hxy : (x * y : Result Std.U32) with
+  have heqmul : (x * y : RustM Std.U32) = Std.UScalar.mul x y := rfl
+  cases hxy : (x * y : RustM Std.U32) with
   | ok z =>
     rw [heqmul] at hxy; rw [hxy] at hae; simp at hae
     obtain ⟨_, _, _⟩ := hae
@@ -302,13 +302,13 @@ theorem FieldElement.sub_eq_ok (a b : parameters.FieldElement)
     show (Std.UScalar.cast .U32 parameters.FIELD_MODULUS).val = 3329
     unfold parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.add_equiv x q
-  cases hxq : (x + q : Result Std.U32) with
+  cases hxq : (x + q : RustM Std.U32) with
   | ok s =>
     rw [hxq] at hae; simp at hae
     obtain ⟨_, hsval, _⟩ := hae
     simp only [bind_tc_ok]
     have hae2 := Std.UScalar.sub_equiv s y
-    cases hsy : (s - y : Result Std.U32) with
+    cases hsy : (s - y : RustM Std.U32) with
     | ok u =>
       rw [hsy] at hae2; simp at hae2
       simp only [bind_tc_ok]
@@ -349,7 +349,7 @@ theorem FieldElement.neg_eq_ok (a : parameters.FieldElement)
   have hqval : (parameters.FIELD_MODULUS : Std.U16).val = 3329 := by
     unfold parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.sub_equiv (parameters.FIELD_MODULUS : Std.U16) a.val
-  cases hqa : ((parameters.FIELD_MODULUS : Std.U16) - a.val : Result Std.U16) with
+  cases hqa : ((parameters.FIELD_MODULUS : Std.U16) - a.val : RustM Std.U16) with
   | ok i =>
     rw [hqa] at hae; simp at hae
     obtain ⟨_, _, _⟩ := hae
@@ -446,8 +446,8 @@ theorem Canonical_mul_pure (a b : parameters.FieldElement) :
   have hxval : x.val = a.val.val := Std.U16.cast_U32_val_eq a.val
   have hyval : y.val = b.val.val := Std.U16.cast_U32_val_eq b.val
   have hae := Std.UScalar.mul_equiv x y
-  have heqmul : (x * y : Result Std.U32) = Std.UScalar.mul x y := rfl
-  cases hxy : (x * y : Result Std.U32) with
+  have heqmul : (x * y : RustM Std.U32) = Std.UScalar.mul x y := rfl
+  cases hxy : (x * y : RustM Std.U32) with
   | ok z =>
     rw [hxy] at hmul
     rw [heqmul] at hxy
@@ -518,13 +518,13 @@ theorem Canonical_sub_pure (a b : parameters.FieldElement)
     show (Std.UScalar.cast .U32 parameters.FIELD_MODULUS).val = 3329
     unfold parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.add_equiv x q
-  cases hxq : (x + q : Result Std.U32) with
+  cases hxq : (x + q : RustM Std.U32) with
   | ok s =>
     rw [hxq] at hae hsub; simp at hae
     obtain ⟨_, hsval, _⟩ := hae
     simp only [bind_tc_ok] at hsub
     have hae2 := Std.UScalar.sub_equiv s y
-    cases hsy : (s - y : Result Std.U32) with
+    cases hsy : (s - y : RustM Std.U32) with
     | ok u =>
       rw [hsy] at hae2 hsub; simp at hae2
       obtain ⟨_, _, _⟩ := hae2
@@ -578,7 +578,7 @@ theorem Canonical_neg_pure (a : parameters.FieldElement)
   have hqval : (parameters.FIELD_MODULUS : Std.U16).val = 3329 := by
     unfold parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.sub_equiv (parameters.FIELD_MODULUS : Std.U16) a.val
-  cases hqa : ((parameters.FIELD_MODULUS : Std.U16) - a.val : Result Std.U16) with
+  cases hqa : ((parameters.FIELD_MODULUS : Std.U16) - a.val : RustM Std.U16) with
   | ok i =>
     rw [hqa] at hae hneg; simp at hae
     obtain ⟨_, _, _⟩ := hae
@@ -705,13 +705,13 @@ theorem polynomial.add_to_ring_element_eq_ok
         let i4 ← i2 % i3
         let i5 ← lift (Std.UScalar.cast .U16 i4)
         let fe2 ← parameters.FieldElement.new i5
-        Result.ok (fe2, lhs, rhs)) = Result.ok (f k, lhs, rhs)
+        RustM.ok (fe2, lhs, rhs)) = RustM.ok (f k, lhs, rhs)
     rw [h_lhs_idx]; simp only [bind_tc_ok]
     rw [h_rhs_idx]; simp only [bind_tc_ok]
     -- The remaining flat body is `FieldElement.add lhs[k]! rhs[k]!` continued by
     -- `fun fe2 => ok (fe2, lhs, rhs)`; apply `h_add` under that continuation.
     unfold parameters.FieldElement.add at h_add
-    have hchain := congrArg (· >>= (fun fe2 => Result.ok (fe2, lhs, rhs))) h_add
+    have hchain := congrArg (· >>= (fun fe2 => RustM.ok (fe2, lhs, rhs))) h_add
     simp only [bind_assoc, bind_tc_ok] at hchain
     rw [hchain]
   -- Step 3: chain through `from_fn_pure_eq` to get the wrapper equation.
@@ -749,10 +749,10 @@ private def rem_q_U16 (z : Std.U16) : Std.U16 :=
   ⟨BitVec.umod z.bv (parameters.FIELD_MODULUS : Std.U16).bv⟩
 
 private theorem rem_q_U16_eq (z : Std.U16) :
-    (z % parameters.FIELD_MODULUS : Result Std.U16) = .ok (rem_q_U16 z) := by
+    (z % parameters.FIELD_MODULUS : RustM Std.U16) = .ok (rem_q_U16 z) := by
   have hq_ne : (parameters.FIELD_MODULUS : Std.U16).val ≠ 0 := by
     unfold parameters.FIELD_MODULUS; decide
-  have heq : (z % parameters.FIELD_MODULUS : Result Std.U16)
+  have heq : (z % parameters.FIELD_MODULUS : RustM Std.U16)
       = Std.UScalar.rem z parameters.FIELD_MODULUS := rfl
   rw [heq]
   unfold Std.UScalar.rem rem_q_U16
@@ -807,9 +807,9 @@ theorem polynomial.poly_barrett_reduce_eq_ok
     -- Close the closure body: index, then rem, then new (returned inline).
     change (do
         let fe ← p.index_usize ⟨BitVec.ofNat _ k⟩
-        let i ← (fe.val % parameters.FIELD_MODULUS : Result Std.U16)
+        let i ← (fe.val % parameters.FIELD_MODULUS : RustM Std.U16)
         let fe2 ← parameters.FieldElement.new i
-        Result.ok (fe2, p)) = Result.ok (f k, p)
+        RustM.ok (fe2, p)) = RustM.ok (f k, p)
     rw [h_p_idx]; simp only [bind_tc_ok]
     rw [rem_q_U16_eq]; simp only [bind_tc_ok]
     unfold parameters.FieldElement.new
@@ -877,9 +877,9 @@ theorem polynomial.poly_barrett_reduce_pure_id_of_canonical
       rw [array_index_usize_ok p _ hp_len, hk_us]
     change (do
         let fe ← p.index_usize ⟨BitVec.ofNat _ k⟩
-        let i ← (fe.val % parameters.FIELD_MODULUS : Result Std.U16)
+        let i ← (fe.val % parameters.FIELD_MODULUS : RustM Std.U16)
         let fe2 ← parameters.FieldElement.new i
-        Result.ok (fe2, p)) = Result.ok (f k, p)
+        RustM.ok (fe2, p)) = RustM.ok (f k, p)
     rw [h_p_idx]; simp only [bind_tc_ok]
     rw [rem_q_U16_eq]; simp only [bind_tc_ok]
     unfold parameters.FieldElement.new
@@ -901,7 +901,7 @@ theorem polynomial.poly_barrett_reduce_pure_id_of_canonical
         uscalar_rem_ok_U16 (p.val[k]!).val parameters.FIELD_MODULUS hq_ne
       have h_rem_eq := rem_q_U16_eq (p.val[k]!).val
       rw [hw_eq] at h_rem_eq
-      have h_w_eq_rem : w = rem_q_U16 (p.val[k]!).val := Result.ok.inj h_rem_eq
+      have h_w_eq_rem : w = rem_q_U16 (p.val[k]!).val := RustM.ok.inj h_rem_eq
       rw [← h_w_eq_rem, hw_val, hq_val]
     have h_rem_val_eq : (rem_q_U16 (p.val[k]!).val).val = (p.val[k]!).val.val :=
       h_rem_val.trans (Nat.mod_eq_of_lt hcank_int)
@@ -1026,12 +1026,12 @@ theorem polynomial.subtract_reduce_eq_ok
         let i6 ← i4 % i5
         let i7 ← lift (Std.UScalar.cast .U16 i6)
         let fe2 ← parameters.FieldElement.new i7
-        Result.ok (fe2, a, b)) = Result.ok (f k, a, b)
+        RustM.ok (fe2, a, b)) = RustM.ok (f k, a, b)
     rw [h_a_idx]; simp only [bind_tc_ok]
     rw [h_b_idx]; simp only [bind_tc_ok]
     -- The remaining flat body is `FieldElement.sub a[k]! b[k]!` continued by
     -- `fun fe2 => ok (fe2, a, b)`; apply `h_sub` under that continuation.
-    have hchain := congrArg (· >>= (fun fe2 => Result.ok (fe2, a, b))) h_sub
+    have hchain := congrArg (· >>= (fun fe2 => RustM.ok (fe2, a, b))) h_sub
     simp only [bind_assoc, bind_tc_ok] at hchain
     rw [hchain]
   -- Step 3: apply from_fn_pure_eq.

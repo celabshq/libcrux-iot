@@ -36,13 +36,13 @@ namespace libcrux_iot_ml_kem.Matrix.ComputeRingElementV.Impl
 open libcrux_iot_ml_kem.Matrix.Common libcrux_iot_ml_kem.Matrix.ComputeMessage.Bridges libcrux_iot_ml_kem.Matrix.ComputeMessage.Hacspec libcrux_iot_ml_kem.Matrix.ComputeMessage.Impl
 open CoreModels Aeneas Aeneas.Std Std.Do
 open libcrux_iot_ml_kem.Spec
-open Result ControlFlow
+open RustM ControlFlow
 
 set_option mvcgen.warning false
 set_option linter.unusedVariables false
 
 /-- Local copy of FCTargets' `private triple_exists_ok_fc`. -/
-private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_fc {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -57,7 +57,7 @@ abbrev EnumCE :=
 
 /-- The fully-applied `Enumerate.next` function for our iterator. -/
 noncomputable abbrev enumCENext (it : EnumCE) :
-    Result ((CoreModels.core.option.Option (Std.Usize × Slice Std.U8)) × EnumCE) :=
+    RustM ((CoreModels.core.option.Option (Std.Usize × Slice Std.U8)) × EnumCE) :=
   CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
     (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
       Std.U8) it
@@ -136,13 +136,13 @@ section loop_chunks_helpers
 
 private abbrev ResultPSU := PostShape.except Error (PostShape.except PUnit PostShape.pure)
 
-private theorem triple_noThrow_elim_chunks {α : Type} {x : Result α}
+private theorem triple_noThrow_elim_chunks {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) {v : α} (hv : x = ok v) :
     (Q v).down := by
   subst hv; simpa [Triple, WP.wp, PostCond.noThrow, PredTrans.apply] using h
 
-private theorem triple_noThrow_exists_ok_chunks {α : Type} {x : Result α}
+private theorem triple_noThrow_exists_ok_chunks {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) : ∃ v, x = ok v := by
   match x, h with
@@ -150,7 +150,7 @@ private theorem triple_noThrow_exists_ok_chunks {α : Type} {x : Result α}
   | .fail _, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem triple_of_ok_chunks {α : Type} {x : Result α} {v : α} {P : α → Prop}
+private theorem triple_of_ok_chunks {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = ok v) (hp : P v) :
     (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
   subst hx; simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -159,12 +159,12 @@ end loop_chunks_helpers
 
 set_option maxHeartbeats 2000000 in
 /-- Loop-over-`Enumerate (ChunksExact U8)` spec. An invariant `inv : Nat → β →
-    Result Prop`, indexed by the enumerate count `k`, is preserved by each step.
+    RustM Prop`, indexed by the enumerate count `k`, is preserved by each step.
     Induction on `numChunks - k`. -/
 theorem loop_chunks_exact_enumerate_spec {β : Type}
-    (body : (EnumCE × β) → Result (ControlFlow (EnumCE × β) β))
+    (body : (EnumCE × β) → RustM (ControlFlow (EnumCE × β) β))
     (init : β) (fullSlice : Slice Std.U8) (cs : Std.Usize) (numChunks : Nat)
-    (inv : Nat → β → Result Prop)
+    (inv : Nat → β → RustM Prop)
     (h_cs_pos : 0 < cs.val)
     (h_len : fullSlice.length = numChunks * cs.val)
     (h_init : (inv 0 init).holds)
@@ -309,9 +309,9 @@ set_option maxHeartbeats 2000000 in
     in `fullSlice`. Induction on `numChunks - k`, carrying the suffix relation
     `∀ ℓ, rest.val[ℓ]! = fullSlice.val[cnt.val*cs.val + ℓ]!`. -/
 theorem loop_chunks_exact_pk_spec {β : Type}
-    (body : (EnumCE × β) → Result (ControlFlow (EnumCE × β) β))
+    (body : (EnumCE × β) → RustM (ControlFlow (EnumCE × β) β))
     (init : β) (fullSlice : Slice Std.U8) (cs : Std.Usize) (numChunks : Nat)
-    (inv : Nat → β → Result Prop)
+    (inv : Nat → β → RustM Prop)
     (h_cs_pos : 0 < cs.val)
     (h_len : fullSlice.length = numChunks * cs.val)
     (h_init : (inv 0 init).holds)
@@ -405,7 +405,7 @@ theorem loop_chunks_exact_pk_spec {β : Type}
 
 namespace ChunkLoopFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 open libcrux_iot_ml_kem.InvertNtt libcrux_iot_ml_kem.Matrix.Common libcrux_iot_ml_kem.Matrix.ComputeAsPlusE libcrux_iot_ml_kem.Ntt libcrux_iot_ml_kem.Polynomial.NttMultiply libcrux_iot_ml_kem.Polynomial.PolyOpsFc libcrux_iot_ml_kem.Polynomial.PolyOpsFcBarrett libcrux_iot_ml_kem.Sampling libcrux_iot_ml_kem.Serialize libcrux_iot_ml_kem.Spec.Lift libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement libcrux_iot_ml_kem.Vector.Portable.Ntt
 
 abbrev Acc := UseCacheFC.Acc
@@ -426,7 +426,7 @@ def loop_inv {K : Std.Usize}
                   (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
     (acc_init : Acc) :
-    Nat → (Poly × Acc) → Result Prop :=
+    Nat → (Poly × Acc) → RustM Prop :=
   fun k p => pure (
     (∃ mp : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                         libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K,
@@ -455,7 +455,7 @@ end ChunkLoopFC
 -- Memory hygiene (rule 1). Mirrors `L7_2b_irreducible`. We do NOT mark
 -- `ChunkLoopFC.loop_inv` irreducible (preserve `simpa`-based destructure).
 section L7_3_irreducible
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 open libcrux_iot_ml_kem.InvertNtt libcrux_iot_ml_kem.Matrix.Common libcrux_iot_ml_kem.Matrix.ComputeAsPlusE libcrux_iot_ml_kem.Ntt libcrux_iot_ml_kem.Polynomial.NttMultiply libcrux_iot_ml_kem.Polynomial.PolyOpsFc libcrux_iot_ml_kem.Polynomial.PolyOpsFcBarrett libcrux_iot_ml_kem.Sampling libcrux_iot_ml_kem.Serialize libcrux_iot_ml_kem.Spec.Lift libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement libcrux_iot_ml_kem.Vector.Portable.Ntt
 
 attribute [local irreducible] accumulating_ntt_multiply_poly_post
@@ -522,7 +522,7 @@ private theorem compute_ring_element_v_loop_step_lemma_fc
   have h_acc_init_len : acc_init.length = 256 := Std.Array.length_eq acc_init
   -- Destructure the 2-conjunct invariant (`.2` of the carried pair reduces to `acc`).
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   dsimp only at h_inv_acc h_inv_acc_bnd
   unfold matrix.compute_ring_element_v_loop.body
   by_cases h_lt : k < K.val
@@ -622,7 +622,7 @@ private theorem compute_ring_element_v_loop_step_lemma_fc
               .ok (ControlFlow.cont
                 (({ iter := { cs := 384#usize, elements := drop }, count := cnt' } : EnumCE),
                   t_as_ntt_entry1, accumulator1)))
-            : Result (ControlFlow (EnumCE × (ChunkLoopFC.Poly × ChunkLoopFC.Acc))
+            : RustM (ControlFlow (EnumCE × (ChunkLoopFC.Poly × ChunkLoopFC.Acc))
                         (ChunkLoopFC.Poly × ChunkLoopFC.Acc))) = _
       rw [h_te_eq]
       simp only [Aeneas.Std.bind_tc_ok]
@@ -768,8 +768,8 @@ private theorem compute_ring_element_v_loop_step_lemma_fc
           have h_arith : (k + 1) * 2^25 = k * 2^25 + 2^25 := by ring
           rw [h_arith]
           linarith [h_acc1_bnd_n', h_inv_n]
-      show (pure _ : Result Prop).holds
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+      show (pure _ : RustM Prop).holds
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: rest.length < 384, k = K, done.
     have hk_ge : ¬ k < K.val := h_lt
     have hk_eq : k = K.val := by omega
@@ -827,8 +827,8 @@ private theorem compute_ring_element_v_loop_step_lemma_fc
         have h_b := h_inv_acc_bnd n hn
         rw [show k * 2^25 = K.val * 2^25 by rw [hk_eq]] at h_b
         exact h_b
-    show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 set_option maxHeartbeats 4000000 in
 /-- **L7.3 loop FC.** `matrix.compute_ring_element_v_loop`: the chunks-exact
@@ -896,8 +896,8 @@ theorem compute_ring_element_v_loop_fc (K : Std.Usize) (hK : K.val ≤ 4)
       (by
         -- Base case at k = 0.
         show (ChunkLoopFC.loop_inv trows r_arr accumulator 0 (t_as_ntt_entry, accumulator)).holds
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨⟨Std.Array.repeat K t_as_ntt_entry, ?_, ?_⟩, ?_⟩
         · intro c hc; exact absurd hc (Nat.not_lt_zero c)
@@ -1036,7 +1036,7 @@ theorem compute_ring_element_v_acc_bridge {K : Std.Usize} (hK : K.val ≤ 4)
   set trows : Std.Array FEPoly K := lift_t_as_ntt_from_public_key public_key K with htrows_def
   -- Destructure `loop_inv`'s 2 conjuncts; the first is the ∃-witness pack.
   obtain ⟨⟨mp, h_mp_agree, h_inv_acc⟩, h_inv_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_char
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_char
   dsimp only at h_inv_acc h_inv_bnd
   -- `h_inv_acc` (mont foldl) and `h_inv_bnd` (bound) are exactly
   -- `S1LoopFC.loop_inv mp r_arr acc_init K acc2`'s two conjuncts.
@@ -1057,8 +1057,8 @@ theorem compute_ring_element_v_acc_bridge {K : Std.Usize} (hK : K.val ≤ 4)
                   (Spec.mont_reduce_pure (lift_fe_int (acc_init.val[16 * j + ℓ]!).val)))
           ∧ (∀ n : Nat, n < 256 →
               (acc2.val[n]!).val.natAbs ≤ (acc_init.val[n]!).val.natAbs + K.val * 2^25))
-        : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
+        : RustM Prop).holds
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using
       (⟨h_inv_acc, h_inv_bnd⟩ : _ ∧ _)
   -- t-side bounds from the ∃-witness `mp`'s per-lane bound (conjunct 1.2).
   have h_secret_bnd : ∀ k : Fin K.val, ∀ i j : Fin 16,

@@ -41,12 +41,12 @@ open libcrux_iot_ml_kem.Spec
 
 namespace Layer1FC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Local `usize_sub_ok_eq` helper (mirror of `Layer1FC.usize_add_ok_eq` but for sub). -/
 theorem usize_sub_ok_eq (x y : Std.Usize)
     (h_ge : y.val ≤ x.val) :
-    ∃ z : Std.Usize, (x - y : Result Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
+    ∃ z : Std.Usize, (x - y : RustM Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all <;> omega) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v.1⟩
@@ -64,7 +64,7 @@ def inv
     (zeta_i_0 : Std.Usize)
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = zeta_i_0.val - 4 * k.val
     ∧ (∀ j : Nat, j < k.val →
@@ -121,7 +121,7 @@ theorem invert_ntt_at_layer_1_step_lemma_fc
   have h_coef_len : acc.2.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_zeta_acc, h_acc_done, h_acc_undone, h_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_1_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some round = k` branch.
@@ -233,7 +233,7 @@ theorem invert_ntt_at_layer_1_step_lemma_fc
       show (do
             let t1' ←
               libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_layer_1_step t z1 z2 z3 z4
-            Result.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
+            RustM.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
                         : CoreModels.core.ops.range.Range Std.Usize),
                       zi7,
                       ({ coefficients := acc.2.coefficients.set k t1' }
@@ -341,8 +341,8 @@ theorem invert_ntt_at_layer_1_step_lemma_fc
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.2.coefficients k c t1 h_ne
           rw [h_set_ne_val]; exact h_acc_bnd c (by omega) ℓ hℓ
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -370,7 +370,7 @@ theorem invert_ntt_at_layer_1_step_lemma_fc
     show Layer1FC.step_post zeta_i_0 re k (.done acc)
     unfold Layer1FC.step_post
     show (Layer1FC.inv zeta_i_0 re 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         acc.1.val = zeta_i_0.val - 4 * (16#usize : Std.Usize).val
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val →
@@ -393,7 +393,7 @@ theorem invert_ntt_at_layer_1_step_lemma_fc
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
       · intro c hc ℓ hℓ; exact h_acc_bnd c (by omega) ℓ hℓ
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3i.1 — `invert_ntt_at_layer_1` driver: 16-chunk loop, per-chunk
@@ -443,8 +443,8 @@ theorem invert_ntt_at_layer_1_portable_fc
       (Layer1FC.inv zeta_i re)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_, ?_⟩
         · -- zeta-thread invariant at k=0: zeta_i = zeta_i - 4*0.
@@ -479,7 +479,7 @@ theorem invert_ntt_at_layer_1_portable_fc
         ∧ (∀ c : Nat, c < 16 → ∀ ℓ : Nat, ℓ < 16 →
             ((r.2.coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, Layer1FC.inv] at hh
       exact hh trivial
@@ -541,12 +541,12 @@ theorem invert_ntt_at_layer_1_portable_fc
 
 namespace Layer2FC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Local `usize_sub_ok_eq` helper (mirror of `Layer1FC.usize_sub_ok_eq`). -/
 theorem usize_sub_ok_eq (x y : Std.Usize)
     (h_ge : y.val ≤ x.val) :
-    ∃ z : Std.Usize, (x - y : Result Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
+    ∃ z : Std.Usize, (x - y : RustM Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all <;> omega) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v.1⟩
@@ -564,7 +564,7 @@ def inv
     (zeta_i_0 : Std.Usize)
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = zeta_i_0.val - 2 * k.val
     ∧ (∀ j : Nat, j < k.val →
@@ -619,7 +619,7 @@ theorem invert_ntt_at_layer_2_step_lemma_fc
   have h_coef_len : acc.2.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_zeta_acc, h_acc_done, h_acc_undone, h_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_2_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some round = k` branch.
@@ -704,7 +704,7 @@ theorem invert_ntt_at_layer_2_step_lemma_fc
       show (do
             let t1' ←
               libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_layer_2_step t z1 z2
-            Result.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
+            RustM.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
                         : CoreModels.core.ops.range.Range Std.Usize),
                       zi3,
                       ({ coefficients := acc.2.coefficients.set k t1' }
@@ -797,8 +797,8 @@ theorem invert_ntt_at_layer_2_step_lemma_fc
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.2.coefficients k c t1 h_ne
           rw [h_set_ne_val]; exact h_acc_bnd c hc ℓ hℓ
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -826,7 +826,7 @@ theorem invert_ntt_at_layer_2_step_lemma_fc
     show Layer2FC.step_post zeta_i_0 re k (.done acc)
     unfold Layer2FC.step_post
     show (Layer2FC.inv zeta_i_0 re 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         acc.1.val = zeta_i_0.val - 2 * (16#usize : Std.Usize).val
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val →
@@ -847,7 +847,7 @@ theorem invert_ntt_at_layer_2_step_lemma_fc
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
       · exact h_acc_bnd
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3i.2 — `invert_ntt_at_layer_2` driver: 16-chunk loop, per-chunk
@@ -898,8 +898,8 @@ theorem invert_ntt_at_layer_2_portable_fc
       (Layer2FC.inv zeta_i re)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_, ?_⟩
         · -- zeta-thread invariant at k=0: zeta_i = zeta_i - 2*0.
@@ -932,7 +932,7 @@ theorem invert_ntt_at_layer_2_portable_fc
         ∧ (∀ c : Nat, c < 16 → ∀ ℓ : Nat, ℓ < 16 →
             ((r.2.coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, Layer2FC.inv] at hh
       exact hh trivial
@@ -991,12 +991,12 @@ theorem invert_ntt_at_layer_2_portable_fc
 
 namespace Layer3FC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Local `usize_sub_ok_eq` helper (mirror of `Layer2FC.usize_sub_ok_eq`). -/
 theorem usize_sub_ok_eq (x y : Std.Usize)
     (h_ge : y.val ≤ x.val) :
-    ∃ z : Std.Usize, (x - y : Result Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
+    ∃ z : Std.Usize, (x - y : RustM Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all <;> omega) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v.1⟩
@@ -1014,7 +1014,7 @@ def inv
     (zeta_i_0 : Std.Usize)
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = zeta_i_0.val - k.val
     ∧ (∀ j : Nat, j < k.val →
@@ -1068,7 +1068,7 @@ theorem invert_ntt_at_layer_3_step_lemma_fc
   have h_coef_len : acc.2.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_zeta_acc, h_acc_done, h_acc_undone, h_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_3_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some round = k` branch.
@@ -1139,7 +1139,7 @@ theorem invert_ntt_at_layer_3_step_lemma_fc
       show (do
             let t1' ←
               libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_layer_3_step t z1
-            Result.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
+            RustM.ok (ControlFlow.cont (({ start := s, «end» := 16#usize }
                         : CoreModels.core.ops.range.Range Std.Usize),
                       zi1,
                       ({ coefficients := acc.2.coefficients.set k t1' }
@@ -1227,8 +1227,8 @@ theorem invert_ntt_at_layer_3_step_lemma_fc
             simpa [Aeneas.Std.Array.getElem!_Nat_eq] using
               Aeneas.Std.Array.getElem!_Nat_set_ne acc.2.coefficients k c t1 h_ne
           rw [h_set_ne_val]; exact h_acc_bnd c hc ℓ hℓ
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -1256,7 +1256,7 @@ theorem invert_ntt_at_layer_3_step_lemma_fc
     show Layer3FC.step_post zeta_i_0 re k (.done acc)
     unfold Layer3FC.step_post
     show (Layer3FC.inv zeta_i_0 re 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         acc.1.val = zeta_i_0.val - (16#usize : Std.Usize).val
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val →
@@ -1276,7 +1276,7 @@ theorem invert_ntt_at_layer_3_step_lemma_fc
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
       · exact h_acc_bnd
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L3i.3 — `invert_ntt_at_layer_3` driver: 16-chunk loop, per-chunk
@@ -1327,8 +1327,8 @@ theorem invert_ntt_at_layer_3_portable_fc
       (Layer3FC.inv zeta_i re)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_, ?_⟩
         · -- zeta-thread invariant at k=0: zeta_i = zeta_i - 0.
@@ -1360,7 +1360,7 @@ theorem invert_ntt_at_layer_3_portable_fc
         ∧ (∀ c : Nat, c < 16 → ∀ ℓ : Nat, ℓ < 16 →
             ((r.2.coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, Layer3FC.inv] at hh
       exact hh trivial
@@ -2130,7 +2130,7 @@ theorem inv_ntt_layer_int_vec_step_reduce_fc
 
 namespace Layer4PlusInnerFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Inner loop accumulator: (re, scratch). -/
 abbrev Acc :=
@@ -2145,7 +2145,7 @@ def inv
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (a_offset b_offset : Std.Usize)
     (zeta : hacspec_ml_kem.parameters.FieldElement) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j' : Nat, j' < k.val →
       lift_chunk (acc.1.coefficients.val[a_offset.val + j']!)
@@ -2211,7 +2211,7 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
   have h_coef_len : acc.1.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_acc_a, h_acc_b, h_acc_undone, h_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
   by_cases h_lt : k.val < step_vec.val
   · -- Some j = k branch.
@@ -2298,7 +2298,7 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
               let (a, scratch1) ←
                 libcrux_iot_ml_kem.invert_ntt.inv_ntt_layer_int_vec_step_reduce portable_ops_inst
                   acc.1.coefficients i i1 acc.2 i2
-              Result.ok (ControlFlow.cont (({ start := s, «end» := step_vec }
+              RustM.ok (ControlFlow.cont (({ start := s, «end» := step_vec }
                           : CoreModels.core.ops.range.Range Std.Usize),
                         ({ coefficients := a }
                           : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
@@ -2410,8 +2410,8 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
               h_r_undone k' hk' h_ki h_ki1
             rw [h_unchanged]
             exact h_acc_bnd k' hk' ℓ hℓ
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- None branch: k ≥ step_vec, done.
     have hk_ge : k.val ≥ step_vec.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = step_vec.val := by omega
@@ -2442,7 +2442,7 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
     unfold Layer4PlusInnerFC.step_post
     show (Layer4PlusInnerFC.inv re0 a_offset b_offset
             (Spec.zeta_at zeta_i1.val) step_vec acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j' : Nat, j' < step_vec.val →
           lift_chunk (acc.1.coefficients.val[a_offset.val + j']!)
@@ -2469,13 +2469,13 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
         have h_at_j' : j' < step_vec.val := by rw [← hk_eq]; exact hj'
         exact h_not_touched j' h_at_j'
       · exact h_acc_bnd
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 /-! ### L3i.5 — Outer loop scaffolding. -/
 
 namespace Layer4PlusOuterFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Outer loop accumulator: (zeta_i, re, scratch). -/
 abbrev Acc := Std.Usize ×
@@ -2489,7 +2489,7 @@ def inv
     (re0 : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (zeta_i_0 step_vec : Std.Usize) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = zeta_i_0.val - k.val
     ∧ (∀ round' : Nat, round' < k.val →
@@ -2656,8 +2656,8 @@ theorem invert_ntt_at_layer_4_plus_inner_loop_fc
         have : (0#usize : Std.Usize).val = 0 := rfl
         omega)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_, ?_⟩
         · intro j' hj'; exact absurd hj' (Nat.not_lt_zero j')
@@ -2698,7 +2698,7 @@ theorem invert_ntt_at_layer_4_plus_inner_loop_fc
         ∧ (∀ k' : Nat, k' < 16 → ∀ ℓ : Nat, ℓ < 16 →
             ((r.1.coefficients.val[k']!).elements.val[ℓ]!).val.natAbs ≤ 3328) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, Layer4PlusInnerFC.inv] at hh
       exact hh trivial
@@ -2742,7 +2742,7 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
       step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
     ⦃ ⇓ r => ⌜ Layer4PlusOuterFC.step_post re0 zeta_i_0 step_vec i_end k r ⌝ ⦄ := by
   obtain ⟨h_zeta_acc, h_acc_a, h_acc_b, h_acc_undone, h_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
   by_cases h_lt : k.val < i_end.val
   · -- Some round = k branch.
@@ -3037,8 +3037,8 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
         show ((acc'.2.1.coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328
         show ((r_pair.1.coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328
         exact h_r_bnd c hc ℓ hℓ
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- None branch: k ≥ i_end, done.
     have hk_ge : k.val ≥ i_end.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = i_end.val := by omega
@@ -3066,7 +3066,7 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
     show Layer4PlusOuterFC.step_post re0 zeta_i_0 step_vec i_end k (.done acc)
     unfold Layer4PlusOuterFC.step_post
     show (Layer4PlusOuterFC.inv re0 zeta_i_0 step_vec i_end acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         acc.1.val = zeta_i_0.val - i_end.val
         ∧ (∀ round' : Nat, round' < i_end.val →
@@ -3100,7 +3100,7 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
         have : round' < i_end.val := by rw [← hk_eq]; exact hround'
         exact h_nt round' this j' hj'
       · exact h_acc_bnd
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 @[spec high]
@@ -3142,7 +3142,7 @@ theorem invert_ntt_at_layer_4_plus_portable_fc
     · rw [h32]; exact Nat.pow_lt_pow_right (by decide) (by omega)
     · rw [h64]; exact Nat.pow_lt_pow_right (by decide) (by omega)
   have h_step_ex : ∃ step : Std.Usize,
-      ((1#usize : Std.Usize) <<< layer : Result Std.Usize) = .ok step
+      ((1#usize : Std.Usize) <<< layer : RustM Std.Usize) = .ok step
       ∧ step.val = 1 <<< layer.val := by
     have hT := Aeneas.Std.UScalar.ShiftLeft_spec (1#usize : Std.Usize) layer
       (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) h_layer_bits rfl
@@ -3202,8 +3202,8 @@ theorem invert_ntt_at_layer_4_plus_portable_fc
         have h_zero : (0#usize : Std.Usize).val = 0 := rfl
         omega)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_, ?_, ?_⟩
         · show zeta_i.val = zeta_i.val - (0#usize : Std.Usize).val
@@ -3247,7 +3247,7 @@ theorem invert_ntt_at_layer_4_plus_portable_fc
         ∧ (∀ c : Nat, c < 16 → ∀ ℓ : Nat, ℓ < 16 →
             ((r.2.1.coefficients.val[c]!).elements.val[ℓ]!).val.natAbs ≤ 3328) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, Layer4PlusOuterFC.inv] at hh
       exact hh trivial
@@ -3428,7 +3428,7 @@ theorem invert_ntt_montgomery_fc
   --         = `256#usize / 2#usize = .ok 128#usize`.
   -- =============================================================
   have h_div : (libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
-                  / (2#usize : Std.Usize) : Result Std.Usize)
+                  / (2#usize : Std.Usize) : RustM Std.Usize)
                 = .ok (128#usize : Std.Usize) := by
     unfold libcrux_iot_ml_kem.constants.COEFFICIENTS_IN_RING_ELEMENT
     have h_2_nz : ((2#usize : Std.Usize).val : Nat) ≠ 0 := by decide
@@ -3794,7 +3794,7 @@ theorem ntt_vector_u_fc
   have h_re8_eq : lift_poly re8
       = Spec.Pure.polynomial.poly_barrett_reduce_pure (lift_poly re7) := by
     have h := h14_fc
-    exact (Aeneas.Std.Result.ok.injEq _ _).mp h.symm
+    exact (Aeneas.Std.RustM.ok.injEq _ _).mp h.symm
   -- zeta_i identifications: substitute zeta values into the spec chain via .val.
   have h_zeta_eq1 : zeta_i1 = 1#usize := by
     have := h_zeta_i1; scalar_tac

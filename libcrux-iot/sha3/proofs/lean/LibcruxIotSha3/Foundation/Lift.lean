@@ -405,10 +405,10 @@ theorem usize_bv_ofNat_val (k : Nat) (h : k < 2^Std.UScalarTy.Usize.numBits) :
   exact Nat.mod_eq_of_lt h
 
 /-- From a Triple with trivial pre, success post, and value-equality post,
-    derive the underlying `Result` equation `x = .ok v`. Useful to close
+    derive the underlying `RustM` equation `x = .ok v`. Useful to close
     `keccak_f.X state = .ok (X_applied state)` after `hax_mvcgen` has
     produced the corresponding Triple. -/
-theorem result_eq_of_triple {α : Type} {x : Std.Result α} {v : α}
+theorem result_eq_of_triple {α : Type} {x : Std.RustM α} {v : α}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ r = v ⌝ ⦄) : x = .ok v := by
   match hx : x, h with
   | .ok v', h =>

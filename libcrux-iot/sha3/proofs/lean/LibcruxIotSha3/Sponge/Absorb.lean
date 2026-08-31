@@ -31,7 +31,7 @@
 -/
 import LibcruxIotSha3.Sponge.AbsorbBlock
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -81,12 +81,12 @@ theorem core_models_Slice_Insts_index_RangeFromUsize_spec
 
 /-! ### Local helpers (re-derived from `AbsorbBlock.lean`'s private versions). -/
 
-private theorem triple_of_ok_abs {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_abs {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
 
-private theorem triple_exists_ok_abs {α : Type} {x : Result α}
+private theorem triple_exists_ok_abs {α : Type} {x : RustM α}
     {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
@@ -103,7 +103,7 @@ private theorem triple_exists_ok_abs {α : Type} {x : Result α}
     The `cont` branch carries `Range × β`; the `done` branch carries `γ`. -/
 private theorem loop_range_spec_gen {β γ : Type}
     (body : (CoreModels.core.ops.range.Range Std.Usize × β) →
-      Result (ControlFlow (CoreModels.core.ops.range.Range Std.Usize × β) γ))
+      RustM (ControlFlow (CoreModels.core.ops.range.Range Std.Usize × β) γ))
     (init : β) (s e : Std.Usize)
     (inv : Std.Usize → β → Prop) (post : γ → Prop)
     (h_le : s.val ≤ e.val)
@@ -328,8 +328,8 @@ forward-iteration loop. -/
     message. Identical body to `absorb_fold`. -/
 def absorb_fold_spec (state : Std.Array Std.U64 25#usize)
     (msg : Slice Std.U8) (rate : Std.Usize) (k : Nat) :
-    Result (Std.Array Std.U64 25#usize) :=
-  Nat.fold k (init := (.ok state : Result _))
+    RustM (Std.Array Std.U64 25#usize) :=
+  Nat.fold k (init := (.ok state : RustM _))
     (fun j _hj acc => acc >>= fun st =>
       sponge.absorb_block st
         ⟨msg.val.slice (j * rate.val) ((j + 1) * rate.val), by
@@ -376,7 +376,7 @@ theorem sponge_absorb_rec_eq_fold
     rw [Nat.fold_succ]
     -- Now RHS-fold (k+1) becomes: absorb_block_step k >>= (Nat.fold k inner).
     -- BUT Nat.fold_succ peels from the END (top-level application is at index k).
-    -- Result: Nat.fold (k+1) f init = f k _ (Nat.fold k f init)
+    -- RustM: Nat.fold (k+1) f init = f k _ (Nat.fold k f init)
     -- So absorb_fold_spec (k+1) = (absorb_fold_spec k) >>= absorb_block_at_k.
     -- bind_assoc gives:
     --   (absorb_fold_spec k >>= absorb_block_at_k) >>= λ s_{k+1} => absorb_rec s_{k+1} ...
@@ -472,8 +472,8 @@ absorb_blocks have already produced `lift state'`. -/
     `j < n` so the relevant `j`'s are always in range. -/
 def absorb_fold (s : state.KeccakState) (data : Slice Std.U8)
     (RATE : Std.Usize) (k : Nat) :
-    Result (Std.Array Std.U64 25#usize) :=
-  Nat.fold k (init := (.ok (Foundation.lift s) : Result _))
+    RustM (Std.Array Std.U64 25#usize) :=
+  Nat.fold k (init := (.ok (Foundation.lift s) : RustM _))
     (fun j _hj acc => acc >>= fun st =>
       sponge.absorb_block st
         ⟨data.val.slice (j * RATE.val) ((j + 1) * RATE.val), by
@@ -544,7 +544,7 @@ theorem keccak.keccak_loop0_spec
     rcases o with _ | _
     · -- None: iterator exhausted, loop done.
       rintro ⟨hge, -⟩
-      show ⦃⌜True⌝⦄ (Aeneas.Std.Result.ok (ControlFlow.done s_k) : Result _) ⦃_⦄
+      show ⦃⌜True⌝⦄ (Aeneas.Std.RustM.ok (ControlFlow.done s_k) : RustM _) ⦃_⦄
       have hk_eq : k.val = n.val := Nat.le_antisymm h_le_k hge
       apply Sponge.triple_of_ok_abs (v := s_k) rfl
       exact ⟨h_acc_i, by rw [← hk_eq]; exact h_fold_acc⟩
@@ -584,7 +584,7 @@ theorem keccak.keccak_loop0_spec
         rw [hiter1_start]
         unfold absorb_fold
         rw [Nat.fold_succ]
-        have h_inner : (Nat.fold k.val (init := (.ok (Foundation.lift s) : Result _))
+        have h_inner : (Nat.fold k.val (init := (.ok (Foundation.lift s) : RustM _))
             (fun j _hj acc' => acc' >>= fun st =>
               sponge.absorb_block st
                 ⟨data.val.slice (j * RATE.val) ((j + 1) * RATE.val), by

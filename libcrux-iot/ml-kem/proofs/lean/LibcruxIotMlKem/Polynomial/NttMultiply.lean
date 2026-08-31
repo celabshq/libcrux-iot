@@ -44,7 +44,7 @@ open libcrux_iot_ml_kem.Spec
 
 /-- Pure projection of `hacspec_ml_kem.ntt.multiply_ntts` (the N=256
     polynomial NTT-domain multiply spec). The `.ok` value of the
-    hacspec `Result` is the spec polynomial; on `.fail` (unreachable
+    hacspec `RustM` is the spec polynomial; on `.fail` (unreachable
     for canonical inputs) we default to the zero polynomial.
 
     Used by L6.3 locked POST as the spec-side RHS, anchoring the
@@ -138,7 +138,7 @@ theorem hacspec_ZETAS_ok_and_zeta_at :
     matrix-level FC theorem).
 
     Architecture mirrors `LibcruxIotSha3/Sponge/` (the
-    `sponge_squeeze_byte_eq` yardstick): a per-call_mut `_eq_pure` Result
+    `sponge_squeeze_byte_eq` yardstick): a per-call_mut `_eq_pure` RustM
     equation drives `libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq` to lift the entire 256-lane
     `multiply_ntts` to a pure-list, then `Subtype.ext` + per-lane reduction
     closes the chunked-decomposition equality.
@@ -172,7 +172,7 @@ theorem slice_index_usize_eq_ok' {α} [Inhabited α]
   unfold Aeneas.Std.Slice.index_usize
   have h_eq : s[i]? = s.val[i.val]? := rfl
   rw [h_eq, List.getElem?_eq_getElem h]
-  show Aeneas.Std.Result.ok _ = Aeneas.Std.Result.ok _
+  show Aeneas.Std.RustM.ok _ = Aeneas.Std.RustM.ok _
   congr
   rw [List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]; rfl
 
@@ -183,7 +183,7 @@ theorem array_index_usize_eq_ok' {α n} [Inhabited α]
   unfold Aeneas.Std.Array.index_usize
   have h_eq : a[i]? = a.val[i.val]? := rfl
   rw [h_eq, List.getElem?_eq_getElem h]
-  show Aeneas.Std.Result.ok _ = Aeneas.Std.Result.ok _
+  show Aeneas.Std.RustM.ok _ = Aeneas.Std.RustM.ok _
   congr
   rw [List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]; rfl
 
@@ -218,7 +218,7 @@ theorem base_case_multiply_odd_eq
     Mirrors the impl `ntt_multiply_n_at` body: looks up zeta from the slice at
     `i/4` (negated when `i % 4 ≥ 2`), then dispatches to
     `base_case_multiply_{even,odd}` per `i % 2`. The pure form replaces the
-    `Result`-monad ops with their `_pure` projections (`add_pure`, `mul_pure`,
+    `RustM`-monad ops with their `_pure` projections (`add_pure`, `mul_pure`,
     `neg_pure`). The zeta is taken from `Spec.zeta_at (64 + i/4)` to match
     the impl's `zetas[64..128]` slice access. -/
 noncomputable def multiply_ntts_lane_pure
@@ -253,7 +253,7 @@ noncomputable def multiply_ntts_lane_pure
 def ntt_multiply_n_at
     (p1 p2 : Aeneas.Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (s : Aeneas.Std.Slice hacspec_ml_kem.parameters.FieldElement) (i : Std.Usize) :
-    Result hacspec_ml_kem.parameters.FieldElement := do
+    RustM hacspec_ml_kem.parameters.FieldElement := do
   let group ← i / 4#usize
   let i1 ← i % 4#usize
   let zeta ← if i1 < 2#usize then Aeneas.Std.Slice.index_usize s group
@@ -553,13 +553,13 @@ theorem multiply_ntts_eq_pure_array
         (hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
             256#usize).call_mut (s, p1, p2) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
         = (ntt_multiply_n_at p1 p2 s (⟨BitVec.ofNat _ k⟩ : Std.Usize)
-            >>= fun fe => Result.ok (fe, (s, p1, p2))) := by
+            >>= fun fe => RustM.ok (fe, (s, p1, p2))) := by
       simp [hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement,
             hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut,
             ntt_multiply_n_at, bind_assoc, apply_ite, ite_apply]
       try rfl
     rw [hconn]
-    have hchain := congrArg (· >>= (fun fe => Result.ok (fe, (s, p1, p2)))) h_lane
+    have hchain := congrArg (· >>= (fun fe => RustM.ok (fe, (s, p1, p2)))) h_lane
     simp only [bind_tc_ok] at hchain
     rw [hchain, h_k_val]
     rfl
@@ -1397,7 +1397,7 @@ theorem accumulating_ntt_multiply_binomials_fc
     triple_exists_ok_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.montgomery_reduce_element_spec bj_zeta_ h_bj_zeta_pre')
   have h_bj_zeta_eq2 : bj_zeta = bj_zeta' := by
-    have h_both : (Result.ok bj_zeta : Result _) = Result.ok bj_zeta' := by
+    have h_both : (RustM.ok bj_zeta : RustM _) = RustM.ok bj_zeta' := by
       rw [← h_bj_zeta_ok, h_bj_zeta_ok']
     cases h_both; rfl
   -- Tight bound: |bj * zeta| ≤ 3328 * 1664 ≤ 3328 * 2^15 discharges the conditional.
@@ -4235,7 +4235,7 @@ theorem accumulating_ntt_multiply_binomials_fill_cache_fc
     triple_exists_ok_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.montgomery_reduce_element_spec bj_zeta_ h_bj_zeta_pre')
   have h_bj_zeta_eq2 : bj_zeta = bj_zeta' := by
-    have h_both : (Result.ok bj_zeta : Result _) = Result.ok bj_zeta' := by
+    have h_both : (RustM.ok bj_zeta : RustM _) = RustM.ok bj_zeta' := by
       rw [← h_bj_zeta_ok, h_bj_zeta_ok']
     cases h_both; rfl
   -- Tight canonical bound for the cache POST: |bj * zeta| ≤ 3328 * 1664 ≤ 3328 * 2^15
@@ -9415,7 +9415,7 @@ noncomputable def accumulating_ntt_multiply_poly_post
 
 namespace UseCacheFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Step-local accumulator: 256-lane `I32` array. -/
 abbrev Acc := Std.Array Std.I32 256#usize
@@ -9433,7 +9433,7 @@ abbrev Poly :=
           untouched. We encode the bound directly over all lanes since
           (c) ⇒ touched case bound. -/
 def inv (myself rhs : Poly) (acc_init : Acc) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
       Spec.mont_reduce_pure (lift_fe_int (acc.val[16 * j + ℓ]!).val)
@@ -9543,7 +9543,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
   have h_rhs_coef_len : rhs.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd_rel⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.accumulating_ntt_multiply_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -9797,7 +9797,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
       show ((do
               let t' ← Aeneas.Std.Array.index_usize myself.coefficients k
               let t1' ← Aeneas.Std.Array.index_usize rhs.coefficients k
-              let i1' ← (k * 16#usize : Result Std.Usize)
+              let i1' ← (k * 16#usize : RustM Std.Usize)
               let i2' ← k + 1#usize
               let i3' ← i2' * 16#usize
               let (s', index_mut_back) ←
@@ -9822,7 +9822,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
                   t' t1' s' i6' i9' i12' i15'
               .ok (ControlFlow.cont (({ start := s_iter, «end» := 16#usize }
                           : CoreModels.core.ops.range.Range Std.Usize), index_mut_back s1')))
-            : Result _) = _
+            : RustM _) = _
       rw [h_idx_t]; simp only [Aeneas.Std.bind_tc_ok]
       rw [h_idx_t1]; simp only [Aeneas.Std.bind_tc_ok]
       rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -9847,7 +9847,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
                   t t1 s z0 z1 z2 z3
               .ok (ControlFlow.cont (({ start := s_iter, «end» := 16#usize }
                           : CoreModels.core.ops.range.Range Std.Usize), back s1')))
-            : Result _) = _
+            : RustM _) = _
       rw [h_s1_eq]
       rfl
     apply triple_of_ok_fc h_body
@@ -10019,8 +10019,8 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
             h_acc1_out n hn h_outside
           rw [h_acc1_eq_acc]
           exact h_acc_bnd_rel n hn
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -10046,7 +10046,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
     show UseCacheFC.step_post myself rhs acc_init k (.done acc)
     unfold UseCacheFC.step_post
     show (UseCacheFC.inv myself rhs acc_init 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ ℓ : Nat, ℓ < 16 →
           Spec.mont_reduce_pure (lift_fe_int (acc.val[16 * j + ℓ]!).val)
@@ -10070,7 +10070,7 @@ theorem accumulating_ntt_multiply_poly_step_lemma_fc
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt ℓ hℓ; rw [hk_eq]; exact hj_ge
       · intro n hn; exact h_acc_bnd_rel n hn
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 4000000 in
 /-- L6.3 — `polynomial.PolynomialRingElement.accumulating_ntt_multiply`:
@@ -10138,8 +10138,8 @@ theorem accumulating_ntt_multiply_poly_fc
       (UseCacheFC.inv myself rhs accumulator)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
@@ -10168,7 +10168,7 @@ theorem accumulating_ntt_multiply_poly_fc
         ∧ (∀ n : Nat, n < 256 →
             (r.val[n]!).val.natAbs ≤ (accumulator.val[n]!).val.natAbs + 2^25) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, UseCacheFC.inv] at hh
       exact hh trivial
@@ -10236,14 +10236,14 @@ noncomputable def accumulating_ntt_multiply_poly_cache_post
 
 namespace FillCacheFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 abbrev Acc := UseCacheFC.Acc
 abbrev Poly := UseCacheFC.Poly
 
 /-- 5-conjunct invariant for the fill_cache loop. -/
 def inv (myself rhs : Poly) (acc_init : Acc) (cache_init : Poly) :
-    Std.Usize → Acc → Poly → Result Prop :=
+    Std.Usize → Acc → Poly → RustM Prop :=
   fun k acc cache => pure (
     (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
       Spec.mont_reduce_pure (lift_fe_int (acc.val[16 * j + ℓ]!).val)
@@ -10330,7 +10330,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
   have h_cache_coef_len : cache.coefficients.length = 16 := Std.Array.length_eq _
   have h_cache_init_coef_len : cache_init.coefficients.length = 16 := Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd_rel, h_cache_done, h_cache_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.accumulating_ntt_multiply_fill_cache_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -10603,7 +10603,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
       show ((do
               let t' ← Aeneas.Std.Array.index_usize myself.coefficients k
               let t1' ← Aeneas.Std.Array.index_usize rhs.coefficients k
-              let i1' ← (k * 16#usize : Result Std.Usize)
+              let i1' ← (k * 16#usize : RustM Std.Usize)
               let i2' ← k + 1#usize
               let i3' ← i2' * 16#usize
               let (s', index_mut_back) ←
@@ -10632,7 +10632,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
                           ({ coefficients := index_mut_back1 p.2 }
                             : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))))
-            : Result _) = _
+            : RustM _) = _
       rw [h_idx_t]; simp only [Aeneas.Std.bind_tc_ok]
       rw [h_idx_t1]; simp only [Aeneas.Std.bind_tc_ok]
       rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -10658,7 +10658,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
                           ({ coefficients := cache.coefficients.set k p.2 }
                             : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))))
-            : Result _) = _
+            : RustM _) = _
       rw [h_p_eq]
       rfl
     apply triple_of_ok_fc h_body
@@ -10831,8 +10831,8 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
         have hj_ne : j ≠ k.val := by omega
         rw [h_cache1_ne j hj_ne]
         exact h_cache_undone j (by omega) hj_lt
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -10859,7 +10859,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
     unfold FillCacheFC.step_post
     show (FillCacheFC.inv myself rhs acc_init cache_init 16#usize acc cache).holds
     unfold FillCacheFC.inv
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ ℓ : Nat, ℓ < 16 →
           Spec.mont_reduce_pure (lift_fe_int (acc.val[16 * j + ℓ]!).val)
@@ -10898,7 +10898,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_cache_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 /-- L6.3c — `polynomial.PolynomialRingElement.accumulating_ntt_multiply_fill_cache`:
     polynomial wrapper of `accumulating_ntt_multiply_fill_cache_fc`. Loops
@@ -10951,8 +10951,8 @@ theorem accumulating_ntt_multiply_fill_cache_poly_fc
       (fun k p => FillCacheFC.inv myself rhs accumulator cache k p.1 p.2)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_, ?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
@@ -10967,7 +10967,7 @@ theorem accumulating_ntt_multiply_fill_cache_poly_fc
     have h_inv_holds : (FillCacheFC.inv myself rhs accumulator cache 16#usize r.1 r.2).holds := by
       simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
     obtain ⟨h_done, _h_undone, h_bnd, h_cache_done, _h_cache_undone⟩ := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_holds
+      simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_holds
     refine ⟨?_, ?_, ?_⟩
     · intro n; exact h_bnd n.val n.isLt
     · unfold accumulating_ntt_multiply_poly_post
@@ -11046,7 +11046,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
   have h_rhs_coef_len : rhs.coefficients.length = 16 := Std.Array.length_eq _
   have h_cache_coef_len : cache.coefficients.length = 16 := Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd_rel⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.accumulating_ntt_multiply_use_cache_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -11257,7 +11257,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
       show ((do
               let t' ← Aeneas.Std.Array.index_usize myself.coefficients k
               let t1' ← Aeneas.Std.Array.index_usize rhs.coefficients k
-              let i1' ← (k * 16#usize : Result Std.Usize)
+              let i1' ← (k * 16#usize : RustM Std.Usize)
               let i2' ← k + 1#usize
               let i3' ← i2' * 16#usize
               let (s', index_mut_back) ←
@@ -11271,7 +11271,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
                   t' t1' s' t2'
               .ok (ControlFlow.cont (({ start := s_iter, «end» := 16#usize }
                           : CoreModels.core.ops.range.Range Std.Usize), index_mut_back s1')))
-            : Result _) = _
+            : RustM _) = _
       rw [h_idx_t]; simp only [Aeneas.Std.bind_tc_ok]
       rw [h_idx_t1]; simp only [Aeneas.Std.bind_tc_ok]
       rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -11285,7 +11285,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
                   t t1 s t2
               .ok (ControlFlow.cont (({ start := s_iter, «end» := 16#usize }
                           : CoreModels.core.ops.range.Range Std.Usize), back s1')))
-            : Result _) = _
+            : RustM _) = _
       rw [h_s1_eq]
       rfl
     apply triple_of_ok_fc h_body
@@ -11417,8 +11417,8 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
             h_acc1_out n hn h_outside
           rw [h_acc1_eq_acc]
           exact h_acc_bnd_rel n hn
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -11444,7 +11444,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
     show UseCacheFC.step_post myself rhs acc_init k (.done acc)
     unfold UseCacheFC.step_post
     show (UseCacheFC.inv myself rhs acc_init 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ ℓ : Nat, ℓ < 16 →
           Spec.mont_reduce_pure (lift_fe_int (acc.val[16 * j + ℓ]!).val)
@@ -11468,7 +11468,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_step_lemma_fc
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt ℓ hℓ; rw [hk_eq]; exact hj_ge
       · intro n hn; exact h_acc_bnd_rel n hn
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 /-- L6.3c — `polynomial.PolynomialRingElement.accumulating_ntt_multiply_use_cache`:
     polynomial wrapper of `accumulating_ntt_multiply_use_cache_fc`. The cache
@@ -11519,8 +11519,8 @@ theorem accumulating_ntt_multiply_use_cache_poly_fc
       (UseCacheFC.inv myself rhs accumulator)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
@@ -11533,7 +11533,7 @@ theorem accumulating_ntt_multiply_use_cache_poly_fc
     have h_inv_holds : (UseCacheFC.inv myself rhs accumulator 16#usize r).holds := by
       simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
     obtain ⟨h_done, _h_undone, h_bnd⟩ := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_holds
+      simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv_holds
     refine ⟨?_, ?_⟩
     · intro n; exact h_bnd n.val n.isLt
     · unfold accumulating_ntt_multiply_poly_post

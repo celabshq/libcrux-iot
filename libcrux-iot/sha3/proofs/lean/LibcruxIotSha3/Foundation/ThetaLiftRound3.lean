@@ -697,7 +697,7 @@ theorem theta_lift_spec_3 (s : state.KeccakState) :
           = .ok (theta_applied
                   (lift_perm s (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3))) from
         result_eq_of_triple (theta_spec _)]
-  show ⦃⌜True⌝⦄ Result.ok _ ⦃PostCond.noThrow fun p => ⌜p⌝⦄
+  show ⦃⌜True⌝⦄ RustM.ok _ ⦃PostCond.noThrow fun p => ⌜p⌝⦄
   simp [Std.Do.Triple, Std.Do.WP.wp]
   obtain ⟨hst, _, hd0z0, hd0z1, hd1z0, hd1z1, hd2z0, hd2z1,
           hd3z0, hd3z1, hd4z0, hd4z1⟩ := hpost

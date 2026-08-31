@@ -16,10 +16,10 @@
      what `mvcgen`/`simp` see in every downstream file and can change proof search in files
      that currently build green. All twelve below were CHECKED to carry no attributes before
      being moved (as does every private lemma in SerializeFc.lean — measured, not assumed).
-  2. **Generic only.** `Result` / `Usize` / `Slice` plumbing. Anything mentioning a
+  2. **Generic only.** `RustM` / `Usize` / `Slice` plumbing. Anything mentioning a
      ring element, a modulus, 384, or a compression factor stays in its obligation file.
 -/
-import Hax                                              -- Result.holds (Hax/MissingAeneas.lean)
+import Hax                                              -- RustM.holds (Hax/MissingAeneas.lean)
 import LibcruxIotMlKem.Extraction.Funs
 import LibcruxIotMlKem.Vector.Portable.Arithmetic.LoopHelper  -- slice_index_usize_ok_eq
 import LibcruxIotMlKem.Util.LoopSpecs                        -- IteratorRange_next_spec_usize
@@ -29,25 +29,25 @@ open libcrux_iot_ml_kem.Util.LoopSpecs   -- IteratorRange_next_spec_usize, used 
 
 namespace libcrux_iot_ml_kem.Util.Shared
 
-theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
+theorem triple_exists_ok_fc {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) : ∃ v, x = .ok v ∧ P v := by
   match hx : x with
   | .ok v => exact ⟨v, rfl, (by subst hx; simpa [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply] using h)⟩
   | .fail _ => exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply])
   | .div => exact absurd h (by simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow, Std.Do.PredTrans.apply])
 
-theorem holds_ok (P : Prop) : (Aeneas.Std.Result.ok P).holds ↔ P := by
+theorem holds_ok (P : Prop) : (Aeneas.Std.RustM.ok P).holds ↔ P := by
   constructor
   · intro h
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
       Std.Do.PredTrans.apply] using h
   · intro h
-    simp [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
+    simp [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,
       Std.Do.PredTrans.apply, h]
 
 theorem usize_mul_lit (x y z : Std.Usize) (h : x.val * y.val = z.val)
     (hb : x.val * y.val ≤ Std.Usize.max) :
-    (x * y : Aeneas.Std.Result Std.Usize) = .ok z := by
+    (x * y : Aeneas.Std.RustM Std.Usize) = .ok z := by
   obtain ⟨m, hm_eq, hm_v⟩ := Std.WP.spec_imp_exists
     (Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y)
       (fun e => by cases e <;> scalar_tac) (by simp))
@@ -57,13 +57,13 @@ theorem usize_mul_lit (x y z : Std.Usize) (h : x.val * y.val = z.val)
   rw [hm_eq, hm]
 
 theorem usize_mul_ok_e (x y : Std.Usize) (hb : x.val * y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
+    ∃ z : Std.Usize, (x * y : RustM Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
   obtain ⟨z, hz, hv, _⟩ :=
     Std.WP.spec_imp_exists (Std.UScalar.mul_bv_spec (x := x) (y := y) (by scalar_tac))
   exact ⟨z, hz, hv⟩
 
 theorem usize_add_ok_e (x y : Std.Usize) (hb : x.val + y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
+    ∃ z : Std.Usize, (x + y : RustM Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
   obtain ⟨z, hz, hv, _⟩ :=
     Std.WP.spec_imp_exists (Std.UScalar.add_bv_spec (x := x) (y := y) (by scalar_tac))
   exact ⟨z, hz, hv⟩
@@ -82,7 +82,7 @@ theorem usize_ofNat_val_le (k : Nat) (h : k ≤ Std.Usize.max) :
     constants (impl and hacspec) need. The L5.6 bank has this inline; hoisted
     here because both sides of this obligation want it. -/
 theorem usize_div_lit (x y z : Std.Usize) (hy : y.val ≠ 0)
-    (hz : x.val / y.val = z.val) : (x / y : Result Std.Usize) = .ok z := by
+    (hz : x.val / y.val = z.val) : (x / y : RustM Std.Usize) = .ok z := by
   obtain ⟨q, hq_eq, hq_val⟩ := Std.UScalar.div_spec x (y := y) hy
   rw [hq_eq]
   congr 1
@@ -148,7 +148,7 @@ theorem slice_set_get {α : Type} [Inhabited α] (v : Slice α) (i : Std.Usize) 
     have hs := Aeneas.Std.Slice.getElem!_Nat_set_ne v i j x (fun hc => h hc.symm)
     simpa [Aeneas.Std.Slice.getElem!_Nat_eq] using hs
 
-theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α} {P : α → Prop}
+theorem triple_of_ok_fc {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
   subst hx; simp [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PostCond.noThrow,

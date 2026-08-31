@@ -38,12 +38,12 @@ open libcrux_iot_ml_dsa.Util.LoopHelper
     this file is self-contained and `Arithmetic.lean` stays byte-identical). -/
 
 /-- The Triple `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v`. -/
-private theorem triple_of_ok_l0 {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_l0 {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Triple, Std.Do.WP.wp, PostCond.noThrow, Std.Do.PredTrans.apply, hp]
 
-private theorem triple_exists_ok_l0 {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_l0 {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -219,7 +219,7 @@ def decompose_impl_value (gamma2 r : Std.I32) : Std.I32 × Std.I32 :=
 /-- `(q-1)/2 = 4190208` as the I32 checked division (the single checked-div the `whnf`
     cannot reduce). -/
 private theorem div_q1_half (X : Std.I32) (hX : X.bv = (8380416#i32 : Std.I32).bv) :
-    (X / (2#i32 : Std.I32) : Result Std.I32) = .ok (4190208#i32) := by
+    (X / (2#i32 : Std.I32) : RustM Std.I32) = .ok (4190208#i32) := by
   show Aeneas.Std.IScalar.div X (2#i32 : Std.I32) = _
   unfold Aeneas.Std.IScalar.div
   have hval : X.val = 8380416 := by rw [show X.val = X.bv.toInt from rfl, hX]; decide
@@ -678,7 +678,7 @@ private theorem decompose_per_elem_spec (gamma2 : Std.I32)
   intro hlo hhi
   obtain ⟨v, hv_eq, hv_P⟩ := triple_exists_ok_l0 (decompose_element_spec gamma2 x hg hlo hhi)
   rw [decompose_element_eq_ok gamma2 x hg] at hv_eq
-  rw [Result.ok.inj hv_eq]; exact hv_P
+  rw [RustM.ok.inj hv_eq]; exact hv_P
 
 set_option maxHeartbeats 2000000 in
 @[spec]
@@ -856,9 +856,9 @@ theorem use_one_hint_spec (gamma2 r hint : Std.I32)
     · -- gamma2 = 95232, m = 44, r1s ∈ [0,43].
       show ⦃ ⌜ True ⌝ ⦄
         (if v0 > 0#i32 then
-           (if v1 = 43#i32 then Result.ok 0#i32 else core.num.I32.wrapping_add v1 1#i32)
+           (if v1 = 43#i32 then RustM.ok 0#i32 else core.num.I32.wrapping_add v1 1#i32)
          else
-           (if v1 = 0#i32 then Result.ok 43#i32 else core.num.I32.wrapping_sub v1 1#i32))
+           (if v1 = 0#i32 then RustM.ok 43#i32 else core.num.I32.wrapping_sub v1 1#i32))
         ⦃ ⇓ z => ⌜ z.val = (if r0s > 0 then (r1s + 1) % ((8380417 - 1) / (2 * (95232#i32 : Std.I32).val))
             else if r0s ≤ 0 then
               ((r1s - 1) % ((8380417 - 1) / (2 * (95232#i32 : Std.I32).val))
@@ -906,9 +906,9 @@ theorem use_one_hint_spec (gamma2 r hint : Std.I32)
     · -- gamma2 = 261888, m = 16, r1s ∈ [0,15].
       show ⦃ ⌜ True ⌝ ⦄
         (if v0 > 0#i32 then
-           (core.num.I32.wrapping_add v1 1#i32 >>= fun i1 => Result.ok (i1 &&& 15#i32))
+           (core.num.I32.wrapping_add v1 1#i32 >>= fun i1 => RustM.ok (i1 &&& 15#i32))
          else
-           (core.num.I32.wrapping_sub v1 1#i32 >>= fun i1 => Result.ok (i1 &&& 15#i32)))
+           (core.num.I32.wrapping_sub v1 1#i32 >>= fun i1 => RustM.ok (i1 &&& 15#i32)))
         ⦃ ⇓ z => ⌜ z.val = (if r0s > 0 then (r1s + 1) % ((8380417 - 1) / (2 * (261888#i32 : Std.I32).val))
             else if r0s ≤ 0 then
               ((r1s - 1) % ((8380417 - 1) / (2 * (261888#i32 : Std.I32).val))
@@ -979,21 +979,21 @@ private theorem use_one_hint_ok_exists (gamma2 src_x acc_x : Std.I32)
   rw [hd]
   rcases hg with hg | hg <;> subst hg
   · show ∃ v,
-      (if acc_x = 0#i32 then Result.ok d1
+      (if acc_x = 0#i32 then RustM.ok d1
        else
          if d0 > 0#i32 then
-           (if d1 = 43#i32 then Result.ok 0#i32 else core.num.I32.wrapping_add d1 acc_x)
+           (if d1 = 43#i32 then RustM.ok 0#i32 else core.num.I32.wrapping_add d1 acc_x)
          else
-           (if d1 = 0#i32 then Result.ok 43#i32 else core.num.I32.wrapping_sub d1 acc_x)) = .ok v
+           (if d1 = 0#i32 then RustM.ok 43#i32 else core.num.I32.wrapping_sub d1 acc_x)) = .ok v
     simp only [core_wrapping_add_ok, core_wrapping_sub_ok]
     split_ifs <;> exact ⟨_, rfl⟩
   · show ∃ v,
-      (if acc_x = 0#i32 then Result.ok d1
+      (if acc_x = 0#i32 then RustM.ok d1
        else
          if d0 > 0#i32 then
-           (core.num.I32.wrapping_add d1 acc_x >>= fun i1 => Result.ok (i1 &&& 15#i32))
+           (core.num.I32.wrapping_add d1 acc_x >>= fun i1 => RustM.ok (i1 &&& 15#i32))
          else
-           (core.num.I32.wrapping_sub d1 acc_x >>= fun i1 => Result.ok (i1 &&& 15#i32))) = .ok v
+           (core.num.I32.wrapping_sub d1 acc_x >>= fun i1 => RustM.ok (i1 &&& 15#i32))) = .ok v
     simp only [core_wrapping_add_ok, core_wrapping_sub_ok, Aeneas.Std.bind_tc_ok]
     split_ifs <;> exact ⟨_, rfl⟩
 
@@ -1009,7 +1009,7 @@ private theorem use_hint_per_elem_spec (gamma2 : Std.I32)
   obtain ⟨z, hz_eq, hz_P⟩ :=
     triple_exists_ok_l0 (use_one_hint_spec gamma2 src_x acc_x hg hlo hhi hacc)
   rw [hv_eq] at hz_eq
-  rw [Result.ok.inj hz_eq]; exact hz_P
+  rw [RustM.ok.inj hz_eq]; exact hz_P
 
 set_option maxHeartbeats 2000000 in
 @[spec]
@@ -1083,7 +1083,7 @@ theorem compute_one_hint_spec (low high gamma2 : Std.I32)
              ∧ (r.val = 0 ∨ r.val = 1) ⌝ ⦄ := by
   -- The checked negation `-. gamma2` reduces to `.ok gi` with `gi.val = -gamma2.val`.
   obtain ⟨gi, h_neg, h_gi_val⟩ : ∃ gi : Std.I32,
-      (-. gamma2 : Result Std.I32) = .ok gi ∧ gi.val = -gamma2.val := by
+      (-. gamma2 : RustM Std.I32) = .ok gi ∧ gi.val = -gamma2.val := by
     rcases hg with hg | hg <;> subst hg
     · exact ⟨(-95232)#i32, by rfl, by decide⟩
     · exact ⟨(-261888)#i32, by rfl, by decide⟩

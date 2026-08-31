@@ -24,7 +24,7 @@ import LibcruxIotMlDsa.Spec.Lift
 import LibcruxIotMlDsa.Util.SliceSpecs
 import HacspecMlDsa.Extraction.Funs
 
-open CoreModels Aeneas Aeneas.Std Result Std.Do
+open CoreModels Aeneas Aeneas.Std RustM Std.Do
 
 namespace libcrux_iot_ml_dsa.Spec.HacspecBridge
 open libcrux_iot_ml_dsa.Spec
@@ -48,7 +48,7 @@ private theorem createi_foldlM_pure_aux
     l.foldlM
       (fun (s : List T × F) (i : Nat) => do
         let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        Result.ok (s.1 ++ [v], f'))
+        RustM.ok (s.1 ++ [v], f'))
       (acc, c) = .ok (acc ++ l.map f, c) := by
   induction l generalizing acc with
   | nil =>
@@ -89,7 +89,7 @@ theorem createi_pure_eq
   · rename_i result heq
     rw [h_fold] at heq
     have hres : result = ((List.range N.val).map f, c) :=
-      (Result.ok.inj heq).symm
+      (RustM.ok.inj heq).symm
     subst hres
     rfl
 
@@ -260,12 +260,12 @@ theorem mod_q_eq (x : Std.I64) :
   unfold hacspec_ml_dsa.arithmetic.mod_q
   set i : Std.I64 := Aeneas.Std.IScalar.cast .I64 hacspec_ml_dsa.parameters.Q with hi_def
   have hival : i.val = 8380417 := by rw [hi_def]; unfold hacspec_ml_dsa.parameters.Q; decide
-  rw [show (Aeneas.Std.lift i : Result Std.I64) = .ok i from rfl]
+  rw [show (Aeneas.Std.lift i : RustM Std.I64) = .ok i from rfl]
   simp only [Aeneas.Std.bind_tc_ok]
   have hnz : i.val ≠ 0 := by rw [hival]; decide
   obtain ⟨i1, hi1_eq, hi1_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.rem_spec x hnz)
-  rw [show (x % i : Result Std.I64) = .ok i1 from hi1_eq]
+  rw [show (x % i : RustM Std.I64) = .ok i1 from hi1_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hival] at hi1_val
   have habs : (i1.val).natAbs < 8380417 := by
@@ -278,7 +278,7 @@ theorem mod_q_eq (x : Std.I64) :
     omega
   obtain ⟨r0, hr0_eq, hr0_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I32 i1 hcast_bnd)
-  rw [show (Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I32 i1) : Result Std.I32) = .ok r0
+  rw [show (Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I32 i1) : RustM Std.I32) = .ok r0
         from hr0_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   have hres : ((i1.val : Int) : Zq) = ((x.val : Int) : Zq) := by
@@ -418,7 +418,7 @@ theorem poly_add_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
     have ha := Aeneas.Std.IScalar.hBounds (a.val[k]!)
     have hbb := Aeneas.Std.IScalar.hBounds (b.val[k]!)
     simp only [IScalarTy.I32_numBits_eq] at ha hbb
-    have hsum : ∃ s : Std.I64, (wa + wb : Result Std.I64) = .ok s ∧ s.val = wa.val + wb.val := by
+    have hsum : ∃ s : Std.I64, (wa + wb : RustM Std.I64) = .ok s ∧ s.val = wa.val + wb.val := by
       have hmin : Aeneas.Std.IScalar.min .I64 ≤ wa.val + wb.val := by
         simp only [IScalar.min_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.numBits,
           IScalarTy.I64_numBits_eq, hwa_val, hwb_val]; omega
@@ -446,7 +446,7 @@ theorem poly_add_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
         let i3 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i2)
         let i4 ← i1 + i3
         let i5 ← hacspec_ml_dsa.arithmetic.mod_q i4
-        Result.ok (i5, (a, b)))
+        RustM.ok (i5, (a, b)))
       = .ok (f k, (a, b))
     rw [idx_ok a k hk']; simp only [bind_tc_ok]
     rw [hwa_eq]; simp only [bind_tc_ok]
@@ -494,7 +494,7 @@ theorem poly_sub_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
     have ha := Aeneas.Std.IScalar.hBounds (a.val[k]!)
     have hbb := Aeneas.Std.IScalar.hBounds (b.val[k]!)
     simp only [IScalarTy.I32_numBits_eq] at ha hbb
-    have hdiff : ∃ s : Std.I64, (wa - wb : Result Std.I64) = .ok s ∧ s.val = wa.val - wb.val := by
+    have hdiff : ∃ s : Std.I64, (wa - wb : RustM Std.I64) = .ok s ∧ s.val = wa.val - wb.val := by
       have hmin : Aeneas.Std.IScalar.min .I64 ≤ wa.val - wb.val := by
         simp only [IScalar.min_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.numBits,
           IScalarTy.I64_numBits_eq, hwa_val, hwb_val]; omega
@@ -522,7 +522,7 @@ theorem poly_sub_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
         let i3 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i2)
         let i4 ← i1 - i3
         let i5 ← hacspec_ml_dsa.arithmetic.mod_q i4
-        Result.ok (i5, (a, b)))
+        RustM.ok (i5, (a, b)))
       = .ok (f k, (a, b))
     rw [idx_ok a k hk']; simp only [bind_tc_ok]
     rw [hwa_eq]; simp only [bind_tc_ok]
@@ -570,7 +570,7 @@ theorem poly_pointwise_mul_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
     have ha := Aeneas.Std.IScalar.hBounds (a.val[k]!)
     have hbb := Aeneas.Std.IScalar.hBounds (b.val[k]!)
     simp only [IScalarTy.I32_numBits_eq] at ha hbb
-    have hprod : ∃ s : Std.I64, (wa * wb : Result Std.I64) = .ok s ∧ s.val = wa.val * wb.val := by
+    have hprod : ∃ s : Std.I64, (wa * wb : RustM Std.I64) = .ok s ∧ s.val = wa.val * wb.val := by
       have ha1 : -2147483648 ≤ wa.val := by rw [hwa_val]; omega
       have ha2 : wa.val ≤ 2147483647 := by rw [hwa_val]; omega
       have hb1 : -2147483648 ≤ wb.val := by rw [hwb_val]; omega
@@ -606,7 +606,7 @@ theorem poly_pointwise_mul_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
         let i3 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i2)
         let i4 ← i1 * i3
         let i5 ← hacspec_ml_dsa.arithmetic.mod_q i4
-        Result.ok (i5, (a, b)))
+        RustM.ok (i5, (a, b)))
       = .ok (f k, (a, b))
     rw [idx_ok a k hk']; simp only [bind_tc_ok]
     rw [hwa_eq]; simp only [bind_tc_ok]

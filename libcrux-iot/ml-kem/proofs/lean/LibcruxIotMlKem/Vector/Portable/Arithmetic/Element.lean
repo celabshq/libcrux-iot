@@ -514,34 +514,34 @@ theorem negate_spec
 
     Plan-B: prove from first principles via `loop_range_spec_usize`,
     mirroring `elementwise_unary_spec`'s shape (2-conjunct invariant,
-    body-reduction-to-Result-equation, step lemma) with the
+    body-reduction-to-RustM-equation, step lemma) with the
     conditional branching inlined. -/
 
 namespace CondSubtract3329
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 private theorem triple_of_ok_l1
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 private theorem of_pure_prop_holds_l1 {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow,
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow,
     PredTrans.apply] at h
   exact h trivial
 
-private theorem pure_prop_holds_l1 {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]; intro _; exact h
+private theorem pure_prop_holds_l1 {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]; intro _; exact h
 
 /-- Per-element invariant for `cond_subtract_3329`. -/
 private def cond_inv
     (input : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Usize →
     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector →
-    Result Prop :=
+    RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
         (((input.elements.val[j]!).val ≥ 3329 ∧
@@ -626,8 +626,8 @@ private theorem cond_step
                 ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
             match o with
             | core.option.Option.None =>
-                (Result.ok (ControlFlow.done acc) :
-                  Result (ControlFlow
+                (RustM.ok (ControlFlow.done acc) :
+                  RustM (ControlFlow
                     ((CoreModels.core.ops.range.Range Std.Usize)
                       × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -733,8 +733,8 @@ private theorem cond_step
                 ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
             match o with
             | core.option.Option.None =>
-                (Result.ok (ControlFlow.done acc) :
-                  Result (ControlFlow
+                (RustM.ok (ControlFlow.done acc) :
+                  RustM (ControlFlow
                     ((CoreModels.core.ops.range.Range Std.Usize)
                       × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -803,8 +803,8 @@ private theorem cond_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -1054,7 +1054,7 @@ theorem multiply_by_constant_spec
     The Vector.Portable.Arithmetic.bitwise_and_with_constant impl is a
     16-iter loop where each iter computes `i1 &&& c` via the
     `lift`-then-bv operation. The per-element op is pure
-    (no `Result`-level branching beyond `.ok`), so the Triple closes by
+    (no `RustM`-level branching beyond `.ok`), so the Triple closes by
     direct reduction. -/
 
 /-- Per-element predicate: `.bv = x.bv &&& c.bv`. -/
@@ -1068,7 +1068,7 @@ private theorem bitwise_and_per_elem_spec (c : Std.I16) (x : Std.I16) :
     lift (x &&& c)
     ⦃ ⇓ r => ⌜ bitwise_and_per_elem_P c x r ⌝ ⦄ := by
   -- `lift v = .ok v`, definitionally.
-  have h_ok : (lift (x &&& c) : Result Std.I16) = .ok (x &&& c) := rfl
+  have h_ok : (lift (x &&& c) : RustM Std.I16) = .ok (x &&& c) := rfl
   rw [h_ok]
   simp only [Std.Do.Triple, WP.wp]
   intro _
@@ -1142,7 +1142,7 @@ private def shift_right_per_elem_P (SHIFT_BY : Std.I32) (x y : Std.I16) : Prop :
 private theorem shift_right_per_elem_spec
     (SHIFT_BY : Std.I32) (hs : 0 ≤ SHIFT_BY.val ∧ SHIFT_BY.val < 16) (x : Std.I16) :
     ⦃ ⌜ True ⌝ ⦄
-    (x >>> (IScalar.hcast .U32 SHIFT_BY) : Result Std.I16)
+    (x >>> (IScalar.hcast .U32 SHIFT_BY) : RustM Std.I16)
     ⦃ ⇓ r => ⌜ shift_right_per_elem_P SHIFT_BY x r ⌝ ⦄ := by
   -- `x >>> u` unfolds to `IScalar.shiftRight_UScalar x u`.
   show ⦃ ⌜ True ⌝ ⦄
@@ -1162,7 +1162,7 @@ private theorem shift_right_per_elem_spec
     -- h_hcast_spec : spec (lift (hcast .U32 SHIFT_BY)) (fun y => y.val = SHIFT_BY.val)
     -- Reduce lift → .ok, then spec_ok.
     have h_ok_lift : (lift (Aeneas.Std.IScalar.hcast .U32 SHIFT_BY)
-                      : Result Std.U32)
+                      : RustM Std.U32)
                     = .ok (Aeneas.Std.IScalar.hcast .U32 SHIFT_BY) := rfl
     rw [h_ok_lift] at h_hcast_spec
     rw [Aeneas.Std.WP.spec_ok] at h_hcast_spec
@@ -1390,8 +1390,8 @@ open libcrux_iot_ml_kem.Spec
     file-private). Establishes that U32 modular remainder by a non-zero
     divisor is always `.ok`, and exposes the underlying value. -/
 theorem uscalar_rem_ok_U32_local (z m : Std.U32) (hm : m.val ≠ 0) :
-    ∃ w : Std.U32, (z % m : Result Std.U32) = .ok w ∧ w.val = z.val % m.val := by
-  have heq : (z % m : Result Std.U32) = Std.UScalar.rem z m := rfl
+    ∃ w : Std.U32, (z % m : RustM Std.U32) = .ok w ∧ w.val = z.val % m.val := by
+  have heq : (z % m : RustM Std.U32) = Std.UScalar.rem z m := rfl
   unfold Std.UScalar.rem at heq
   simp [hm] at heq
   refine ⟨_, heq, ?_⟩
@@ -1702,13 +1702,13 @@ theorem sub_pure_val_eq
     show (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS).val = 3329
     unfold hacspec_ml_kem.parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.add_equiv x q
-  cases hxq : (x + q : Result Std.U32) with
+  cases hxq : (x + q : RustM Std.U32) with
   | ok s =>
     rw [hxq] at hae hsub; simp at hae
     obtain ⟨_, hsval, _⟩ := hae
     simp only [Aeneas.Std.bind_tc_ok] at hsub
     have hae2 := Std.UScalar.sub_equiv s y
-    cases hsy : (s - y : Result Std.U32) with
+    cases hsy : (s - y : RustM Std.U32) with
     | ok u =>
       rw [hsy] at hae2 hsub; simp at hae2
       -- hae2 : y.val ≤ s.val ∧ s.val = u.val + y.val ∧ u.bv = s.bv - y.bv
@@ -1769,8 +1769,8 @@ theorem mul_pure_val_eq
   have hxval : x.val = a.val.val := Std.U16.cast_U32_val_eq a.val
   have hyval : y.val = b.val.val := Std.U16.cast_U32_val_eq b.val
   have hae := Std.UScalar.mul_equiv x y
-  have heqmul : (x * y : Result Std.U32) = Std.UScalar.mul x y := rfl
-  cases hxy : (x * y : Result Std.U32) with
+  have heqmul : (x * y : RustM Std.U32) = Std.UScalar.mul x y := rfl
+  cases hxy : (x * y : RustM Std.U32) with
   | ok z =>
     rw [hxy] at hmul
     rw [heqmul] at hxy; rw [hxy] at hae; simp at hae
@@ -2257,22 +2257,22 @@ theorem montgomery_multiply_by_constant_fc
 
 namespace CondSubtract3329FC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 theorem triple_of_ok_l1
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 theorem of_pure_prop_holds_l1 {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow,
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow,
     PredTrans.apply] at h
   exact h trivial
 
-theorem pure_prop_holds_l1 {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow,
+theorem pure_prop_holds_l1 {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow,
     PredTrans.apply]
   intro _; exact h
 
@@ -2282,7 +2282,7 @@ def cond_inv
     (input : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Usize →
     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector →
-    Result Prop :=
+    RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
         (((input.elements.val[j]!).val ≥ 3329 ∧
@@ -2353,8 +2353,8 @@ theorem cond_step
                 ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
             match o with
             | core.option.Option.None =>
-                (Result.ok (ControlFlow.done acc) :
-                  Result (ControlFlow
+                (RustM.ok (ControlFlow.done acc) :
+                  RustM (ControlFlow
                     ((CoreModels.core.ops.range.Range Std.Usize)
                       × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -2457,8 +2457,8 @@ theorem cond_step
                 ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
             match o with
             | core.option.Option.None =>
-                (Result.ok (ControlFlow.done acc) :
-                  Result (ControlFlow
+                (RustM.ok (ControlFlow.done acc) :
+                  RustM (ControlFlow
                     ((CoreModels.core.ops.range.Range Std.Usize)
                       × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -2526,8 +2526,8 @@ theorem cond_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -2697,8 +2697,8 @@ theorem cond_subtract_3329_fc
     divisor is always `.ok`, and exposes the underlying value. Needed
     by `neg_pure_val_eq`, whose `% q` step is at U16 width (no widening). -/
 theorem uscalar_rem_ok_U16_local (z m : Std.U16) (hm : m.val ≠ 0) :
-    ∃ w : Std.U16, (z % m : Result Std.U16) = .ok w ∧ w.val = z.val % m.val := by
-  have heq : (z % m : Result Std.U16) = Std.UScalar.rem z m := rfl
+    ∃ w : Std.U16, (z % m : RustM Std.U16) = .ok w ∧ w.val = z.val % m.val := by
+  have heq : (z % m : RustM Std.U16) = Std.UScalar.rem z m := rfl
   unfold Std.UScalar.rem at heq
   simp [hm] at heq
   refine ⟨_, heq, ?_⟩
@@ -2732,7 +2732,7 @@ theorem neg_pure_val_eq
     unfold hacspec_ml_kem.parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.sub_equiv (hacspec_ml_kem.parameters.FIELD_MODULUS : Std.U16) a.val
   cases hqa :
-      ((hacspec_ml_kem.parameters.FIELD_MODULUS : Std.U16) - a.val : Result Std.U16) with
+      ((hacspec_ml_kem.parameters.FIELD_MODULUS : Std.U16) - a.val : RustM Std.U16) with
   | ok i =>
     rw [hqa] at hae hneg; simp at hae
     obtain ⟨_hale, hival, _⟩ := hae

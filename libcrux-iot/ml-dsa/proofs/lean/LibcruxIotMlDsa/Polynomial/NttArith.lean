@@ -35,7 +35,7 @@ set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_dsa.Polynomial.NttArith
-open Aeneas Aeneas.Std Std.Do Result ControlFlow CoreModels
+open Aeneas Aeneas.Std Std.Do RustM ControlFlow CoreModels
 open libcrux_iot_ml_dsa
 open libcrux_iot_ml_dsa.Spec
 open libcrux_iot_ml_dsa.Spec.Lift libcrux_iot_ml_dsa.Spec.Montgomery
@@ -44,16 +44,16 @@ open libcrux_iot_ml_dsa.Polynomial.Ntt
 open libcrux_iot_ml_dsa.Polynomial.Arithmetic
 open libcrux_iot_ml_dsa.Util.LoopHelper
 
-/-! ## Local helpers — Triple ↔ Result.ok bridges, pure-prop holds. -/
+/-! ## Local helpers — Triple ↔ RustM.ok bridges, pure-prop holds. -/
 
 private theorem triple_of_ok_na
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 private theorem triple_exists_ok_na
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -62,12 +62,12 @@ private theorem triple_exists_ok_na
   | .fail _ => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_na {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_na {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_na {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
 
 /-! ## Length bridge (shared with `Arithmetic.lean`'s `UnitArray`). -/
 
@@ -93,7 +93,7 @@ section MulCore
 noncomputable def mmBody
     (rhs : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients)
     (iter : CoreModels.core.ops.range.Range Std.Usize) (a : UnitArray) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × UnitArray) UnitArray) := do
   let (o, iter1) ←
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -111,7 +111,7 @@ noncomputable def mmBody
     equation + the `≤ 2^24` bound; for undone units, `acc[j] = lhs[j]`. -/
 def mmInv
     (lhs rhs : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients) :
-    Std.Usize → UnitArray → Result Prop :=
+    Std.Usize → UnitArray → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       (∀ ℓ : Nat, ℓ < 8 →
@@ -183,8 +183,8 @@ theorem mmStep
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × UnitArray) UnitArray))
           | core.option.Option.Some i =>
             let (t', index_mut_back) ← Array.index_mut_usize acc i
@@ -268,8 +268,8 @@ theorem mmStep
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × UnitArray) UnitArray))
           | core.option.Option.Some i =>
             let (t', index_mut_back) ← Array.index_mut_usize acc i
@@ -435,7 +435,7 @@ section RedCore
     `shift_left_then_reduce 0#i32 c`). -/
 def redBody
     (iter : CoreModels.core.ops.range.Range Std.Usize) (a : UnitArray) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × UnitArray) UnitArray) := do
   let (o, iter1) ←
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -454,7 +454,7 @@ def redBody
     equation + the `≤ 6283009` bound; for undone units, `acc[j] = re[j]`. -/
 def redInv
     (re : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients) :
-    Std.Usize → UnitArray → Result Prop :=
+    Std.Usize → UnitArray → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       (∀ ℓ : Nat, ℓ < 8 →
@@ -526,8 +526,8 @@ theorem redStep
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × UnitArray) UnitArray))
           | core.option.Option.Some i =>
             let (c', index_mut_back) ← Array.index_mut_usize acc i
@@ -613,8 +613,8 @@ theorem redStep
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × UnitArray) UnitArray))
           | core.option.Option.Some i =>
             let (c', index_mut_back) ← Array.index_mut_usize acc i

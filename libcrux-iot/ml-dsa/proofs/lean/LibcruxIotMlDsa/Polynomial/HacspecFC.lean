@@ -16,7 +16,7 @@ import LibcruxIotMlDsa.Spec.HacspecBridge
 import LibcruxIotMlDsa.Polynomial.Arithmetic
 import LibcruxIotMlDsa.Polynomial.NttArith
 
-open CoreModels Aeneas Aeneas.Std Std.Do Result
+open CoreModels Aeneas Aeneas.Std Std.Do RustM
 open libcrux_iot_ml_dsa
 open libcrux_iot_ml_dsa.Spec
 open libcrux_iot_ml_dsa.Spec.Lift
@@ -27,10 +27,10 @@ namespace libcrux_iot_ml_dsa.Polynomial.HacspecFC
 set_option mvcgen.warning false
 set_option linter.unusedVariables false
 
-/-! ## Triple ↔ `Result.ok` reflection (file-scoped §13.5 copies). -/
+/-! ## Triple ↔ `RustM.ok` reflection (file-scoped §13.5 copies). -/
 
 private theorem triple_exists_ok
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -40,7 +40,7 @@ private theorem triple_exists_ok
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
 private theorem triple_of_ok
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]

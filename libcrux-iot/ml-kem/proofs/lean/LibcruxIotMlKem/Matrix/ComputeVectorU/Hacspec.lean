@@ -205,7 +205,7 @@ theorem add_polynomials_scaleZ_eq
               ((scaleZ 512 b).val[k]!) (e.val[k]!)))[j]! = _
     rw [getElem!_pos _ j (by simp [List.length_map, List.length_range, hj])]
     rw [List.getElem_map, List.getElem_range]
-  apply congrArg Result.ok
+  apply congrArg RustM.ok
   apply eq_of_zmod_lane_canon''
   · -- L lanes canonical
     intro j hj
@@ -252,13 +252,13 @@ open hacspec_ml_kem.parameters (FieldElement)
 private abbrev Poly256 := Std.Array FieldElement 256#usize
 
 /-- Local copy of the `private triple_of_ok_fc`. -/
-private theorem triple_of_ok_fc' {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_fc' {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, Std.Do.WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 /-- Local copy of the `private triple_exists_ok_fc`. -/
-private theorem triple_exists_ok_fc' {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_fc' {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -335,7 +335,7 @@ private theorem mcol_step_add_eq {K : Std.Usize}
         (Spec.multiply_ntts_pure (col.val[k]!) (vec.val[k]!))
       = .ok (mcol_result_at_step col vec (k + 1)) := by
   rw [Stage4MatrixAddFC.matrix_add_polynomials_eq_ok]
-  apply congrArg Result.ok
+  apply congrArg RustM.ok
   apply Subtype.ext
   show (List.range 256).map (fun n =>
       libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure
@@ -388,8 +388,8 @@ private theorem multiply_vectors_eq_mcol {K : Std.Usize}
         (fun k result => pure (result = mcol_result_at_step col vec k.val))
         (Nat.zero_le _)
         (by
-          show (pure _ : Result Prop).holds
-          simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+          show (pure _ : RustM Prop).holds
+          simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
           intro _
           apply Subtype.ext
           rw [Std.Array.repeat_val]
@@ -406,12 +406,12 @@ private theorem multiply_vectors_eq_mcol {K : Std.Usize}
         ?_)
     · rw [PostCond.entails_noThrow]
       intro r hh
-      have h_eq : (pure (r = mcol_result_at_step col vec K.val) : Result Prop).holds := by
+      have h_eq : (pure (r = mcol_result_at_step col vec K.val) : RustM Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = mcol_result_at_step col vec k.val := by
-        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
+        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_vectors_loop.body
       by_cases h_lt : k.val < K.val
@@ -468,10 +468,10 @@ private theorem multiply_vectors_eq_mcol {K : Std.Usize}
                   let product ← hacspec_ml_kem.ntt.multiply_ntts a a1'
                   let result1 ← hacspec_ml_kem.matrix.add_polynomials
                     (mcol_result_at_step col vec k.val) product
-                  Aeneas.Std.Result.ok (ControlFlow.cont
+                  Aeneas.Std.RustM.ok (ControlFlow.cont
                     (({ start := s_iter, «end» := K }
                       : CoreModels.core.ops.range.Range Std.Usize), result1)))
-                : Result _) = _
+                : RustM _) = _
           rw [h_idx_a1]
           simp only [Aeneas.Std.bind_tc_ok]
           rw [h_idx_a2]
@@ -483,8 +483,8 @@ private theorem multiply_vectors_eq_mcol {K : Std.Usize}
         apply triple_of_ok_fc' h_body
         refine ⟨h_lt, rfl, hs_iter_val, ?_⟩
         show (pure (mcol_result_at_step col vec (k.val + 1)
-                      = mcol_result_at_step col vec s_iter.val) : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+                      = mcol_result_at_step col vec s_iter.val) : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hs_iter_val]
         rfl
@@ -526,8 +526,8 @@ private theorem multiply_vectors_eq_mcol {K : Std.Usize}
           rfl
         apply triple_of_ok_fc' h_body
         show (pure (mcol_result_at_step col vec k.val
-                      = mcol_result_at_step col vec K.val) : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+                      = mcol_result_at_step col vec K.val) : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hk_eq]
         rfl
@@ -567,8 +567,8 @@ private theorem multiply_matrix_by_column_at_eq_mcol {K : Std.Usize}
         (fun k result => pure (result = mcol_result_at_step (extractCol m i) vec k.val))
         (Nat.zero_le _)
         (by
-          show (pure _ : Result Prop).holds
-          simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+          show (pure _ : RustM Prop).holds
+          simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
           intro _
           apply Subtype.ext
           rw [Std.Array.repeat_val]
@@ -586,12 +586,12 @@ private theorem multiply_matrix_by_column_at_eq_mcol {K : Std.Usize}
     · rw [PostCond.entails_noThrow]
       intro r hh
       have h_eq : (pure (r = mcol_result_at_step (extractCol m i) vec K.val)
-                  : Result Prop).holds := by
+                  : RustM Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = mcol_result_at_step (extractCol m i) vec k.val := by
-        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
+        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_matrix_by_column_at_loop.body
       by_cases h_lt : k.val < K.val
@@ -659,10 +659,10 @@ private theorem multiply_matrix_by_column_at_eq_mcol {K : Std.Usize}
                   let product ← hacspec_ml_kem.ntt.multiply_ntts a1 a2
                   let result1 ← hacspec_ml_kem.matrix.add_polynomials
                     (mcol_result_at_step (extractCol m i) vec k.val) product
-                  Aeneas.Std.Result.ok (ControlFlow.cont
+                  Aeneas.Std.RustM.ok (ControlFlow.cont
                     (({ start := s_iter, «end» := K }
                       : CoreModels.core.ops.range.Range Std.Usize), result1)))
-                : Result _) = _
+                : RustM _) = _
           rw [h_idx_mk]
           simp only [Aeneas.Std.bind_tc_ok]
           rw [h_idx_a1]
@@ -677,8 +677,8 @@ private theorem multiply_matrix_by_column_at_eq_mcol {K : Std.Usize}
         refine ⟨h_lt, rfl, hs_iter_val, ?_⟩
         show (pure (mcol_result_at_step (extractCol m i) vec (k.val + 1)
                       = mcol_result_at_step (extractCol m i) vec s_iter.val)
-              : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+              : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hs_iter_val]
         rfl
@@ -722,8 +722,8 @@ private theorem multiply_matrix_by_column_at_eq_mcol {K : Std.Usize}
         apply triple_of_ok_fc' h_body
         show (pure (mcol_result_at_step (extractCol m i) vec k.val
                       = mcol_result_at_step (extractCol m i) vec K.val)
-              : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+              : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hk_eq]
         rfl

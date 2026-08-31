@@ -31,7 +31,7 @@
 -/
 import LibcruxIotSha3.Sponge.SqueezeBlock
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -50,12 +50,12 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 
 /-! ### Local helpers (mirror of `Absorb.lean`). -/
 
-private theorem triple_of_ok_sq {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_sq {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
 
-private theorem triple_exists_ok_sq {α : Type} {x : Result α}
+private theorem triple_exists_ok_sq {α : Type} {x : RustM α}
     {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
@@ -76,8 +76,8 @@ The spec's `sponge.iterate_keccak_f n state` equals the `Nat.fold` of
 /-- Pure `Nat.fold` form of `sponge.iterate_keccak_f`. At index `n`, this
     is the right-associated chain of `keccak_f.keccak_f` calls. -/
 def iterate_keccak_f_fold (state : Std.Array Std.U64 25#usize) (n : Nat) :
-    Result (Std.Array Std.U64 25#usize) :=
-  Nat.fold n (init := (.ok state : Result _))
+    RustM (Std.Array Std.U64 25#usize) :=
+  Nat.fold n (init := (.ok state : RustM _))
     (fun _ _ acc => acc >>= fun st => keccak_f.keccak_f st)
 
 theorem iterate_keccak_f_eq_fold
@@ -110,7 +110,7 @@ theorem iterate_keccak_f_eq_fold
     set i : Std.Usize := ⟨BitVec.ofNat _ (n.val - 1)⟩ with hi_def
     have h_n_ge : ¬ n.val < (1#usize : Std.Usize).val := by
       show ¬ n.val < 1; rw [h_n_val]; omega
-    have h_sub_eq : n - 1#usize = (.ok i : Result Std.Usize) := by
+    have h_sub_eq : n - 1#usize = (.ok i : RustM Std.Usize) := by
       show Std.UScalar.sub n 1#usize = .ok i
       unfold Std.UScalar.sub
       rw [if_neg h_n_ge]
@@ -227,7 +227,7 @@ applications, and the offset has advanced by `(blocks - 1) * RATE`. -/
     iterations of the loop body, the impl state corresponds to
     `iterate_keccak_f_fold (lift s_init) k`. -/
 def squeeze_fold (s_init : state.KeccakState) (k : Nat) :
-    Result (Std.Array Std.U64 25#usize) :=
+    RustM (Std.Array Std.U64 25#usize) :=
   iterate_keccak_f_fold (Foundation.lift s_init) k
 
 @[spec]
@@ -385,7 +385,7 @@ theorem keccak.keccak_loop1_invariant
         unfold squeeze_fold iterate_keccak_f_fold
         rw [Nat.fold_succ]
         have h_inner :
-            (Nat.fold (k.val - 1) (init := (.ok (Foundation.lift s) : Result _))
+            (Nat.fold (k.val - 1) (init := (.ok (Foundation.lift s) : RustM _))
               (fun _ _ acc => acc >>= fun st => keccak_f.keccak_f st))
             = .ok (Foundation.lift s_acc) := by
           have := h_fold_acc
@@ -529,7 +529,7 @@ theorem keccak.keccak_loop1_invariant
 
 Two-step formulation:
 
-* `squeeze_closure_call_eq` — Result-level equation for the squeeze closure's
+* `squeeze_closure_call_eq` — RustM-level equation for the squeeze closure's
   `call` (the body that drives each byte). Conditional on
   `iterate_keccak_f b state` succeeding. The conclusion identifies the
   returned byte with `squeeze_byte_at s_b (k - b*rate)`.
@@ -547,7 +547,7 @@ set_option maxHeartbeats 1600000 in
     `b = k / rate.val` and the precondition that
     `iterate_keccak_f ⟨BitVec.ofNat _ b⟩ state = .ok s_b`.
 
-    This is the pure (Result-level) characterization driven directly
+    This is the pure (RustM-level) characterization driven directly
     by the chain of `Usize` ops in the closure body. The `iterate`
     success is supplied as a hypothesis. -/
 private theorem squeeze_closure_call_eq
@@ -691,15 +691,15 @@ private theorem squeeze_closure_call_eq
     let a1' ← CoreModels.core.num.U64.to_le_bytes i3'
     let i4' ← j' % 8#usize
     let i5' ← Std.Array.index_usize a1' i4'
-    Result.ok (i5', ((rate, state) : sponge.squeeze.closure OUTPUT_LEN))) = _
-  rw [show args / rate = (.ok b : Result Std.Usize) from h_b_eq]; simp only [bind_tc_ok]
-  rw [show b * rate = (.ok i1 : Result Std.Usize) from h_i1_eq]; simp only [bind_tc_ok]
-  rw [show args - i1 = (.ok j : Result Std.Usize) from h_j_eq]; simp only [bind_tc_ok]
+    RustM.ok (i5', ((rate, state) : sponge.squeeze.closure OUTPUT_LEN))) = _
+  rw [show args / rate = (.ok b : RustM Std.Usize) from h_b_eq]; simp only [bind_tc_ok]
+  rw [show b * rate = (.ok i1 : RustM Std.Usize) from h_i1_eq]; simp only [bind_tc_ok]
+  rw [show args - i1 = (.ok j : RustM Std.Usize) from h_j_eq]; simp only [bind_tc_ok]
   rw [h_iter']; simp only [bind_tc_ok]
-  rw [show j / 8#usize = (.ok i2 : Result Std.Usize) from h_i2_eq]; simp only [bind_tc_ok]
+  rw [show j / 8#usize = (.ok i2 : RustM Std.Usize) from h_i2_eq]; simp only [bind_tc_ok]
   rw [h_i4_eq]; simp only [bind_tc_ok]
   rw [h_a1_eq]; simp only [bind_tc_ok]
-  rw [show j % 8#usize = (.ok i5 : Result Std.Usize) from h_i5_eq]; simp only [bind_tc_ok]
+  rw [show j % 8#usize = (.ok i5 : RustM Std.Usize) from h_i5_eq]; simp only [bind_tc_ok]
   rw [h_v_final_eq]; simp only [bind_tc_ok]
   -- Now goal: .ok (v_final, c) = .ok (squeeze_byte_at s_b (k - (k/rate.val)*rate.val), c)
   -- Under new layout, squeeze_byte_at indexes s_b at (j/8) directly.

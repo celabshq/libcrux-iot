@@ -23,7 +23,7 @@
 
   Proof strategy: turn each component of the body
   (`IteratorRange.next`, `Array.index_usize`, `per_elem`,
-  `Array.update`) into a `Result` equation, compose them into a
+  `Array.update`) into a `RustM` equation, compose them into a
   single body equation, then close via `triple_of_ok_pv`. This is
   the cleanest substitute for `mvcgen` when the surrounding spec is
   generic in `per_elem` (so mvcgen has no `@[spec]` to register).
@@ -31,7 +31,7 @@
 import LibcruxIotMlKem.Util.LoopSpecs
 import LibcruxIotMlKem.Extraction.Funs
 
-open CoreModels Aeneas Aeneas.Std Result ControlFlow Std.Do
+open CoreModels Aeneas Aeneas.Std RustM ControlFlow Std.Do
 
 namespace libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper
 open libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs
@@ -55,18 +55,18 @@ theorem PortableVector_elements_length
   show v.elements.val.length = 16
   exact this
 
-/-! ## Local helpers — Triple ↔ Result.ok bridges, pure-prop holds. -/
+/-! ## Local helpers — Triple ↔ RustM.ok bridges, pure-prop holds. -/
 
 section pv_helpers
 
 private theorem triple_of_ok_pv
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 private theorem triple_exists_ok_pv
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -74,16 +74,16 @@ private theorem triple_exists_ok_pv
   | .fail _ => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_pv {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_pv {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_pv {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Triple, WP.wp] at h; exact h trivial
 
 end pv_helpers
 
-/-! ## Iterator-next reduction to a `Result` equation. -/
+/-! ## Iterator-next reduction to a `RustM` equation. -/
 
 /-- `i.val < 16`: `IteratorRange.next` returns `.ok (some i, iter')` with
     `iter'.end = 16` and `iter'.start.val = i.val + 1`. We avoid pinning
@@ -128,7 +128,7 @@ theorem iter_next_none_eq (i : Std.Usize) (h_ge : i.val ≥ (16#usize : Std.Usiz
   obtain ⟨v, hveq, hP⟩ := triple_exists_ok_pv hT
   rw [hveq, hP]
 
-/-! ## Array index/update reduction to `Result` equations. -/
+/-! ## Array index/update reduction to `RustM` equations. -/
 
 theorem array_index_usize_ok_eq
     {α : Type u} {n : Std.Usize} [Inhabited α]
@@ -154,12 +154,12 @@ theorem array_update_ok_eq
       `P` that the L0.x `@[spec]` produces).
     - For `j ≥ k`, `acc.elements[j] = input.elements[j]`. -/
 def unary_loop_inv
-    (per_elem : Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Prop)
     (input : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Usize →
     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector →
-    Result Prop :=
+    RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       ∃ r, per_elem (input.elements.val[j]!) = .ok r
@@ -170,10 +170,10 @@ def unary_loop_inv
 /-! ## Unary loop body (canonical shape from Funs.lean) -/
 
 def unary_loop_body
-    (per_elem : Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → RustM Std.I16)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize)
         × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
       libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) := do
@@ -188,7 +188,7 @@ def unary_loop_body
     let a ← Aeneas.Std.Array.update vec.elements i vi
     ok (cont (iter1, { elements := a }))
 
-/-! ## Step lemma — reduces the body to a `Result` equation and closes via `triple_of_ok_pv`.
+/-! ## Step lemma — reduces the body to a `RustM` equation and closes via `triple_of_ok_pv`.
 
 The step lemma's post is stated via a top-level `def` rather than an inline
 `match`. Reason: an inline `match` in two different declarations (the step
@@ -201,7 +201,7 @@ from both sites. -/
 /-- Per-iteration post for `unary_loop_body`. Identical shape to the
     `loop_range_spec_usize` step hypothesis. -/
 def unary_step_post
-    (per_elem : Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Prop)
     (input : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (k : Std.Usize)
@@ -218,7 +218,7 @@ def unary_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_unary_step
-    (per_elem : Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Prop)
     (per_elem_spec :
       ∀ (x : Std.I16),
@@ -256,8 +256,8 @@ theorem elementwise_unary_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -348,8 +348,8 @@ theorem elementwise_unary_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -386,7 +386,7 @@ theorem elementwise_unary_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_unary_spec
-    (per_elem : Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Prop)
     (per_elem_spec :
       ∀ (x : Std.I16),
@@ -447,7 +447,7 @@ theorem elementwise_unary_spec
 
 Mirror of the unary family but with **two** input vectors. Only `lhs` is
 the loop accumulator; `rhs` is captured in the body lambda. The per-element
-op now has type `I16 → I16 → Result I16` and reads from both inputs at the
+op now has type `I16 → I16 → RustM I16` and reads from both inputs at the
 same index `i` before writing back to `acc.elements[i]`.
 
 The bind chain inside the body has one extra `index_usize` step for `rhs`
@@ -456,11 +456,11 @@ compared to `unary_loop_body`, but the structure is otherwise identical. -/
 /-- Binary loop body: reads `acc.elements[i]` and `rhs.elements[i]`,
     applies `per_elem`, writes back to `acc.elements[i]`. -/
 def binary_loop_body
-    (per_elem : Std.I16 → Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → Std.I16 → RustM Std.I16)
     (rhs : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (acc : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize)
         × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
       libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) := do
@@ -482,12 +482,12 @@ def binary_loop_body
     - For `j ≥ k`, `acc.elements[j] = input_lhs.elements[j]` (rhs is
       read-only, so its invariant is implicit). -/
 def binary_loop_inv
-    (per_elem : Std.I16 → Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Std.I16 → Prop)
     (input_lhs input_rhs : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Usize →
     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector →
-    Result Prop :=
+    RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       ∃ r, per_elem (input_lhs.elements.val[j]!) (input_rhs.elements.val[j]!) = .ok r
@@ -498,7 +498,7 @@ def binary_loop_inv
 
 /-- Per-iteration post for `binary_loop_body`. -/
 def binary_step_post
-    (per_elem : Std.I16 → Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Std.I16 → Prop)
     (input_lhs input_rhs : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (k : Std.Usize)
@@ -515,7 +515,7 @@ def binary_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_binary_step
-    (per_elem : Std.I16 → Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Std.I16 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I16),
@@ -559,8 +559,8 @@ theorem elementwise_binary_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -654,8 +654,8 @@ theorem elementwise_binary_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -693,7 +693,7 @@ theorem elementwise_binary_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_binary_spec
-    (per_elem : Std.I16 → Std.I16 → Result Std.I16)
+    (per_elem : Std.I16 → Std.I16 → RustM Std.I16)
     (P : Std.I16 → Std.I16 → Std.I16 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I16),
@@ -745,14 +745,14 @@ theorem elementwise_binary_spec
 Mirror of the unary family but with **separate input and output types**.
 The input is a `Slice Std.I32` (read-only, captured by the body lambda),
 and the loop accumulator is a `PortableVector` (Array I16 16). The
-per-element op has type `Std.I32 → Result Std.I16` and reads from the
+per-element op has type `Std.I32 → RustM Std.I16` and reads from the
 slice at index `i` before writing back to `acc.elements[i]`.
 
 The slice has no static length, so a precondition
 `h_len : 16 ≤ input.val.length` is carried through to discharge the
 `Slice.index_usize` bound check. -/
 
-/-! ### Slice-index reduction to a `Result` equation. -/
+/-! ### Slice-index reduction to a `RustM` equation. -/
 
 /-- `Slice.index_usize` returns `.ok (v.val[i.val]!)` when `i.val < v.length`. -/
 theorem slice_index_usize_ok_eq
@@ -772,11 +772,11 @@ theorem slice_index_usize_ok_eq
 /-- I/O loop body: reads `input.val[i]!` (a `Slice Std.I32`), applies
     `per_elem`, writes back to `acc.elements[i]` (a `PortableVector`). -/
 def io_loop_body
-    (per_elem : Std.I32 → Result Std.I16)
+    (per_elem : Std.I32 → RustM Std.I16)
     (input : Aeneas.Std.Slice Std.I32)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (acc : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize)
         × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
       libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) := do
@@ -797,13 +797,13 @@ def io_loop_body
     - For `j ≥ k`, no claim is made on `acc.elements[j]` (the original
       `out` value is preserved unchanged). -/
 def io_loop_inv
-    (per_elem : Std.I32 → Result Std.I16)
+    (per_elem : Std.I32 → RustM Std.I16)
     (P : Std.I32 → Std.I16 → Prop)
     (input : Aeneas.Std.Slice Std.I32)
     (out : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     Std.Usize →
     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector →
-    Result Prop :=
+    RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       ∃ r, per_elem (input.val[j]!) = .ok r
@@ -813,7 +813,7 @@ def io_loop_inv
 
 /-- Per-iteration post for `io_loop_body`. -/
 def io_step_post
-    (per_elem : Std.I32 → Result Std.I16)
+    (per_elem : Std.I32 → RustM Std.I16)
     (P : Std.I32 → Std.I16 → Prop)
     (input : Aeneas.Std.Slice Std.I32)
     (out : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
@@ -831,7 +831,7 @@ def io_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_io_step
-    (per_elem : Std.I32 → Result Std.I16)
+    (per_elem : Std.I32 → RustM Std.I16)
     (P : Std.I32 → Std.I16 → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),
@@ -871,8 +871,8 @@ theorem elementwise_io_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -957,8 +957,8 @@ theorem elementwise_io_step
               ({ start := k, «end» := 16#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize)
                     × libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
                   libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
@@ -995,7 +995,7 @@ theorem elementwise_io_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_io_spec
-    (per_elem : Std.I32 → Result Std.I16)
+    (per_elem : Std.I32 → RustM Std.I16)
     (P : Std.I32 → Std.I16 → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),

@@ -33,7 +33,7 @@ open libcrux_iot_ml_kem.Spec
 
 namespace ReducingFromI32ArrayFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Step-local accumulator (the mutable `b` poly). -/
 abbrev Acc :=
@@ -47,7 +47,7 @@ abbrev Acc :=
 def inv
     (self b_init : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       lift_chunk (acc.coefficients.val[j]!)
@@ -101,7 +101,7 @@ theorem subtract_reduce_step_lemma_fc
   have h_self_coef_len : self.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.subtract_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -578,8 +578,8 @@ theorem subtract_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3, h_set4]
         exact h_acc_undone j h_ge' hj_lt
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -605,7 +605,7 @@ theorem subtract_reduce_step_lemma_fc
     show ReducingFromI32ArrayFC.step_post self b_init k (.done acc)
     unfold ReducingFromI32ArrayFC.step_post
     show (ReducingFromI32ArrayFC.inv self b_init 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val →
           lift_chunk (acc.coefficients.val[j]!)
@@ -620,7 +620,7 @@ theorem subtract_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.2 — `subtract_reduce`: per-chunk `negate(mont_mul(b, 1441) - self)`
@@ -670,8 +670,8 @@ theorem subtract_reduce_fc
       (ReducingFromI32ArrayFC.inv self b)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_⟩
         · -- No chunks done yet.
@@ -693,7 +693,7 @@ theorem subtract_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = b.coefficients.val[j]!) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, ReducingFromI32ArrayFC.inv] at hh
       exact hh trivial
@@ -749,7 +749,7 @@ theorem subtract_reduce_fc
 
 namespace SubtractReduceBnd
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Bounds loop invariant for `subtract_reduce_bnd`.
     * (a) Chunks `j < k`: every lane of `acc[j]` satisfies `|·| ≤ 3328`.
@@ -758,7 +758,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 def inv
     (b_init : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → ReducingFromI32ArrayFC.Acc → Result Prop :=
+    Std.Usize → ReducingFromI32ArrayFC.Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
         ((acc.coefficients.val[j]!).elements.val[ℓ]!).val.natAbs ≤ 3328)
@@ -782,12 +782,12 @@ def step_post
 
 end SubtractReduceBnd
 
-private theorem pure_prop_holds_bnd {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]; intro _; exact h
+private theorem pure_prop_holds_bnd {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_bnd {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] at h; exact h trivial
 
 set_option maxHeartbeats 400000 in
 /-- Per-iteration BOUNDS step lemma for `subtract_reduce`. The chunk-`k` body is
@@ -1264,7 +1264,7 @@ theorem subtract_reduce_bnd
 
 namespace AddErrorReduceFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Step-local accumulator (the mutable `self` poly). -/
 abbrev Acc :=
@@ -1278,7 +1278,7 @@ abbrev Acc :=
 def inv
     (self_init error : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       lift_chunk (acc.coefficients.val[j]!)
@@ -1332,7 +1332,7 @@ theorem add_error_reduce_step_lemma_fc
   have h_error_coef_len : error.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_error_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -1675,8 +1675,8 @@ theorem add_error_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -1702,7 +1702,7 @@ theorem add_error_reduce_step_lemma_fc
     show AddErrorReduceFC.step_post self_init error k (.done acc)
     unfold AddErrorReduceFC.step_post
     show (AddErrorReduceFC.inv self_init error 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val →
           lift_chunk (acc.coefficients.val[j]!)
@@ -1717,7 +1717,7 @@ theorem add_error_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.4 — `add_error_reduce`: `self · (R/128) + error` then barrett.
@@ -1762,8 +1762,8 @@ theorem add_error_reduce_fc
       (AddErrorReduceFC.inv self error)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
@@ -1783,7 +1783,7 @@ theorem add_error_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, AddErrorReduceFC.inv] at hh
       exact hh trivial
@@ -1833,7 +1833,7 @@ theorem add_error_reduce_fc
 
 namespace AddStandardErrorReduceFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Step-local accumulator (the mutable `self` poly). -/
 abbrev Acc :=
@@ -1848,7 +1848,7 @@ abbrev Acc :=
 def inv
     (self_init error : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       lift_chunk (acc.coefficients.val[j]!)
@@ -1908,7 +1908,7 @@ theorem add_standard_error_reduce_step_lemma_fc
     unfold libcrux_iot_ml_kem.vector.traits.MONTGOMERY_R_SQUARED_MOD_FIELD_MODULUS
     rfl
   obtain ⟨h_acc_done, h_acc_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_standard_error_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -2252,8 +2252,8 @@ theorem add_standard_error_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -2279,7 +2279,7 @@ theorem add_standard_error_reduce_step_lemma_fc
     show AddStandardErrorReduceFC.step_post self_init error k (.done acc)
     unfold AddStandardErrorReduceFC.step_post
     show (AddStandardErrorReduceFC.inv self_init error 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val →
           lift_chunk (acc.coefficients.val[j]!)
@@ -2294,7 +2294,7 @@ theorem add_standard_error_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.5 — `add_standard_error_reduce`: `self · R² + error` then barrett.
@@ -2340,8 +2340,8 @@ theorem add_standard_error_reduce_fc
       (AddStandardErrorReduceFC.inv self error)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
@@ -2361,7 +2361,7 @@ theorem add_standard_error_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, AddStandardErrorReduceFC.inv] at hh
       exact hh trivial
@@ -2417,7 +2417,7 @@ theorem add_standard_error_reduce_fc
 
 namespace AddMessageErrorReduceFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Step-local accumulator: `(result, scratch)`. -/
 abbrev Acc :=
@@ -2434,7 +2434,7 @@ def inv
     (self_init message_init result_init :
         libcrux_iot_ml_kem.polynomial.PolynomialRingElement
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       lift_chunk (acc.1.coefficients.val[j]!)
@@ -2501,7 +2501,7 @@ theorem add_message_error_reduce_step_lemma_fc
   have h_msg_coef_len : message_init.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_message_error_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -2921,8 +2921,8 @@ theorem add_message_error_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.1.coefficients k j t1 h_ne
         rw [h_set1, h_set2, h_set3]
         exact h_acc_undone j h_ge' hj_lt
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -2948,7 +2948,7 @@ theorem add_message_error_reduce_step_lemma_fc
     show AddMessageErrorReduceFC.step_post self_init message_init result_init k (.done acc)
     unfold AddMessageErrorReduceFC.step_post
     show (AddMessageErrorReduceFC.inv self_init message_init result_init 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val →
           lift_chunk (acc.1.coefficients.val[j]!)
@@ -2964,7 +2964,7 @@ theorem add_message_error_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.6 — `add_message_error_reduce`: combines `self · (R/128)` with
@@ -3015,8 +3015,8 @@ theorem add_message_error_reduce_fc
       (AddMessageErrorReduceFC.inv self message result)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
@@ -3037,7 +3037,7 @@ theorem add_message_error_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.1.coefficients.val[j]! = result.coefficients.val[j]!) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, AddMessageErrorReduceFC.inv] at hh
       exact hh trivial
@@ -3087,7 +3087,7 @@ theorem add_message_error_reduce_fc
 
 namespace SubtractReduceFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Step-local accumulator (the mutable `out` poly). -/
 abbrev Acc :=
@@ -3106,7 +3106,7 @@ abbrev Acc :=
     equality at the chunk level (`lift_chunk_mont` vs sub-slice
     `Spec.chunk_reducing_from_i32_array_pure`). -/
 def inv (a : Slice Std.I32) (out_init : Acc) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
       lift_fe_mont ((acc.coefficients.val[j]!).elements.val[ℓ]!)
@@ -3174,7 +3174,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
   have h_coef_len : acc.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone, h_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.reducing_from_i32_array_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -3297,7 +3297,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
       rw [h_iter_some]
       simp only [Aeneas.Std.bind_tc_ok]
       show ((do
-              let i1' ← (k * 16#usize : Result Std.Usize)
+              let i1' ← (k * 16#usize : RustM Std.Usize)
               let i2' ← k + 1#usize
               let i3' ← i2' * 16#usize
               let s' ←
@@ -3313,7 +3313,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
                         ({ coefficients := index_mut_back t1' }
                           : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                               libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))))
-            : Result (ControlFlow _ _))
+            : RustM (ControlFlow _ _))
             = _
       rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
       rw [hi2_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -3329,7 +3329,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
                         ({ coefficients := acc.coefficients.set k t1' }
                           : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                               libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))))
-            : Result _)
+            : RustM _)
             = _
       rw [h_t1_eq]
       rfl
@@ -3444,8 +3444,8 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
                 ⟨rfl, by rw [h_coef_len]; exact hk_16⟩
           rw [h_set_eq]
           exact h_t1_bnd ℓ hℓ
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -3471,7 +3471,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
     show SubtractReduceFC.step_post a out_init k (.done acc)
     unfold SubtractReduceFC.step_post
     show (SubtractReduceFC.inv a out_init 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ ℓ : Nat, ℓ < 16 →
           lift_fe_mont ((acc.coefficients.val[j]!).elements.val[ℓ]!)
@@ -3488,7 +3488,7 @@ theorem poly_reducing_from_i32_array_step_lemma_fc
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
       · intro j hj ℓ hℓ; rw [h16] at hj
         apply h_acc_bnd j _ ℓ hℓ; rw [hk_eq]; exact hj
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.7 — poly-level `reducing_from_i32_array`. Returns a fresh poly
@@ -3531,8 +3531,8 @@ theorem poly_reducing_from_i32_array_fc
       (SubtractReduceFC.inv a out)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_, ?_⟩
         · intro j hj; exact absurd hj (Nat.not_lt_zero j)
@@ -3554,7 +3554,7 @@ theorem poly_reducing_from_i32_array_fc
         ∧ (∀ j : Nat, j < (16#usize : Std.Usize).val → ∀ ℓ : Nat, ℓ < 16 →
             ((r.coefficients.val[j]!).elements.val[ℓ]!).val.natAbs ≤ 4993) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
         Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
         Std.Do.SPred.pure, Std.Do.SPred.entails, SubtractReduceFC.inv] at hh
       exact hh trivial

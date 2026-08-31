@@ -23,17 +23,17 @@ open libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element libcrux_iot_ml_kem.Ve
 open CoreModels Aeneas Aeneas.Std Std.Do
 open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper
 
-/-! ## Local helpers — Triple ↔ Result.ok bridges. -/
+/-! ## Local helpers — Triple ↔ RustM.ok bridges. -/
 
 /-- The Triple `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v`. -/
-private theorem triple_of_ok_l2 {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_l2 {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 /-- Extract the `.ok` witness from a true-pre Triple. Used by L2.1 to
     consume L0.4's `@[spec]`. -/
-private theorem triple_exists_ok_l2 {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_l2 {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -3465,7 +3465,7 @@ theorem ntt_step_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.montgomery_multiply_fe_by_fer_spec b zeta hzeta)
   -- t' = t (same impl call, both `.ok`).
   have h_tt' : t = t' := by
-    have : (Result.ok t : Result _) = Result.ok t' := by rw [← h_t_eq_ok, h_t'_eq]
+    have : (RustM.ok t : RustM _) = RustM.ok t' := by rw [← h_t_eq_ok, h_t'_eq]
     cases this; rfl
   -- Step 4: read vec[i].
   have h_idx_i :
@@ -3670,7 +3670,7 @@ theorem ntt_step_pair_fc
     triple_exists_ok_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.montgomery_multiply_fe_by_fer_spec b zeta hzeta)
   have h_tt' : t = t' := by
-    have : (Result.ok t : Result _) = Result.ok t' := by rw [← h_t_eq_ok, h_t'_eq]
+    have : (RustM.ok t : RustM _) = RustM.ok t' := by rw [← h_t_eq_ok, h_t'_eq]
     cases this; rfl
   -- Step 4: read vec[i].
   have h_idx_i :
@@ -4417,7 +4417,7 @@ theorem inv_ntt_step_fc
     triple_exists_ok_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.barrett_reduce_element_spec a_plus_b h_apb_bd)
   have h_oo' : o0 = o0' := by
-    have : (Result.ok o0 : Result _) = Result.ok o0' := by
+    have : (RustM.ok o0 : RustM _) = RustM.ok o0' := by
       rw [← h_o0_eq_ok, h_o0'_eq]
     cases this; rfl
   -- Step 6: classify zeta = zeta.
@@ -4431,7 +4431,7 @@ theorem inv_ntt_step_fc
     triple_exists_ok_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.montgomery_multiply_fe_by_fer_spec a_minus_b zeta hzeta)
   have h_oo1' : o1 = o1' := by
-    have : (Result.ok o1 : Result _) = Result.ok o1' := by
+    have : (RustM.ok o1 : RustM _) = RustM.ok o1' := by
       rw [← h_o1_eq_ok, h_o1'_eq]
     cases this; rfl
   -- Step 8: write vec[i] := o0.
@@ -4668,7 +4668,7 @@ theorem inv_ntt_step_pair_fc
     triple_exists_ok_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.barrett_reduce_element_spec a_plus_b h_apb_bd)
   have h_oo' : o0 = o0' := by
-    have : (Result.ok o0 : Result _) = Result.ok o0' := by
+    have : (RustM.ok o0 : RustM _) = RustM.ok o0' := by
       rw [← h_o0_eq_ok, h_o0'_eq]
     cases this; rfl
   -- Step 6: classify zeta = zeta.
@@ -4682,7 +4682,7 @@ theorem inv_ntt_step_pair_fc
     triple_exists_ok_fc
       (libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.montgomery_multiply_fe_by_fer_spec a_minus_b zeta hzeta)
   have h_oo1' : o1 = o1' := by
-    have : (Result.ok o1 : Result _) = Result.ok o1' := by
+    have : (RustM.ok o1 : RustM _) = RustM.ok o1' := by
       rw [← h_o1_eq_ok, h_o1'_eq]
     cases this; rfl
   -- Step 8: write vec[i] := o0.

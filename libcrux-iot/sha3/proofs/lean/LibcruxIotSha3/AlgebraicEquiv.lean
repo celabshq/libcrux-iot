@@ -27,7 +27,7 @@
      `spec_round_step (lift_perm s.toAeneas (impl_perm^[k]) (impl_swap_k k)) s.i`
      `  = .ok (lift_perm (bit_round{k} s).toAeneas (impl_perm^[k+1]) (impl_swap_k (k+1)))`.
   6. 4-round closure `bit_4rounds_alg_eq` — composes the 4 per-round
-     identities through `Result.bind`. Uses `impl_perm_pow4_eq_id`
+     identities through `RustM.bind`. Uses `impl_perm_pow4_eq_id`
      to collapse `impl_perm^[4]` to `id` and `impl_swap_k 4 = impl_swap_k 0`
      to close the swap cycle at the group boundary.
   7. 24-round closure `bit_keccak_spec_alg_eq` — 6-iteration induction
@@ -224,10 +224,10 @@ theorem bit_round3_i (s : KState) (hi : s.i.val < 24) :
     `r`-independent Prop yields the Prop). -/
 
 /-- From a Triple whose post is a `r`-independent Prop, derive the Prop.
-    Works because in the `Result α` tower with `noThrow` post, `.fail`/`.div`
+    Works because in the `RustM α` tower with `noThrow` post, `.fail`/`.div`
     cases force the post to hold vacuously *with `False`*, so the only way
     the Triple holds is via the success case satisfying `P`. -/
-private theorem triple_imp_prop {α : Type} {C : Aeneas.Std.Result α} {P : Prop}
+private theorem triple_imp_prop {α : Type} {C : Aeneas.Std.RustM α} {P : Prop}
     (h : ⦃⌜True⌝⦄ C ⦃⇓ _ => ⌜P⌝⦄) : P := by
   cases C
   all_goals simp_all [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.SPred.down_pure]
@@ -518,7 +518,7 @@ theorem bit_round3_alg_eq (s : KState) (hi : s.i.val < 24) :
 
 /-! ## 4-round closure (unconditional)
 
-    Composes the 4 per-round algebraic identities via `Result.bind`
+    Composes the 4 per-round algebraic identities via `RustM.bind`
     associativity. Uses the i-increment chain to align iota constants.
     Start and end both use the canonical `lift` (since
     `impl_swap_k 0 = impl_swap_k 4 = (fun _ => false)`). -/

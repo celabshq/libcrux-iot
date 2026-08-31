@@ -45,7 +45,7 @@ open libcrux_iot_ml_kem.Spec
 
 namespace BarrettReduceFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 /-- Step-local accumulator (the mutable poly being barrett-reduced). -/
 abbrev Acc :=
@@ -59,7 +59,7 @@ abbrev Acc :=
 def inv
     (self : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val →
       lift_chunk (acc.coefficients.val[j]!)
@@ -108,7 +108,7 @@ theorem poly_barrett_reduce_step_lemma_fc
   have h_coef_len : acc.coefficients.length = 16 :=
     Std.Array.length_eq _
   obtain ⟨h_acc_done, h_acc_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
   unfold libcrux_iot_ml_kem.polynomial.PolynomialRingElement.poly_barrett_reduce_loop.body
   by_cases h_lt : k.val < (16#usize : Std.Usize).val
   · -- `Some i = k` branch.
@@ -226,8 +226,8 @@ theorem poly_barrett_reduce_step_lemma_fc
             Aeneas.Std.Array.getElem!_Nat_set_ne acc.coefficients k j t1 h_ne
         rw [h_set]
         exact h_acc_undone j h_ge' hj_lt
-    show (pure _ : Result Prop).holds
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
   · -- `None` branch: k ≥ 16, done.
     have hk_ge : k.val ≥ (16#usize : Std.Usize).val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = 16 := by rw [h16] at hk_ge; omega
@@ -253,7 +253,7 @@ theorem poly_barrett_reduce_step_lemma_fc
     show BarrettReduceFC.step_post self k (.done acc)
     unfold BarrettReduceFC.step_post
     show (BarrettReduceFC.inv self 16#usize acc).holds
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < (16#usize : Std.Usize).val →
           lift_chunk (acc.coefficients.val[j]!)
@@ -267,7 +267,7 @@ theorem poly_barrett_reduce_step_lemma_fc
       · intro j hj_ge hj_lt
         rw [h16] at hj_ge
         apply h_acc_undone j _ hj_lt; rw [hk_eq]; exact hj_ge
-    simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
+    simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]; exact Std.Do.SPred.pure_intro h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- L6.1 — `poly_barrett_reduce`: 16-chunk loop applying `barrett_reduce`
@@ -320,8 +320,8 @@ theorem poly_barrett_reduce_fc
       (BarrettReduceFC.inv self)
       (by decide : (0#usize : Std.Usize).val ≤ (16#usize : Std.Usize).val)
       (by
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_⟩
         · -- No chunks done yet.
@@ -343,7 +343,7 @@ theorem poly_barrett_reduce_fc
         ∧ (∀ j : Nat, (16#usize : Std.Usize).val ≤ j → j < 16 →
             r.coefficients.val[j]! = self.coefficients.val[j]!) := by
       have hh := h_inv_holds
-      simp only [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple,
+      simp only [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple,
                  Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow,
                  Std.Do.SPred.pure, Std.Do.SPred.entails, BarrettReduceFC.inv] at hh
       exact hh trivial

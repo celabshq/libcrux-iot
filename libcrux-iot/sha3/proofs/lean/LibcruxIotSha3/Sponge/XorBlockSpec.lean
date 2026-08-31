@@ -40,7 +40,7 @@
 import LibcruxIotSha3.Sponge.Interleave
 import LibcruxIotSha3.Sponge.SliceSpecs
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -65,7 +65,7 @@ private theorem from_fn_foldlM_pure_aux
     l.foldlM
       (fun (s : List T × F) (i : Nat) => do
         let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        Result.ok (s.1 ++ [v], f'))
+        RustM.ok (s.1 ++ [v], f'))
       (acc, c) = .ok (acc ++ l.map f, c) := by
   induction l generalizing acc with
   | nil =>
@@ -104,7 +104,7 @@ private theorem from_fn_pure_eq
   · rename_i result heq
     rw [h_fold] at heq
     have hres : result = ((List.range N.val).map f, c) :=
-      (Result.ok.inj heq).symm
+      (RustM.ok.inj heq).symm
     subst hres
     rfl
 
@@ -203,14 +203,14 @@ def xor_block_value_at
   `list_8_at block.val (8b)` via `list_8_at_val_eq_slice`. -/
 
 /-- Local triple-of-ok helper. -/
-private theorem triple_of_ok_xbs {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_xbs {α : Type} {x : RustM α} {v : α}
     (hx : x = .ok v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ r = v ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply]
 
 /-- Local exist-extractor for Std.Do.Triple-based posts: a Triple
     `⦃True⦄ x ⦃⇓ r => P r⦄` yields `∃ v, x = .ok v ∧ P v`. -/
-private theorem triple_exists_ok_xbs {α : Type} {x : Result α}
+private theorem triple_exists_ok_xbs {α : Type} {x : RustM α}
     {P : α → Prop} (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -257,7 +257,7 @@ theorem xor_block_into_state_closure_call_mut_spec
   -- Unfold the closure body.
   unfold sponge.xor_block_into_state.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU64.call_mut
   -- Bound for `index_usize state k`: succeeds since `k.val < 25`.
-  have h_state_idx : (Array.index_usize state k : Result Std.U64) = .ok state.val[k.val]! := by
+  have h_state_idx : (Array.index_usize state k : RustM Std.U64) = .ok state.val[k.val]! := by
     have hkl : k.val < state.val.length := by
       have hlen : state.val.length = 25 := state.property
       rw [hlen]; exact h_k
@@ -358,7 +358,7 @@ theorem xor_block_into_state_closure_call_mut_spec
       unfold CoreModels.core.result.Result.unwrap; simp only [bind_tc_ok]
       -- from_le_bytes is `pure (Std.core.num.U64.from_le_bytes a)`.
       have h_fle : (CoreModels.core.num.U64.from_le_bytes
-                      (Std.Array.make 8#usize s1.val (by simp [h_s1_val_len])) : Result Std.U64)
+                      (Std.Array.make 8#usize s1.val (by simp [h_s1_val_len])) : RustM Std.U64)
                 = .ok (Std.core.num.U64.from_le_bytes
                          (Std.Array.make 8#usize s1.val (by simp [h_s1_val_len]))) := by
         unfold CoreModels.core.num.U64.from_le_bytes CoreModels.rust_primitives.arithmetic.from_le_bytes_u64

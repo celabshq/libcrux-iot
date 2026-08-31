@@ -12,7 +12,7 @@
   algebraic-equivalence bridge to the hacspec (`AlgebraicEquiv.lean`).
 
   The one Aeneas-side type we keep is `Std.Usize` for the round counter
-  `i` — it's a thin `BitVec`-wrapping data type (no `Triple`, `Result`,
+  `i` — it's a thin `BitVec`-wrapping data type (no `Triple`, `RustM`,
   `WP`, or other Aeneas machinery), and matching the impl's `i` type
   makes the iso `KState ↔ state.KeccakState` trivial on this
   field.

@@ -31,21 +31,21 @@ set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_dsa.Polynomial.InfinityNorm
-open CoreModels Aeneas Aeneas.Std Std.Do Result ControlFlow
+open CoreModels Aeneas Aeneas.Std Std.Do RustM ControlFlow
 open libcrux_iot_ml_dsa
 open libcrux_iot_ml_dsa.Polynomial.Ntt
 open libcrux_iot_ml_dsa.Util.LoopHelper
 
-/-! ## Local Triple ↔ Result.ok bridges. -/
+/-! ## Local Triple ↔ RustM.ok bridges. -/
 
 private theorem triple_of_ok_in
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 private theorem triple_exists_ok_in
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -54,12 +54,12 @@ private theorem triple_exists_ok_in
   | .fail _ => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_in {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_in {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_in {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
 
 /-! ## Carrier + length bridges. -/
 
@@ -92,7 +92,7 @@ instance (a : UnitArr) (bound : Std.I32) (u : Nat) : Decidable (unit_exceeds a b
 /-- The poly loop body (the `infinity_norm_exceeds_loop.body … portable_ops_inst` shape). -/
 noncomputable def poly_inf_body (a : UnitArr) (bound : Std.I32)
     (iter : CoreModels.core.ops.range.Range Std.Usize) (result : Bool) :
-    Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool) := do
+    RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool) := do
   let (o, iter1) ←
     CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
       CoreModels.core.Usize.Insts.CoreIterRangeStep iter
@@ -108,7 +108,7 @@ noncomputable def poly_inf_body (a : UnitArr) (bound : Std.I32)
 
 /-- The poly loop invariant: `result = decide(∃ u < k, unit_exceeds u)`. -/
 def poly_inf_inv (a : UnitArr) (bound : Std.I32) :
-    Std.Usize → Bool → Result Prop :=
+    Std.Usize → Bool → RustM Prop :=
   fun k result => pure
     (result = decide (∃ u : Nat, u < k.val ∧ unit_exceeds a bound u))
 
@@ -189,8 +189,8 @@ theorem poly_inf_step_lemma
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | CoreModels.core.option.Option.None =>
-              (Result.ok (ControlFlow.done result) :
-                Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
+              (RustM.ok (ControlFlow.done result) :
+                RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
           | CoreModels.core.option.Option.Some i =>
             if result
             then ok (ControlFlow.cont (iter1, true))
@@ -246,8 +246,8 @@ theorem poly_inf_step_lemma
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | CoreModels.core.option.Option.None =>
-              (Result.ok (ControlFlow.done result) :
-                Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
+              (RustM.ok (ControlFlow.done result) :
+                RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
           | CoreModels.core.option.Option.Some i =>
             if result
             then ok (ControlFlow.cont (iter1, true))

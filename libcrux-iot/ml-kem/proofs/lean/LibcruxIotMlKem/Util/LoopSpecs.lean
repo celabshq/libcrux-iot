@@ -11,7 +11,7 @@
 import LibcruxIotMlKem.Util.SliceSpecs
 import Hax
 
-open CoreModels Aeneas Aeneas.Std Result ControlFlow Std.Do
+open CoreModels Aeneas Aeneas.Std RustM ControlFlow Std.Do
 
 namespace libcrux_iot_ml_kem.Util.LoopSpecs
 open libcrux_iot_ml_kem.Util.SliceSpecs
@@ -78,7 +78,7 @@ theorem array_from_fn_eq_unfold5
         (fun (s : List T × F) (i : Nat) => do
           let __discr ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
           match __discr with
-          | (v, f') => Result.ok (s.1 ++ [v], f'))
+          | (v, f') => RustM.ok (s.1 ++ [v], f'))
         ([], f0) (List.range (5#usize).val)
       = .ok ([v0, v1, v2, v3, v4], f5) := by
     show List.foldlM _ ([], f0) (List.range 5) = _
@@ -98,7 +98,7 @@ theorem array_from_fn_eq_unfold5
     exact absurd heq_match (by simp)
   · rename_i result heq_match
     rw [h_fold] at heq_match
-    have hres : result = ([v0, v1, v2, v3, v4], f5) := (Result.ok.inj heq_match).symm
+    have hres : result = ([v0, v1, v2, v3, v4], f5) := (RustM.ok.inj heq_match).symm
     subst hres
     rfl
 
@@ -180,19 +180,19 @@ theorem IteratorRange_next_spec_usize (i e : Std.Usize) {Q}
 /-! ## `Usize` loop-over-range spec
 
 Specialized to `loop` over `core.ops.range.Range Usize`. An invariant
-`inv : Usize → β → Result Prop` is preserved by each step. Induction on
+`inv : Usize → β → RustM Prop` is preserved by each step. Induction on
 `(e.val - start.val)`. -/
 
 section loop_range_usize_helpers
 
 private abbrev ResultPSU := PostShape.except Error (PostShape.except PUnit PostShape.pure)
 
-private theorem triple_noThrow_elim_usize {α : Type} {x : Result α} {Q : α → Assertion ResultPSU}
+private theorem triple_noThrow_elim_usize {α : Type} {x : RustM α} {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) {v : α} (hv : x = ok v) :
     (Q v).down := by
   subst hv; simpa [Triple, WP.wp, PostCond.noThrow, PredTrans.apply] using h
 
-private theorem triple_noThrow_exists_ok_usize {α : Type} {x : Result α}
+private theorem triple_noThrow_exists_ok_usize {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) : ∃ v, x = ok v := by
   match x, h with
@@ -200,7 +200,7 @@ private theorem triple_noThrow_exists_ok_usize {α : Type} {x : Result α}
   | .fail _, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem triple_of_ok_usize {α : Type} {x : Result α} {v : α} {P : α → Prop}
+private theorem triple_of_ok_usize {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = ok v) (hp : P v) :
     (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
   subst hx; simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -210,8 +210,8 @@ end loop_range_usize_helpers
 set_option maxHeartbeats 2000000 in
 theorem loop_range_spec_usize {β : Type}
     (body : (CoreModels.core.ops.range.Range Std.Usize × β) →
-      Result (ControlFlow (CoreModels.core.ops.range.Range Std.Usize × β) β))
-    (init : β) (s e : Std.Usize) (inv : Std.Usize → β → Result Prop)
+      RustM (ControlFlow (CoreModels.core.ops.range.Range Std.Usize × β) β))
+    (init : β) (s e : Std.Usize) (inv : Std.Usize → β → RustM Prop)
     (h_le : s.val ≤ e.val)
     (h_init : (inv s init).holds)
     (h_step : ∀ acc (i : Std.Usize), s.val ≤ i.val → i.val ≤ e.val →
@@ -343,12 +343,12 @@ section loop_range_i32_helpers
 
 private abbrev ResultPS := PostShape.except Error (PostShape.except PUnit PostShape.pure)
 
-private theorem triple_noThrow_elim_i32 {α : Type} {x : Result α} {Q : α → Assertion ResultPS}
+private theorem triple_noThrow_elim_i32 {α : Type} {x : RustM α} {Q : α → Assertion ResultPS}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) {v : α} (hv : x = ok v) :
     (Q v).down := by
   subst hv; simpa [Triple, WP.wp, PostCond.noThrow, PredTrans.apply] using h
 
-private theorem triple_noThrow_exists_ok_i32 {α : Type} {x : Result α}
+private theorem triple_noThrow_exists_ok_i32 {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPS}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) : ∃ v, x = ok v := by
   match x, h with
@@ -356,7 +356,7 @@ private theorem triple_noThrow_exists_ok_i32 {α : Type} {x : Result α}
   | .fail _, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem triple_of_ok_i32 {α : Type} {x : Result α} {v : α} {P : α → Prop}
+private theorem triple_of_ok_i32 {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = ok v) (hp : P v) :
     (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
   subst hx; simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -366,8 +366,8 @@ end loop_range_i32_helpers
 set_option maxHeartbeats 2000000 in
 theorem loop_range_spec_i32 {β : Type}
     (body : (CoreModels.core.ops.range.Range Std.I32 × β) →
-      Result (ControlFlow (CoreModels.core.ops.range.Range Std.I32 × β) β))
-    (init : β) (s e : Std.I32) (inv : Std.I32 → β → Result Prop)
+      RustM (ControlFlow (CoreModels.core.ops.range.Range Std.I32 × β) β))
+    (init : β) (s e : Std.I32) (inv : Std.I32 → β → RustM Prop)
     (h_le : s.val ≤ e.val)
     (h_init : (inv s init).holds)
     (h_step : ∀ acc (i : Std.I32), s.val ≤ i.val → i.val ≤ e.val →

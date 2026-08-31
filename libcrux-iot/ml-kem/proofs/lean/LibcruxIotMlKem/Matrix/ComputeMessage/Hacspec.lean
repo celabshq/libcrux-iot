@@ -35,12 +35,12 @@ import LibcruxIotMlKem.Matrix.ComputeMessage.Bridges
     a root LOCAL def (identical to the pre-hax-2fedcb2b extraction) so `layer_n_at_eq` is
     unchanged; the closure hpure below bridges back to it. -/
 section NttInverseLayerNAtPort
-open CoreModels Aeneas Aeneas.Std Std.Do Result
+open CoreModels Aeneas Aeneas.Std Std.Do RustM
 
 def hacspec_ml_kem.invert_ntt.ntt_inverse_layer_n_at
     {N : Std.Usize} (p : Std.Array hacspec_ml_kem.parameters.FieldElement N) (len : Std.Usize)
     (zetas : Aeneas.Std.Slice hacspec_ml_kem.parameters.FieldElement) (i : Std.Usize) :
-    Result hacspec_ml_kem.parameters.FieldElement := do
+    RustM hacspec_ml_kem.parameters.FieldElement := do
   let i1 ← 2#usize * len
   let group ← i / i1
   let idx ← i % i1
@@ -899,7 +899,7 @@ private theorem reduce_polynomial_eq_ok
       let fe ← Std.Array.index_usize a ⟨BitVec.ofNat _ k⟩
       let fe1 ← hacspec_ml_kem.invert_ntt.INVERSE_OF_128
       let fe2 ← hacspec_ml_kem.parameters.FieldElement.mul fe fe1
-      Result.ok (fe2, a)) = Result.ok (f k, a)
+      RustM.ok (fe2, a)) = RustM.ok (f k, a)
     rw [h_a_idx]; simp only [bind_tc_ok]
     rw [h_inv]; simp only [bind_tc_ok]
     rw [h_mul]; simp only [bind_tc_ok, hf_def]
@@ -967,7 +967,7 @@ end InvertReduceC1
 section InvertButterfliesC2
 
 open libcrux_iot_ml_kem.Spec.Pure (Canonical)
-/-- The hacspec `ntt.ZETAS` table, unwrapped from `Result`. `ntt.ZETAS` is a
+/-- The hacspec `ntt.ZETAS` table, unwrapped from `RustM`. `ntt.ZETAS` is a
     pure `do`-chain of `FieldElement.new` (all `.ok`), so this is `.ok`-total;
     the fallback branch is unreachable. -/
 private noncomputable def zetasArr :
@@ -1007,34 +1007,34 @@ private theorem zetas_bridge_zmod (i : Nat) (hi : i < 128) :
     explicit per-lane array (`ntt_inverse_layer_n_eq_ok`). -/
 
 private theorem umul_ok' (a b : Std.Usize) (h : a.val * b.val ≤ Std.Usize.max) :
-    ∃ c : Std.Usize, (a * b : Result Std.Usize) = .ok c ∧ c.val = a.val * b.val := by
+    ∃ c : Std.Usize, (a * b : RustM Std.Usize) = .ok c ∧ c.val = a.val * b.val := by
   have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec a b)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
   exact ⟨v, h_eq, h_v⟩
 
 private theorem uadd_ok' (a b : Std.Usize) (h : a.val + b.val ≤ Std.Usize.max) :
-    ∃ c : Std.Usize, (a + b : Result Std.Usize) = .ok c ∧ c.val = a.val + b.val := by
+    ∃ c : Std.Usize, (a + b : RustM Std.Usize) = .ok c ∧ c.val = a.val + b.val := by
   have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec a b)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
   exact ⟨v, h_eq, h_v⟩
 
 private theorem usub_ok' (a b : Std.Usize) (h : b.val ≤ a.val) :
-    ∃ c : Std.Usize, (a - b : Result Std.Usize) = .ok c ∧ c.val = a.val - b.val := by
+    ∃ c : Std.Usize, (a - b : RustM Std.Usize) = .ok c ∧ c.val = a.val - b.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec a b)
     (fun e => by cases e <;> simp_all <;> omega) (by simp)
   obtain ⟨c, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨c, h_eq, h_v.1⟩
 
 private theorem udiv_ok' (a b : Std.Usize) (h : b.val ≠ 0) :
-    ∃ c : Std.Usize, (a / b : Result Std.Usize) = .ok c ∧ c.val = a.val / b.val := by
+    ∃ c : Std.Usize, (a / b : RustM Std.Usize) = .ok c ∧ c.val = a.val / b.val := by
   have hT := Std.UScalar.div_spec a h
   obtain ⟨v, h_eq, h_v⟩ := hT
   exact ⟨v, h_eq, h_v⟩
 
 private theorem umod_ok' (a b : Std.Usize) (h : b.val ≠ 0) :
-    ∃ c : Std.Usize, (a % b : Result Std.Usize) = .ok c ∧ c.val = a.val % b.val := by
+    ∃ c : Std.Usize, (a % b : RustM Std.Usize) = .ok c ∧ c.val = a.val % b.val := by
   have hT := Std.UScalar.rem_spec a h
   obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨v, h_eq, h_v⟩
@@ -1129,7 +1129,7 @@ private theorem layer_n_at_eq
 /-- `bind` distributes over `ite` (dedicated form — `apply_ite` won't higher-order
     match `Bind.bind (ite …) k`). -/
 private theorem res_bind_ite {α β : Type} (c : Prop) [Decidable c]
-    (a b : Result α) (g : α → Result β) :
+    (a b : RustM α) (g : α → RustM β) :
     (if c then a else b) >>= g = if c then a >>= g else b >>= g := by
   split <;> rfl
 
@@ -1197,7 +1197,7 @@ private theorem ntt_inverse_layer_n_eq_ok
         (hacspec_ml_kem.invert_ntt.ntt_inverse_layer_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement 256#usize).call_mut
           (len, s, p) ⟨BitVec.ofNat _ k⟩
         = (do let fe ← hacspec_ml_kem.invert_ntt.ntt_inverse_layer_n_at p len s ⟨BitVec.ofNat _ k⟩
-              Result.ok (fe, (len, s, p))) := by
+              RustM.ok (fe, (len, s, p))) := by
       change (do
           let i1 ← 2#usize * len
           let group ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) / i1
@@ -1208,16 +1208,16 @@ private theorem ntt_inverse_layer_n_eq_ok
               let i2 ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) + len
               let fe2 ← Std.Array.index_usize p i2
               let (fe3, _) ← hacspec_ml_kem.invert_ntt.inv_butterfly fe fe1 fe2
-              Result.ok (fe3, (len, s, p))
+              RustM.ok (fe3, (len, s, p))
             else do
               let fe ← Aeneas.Std.Slice.index_usize s group
               let i2 ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) - len
               let fe1 ← Std.Array.index_usize p i2
               let fe2 ← Std.Array.index_usize p ⟨BitVec.ofNat _ k⟩
               let (_, fe3) ← hacspec_ml_kem.invert_ntt.inv_butterfly fe fe1 fe2
-              Result.ok (fe3, (len, s, p)))
+              RustM.ok (fe3, (len, s, p)))
         = (do let fe ← hacspec_ml_kem.invert_ntt.ntt_inverse_layer_n_at p len s ⟨BitVec.ofNat _ k⟩
-              Result.ok (fe, (len, s, p)))
+              RustM.ok (fe, (len, s, p)))
       unfold hacspec_ml_kem.invert_ntt.ntt_inverse_layer_n_at
       simp [bind_assoc, res_bind_ite]
     rw [hconn, hlat]
@@ -1305,7 +1305,7 @@ private theorem ntt_inverse_layer_zetas_eq_ok (groups : Std.Usize)
       rw [if_neg hbr]
       show (do
           let fe ← hacspec_ml_kem.parameters.FieldElement.new 0#u16
-          Result.ok (fe, groups)) = _
+          RustM.ok (fe, groups)) = _
       unfold hacspec_ml_kem.parameters.FieldElement.new
       simp only [bind_tc_ok, hf_def, if_neg hbr']
   have h_from_fn :=
@@ -1370,8 +1370,8 @@ set_option maxHeartbeats 1000000 in
 private theorem ntt_inverse_layer_eq_ok
     (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (layer len groups : Std.Usize)
-    (hlen_def : (1#usize <<< layer : Result Std.Usize) = .ok len)
-    (hgroups_def : (128#usize / len : Result Std.Usize) = .ok groups)
+    (hlen_def : (1#usize <<< layer : RustM Std.Usize) = .ok len)
+    (hgroups_def : (128#usize / len : RustM Std.Usize) = .ok groups)
     (hlenpos : 0 < len.val) (hlen2 : 2 ≤ len.val) (hlen128 : len.val ≤ 128)
     (hgroups : groups.val = 128 / len.val)
     (hpart_slice : ∀ i : Nat, i < 256 → i / (2 * len.val) < groups.val)
@@ -1538,7 +1538,7 @@ private theorem chunk_inv_ntt_layer_3_step_lane
 
 /-- `(1#usize <<< n)` succeeds with value `2^n.val` (for `n.val < numBits`). -/
 private theorem shl_one_ok (n : Std.Usize) (hn : n.val < UScalarTy.Usize.numBits) :
-    ∃ len : Std.Usize, (1#usize <<< n : Result Std.Usize) = .ok len ∧ len.val = 2 ^ n.val := by
+    ∃ len : Std.Usize, (1#usize <<< n : RustM Std.Usize) = .ok len ∧ len.val = 2 ^ n.val := by
   have h_one_shl_pow : ((1#usize : Std.Usize).val <<< n.val) < 2 ^ System.Platform.numBits := by
     have h_one_eq : (1#usize : Std.Usize).val = 1 := rfl
     rw [h_one_eq, Nat.shiftLeft_eq, Nat.one_mul]
@@ -1564,7 +1564,7 @@ private theorem numbits_ge (n : Nat) (hn : n ≤ 7) : n < UScalarTy.Usize.numBit
 
 /-- `128#usize / len` succeeds with value `128 / len.val` (for `len.val ≠ 0`). -/
 private theorem div128_ok (len : Std.Usize) (hlen : len.val ≠ 0) :
-    ∃ g : Std.Usize, (128#usize / len : Result Std.Usize) = .ok g ∧ g.val = 128 / len.val := by
+    ∃ g : Std.Usize, (128#usize / len : RustM Std.Usize) = .ok g ∧ g.val = 128 / len.val := by
   have hT := Std.UScalar.div_spec (128#usize : Std.Usize) hlen
   obtain ⟨g, h_eq, h_v⟩ := hT
   exact ⟨g, h_eq, by simpa using h_v⟩
@@ -1911,8 +1911,8 @@ set_option maxHeartbeats 1000000 in
 private theorem ntt_inverse_layer_4_plus_match
     (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize)
     (zeta_i layer : Std.Usize) (lenu groups : Std.Usize) (step : Nat)
-    (hlen_def : (1#usize <<< layer : Result Std.Usize) = .ok lenu)
-    (hgroups_def : (128#usize / lenu : Result Std.Usize) = .ok groups)
+    (hlen_def : (1#usize <<< layer : RustM Std.Usize) = .ok lenu)
+    (hgroups_def : (128#usize / lenu : RustM Std.Usize) = .ok groups)
     (hstep : step = (1 <<< layer.val) / 16) (hlenv : lenu.val = 16 * step)
     (hstep_pos : 0 < step) (hdvd : (2 * step) ∣ 16)
     (hlen2 : 2 ≤ lenu.val) (hlen128 : lenu.val ≤ 128)
@@ -2232,11 +2232,11 @@ private theorem sub_polynomials_eq_ok
       let i6 ← i4 % i5
       let i7 ← lift (Std.UScalar.cast .U16 i6)
       let fe2 ← hacspec_ml_kem.parameters.FieldElement.new i7
-      Result.ok (fe2, a, c)) = Result.ok (f k, a, c)
+      RustM.ok (fe2, a, c)) = RustM.ok (f k, a, c)
     rw [h_a_idx]; simp only [bind_tc_ok]
     rw [h_c_idx]; simp only [bind_tc_ok]
     unfold hacspec_ml_kem.parameters.FieldElement.sub at h_sub
-    have hchain := congrArg (· >>= fun fe2 => Result.ok (fe2, a, c)) h_sub
+    have hchain := congrArg (· >>= fun fe2 => RustM.ok (fe2, a, c)) h_sub
     simp only [bind_assoc, bind_tc_ok] at hchain
     rw [hchain, hf_def]
   unfold hacspec_ml_kem.matrix.sub_polynomials

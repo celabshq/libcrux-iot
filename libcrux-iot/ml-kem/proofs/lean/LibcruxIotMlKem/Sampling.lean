@@ -30,7 +30,7 @@ open libcrux_iot_ml_kem.Spec
 
 /-- prepends `(i, j)` to the 32-byte seed, runs `sample_from_xof`
     (rejection sampling on uniform [0, 2^12-1)), then `from_i16_array`
-    into `out`. Result has |coeff| ≤ 3328 (rejection sampling discards
+    into `out`. RustM has |coeff| ≤ 3328 (rejection sampling discards
     values ≥ 3329). -/
 @[spec]
 axiom sample_matrix_entry_fc

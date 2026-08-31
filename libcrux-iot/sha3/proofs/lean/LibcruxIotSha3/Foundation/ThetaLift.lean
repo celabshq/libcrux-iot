@@ -49,7 +49,7 @@ theorem theta_lift_spec (s : state.KeccakState) :
         result_eq_of_triple (theta_spec (lift s))]
   -- Goal: (do let r_spec ← .ok (theta_applied (lift s)); pure (...)).holds
   -- which reduces to: theta_applied (lift s) = lift_theta_applied r_impl.
-  show ⦃⌜True⌝⦄ Result.ok (theta_applied (lift s) = lift_theta_applied r_impl) ⦃PostCond.noThrow fun p => ⌜p⌝⦄
+  show ⦃⌜True⌝⦄ RustM.ok (theta_applied (lift s) = lift_theta_applied r_impl) ⦃PostCond.noThrow fun p => ⌜p⌝⦄
   simp [Std.Do.Triple, Std.Do.WP.wp]
   show theta_applied (lift s) = lift_theta_applied r_impl
   obtain ⟨hst, _, hd0z0, hd0z1, hd1z0, hd1z1, hd2z0, hd2z1,

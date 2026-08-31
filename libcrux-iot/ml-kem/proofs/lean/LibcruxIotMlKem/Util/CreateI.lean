@@ -48,7 +48,7 @@ import LibcruxIotMlKem.Util.SliceSpecs
 import HacspecSha3.Extraction.Funs
 import HacspecMlKem.Extraction.Funs
 
-open CoreModels Aeneas Aeneas.Std Result Std.Do
+open CoreModels Aeneas Aeneas.Std RustM Std.Do
 open hacspec_ml_kem.parameters (createi)
 
 namespace libcrux_iot_ml_kem.Util.CreateI
@@ -69,7 +69,7 @@ private theorem createi_foldlM_pure_aux
     l.foldlM
       (fun (s : List T × F) (i : Nat) => do
         let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        Result.ok (s.1 ++ [v], f'))
+        RustM.ok (s.1 ++ [v], f'))
       (acc, c) = .ok (acc ++ l.map f, c) := by
   induction l generalizing acc with
   | nil =>
@@ -110,7 +110,7 @@ theorem createi_pure_eq
   · rename_i result heq
     rw [h_fold] at heq
     have hres : result = ((List.range N.val).map f, c) :=
-      (Result.ok.inj heq).symm
+      (RustM.ok.inj heq).symm
     subst hres
     rfl
 
@@ -163,7 +163,7 @@ private theorem from_fn_foldlM_pure_aux
     l.foldlM
       (fun (s : List T × F) (i : Nat) => do
         let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        Result.ok (s.1 ++ [v], f'))
+        RustM.ok (s.1 ++ [v], f'))
       (acc, c) = .ok (acc ++ l.map f, c) := by
   induction l generalizing acc with
   | nil =>
@@ -202,7 +202,7 @@ theorem from_fn_pure_eq
   · rename_i result heq
     rw [h_fold] at heq
     have hres : result = ((List.range N.val).map f, c) :=
-      (Result.ok.inj heq).symm
+      (RustM.ok.inj heq).symm
     subst hres
     rfl
 

@@ -27,7 +27,7 @@
 -/
 import LibcruxIotSha3.Sponge.AbsorbBlock
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -41,13 +41,13 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 /-! ## `keccak.absorb_final` ↔ `sponge.absorb_final`. -/
 
 /-- Local triple-of-ok helper. -/
-private theorem triple_of_ok_af {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_af {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
 
 /-- Local existence extractor. -/
-private theorem triple_exists_ok_af {α : Type} {x : Result α}
+private theorem triple_exists_ok_af {α : Type} {x : RustM α}
     {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
@@ -188,11 +188,11 @@ theorem keccak.absorb_final_spec
   -- Step values shared across branches.
   set buf0 : Std.Array Std.U8 200#usize := Std.Array.repeat 200#usize 0#u8 with hbuf0_def
   have h_classify_buf0 : libcrux_secrets.traits.Classify.Blanket.classify buf0
-                        = (Result.ok buf0 : Result _) := rfl
+                        = (RustM.ok buf0 : RustM _) := rfl
   have h_classify_DELIM : libcrux_secrets.traits.Classify.Blanket.classify DELIM
-                        = (Result.ok DELIM : Result _) := rfl
+                        = (RustM.ok DELIM : RustM _) := rfl
   have h_buf0_len : buf0.val.length = 200 := buf0.property
-  have h_lift_or_eq : ∀ x : Std.U8, (Std.lift (x ||| 128#u8) : Result Std.U8) = .ok (x ||| 128#u8) := by
+  have h_lift_or_eq : ∀ x : Std.U8, (Std.lift (x ||| 128#u8) : RustM Std.U8) = .ok (x ||| 128#u8) := by
     intro x; rfl
   have h_ma : massert (len < RATE) = .ok () := by
     unfold massert
@@ -257,7 +257,7 @@ theorem keccak.absorb_final_spec
     unfold Std.lift
     show (do
             let s1 ← (do
-                        let s2 ← (Result.ok (Std.Array.to_slice buf3) : Result (Slice Std.U8))
+                        let s2 ← (RustM.ok (Std.Array.to_slice buf3) : RustM (Slice Std.U8))
                         state.load_block_2u32 RATE s s2 0#usize)
             keccak.keccakf1600 s1) = _
     simp only [bind_tc_ok]
@@ -280,7 +280,7 @@ theorem keccak.absorb_final_spec
               CoreModels.core.slice.Slice.copy_from_slice
                 CoreModels.core.U8.Insts.CoreMarkerCopy s s2
             ok (index_mut_back s3))
-        else (ok buf0 : Result (Std.Array Std.U8 200#usize)))
+        else (ok buf0 : RustM (Std.Array Std.U8 200#usize)))
         = .ok buf1 := by
     by_cases hlen : (len > 0#usize)
     · rw [if_pos hlen]
@@ -345,7 +345,7 @@ theorem keccak.absorb_final_spec
         show last.val.slice start.val i_sl.val = _
         rw [show i_sl.val = start.val + len.val from h_i_sl_val]
       apply Eq.symm
-      show (Result.ok buf1 : Result (Std.Array Std.U8 200#usize)) = Result.ok (write_back w)
+      show (RustM.ok buf1 : RustM (Std.Array Std.U8 200#usize)) = RustM.ok (write_back w)
       congr 1
       apply Subtype.ext
       show buf1.val = (write_back w).val
@@ -360,7 +360,7 @@ theorem keccak.absorb_final_spec
         have hle : ¬ (0 < len.val) := fun h => hlen ((Std.UScalar.lt_equiv 0#usize len).mpr (by show 0 < len.val; exact h))
         omega
       apply Eq.symm
-      show (Result.ok buf1 : Result (Std.Array Std.U8 200#usize)) = Result.ok buf0
+      show (RustM.ok buf1 : RustM (Std.Array Std.U8 200#usize)) = RustM.ok buf0
       congr 1
       apply Subtype.ext
       show buf1.val = buf0.val

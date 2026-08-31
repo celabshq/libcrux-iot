@@ -33,8 +33,8 @@ open libcrux_iot_ml_kem.InvertNtt libcrux_iot_ml_kem.Matrix.Common libcrux_iot_m
 
 /-- Local copy of `Spec.Pure.uscalar_rem_ok_U32` (private there). -/
 private theorem uscalar_rem_ok_U32 (z m : Std.U32) (hm : m.val ≠ 0) :
-    ∃ w : Std.U32, (z % m : Result Std.U32) = .ok w ∧ w.val = z.val % m.val := by
-  have heq : (z % m : Result Std.U32) = Std.UScalar.rem z m := rfl
+    ∃ w : Std.U32, (z % m : RustM Std.U32) = .ok w ∧ w.val = z.val % m.val := by
+  have heq : (z % m : RustM Std.U32) = Std.UScalar.rem z m := rfl
   unfold Std.UScalar.rem at heq
   simp [hm] at heq
   refine ⟨_, heq, ?_⟩
@@ -60,8 +60,8 @@ private theorem mul_pure_val_eq
   have hxval : x.val = a.val.val := Std.U16.cast_U32_val_eq a.val
   have hyval : y.val = b.val.val := Std.U16.cast_U32_val_eq b.val
   have hae := Std.UScalar.mul_equiv x y
-  have heqmul : (x * y : Result Std.U32) = Std.UScalar.mul x y := rfl
-  cases hxy : (x * y : Result Std.U32) with
+  have heqmul : (x * y : RustM Std.U32) = Std.UScalar.mul x y := rfl
+  cases hxy : (x * y : RustM Std.U32) with
   | ok z =>
     rw [hxy] at hmul
     rw [heqmul] at hxy; rw [hxy] at hae; simp at hae
@@ -189,13 +189,13 @@ private theorem sub_pure_val_eq
     show (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS).val = 3329
     unfold hacspec_ml_kem.parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.add_equiv x q
-  cases hxq : (x + q : Result Std.U32) with
+  cases hxq : (x + q : RustM Std.U32) with
   | ok s =>
     rw [hxq] at hae hsub; simp at hae
     obtain ⟨_, hsval, _⟩ := hae
     simp only [Aeneas.Std.bind_tc_ok] at hsub
     have hae2 := Std.UScalar.sub_equiv s y
-    cases hsy : (s - y : Result Std.U32) with
+    cases hsy : (s - y : RustM Std.U32) with
     | ok u =>
       rw [hsy] at hae2 hsub; simp at hae2
       obtain ⟨_hyle, hsuy, _⟩ := hae2

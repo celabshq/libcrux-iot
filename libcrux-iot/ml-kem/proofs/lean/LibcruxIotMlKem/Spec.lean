@@ -6,7 +6,7 @@
   `ring`/`field_simp` close the algebraic commute lemmas without
   poking raw `% 3329` arithmetic.
 
-  No `Aeneas.Std.Result`, no `mvcgen`, no impl-side Triple
+  No `Aeneas.Std.RustM`, no `mvcgen`, no impl-side Triple
   obligations — only `Vector`, `ZMod 3329`, and the `bit_<op>`
   function signatures whose algebraic equivalence to the hacspec
   spec lives.
@@ -20,7 +20,7 @@
     `elements : Array Std.I16 16` field accessed directly via
     `re.coefficients.val[i]!.elements.val[j]!`. The lift functions
     therefore specialize to `PortableVector`.
-  - hacspec spec functions return `Result`; bit-side `bit_<op>` are
+  - hacspec spec functions return `RustM`; bit-side `bit_<op>` are
     pure; `AlgEquiv` bridges via `Spec.<op>_pure` aliases.
   - The NTT family (`bit_ntt`, `bit_ntt_layer_*`, `bit_invert_ntt_*`,
     `bit_butterfly`, …) ships as identity placeholders so downstream
@@ -348,7 +348,7 @@ def bit_subtract_reduce (p q : MontPoly) : MontPoly :=
 
 /-- `#26 bit_compress`: compression by `d` bits. Real body: per-lane
     `(2^d · x + ⌈q/2⌉) / q mod 2^d`. M.4 fills it (the spec uses
-    `Result` plumbing; the bit-side version is pure). -/
+    `RustM` plumbing; the bit-side version is pure). -/
 def bit_compress (_p : MontPoly) (_d : Nat) : Vector (ZMod 3329) 256 :=
   Vector.replicate 256 (0 : ZMod 3329)
   -- replace with real per-lane compression body; return type

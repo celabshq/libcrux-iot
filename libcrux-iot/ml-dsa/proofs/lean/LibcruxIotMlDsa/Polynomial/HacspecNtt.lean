@@ -22,7 +22,7 @@
 import LibcruxIotMlDsa.Spec.HacspecBridge
 import LibcruxIotMlDsa.Polynomial.Ntt
 
-open CoreModels Aeneas Aeneas.Std Result Std.Do
+open CoreModels Aeneas Aeneas.Std RustM Std.Do
 open libcrux_iot_ml_dsa.Spec
 open libcrux_iot_ml_dsa.Spec.Parameters
 open libcrux_iot_ml_dsa.Spec.Lift libcrux_iot_ml_dsa.Spec.Montgomery
@@ -73,7 +73,7 @@ theorem usize_val (n : Nat) (h : n < 65536) :
 
 /-- `x <<< y = 2^(y.val)` as a `usize` (`y.val ≤ 15`). -/
 theorem usize_shl (x y : Std.Usize) (n : Nat) (hx : x.val = 1) (hy : y.val = n) (hn : n ≤ 15) :
-    ∃ z : Std.Usize, (x <<< y : Result Std.Usize) = .ok z ∧ z.val = 2 ^ n := by
+    ∃ z : Std.Usize, (x <<< y : RustM Std.Usize) = .ok z ∧ z.val = 2 ^ n := by
   have hcond : y.val < UScalarTy.Usize.numBits := by
     rw [hy]; show n < System.Platform.numBits; have := nb16; omega
   refine ⟨⟨x.bv.shiftLeft y.val⟩, ?_, ?_⟩
@@ -90,7 +90,7 @@ theorem usize_shl (x y : Std.Usize) (n : Nat) (hx : x.val = 1) (hy : y.val = n) 
 /-- `x * y` as a `usize` (product `< 2¹⁶`). -/
 theorem usize_mul (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b)
     (hab : a * b < 65536) :
-    ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = a * b := by
+    ∃ z : Std.Usize, (x * y : RustM Std.Usize) = .ok z ∧ z.val = a * b := by
   have hmax : x.val * y.val ≤ UScalar.max .Usize := by
     rw [hx, hy, UScalar.max_USize_eq, Usize.max, Usize.numBits]
     have := usize_pow16_le; omega
@@ -99,14 +99,14 @@ theorem usize_mul (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b
 
 /-- `x / y` as a `usize` (`y.val ≠ 0`). -/
 theorem usize_div (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b) (hbnz : b ≠ 0) :
-    ∃ z : Std.Usize, (x / y : Result Std.Usize) = .ok z ∧ z.val = a / b := by
+    ∃ z : Std.Usize, (x / y : RustM Std.Usize) = .ok z ∧ z.val = a / b := by
   have hbnz' : y.val ≠ (0 : Nat) := by rw [hy]; exact hbnz
   obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.UScalar.div_spec _ hbnz'
   exact ⟨z, hz_eq, by rw [hz_val, hx, hy]⟩
 
 /-- `x % y` as a `usize` (`y.val ≠ 0`). -/
 theorem usize_rem (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b) (hbnz : b ≠ 0) :
-    ∃ z : Std.Usize, (x % y : Result Std.Usize) = .ok z ∧ z.val = a % b := by
+    ∃ z : Std.Usize, (x % y : RustM Std.Usize) = .ok z ∧ z.val = a % b := by
   have hbnz' : y.val ≠ (0 : Nat) := by rw [hy]; exact hbnz
   obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.UScalar.rem_spec _ hbnz')
   exact ⟨z, hz_eq, by rw [hz_val, hx, hy]⟩
@@ -114,7 +114,7 @@ theorem usize_rem (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b
 /-- `x + y` as a `usize` (sum `< 2¹⁶`). -/
 theorem usize_add (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b)
     (hab : a + b < 65536) :
-    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = a + b := by
+    ∃ z : Std.Usize, (x + y : RustM Std.Usize) = .ok z ∧ z.val = a + b := by
   have hmax : x.val + y.val ≤ UScalar.max .Usize := by
     rw [hx, hy, UScalar.max_USize_eq, Usize.max, Usize.numBits]
     have := usize_pow16_le; omega
@@ -125,7 +125,7 @@ theorem usize_add (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b
 
 /-- `x - y` as a `usize` (`y.val ≤ x.val`). -/
 theorem usize_sub (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b) (hba : b ≤ a) :
-    ∃ z : Std.Usize, (x - y : Result Std.Usize) = .ok z ∧ z.val = a - b := by
+    ∃ z : Std.Usize, (x - y : RustM Std.Usize) = .ok z ∧ z.val = a - b := by
   have hle : y.val ≤ x.val := by rw [hx, hy]; exact hba
   obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists
     (Std.WP.spec_of_partialSpec (@Std.UScalar.sub_spec _ x y)
@@ -203,7 +203,7 @@ private theorem i32_i64_bound (z : Std.I32) (w : Std.I64) (hw : w.val = z.val) :
 /-- The product of two i64s, each holding an i32 value, fits in i64. -/
 private theorem i64_mul_ok (a b : Std.I64) (za zb : Std.I32)
     (ha : a.val = za.val) (hb : b.val = zb.val) :
-    ∃ s : Std.I64, (a * b : Result Std.I64) = .ok s ∧ s.val = a.val * b.val := by
+    ∃ s : Std.I64, (a * b : RustM Std.I64) = .ok s ∧ s.val = a.val * b.val := by
   obtain ⟨ha1, ha2⟩ := i32_i64_bound za a ha
   obtain ⟨hb1, hb2⟩ := i32_i64_bound zb b hb
   have hlo : (-4611686018427387904 : Int) ≤ a.val * b.val := by nlinarith
@@ -221,7 +221,7 @@ private theorem i64_mul_ok (a b : Std.I64) (za zb : Std.I32)
 /-- The sum of an i64 holding an i32 value and an i64 holding a `[0,Q)` value fits. -/
 private theorem i64_add_canon_ok (a b : Std.I64) (za : Std.I32)
     (ha : a.val = za.val) (hb0 : 0 ≤ b.val) (hbQ : b.val < (Q : Int)) :
-    ∃ s : Std.I64, (a + b : Result Std.I64) = .ok s ∧ s.val = a.val + b.val := by
+    ∃ s : Std.I64, (a + b : RustM Std.I64) = .ok s ∧ s.val = a.val + b.val := by
   obtain ⟨ha1, ha2⟩ := i32_i64_bound za a ha
   have hQ : (Q : Int) = 8380417 := by norm_num [Q]
   rw [hQ] at hbQ
@@ -239,7 +239,7 @@ private theorem i64_add_canon_ok (a b : Std.I64) (za : Std.I32)
 /-- The difference of an i64 holding an i32 value and an i64 holding a `[0,Q)` value fits. -/
 private theorem i64_sub_canon_ok (a b : Std.I64) (za : Std.I32)
     (ha : a.val = za.val) (hb0 : 0 ≤ b.val) (hbQ : b.val < (Q : Int)) :
-    ∃ s : Std.I64, (a - b : Result Std.I64) = .ok s ∧ s.val = a.val - b.val := by
+    ∃ s : Std.I64, (a - b : RustM Std.I64) = .ok s ∧ s.val = a.val - b.val := by
   obtain ⟨ha1, ha2⟩ := i32_i64_bound za a ha
   have hQ : (Q : Int) = 8380417 := by norm_num [Q]
   rw [hQ] at hbQ
@@ -257,7 +257,7 @@ private theorem i64_sub_canon_ok (a b : Std.I64) (za : Std.I32)
 /-- The sum of two i64s, each holding a `[0,Q)` value, fits in i64. -/
 private theorem i64_add_two_canon_ok (a b : Std.I64)
     (ha0 : 0 ≤ a.val) (haQ : a.val < (Q : Int)) (hb0 : 0 ≤ b.val) (hbQ : b.val < (Q : Int)) :
-    ∃ s : Std.I64, (a + b : Result Std.I64) = .ok s ∧ s.val = a.val + b.val := by
+    ∃ s : Std.I64, (a + b : RustM Std.I64) = .ok s ∧ s.val = a.val + b.val := by
   have hQ : (Q : Int) = 8380417 := by norm_num [Q]
   rw [hQ] at haQ hbQ
   have hmin : Aeneas.Std.IScalar.min .I64 ≤ a.val + b.val := by
@@ -274,7 +274,7 @@ private theorem i64_add_two_canon_ok (a b : Std.I64)
 /-- The sum of two i64s, each holding an i32 value, fits in i64. -/
 private theorem i64_add_i32_ok (a b : Std.I64) (za zb : Std.I32)
     (ha : a.val = za.val) (hb : b.val = zb.val) :
-    ∃ s : Std.I64, (a + b : Result Std.I64) = .ok s ∧ s.val = a.val + b.val := by
+    ∃ s : Std.I64, (a + b : RustM Std.I64) = .ok s ∧ s.val = a.val + b.val := by
   obtain ⟨ha1, ha2⟩ := i32_i64_bound za a ha
   obtain ⟨hb1, hb2⟩ := i32_i64_bound zb b hb
   have hmin : Aeneas.Std.IScalar.min .I64 ≤ a.val + b.val := by
@@ -291,7 +291,7 @@ private theorem i64_add_i32_ok (a b : Std.I64) (za zb : Std.I32)
 /-- The difference of two i64s, each holding an i32 value, fits in i64. -/
 private theorem i64_sub_i32_ok (a b : Std.I64) (za zb : Std.I32)
     (ha : a.val = za.val) (hb : b.val = zb.val) :
-    ∃ s : Std.I64, (a - b : Result Std.I64) = .ok s ∧ s.val = a.val - b.val := by
+    ∃ s : Std.I64, (a - b : RustM Std.I64) = .ok s ∧ s.val = a.val - b.val := by
   obtain ⟨ha1, ha2⟩ := i32_i64_bound za a ha
   obtain ⟨hb1, hb2⟩ := i32_i64_bound zb b hb
   have hmin : Aeneas.Std.IScalar.min .I64 ≤ a.val - b.val := by
@@ -316,7 +316,7 @@ private theorem castQ_i64 :
 
 /-- i64 `% Q`: succeeds, residue-preserving in `Z_q`, result in `(−Q, Q)`. -/
 private theorem i64_rem_Q (a : Std.I64) (q : Std.I64) (hq : q.val = 8380417) :
-    ∃ s : Std.I64, (a % q : Result Std.I64) = .ok s
+    ∃ s : Std.I64, (a % q : RustM Std.I64) = .ok s
       ∧ ((s.val : Int) : Zq) = ((a.val : Int) : Zq)
       ∧ -8380417 < s.val ∧ s.val < 8380417 := by
   have hqnz : q.val ≠ (0 : Int) := by rw [hq]; decide
@@ -340,7 +340,7 @@ private theorem i64_rem_Q (a : Std.I64) (q : Std.I64) (hq : q.val = 8380417) :
     two i32 values fits in i64. -/
 private theorem i64_mul_canon_diff_ok (a b : Std.I64) (zb1 zb2 : Std.I32)
     (ha0 : -8380417 < a.val) (haQ : a.val < 8380417) (hb : b.val = zb1.val - zb2.val) :
-    ∃ s : Std.I64, (a * b : Result Std.I64) = .ok s ∧ s.val = a.val * b.val := by
+    ∃ s : Std.I64, (a * b : RustM Std.I64) = .ok s ∧ s.val = a.val * b.val := by
   obtain ⟨hb1lo, hb1hi⟩ := Aeneas.Std.IScalar.hBounds zb1
   obtain ⟨hb2lo, hb2hi⟩ := Aeneas.Std.IScalar.hBounds zb2
   simp only [IScalarTy.I32_numBits_eq] at hb1lo hb1hi hb2lo hb2hi
@@ -463,7 +463,7 @@ theorem ntt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat) 
           let i11 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 t)
           let i12 ← i10 + i11
           let i13 ← hacspec_ml_dsa.arithmetic.mod_q i12
-          Result.ok (i13, (len_z, k_z, p))
+          RustM.ok (i13, (len_z, k_z, p))
         else
           let i5 ← Aeneas.Std.Array.index_usize p ⟨BitVec.ofNat _ i⟩
           let i6 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i5)
@@ -475,7 +475,7 @@ theorem ntt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat) 
           let i11 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 t)
           let i12 ← i10 - i11
           let i13 ← hacspec_ml_dsa.arithmetic.mod_q i12
-          Result.ok (i13, (len_z, k_z, p)))
+          RustM.ok (i13, (len_z, k_z, p)))
       = .ok (f i, (len_z, k_z, p))
     rw [htl_eq]; simp only [bind_tc_ok]
     rw [hround_eq]; simp only [bind_tc_ok]
@@ -697,7 +697,7 @@ theorem intt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat)
           let i7 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i6)
           let i8 ← i4 + i7
           let i9 ← hacspec_ml_dsa.arithmetic.mod_q i8
-          Result.ok (i9, (len_z, p, k_z))
+          RustM.ok (i9, (len_z, p, k_z))
         else
           let i3 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 hacspec_ml_dsa.parameters.Q)
           let i4 ← k_z - round
@@ -714,7 +714,7 @@ theorem intt_layer_bridge (p : Aeneas.Std.Array Std.I32 256#usize) (layer : Nat)
           let i14 ← i11 - i13
           let i15 ← z * i14
           let i16 ← hacspec_ml_dsa.arithmetic.mod_q i15
-          Result.ok (i16, (len_z, p, k_z)))
+          RustM.ok (i16, (len_z, p, k_z)))
       = .ok (f i, (len_z, p, k_z))
     rw [htl_eq]; simp only [bind_tc_ok]
     rw [hround_eq]; simp only [bind_tc_ok]
@@ -890,7 +890,7 @@ private theorem reduce_getElem (p : Aeneas.Std.Array Std.I32 256#usize) (i : Nat
 /-- The product `8347681#i64 * (i32 value as i64)` fits in i64. -/
 private theorem i64_mul_const_ok (a : Std.I64) (za : Std.I32)
     (ha : a.val = za.val) :
-    ∃ s : Std.I64, ((8347681#i64) * a : Result Std.I64) = .ok s
+    ∃ s : Std.I64, ((8347681#i64) * a : RustM Std.I64) = .ok s
       ∧ s.val = (8347681 : Int) * a.val := by
   obtain ⟨ha1, ha2⟩ := i32_i64_bound za a ha
   have hc : (8347681#i64 : Std.I64).val = (8347681 : Int) := by decide
@@ -928,7 +928,7 @@ theorem reduce_polynomial_bridge (p : Aeneas.Std.Array Std.I32 256#usize) :
         let i2 ← Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I64 i1)
         let i3 ← (8347681#i64) * i2
         let i4 ← hacspec_ml_dsa.arithmetic.mod_q i3
-        Result.ok (i4, (8347681#i64, p))) = .ok (f i, (8347681#i64, p))
+        RustM.ok (i4, (8347681#i64, p))) = .ok (f i, (8347681#i64, p))
     rw [idx_ok p i hi']; simp only [bind_tc_ok]
     obtain ⟨wpi, hwpi_eq, hwpi_val⟩ := cast_i64_ok (p.val[i]!)
     rw [hwpi_eq]; simp only [bind_tc_ok]
@@ -1070,7 +1070,7 @@ stripped — `·RINV`). -/
 
 /-- Triple ↔ `.ok` reflection (file-scoped §13.5 copy). -/
 private theorem triple_exists_ok
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -1081,7 +1081,7 @@ private theorem triple_exists_ok
 
 /-- `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v` (file-scoped §13.5 copy). -/
 private theorem triple_of_ok
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]

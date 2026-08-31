@@ -22,7 +22,7 @@
 import LibcruxIotSha3.Composition.ViaBit
 import LibcruxIotSha3.Foundation.I32LoopSpec
 
-open Aeneas Aeneas.Std Result ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
 open libcrux_iot_sha3.Foundation
 
 namespace libcrux_iot_sha3.Composition
@@ -82,7 +82,7 @@ theorem array_from_fn_eq_unfold5
         (fun (s : List T × F) (i : Nat) => do
           let __discr ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
           match __discr with
-          | (v, f') => Result.ok (s.1 ++ [v], f'))
+          | (v, f') => RustM.ok (s.1 ++ [v], f'))
         ([], f0) (List.range (5#usize).val)
       = .ok ([v0, v1, v2, v3, v4], f5) := by
     show List.foldlM _ ([], f0) (List.range 5) = _
@@ -102,7 +102,7 @@ theorem array_from_fn_eq_unfold5
     exact absurd heq_match (by simp)
   · rename_i result heq_match
     rw [h_fold] at heq_match
-    have hres : result = ([v0, v1, v2, v3, v4], f5) := (Result.ok.inj heq_match).symm
+    have hres : result = ([v0, v1, v2, v3, v4], f5) := (RustM.ok.inj heq_match).symm
     subst hres
     rfl
 
@@ -111,7 +111,7 @@ theorem array_from_fn_eq_unfold5
 Mirrors `keccak_f.keccak_f_loop.body` (the `Some round` branch). -/
 
 def spec_round_step_hacspec (state : Std.Array Std.U64 25#usize) (round : Std.Usize) :
-    Result (Std.Array Std.U64 25#usize) := do
+    RustM (Std.Array Std.U64 25#usize) := do
   let a ← keccak_f.theta state
   let a1 ← keccak_f.rho a
   let a2 ← keccak_f.pi a1
@@ -193,19 +193,19 @@ theorem IteratorRange_next_spec_usize (i e : Std.Usize) {Q}
 /-! ## `Usize` loop-over-range spec (analog of `loop_range_spec_i32`)
 
 Specialized to `loop` over `core.ops.range.Range Usize`. Same shape as the
-`I32` version: an invariant `inv : Usize → β → Result Prop` is preserved by
+`I32` version: an invariant `inv : Usize → β → RustM Prop` is preserved by
 each step. Induction on `(e.val - start.val).toNat`. -/
 
 section loop_range_usize_helpers
 
 private abbrev ResultPSU := PostShape.except Error (PostShape.except PUnit PostShape.pure)
 
-private theorem triple_noThrow_elim_usize {α : Type} {x : Result α} {Q : α → Assertion ResultPSU}
+private theorem triple_noThrow_elim_usize {α : Type} {x : RustM α} {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) {v : α} (hv : x = ok v) :
     (Q v).down := by
   subst hv; simpa [Triple, WP.wp, PredTrans.apply] using h
 
-private theorem triple_noThrow_exists_ok_usize {α : Type} {x : Result α}
+private theorem triple_noThrow_exists_ok_usize {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) : ∃ v, x = ok v := by
   match x, h with
@@ -213,7 +213,7 @@ private theorem triple_noThrow_exists_ok_usize {α : Type} {x : Result α}
   | .fail _, h => exact absurd h (by simp [Triple, WP.wp, PredTrans.apply])
   | .div, h => exact absurd h (by simp [Triple, WP.wp, PredTrans.apply])
 
-private theorem triple_of_ok_usize {α : Type} {x : Result α} {v : α} {P : α → Prop}
+private theorem triple_of_ok_usize {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = ok v) (hp : P v) :
     (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
   subst hx; simp [Triple, WP.wp, PredTrans.apply, hp]
@@ -223,8 +223,8 @@ end loop_range_usize_helpers
 set_option maxHeartbeats 2000000 in
 theorem loop_range_spec_usize {β : Type}
     (body : (CoreModels.core.ops.range.Range Std.Usize × β) →
-      Result (ControlFlow (CoreModels.core.ops.range.Range Std.Usize × β) β))
-    (init : β) (s e : Std.Usize) (inv : Std.Usize → β → Result Prop)
+      RustM (ControlFlow (CoreModels.core.ops.range.Range Std.Usize × β) β))
+    (init : β) (s e : Std.Usize) (inv : Std.Usize → β → RustM Prop)
     (h_le : s.val ≤ e.val)
     (h_init : (inv s init).holds)
     (h_step : ∀ acc (i : Std.Usize), s.val ≤ i.val → i.val ≤ e.val →
@@ -282,12 +282,12 @@ theorem loop_range_spec_usize {β : Type}
 Mirrors `spec_chain` (from `SpecChain.lean`) but uses `spec_round_step_hacspec`. -/
 
 def spec_round_step_hacspec_at (round_idx : Nat) (st : Std.Array Std.U64 25#usize) :
-    Result (Std.Array Std.U64 25#usize) :=
+    RustM (Std.Array Std.U64 25#usize) :=
   if h : round_idx < 24 then spec_round_step_hacspec st (roundOfNat round_idx (by omega))
   else .fail .panic
 
 def spec_chain_hacspec (s : Std.Array Std.U64 25#usize) (n : Nat) :
-    Result (Std.Array Std.U64 25#usize) :=
+    RustM (Std.Array Std.U64 25#usize) :=
   Nat.fold n (fun i _ acc => acc >>= fun st => spec_round_step_hacspec_at i st) (pure s)
 
 theorem spec_chain_hacspec_zero (s : Std.Array Std.U64 25#usize) :
@@ -449,13 +449,13 @@ private theorem loop_body_some_eq
       let a2 ← keccak_f.pi a1
       let a3 ← keccak_f.chi a2
       let state1 ← keccak_f.iota a3 kU
-      Aeneas.Std.Result.ok
+      Aeneas.Std.RustM.ok
         (cont (iter1, state1) :
           ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) ×
             (Std.Array Std.U64 25#usize)) (Std.Array Std.U64 25#usize))) =
     (do
       let state1 ← spec_round_step_hacspec acc kU
-      Aeneas.Std.Result.ok (cont (iter1, state1))) := by
+      Aeneas.Std.RustM.ok (cont (iter1, state1))) := by
   unfold spec_round_step_hacspec
   simp only [bind_assoc]
 
@@ -530,7 +530,7 @@ private theorem keccak_f_loop_eq_aux (s : Std.Array Std.U64 25#usize) :
                   let a2 ← keccak_f.pi a1
                   let a3 ← keccak_f.chi a2
                   let state1 ← keccak_f.iota a3 kU
-                  Aeneas.Std.Result.ok
+                  Aeneas.Std.RustM.ok
                     (cont ({ start := kU', «end» := 24#usize }, state1) :
                       ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) ×
                         (Std.Array Std.U64 25#usize)) (Std.Array Std.U64 25#usize)))
@@ -566,7 +566,7 @@ private theorem keccak_f_loop_eq_aux (s : Std.Array Std.U64 25#usize) :
                   let a2 ← keccak_f.pi a1
                   let a3 ← keccak_f.chi a2
                   let state1 ← keccak_f.iota a3 kU
-                  Aeneas.Std.Result.ok
+                  Aeneas.Std.RustM.ok
                     (cont ({ start := kU', «end» := 24#usize }, state1) :
                       ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) ×
                         (Std.Array Std.U64 25#usize)) (Std.Array Std.U64 25#usize)))
@@ -600,7 +600,7 @@ private theorem keccak_f_loop_eq_aux (s : Std.Array Std.U64 25#usize) :
                   let a2 ← keccak_f.pi a1
                   let a3 ← keccak_f.chi a2
                   let state1 ← keccak_f.iota a3 kU
-                  Aeneas.Std.Result.ok
+                  Aeneas.Std.RustM.ok
                     (cont ({ start := kU', «end» := 24#usize }, state1) :
                       ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) ×
                         (Std.Array Std.U64 25#usize)) (Std.Array Std.U64 25#usize)))

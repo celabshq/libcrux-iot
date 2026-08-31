@@ -12,17 +12,17 @@
 -/
 import LibcruxIotSha3.Foundation.SpecStep
 
-open Aeneas Aeneas.Std Result ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Foundation
 
 set_option mvcgen.warning false
 set_option linter.unusedVariables false
 
-/-! ### Triple → Result-equation converter
+/-! ### Triple → RustM-equation converter
 
 When each call_mut's purity is stated as a Triple (natural for
-`hax_mvcgen`-driven proofs), the Result equation needed by
+`hax_mvcgen`-driven proofs), the RustM equation needed by
 `createi_pure_eq` follows directly. Used both here (in this file's
 loop-spec helpers) and externally (in `HacspecBridge.lean`). -/
 
@@ -107,12 +107,12 @@ section loop_range_i32_helpers
 
 private abbrev ResultPS := PostShape.except Error (PostShape.except PUnit PostShape.pure)
 
-private theorem triple_noThrow_elim_i32 {α : Type} {x : Result α} {Q : α → Assertion ResultPS}
+private theorem triple_noThrow_elim_i32 {α : Type} {x : RustM α} {Q : α → Assertion ResultPS}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) {v : α} (hv : x = ok v) :
     (Q v).down := by
   subst hv; simpa [Triple, WP.wp, PredTrans.apply] using h
 
-private theorem triple_noThrow_exists_ok_i32 {α : Type} {x : Result α}
+private theorem triple_noThrow_exists_ok_i32 {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPS}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) : ∃ v, x = ok v := by
   match x, h with
@@ -120,7 +120,7 @@ private theorem triple_noThrow_exists_ok_i32 {α : Type} {x : Result α}
   | .fail _, h => exact absurd h (by simp [Triple, WP.wp, PredTrans.apply])
   | .div, h => exact absurd h (by simp [Triple, WP.wp, PredTrans.apply])
 
-private theorem triple_of_ok_i32 {α : Type} {x : Result α} {v : α} {P : α → Prop}
+private theorem triple_of_ok_i32 {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = ok v) (hp : P v) :
     (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
   subst hx; simp [Triple, WP.wp, PredTrans.apply, hp]
@@ -130,8 +130,8 @@ end loop_range_i32_helpers
 set_option maxHeartbeats 2000000 in
 theorem loop_range_spec_i32 {β : Type}
     (body : (CoreModels.core.ops.range.Range Std.I32 × β) →
-      Result (ControlFlow (CoreModels.core.ops.range.Range Std.I32 × β) β))
-    (init : β) (s e : Std.I32) (inv : Std.I32 → β → Result Prop)
+      RustM (ControlFlow (CoreModels.core.ops.range.Range Std.I32 × β) β))
+    (init : β) (s e : Std.I32) (inv : Std.I32 → β → RustM Prop)
     (h_le : s.val ≤ e.val)
     (h_init : (inv s init).holds)
     (h_step : ∀ acc (i : Std.I32), s.val ≤ i.val → i.val ≤ e.val →

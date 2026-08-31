@@ -32,7 +32,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 
 /-- The Triple `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v`.
     Lifts a pure-Prop fact about the value into a Triple post. -/
-private theorem triple_of_ok_l0 {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_l0 {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -40,7 +40,7 @@ private theorem triple_of_ok_l0 {α : Type} {x : Result α} {v : α}
 /-- Extract the `.ok` witness from a true-pre Triple — mirror of the
     SKILL §13.5 helper, scoped to this file. Used by L0.4 to consume
     L0.3's `@[spec]` without reaching into L0.3's privates. -/
-private theorem triple_exists_ok_l0 {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_l0 {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -73,7 +73,7 @@ theorem IScalar.shiftRight_UScalar_bv_eq
     Nat is in `[0, 2^n)` and equals `value.val % 2^n.val`.
 -/
 
-/-- The `do`-block reduces to `Result.ok ⟨value.bv &&& ((1#32 <<< n.val) - 1#32)⟩`
+/-- The `do`-block reduces to `RustM.ok ⟨value.bv &&& ((1#32 <<< n.val) - 1#32)⟩`
     under the precondition `n.val ≤ 16` (which implies `n.val < 32`).  -/
 private theorem get_n_least_significant_bits_eq_ok
     (n : Std.U8) (value : Std.U32) (hn : n.val ≤ 16) :
@@ -293,7 +293,7 @@ def barrett_reduce_impl_value (value : Std.I16) : Std.I16 :=
   let i6 : Std.I16 := Aeneas.Std.I16.wrapping_mul quotient (3329#i16)
   Aeneas.Std.I16.wrapping_sub value i6
 
-/-- The `do`-block reduces to `Result.ok (barrett_reduce_impl_value value)`.
+/-- The `do`-block reduces to `RustM.ok (barrett_reduce_impl_value value)`.
 
     Exposed (non-private) so that L1.3 `barrett_reduce_spec` can establish
     totality of `barrett_reduce_element` independent of the per-element
@@ -718,7 +718,7 @@ def mont_reduce_impl_value (value : Std.I32) : Std.I16 :=
     (Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I16 i11)
     (Aeneas.Std.IScalar.cast Aeneas.Std.IScalarTy.I16 i9)
 
-/-- The `do`-block reduces to `Result.ok (mont_reduce_impl_value value)`.
+/-- The `do`-block reduces to `RustM.ok (mont_reduce_impl_value value)`.
 
     Exposed (non-private) so that L1.10 `reducing_from_i32_array_spec`
     can establish totality of `montgomery_reduce_element` independent
@@ -1396,14 +1396,14 @@ open libcrux_iot_ml_kem.Spec
 /-- The Triple `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v`.
     Lifts a pure-Prop fact about the value into a Triple post.
     Mirror of SKILL §13.5 helper, scoped to this file. -/
-theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α}
+theorem triple_of_ok_fc {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 /-- Extract the `.ok` witness from a true-pre Triple.
     Mirror of SKILL §13.5 helper, scoped to this file. -/
-theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
+theorem triple_exists_ok_fc {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -1416,7 +1416,7 @@ theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
     (private to L3_NTTDrivers). -/
 theorem usize_add_ok_eq_fc (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
+    ∃ z : Std.Usize, (x + y : RustM Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
   have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
@@ -1425,7 +1425,7 @@ theorem usize_add_ok_eq_fc (x y : Std.Usize)
 /-- `.val`-preserving `Std.Usize` mul helper. -/
 theorem usize_mul_ok_eq_fc (x y : Std.Usize)
     (h_max : x.val * y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
+    ∃ z : Std.Usize, (x * y : RustM Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
   have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec

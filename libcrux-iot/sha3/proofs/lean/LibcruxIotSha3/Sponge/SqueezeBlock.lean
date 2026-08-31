@@ -19,7 +19,7 @@
 -/
 import LibcruxIotSha3.Sponge.AbsorbBlock
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -33,13 +33,13 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 /-! ## Squeeze block-level Triples. -/
 
 /-- Local triple-of-ok helper. -/
-private theorem triple_of_ok_sb {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_sb {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
 
 /-- Local existence extractor: a Triple yields `∃ v, x = .ok v ∧ P v`. -/
-private theorem triple_exists_ok_sb {α : Type} {x : Result α}
+private theorem triple_exists_ok_sb {α : Type} {x : RustM α}
     {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
@@ -203,19 +203,19 @@ theorem state.KeccakState.store_block_full_spec
         let (s1, back) ← Std.lift (α := Slice Std.U8 × (Slice Std.U8 → _))
                                   (Std.Array.to_slice_mut out)
         let s2 ← state.store_block_2u32 RATE s s1
-        Result.ok (back s2)) = .ok r_arr
+        RustM.ok (back s2)) = .ok r_arr
     unfold Std.lift
     -- `lift (to_slice_mut out)` reduces to `.ok (to_slice out, from_slice out)`.
     show (do
-        let (s1, back) ← (Result.ok (Std.Array.to_slice_mut out) :
-                            Result (Slice Std.U8 × (Slice Std.U8 → _)))
+        let (s1, back) ← (RustM.ok (Std.Array.to_slice_mut out) :
+                            RustM (Slice Std.U8 × (Slice Std.U8 → _)))
         let s2 ← state.store_block_2u32 RATE s s1
-        Result.ok (back s2)) = .ok r_arr
+        RustM.ok (back s2)) = .ok r_arr
     simp only [bind_tc_ok]
     -- Now: `let (s1, back) := Array.to_slice_mut out` destructures.
     show (do
         let s2 ← state.store_block_2u32 RATE s (Std.Array.to_slice out)
-        Result.ok (Std.Array.from_slice out s2)) = .ok r_arr
+        RustM.ok (Std.Array.from_slice out s2)) = .ok r_arr
     -- `state.store_block_2u32` unfolds to `state.KeccakState.store_block`.
     have h_inner_unfold :
         state.store_block_2u32 RATE s (Std.Array.to_slice out) = .ok s_inner := by

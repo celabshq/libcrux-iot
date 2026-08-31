@@ -31,23 +31,23 @@ set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_dsa.Polynomial.Convert
-open Aeneas Aeneas.Std Std.Do Result ControlFlow CoreModels
+open Aeneas Aeneas.Std Std.Do RustM ControlFlow CoreModels
 open libcrux_iot_ml_dsa
 open libcrux_iot_ml_dsa.Spec
 open libcrux_iot_ml_dsa.Spec.Lift
 open libcrux_iot_ml_dsa.Polynomial.Ntt
 open libcrux_iot_ml_dsa.Util.LoopHelper
 
-/-! ## Local helpers — Triple ↔ Result.ok bridges. -/
+/-! ## Local helpers — Triple ↔ RustM.ok bridges. -/
 
 private theorem triple_of_ok_cv
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 private theorem triple_exists_ok_cv
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -56,23 +56,23 @@ private theorem triple_exists_ok_cv
   | .fail _ => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_cv {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_cv {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_cv {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
 
 /-- `.val`-preserving `Std.Usize` mul helper. -/
 private theorem usize_mul_ok_eq (x y : Std.Usize) (h : x.val * y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
+    ∃ z : Std.Usize, (x * y : RustM Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT; exact ⟨z, h_eq, h_v⟩
 
 /-- `.val`-preserving `Std.Usize` add helper. -/
 private theorem usize_add_ok_eq (x y : Std.Usize) (h : x.val + y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
+    ∃ z : Std.Usize, (x + y : RustM Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT; exact ⟨z, h_eq, h_v⟩
@@ -122,7 +122,7 @@ theorem zero_fc :
     unfold polynomial.PolynomialRingElement.zero
     show (do
       let t ← simd.portable.vector_type.zero
-      Result.ok ({ simd_units := Array.repeat 32#usize t }
+      RustM.ok ({ simd_units := Array.repeat 32#usize t }
         : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients)) = _
     rw [show simd.portable.vector_type.zero = .ok zu from by
         rw [hzu_def]
@@ -171,7 +171,7 @@ section FromI32
 /-- The loop body (matching `from_i32_array_loop.body … portable_ops_inst array`). -/
 noncomputable def from_body (array : Slice Std.I32)
     (iter : CoreModels.core.ops.range.Range Std.Usize) (result : PRE) :
-    Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × PRE) PRE) := do
+    RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × PRE) PRE) := do
   let (o, iter1) ←
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
       core.Usize.Insts.CoreIterRangeStep iter
@@ -192,7 +192,7 @@ noncomputable def from_body (array : Slice Std.I32)
 
 /-- Loop invariant: the unit-array has 32 units, and for done units `j < k` the
     lane-wise value equation `acc[j].values[ℓ] = array[8*j + ℓ]` holds. -/
-def from_inv (array : Slice Std.I32) : Std.Usize → PRE → Result Prop :=
+def from_inv (array : Slice Std.I32) : Std.Usize → PRE → RustM Prop :=
   fun k acc => pure (
     acc.simd_units.val.length = 32 ∧
     (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 8 →
@@ -283,8 +283,8 @@ theorem from_step_lemma (array : Slice Std.I32) (hlen : array.val.length = 256)
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × PRE) PRE))
           | core.option.Option.Some i =>
             let i1 ← i * 8#usize
@@ -373,8 +373,8 @@ theorem from_step_lemma (array : Slice Std.I32) (hlen : array.val.length = 256)
               ({ start := k, «end» := 32#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × PRE) PRE))
           | core.option.Option.Some i =>
             let i1 ← i * simd.traits.COEFFICIENTS_IN_SIMD_UNIT
@@ -428,7 +428,7 @@ theorem from_i32_array_fc
   unfold polynomial.PolynomialRingElement.from_i32_array
   rw [show CoreModels.core.slice.Slice.len array = .ok (Aeneas.Std.Slice.len array) from rfl]
   simp only [Aeneas.Std.bind_tc_ok]
-  rw [show (massert (Aeneas.Std.Slice.len array >= 256#usize) : Result Unit) = .ok () from by
+  rw [show (massert (Aeneas.Std.Slice.len array >= 256#usize) : RustM Unit) = .ok () from by
         have h : (Aeneas.Std.Slice.len array >= 256#usize) := by
           have hv : (Aeneas.Std.Slice.len array).val = 256 := by
             simp [hlen]
@@ -675,7 +675,7 @@ private theorem to_coefficient_array_eq (value : SU) (out : Slice Std.I32)
     so the top-level FC needs no body bridge. The `to_body_{some,none}` lemmas
     `unfold` it to the do-block. -/
 noncomputable def to_body (iter : EnumIter) (result : Arr256) :
-    Result (ControlFlow (EnumIter × Arr256) Arr256) :=
+    RustM (ControlFlow (EnumIter × Arr256) Arr256) :=
   polynomial.PolynomialRingElement.to_i32_array_loop.body portable_ops_inst iter result
 
 /-- `to_body` on a nonempty suffix at count `c` pops the head unit, writes its
@@ -743,7 +743,7 @@ theorem to_body_some (suf : Slice SU) (c : Std.Usize) (result : Arr256)
             (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.I32))
             result { start := i1', «end» := i3' }
         let s1 ← portable_ops_inst.to_coefficient_array (suf.val[0]!) s'
-        Result.ok (cont (({ iter := tl, count := c' } : EnumIter), index_mut_back s1)))
+        RustM.ok (cont (({ iter := tl, count := c' } : EnumIter), index_mut_back s1)))
         = .ok (cont ({ iter := tl, count := c' },
                      back (Aeneas.Std.Array.to_slice (suf.val[0]!).values)))
     rw [show simd.traits.COEFFICIENTS_IN_SIMD_UNIT = 8#usize by

@@ -6,7 +6,7 @@ import LibcruxIotMlDsa.Extraction.Types
 import LibcruxIotMlDsa.Extraction.FunsExternal
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
-open Result ControlFlow Error
+open RustM ControlFlow Error
 open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
@@ -30,7 +30,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (a : Array SIMDUnit 32#usize) (bound : Std.I32)
   (iter : core.ops.range.Range Std.Usize) (result : Bool) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Bool) Bool)
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × Bool) Bool)
   := do
   let (o, iter1) ←
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -52,7 +52,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (iter : core.ops.range.Range Std.Usize)
   (a : Array SIMDUnit 32#usize) (bound : Std.I32) (result : Bool) :
-  Result Bool
+  RustM Bool
   := do
   loop
     (fun (iter1, result1) =>
@@ -66,7 +66,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
   (bound : Std.I32) :
-  Result Bool
+  RustM Bool
   := do
   let s ← lift (Array.to_slice self.simd_units)
   let i ← core.slice.Slice.len s
@@ -82,7 +82,7 @@ def arithmetic.vector_infinity_norm_exceeds_loop.body
   SIMDUnit) (bound : Std.I32)
   (iter : core.slice.iter.Iter (polynomial.PolynomialRingElement SIMDUnit))
   (result : Bool) :
-  Result (ControlFlow ((core.slice.iter.Iter (polynomial.PolynomialRingElement
+  RustM (ControlFlow ((core.slice.iter.Iter (polynomial.PolynomialRingElement
     SIMDUnit)) × Bool) Bool)
   := do
   let (o, iter1) ←
@@ -106,7 +106,7 @@ def arithmetic.vector_infinity_norm_exceeds_loop
   SIMDUnit)
   (iter : core.slice.iter.Iter (polynomial.PolynomialRingElement SIMDUnit))
   (bound : Std.I32) (result : Bool) :
-  Result Bool
+  RustM Bool
   := do
   loop
     (fun (iter1, result1) => arithmetic.vector_infinity_norm_exceeds_loop.body
@@ -119,7 +119,7 @@ def arithmetic.vector_infinity_norm_exceeds
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (vector : Slice (polynomial.PolynomialRingElement SIMDUnit))
   (bound : Std.I32) :
-  Result Bool
+  RustM Bool
   := do
   let iter ← core.slice.Slice.iter vector
   arithmetic.vector_infinity_norm_exceeds_loop simdtraitsOperationsInst iter
@@ -132,7 +132,7 @@ def arithmetic.shift_left_then_reduce_loop.body
   {SIMDUnit : Type} (SHIFT_BY : Std.I32) (simdtraitsOperationsInst :
   simd.traits.Operations SIMDUnit) (iter : core.ops.range.Range Std.Usize)
   (a : Array SIMDUnit 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
     32#usize)) (Array SIMDUnit 32#usize))
   := do
   let (o, iter1) ←
@@ -153,7 +153,7 @@ def arithmetic.shift_left_then_reduce_loop
   {SIMDUnit : Type} (SHIFT_BY : Std.I32) (simdtraitsOperationsInst :
   simd.traits.Operations SIMDUnit) (iter : core.ops.range.Range Std.Usize)
   (a : Array SIMDUnit 32#usize) :
-  Result (Array SIMDUnit 32#usize)
+  RustM (Array SIMDUnit 32#usize)
   := do
   loop
     (fun (iter1, a1) => arithmetic.shift_left_then_reduce_loop.body SHIFT_BY
@@ -166,7 +166,7 @@ def arithmetic.shift_left_then_reduce
   {SIMDUnit : Type} (SHIFT_BY : Std.I32) (simdtraitsOperationsInst :
   simd.traits.Operations SIMDUnit)
   (re : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let s ← lift (Array.to_slice re.simd_units)
   let i ← core.slice.Slice.len s
@@ -188,7 +188,7 @@ def polynomial.PolynomialRingElement.to_i32_array_loop.body
   SIMDUnit)
   (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.Iter
   SIMDUnit)) (result : Array Std.I32 256#usize) :
-  Result (ControlFlow ((core.iter.adapters.enumerate.Enumerate
+  RustM (ControlFlow ((core.iter.adapters.enumerate.Enumerate
     (core.slice.iter.Iter SIMDUnit)) × (Array Std.I32 256#usize)) (Array
     Std.I32 256#usize))
   := do
@@ -220,7 +220,7 @@ def polynomial.PolynomialRingElement.to_i32_array_loop
   SIMDUnit)
   (iter : core.iter.adapters.enumerate.Enumerate (core.slice.iter.Iter
   SIMDUnit)) (result : Array Std.I32 256#usize) :
-  Result (Array Std.I32 256#usize)
+  RustM (Array Std.I32 256#usize)
   := do
   loop
     (fun (iter1, result1) =>
@@ -233,7 +233,7 @@ def polynomial.PolynomialRingElement.to_i32_array_loop
 def polynomial.PolynomialRingElement.to_i32_array
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (Array Std.I32 256#usize)
+  RustM (Array Std.I32 256#usize)
   := do
   let result := Array.repeat 256#usize 0#i32
   let s ← lift (Array.to_slice self.simd_units)
@@ -250,7 +250,7 @@ def polynomial.PolynomialRingElement.to_i32_array
 def polynomial.PolynomialRingElement.zero
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let t ← simdtraitsOperationsInst.zero
   let a := Array.repeat 32#usize t
@@ -265,7 +265,7 @@ def arithmetic.make_hint_loop0_loop0.body
   (high : Slice (polynomial.PolynomialRingElement SIMDUnit)) (gamma2 : Std.I32)
   (i : Std.Usize) (iter : core.ops.range.Range Std.Usize)
   (true_hints : Std.Usize) (a : Array SIMDUnit 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize × (Array
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × Std.Usize × (Array
     SIMDUnit 32#usize)) (Std.Usize × (Array SIMDUnit 32#usize)))
   := do
   let (o, iter1) ←
@@ -294,7 +294,7 @@ def arithmetic.make_hint_loop0_loop0
   (low : Slice (polynomial.PolynomialRingElement SIMDUnit))
   (high : Slice (polynomial.PolynomialRingElement SIMDUnit)) (gamma2 : Std.I32)
   (true_hints : Std.Usize) (a : Array SIMDUnit 32#usize) (i : Std.Usize) :
-  Result (Std.Usize × (Array SIMDUnit 32#usize))
+  RustM (Std.Usize × (Array SIMDUnit 32#usize))
   := do
   loop
     (fun (iter1, true_hints1, a1) => arithmetic.make_hint_loop0_loop0.body
@@ -311,9 +311,9 @@ def arithmetic.make_hint_loop0.body
   (iter : core.ops.range.Range Std.Usize)
   (hint : Slice (Array Std.I32 256#usize)) (true_hints : Std.Usize)
   (hint_simd : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice (Array
-    Std.I32 256#usize)) × Std.Usize × (polynomial.PolynomialRingElement
-    SIMDUnit)) (Std.Usize × (Slice (Array Std.I32 256#usize))))
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice (Array Std.I32
+    256#usize)) × Std.Usize × (polynomial.PolynomialRingElement SIMDUnit))
+    (Std.Usize × (Slice (Array Std.I32 256#usize))))
   := do
   let (o, iter1) ←
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -343,7 +343,7 @@ def arithmetic.make_hint_loop0
   (high : Slice (polynomial.PolynomialRingElement SIMDUnit)) (gamma2 : Std.I32)
   (hint : Slice (Array Std.I32 256#usize)) (true_hints : Std.Usize)
   (hint_simd : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (Std.Usize × (Slice (Array Std.I32 256#usize)))
+  RustM (Std.Usize × (Slice (Array Std.I32 256#usize)))
   := do
   loop
     (fun (iter1, hint1, true_hints1, hint_simd1) =>
@@ -358,7 +358,7 @@ def arithmetic.make_hint
   SIMDUnit) (low : Slice (polynomial.PolynomialRingElement SIMDUnit))
   (high : Slice (polynomial.PolynomialRingElement SIMDUnit)) (gamma2 : Std.I32)
   (hint : Slice (Array Std.I32 256#usize)) :
-  Result (Std.Usize × (Slice (Array Std.I32 256#usize)))
+  RustM (Std.Usize × (Slice (Array Std.I32 256#usize)))
   := do
   let hint_simd ←
     polynomial.PolynomialRingElement.zero simdtraitsOperationsInst
@@ -374,7 +374,7 @@ def constants.COEFFICIENTS_IN_RING_ELEMENT : Std.Usize := 256#usize
 /-- [libcrux_iot_ml_dsa::simd::traits::SIMD_UNITS_IN_RING_ELEMENT]
     Source: 'ml-dsa/src/simd/traits.rs', lines 8:0-9:79 -/
 @[global_simps, irreducible]
-def simd.traits.SIMD_UNITS_IN_RING_ELEMENT : Result Std.Usize :=
+def simd.traits.SIMD_UNITS_IN_RING_ELEMENT : RustM Std.Usize :=
   constants.COEFFICIENTS_IN_RING_ELEMENT /
     simd.traits.COEFFICIENTS_IN_SIMD_UNIT
 
@@ -385,7 +385,7 @@ def polynomial.PolynomialRingElement.from_i32_array_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (array : Slice Std.I32) (iter : core.ops.range.Range Std.Usize)
   (result : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) ×
     (polynomial.PolynomialRingElement SIMDUnit))
     (polynomial.PolynomialRingElement SIMDUnit))
   := do
@@ -414,7 +414,7 @@ def polynomial.PolynomialRingElement.from_i32_array_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (iter : core.ops.range.Range Std.Usize) (array : Slice Std.I32)
   (result : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   loop
     (fun (iter1, result1) =>
@@ -428,7 +428,7 @@ def polynomial.PolynomialRingElement.from_i32_array
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (array : Slice Std.I32)
   (result : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let i ← core.slice.Slice.len array
   massert (i >= 256#usize)
@@ -445,7 +445,7 @@ def arithmetic.use_hint_loop0_loop0.body
   (re_vector : Slice (polynomial.PolynomialRingElement SIMDUnit))
   (i : Std.Usize) (iter : core.ops.range.Range Std.Usize)
   (tmp : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) ×
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) ×
     (polynomial.PolynomialRingElement SIMDUnit))
     (polynomial.PolynomialRingElement SIMDUnit))
   := do
@@ -470,7 +470,7 @@ def arithmetic.use_hint_loop0_loop0
   SIMDUnit) (iter : core.ops.range.Range Std.Usize) (gamma2 : Std.I32)
   (re_vector : Slice (polynomial.PolynomialRingElement SIMDUnit))
   (i : Std.Usize) (tmp : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   loop
     (fun (iter1, tmp1) => arithmetic.use_hint_loop0_loop0.body
@@ -485,7 +485,7 @@ def arithmetic.use_hint_loop0.body
   SIMDUnit) (gamma2 : Std.I32) (hint : Slice (Array Std.I32 256#usize))
   (iter : core.ops.range.Range Std.Usize)
   (re_vector : Slice (polynomial.PolynomialRingElement SIMDUnit)) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Slice
     (polynomial.PolynomialRingElement SIMDUnit))) (Slice
     (polynomial.PolynomialRingElement SIMDUnit)))
   := do
@@ -519,7 +519,7 @@ def arithmetic.use_hint_loop0
   SIMDUnit) (iter : core.ops.range.Range Std.Usize) (gamma2 : Std.I32)
   (hint : Slice (Array Std.I32 256#usize))
   (re_vector : Slice (polynomial.PolynomialRingElement SIMDUnit)) :
-  Result (Slice (polynomial.PolynomialRingElement SIMDUnit))
+  RustM (Slice (polynomial.PolynomialRingElement SIMDUnit))
   := do
   loop
     (fun (iter1, re_vector1) => arithmetic.use_hint_loop0.body
@@ -532,7 +532,7 @@ def arithmetic.use_hint
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (gamma2 : Std.I32) (hint : Slice (Array Std.I32 256#usize))
   (re_vector : Slice (polynomial.PolynomialRingElement SIMDUnit)) :
-  Result (Slice (polynomial.PolynomialRingElement SIMDUnit))
+  RustM (Slice (polynomial.PolynomialRingElement SIMDUnit))
   := do
   let i ← core.slice.Slice.len re_vector
   arithmetic.use_hint_loop0 simdtraitsOperationsInst
@@ -558,7 +558,7 @@ def constants.GAMMA2_V95_232 : Std.I32 := 95232#i32
 def ntt.ntt
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let a ← simdtraitsOperationsInst.ntt re.simd_units
   ok { simd_units := a }
@@ -568,7 +568,7 @@ def ntt.ntt
 def ntt.invert_ntt_montgomery
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let a ← simdtraitsOperationsInst.invert_ntt_montgomery re.simd_units
   ok { simd_units := a }
@@ -580,7 +580,7 @@ def ntt.ntt_multiply_montgomery_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (rhs : polynomial.PolynomialRingElement SIMDUnit)
   (iter : core.ops.range.Range Std.Usize) (a : Array SIMDUnit 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
     32#usize)) (Array SIMDUnit 32#usize))
   := do
   let (o, iter1) ←
@@ -603,7 +603,7 @@ def ntt.ntt_multiply_montgomery_loop
   SIMDUnit) (iter : core.ops.range.Range Std.Usize)
   (a : Array SIMDUnit 32#usize)
   (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (Array SIMDUnit 32#usize)
+  RustM (Array SIMDUnit 32#usize)
   := do
   loop
     (fun (iter1, a1) => ntt.ntt_multiply_montgomery_loop.body
@@ -616,7 +616,7 @@ def ntt.ntt_multiply_montgomery
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (lhs : polynomial.PolynomialRingElement SIMDUnit)
   (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let s ← lift (Array.to_slice lhs.simd_units)
   let i ← core.slice.Slice.len s
@@ -630,9 +630,9 @@ def ntt.ntt_multiply_montgomery
 def ntt.reduce
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
-  let a ← simdtraitsOperationsInst.«reduce» re.simd_units
+  let a ← simdtraitsOperationsInst.reduce re.simd_units
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add]: loop body 0:
@@ -642,7 +642,7 @@ def polynomial.PolynomialRingElement.add_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (rhs : polynomial.PolynomialRingElement SIMDUnit)
   (iter : core.ops.range.Range Std.Usize) (a : Array SIMDUnit 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
     32#usize)) (Array SIMDUnit 32#usize))
   := do
   let (o, iter1) ←
@@ -665,7 +665,7 @@ def polynomial.PolynomialRingElement.add_loop
   SIMDUnit) (iter : core.ops.range.Range Std.Usize)
   (a : Array SIMDUnit 32#usize)
   (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (Array SIMDUnit 32#usize)
+  RustM (Array SIMDUnit 32#usize)
   := do
   loop
     (fun (iter1, a1) => polynomial.PolynomialRingElement.add_loop.body
@@ -678,7 +678,7 @@ def polynomial.PolynomialRingElement.add
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
   (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let s ← lift (Array.to_slice self.simd_units)
   let i ← core.slice.Slice.len s
@@ -694,7 +694,7 @@ def polynomial.PolynomialRingElement.subtract_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (rhs : polynomial.PolynomialRingElement SIMDUnit)
   (iter : core.ops.range.Range Std.Usize) (a : Array SIMDUnit 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array SIMDUnit
     32#usize)) (Array SIMDUnit 32#usize))
   := do
   let (o, iter1) ←
@@ -717,7 +717,7 @@ def polynomial.PolynomialRingElement.subtract_loop
   SIMDUnit) (iter : core.ops.range.Range Std.Usize)
   (a : Array SIMDUnit 32#usize)
   (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (Array SIMDUnit 32#usize)
+  RustM (Array SIMDUnit 32#usize)
   := do
   loop
     (fun (iter1, a1) => polynomial.PolynomialRingElement.subtract_loop.body
@@ -730,7 +730,7 @@ def polynomial.PolynomialRingElement.subtract
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
   (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  Result (polynomial.PolynomialRingElement SIMDUnit)
+  RustM (polynomial.PolynomialRingElement SIMDUnit)
   := do
   let s ← lift (Array.to_slice self.simd_units)
   let i ← core.slice.Slice.len s
@@ -751,7 +751,7 @@ def simd.portable.arithmetic.MONTGOMERY_SHIFT : Std.U8 := 32#u8
 def simd.portable.arithmetic.add_loop.body
   (rhs : simd.portable.vector_type.Coefficients)
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize)) (Array Std.I32 8#usize))
   := do
   let (o, iter1) ←
@@ -773,7 +773,7 @@ def simd.portable.arithmetic.add_loop.body
 def simd.portable.arithmetic.add_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result (Array Std.I32 8#usize)
+  RustM (Array Std.I32 8#usize)
   := do
   loop
     (fun (iter1, a1) => simd.portable.arithmetic.add_loop.body rhs iter1 a1)
@@ -785,7 +785,7 @@ def simd.portable.arithmetic.add_loop
 def simd.portable.arithmetic.add
   (lhs : simd.portable.vector_type.Coefficients)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let s ← lift (Array.to_slice lhs.values)
   let i ← core.slice.Slice.len s
@@ -801,7 +801,7 @@ def simd.portable.arithmetic.add
 def simd.portable.arithmetic.subtract_loop.body
   (rhs : simd.portable.vector_type.Coefficients)
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize)) (Array Std.I32 8#usize))
   := do
   let (o, iter1) ←
@@ -823,7 +823,7 @@ def simd.portable.arithmetic.subtract_loop.body
 def simd.portable.arithmetic.subtract_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result (Array Std.I32 8#usize)
+  RustM (Array Std.I32 8#usize)
   := do
   loop
     (fun (iter1, a1) => simd.portable.arithmetic.subtract_loop.body rhs iter1
@@ -836,7 +836,7 @@ def simd.portable.arithmetic.subtract_loop
 def simd.portable.arithmetic.subtract
   (lhs : simd.portable.vector_type.Coefficients)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let s ← lift (Array.to_slice lhs.values)
   let i ← core.slice.Slice.len s
@@ -848,7 +848,7 @@ def simd.portable.arithmetic.subtract
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::get_n_least_significant_bits]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 29:0-31:1 -/
 def simd.portable.arithmetic.get_n_least_significant_bits
-  (n : Std.U8) (value : Std.U64) : Result Std.U64 := do
+  (n : Std.U8) (value : Std.U64) : RustM Std.U64 := do
   let i ← 1#u64 <<< n
   let i1 ← core.num.U64.wrapping_sub i 1#u64
   ok (value &&& i1)
@@ -868,7 +868,7 @@ def simd.traits.FIELD_MODULUS : Std.I32 := 8380417#i32
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::montgomery_reduce_element]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 34:0-45:1 -/
 def simd.portable.arithmetic.montgomery_reduce_element
-  (value : Std.I64) : Result Std.I32 := do
+  (value : Std.I64) : RustM Std.I32 := do
   let i ← libcrux_secrets.I64.Insts.Libcrux_secretsIntCastOps.as_u64 value
   let i1 ←
     simd.portable.arithmetic.get_n_least_significant_bits
@@ -894,7 +894,7 @@ def simd.portable.arithmetic.montgomery_reduce_element
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::montgomery_multiply_fe_by_fer]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 48:0-53:1 -/
 def simd.portable.arithmetic.montgomery_multiply_fe_by_fer
-  (fe : Std.I32) (fer : Std.I32) : Result Std.I32 := do
+  (fe : Std.I32) (fer : Std.I32) : RustM Std.I32 := do
   let i ← libcrux_secrets.I32.Insts.Libcrux_secretsIntCastOps.as_i64 fe
   let i1 ← libcrux_secrets.I32.Insts.Libcrux_secretsIntCastOps.as_i64 fer
   let i2 ← core.num.I64.wrapping_mul i i1
@@ -906,7 +906,7 @@ def simd.portable.arithmetic.montgomery_multiply_fe_by_fer
 def simd.portable.arithmetic.montgomery_multiply_by_constant_loop.body
   (c : Std.I32) (iter : core.ops.range.Range Std.Usize)
   (a : Array Std.I32 8#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize)) (Array Std.I32 8#usize))
   := do
   let (o, iter1) ←
@@ -929,7 +929,7 @@ def simd.portable.arithmetic.montgomery_multiply_by_constant_loop.body
 def simd.portable.arithmetic.montgomery_multiply_by_constant_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (c : Std.I32) :
-  Result (Array Std.I32 8#usize)
+  RustM (Array Std.I32 8#usize)
   := do
   loop
     (fun (iter1, a1) =>
@@ -941,7 +941,7 @@ def simd.portable.arithmetic.montgomery_multiply_by_constant_loop
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 56:0-61:1 -/
 def simd.portable.arithmetic.montgomery_multiply_by_constant
   (simd_unit : simd.portable.vector_type.Coefficients) (c : Std.I32) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let s ← lift (Array.to_slice simd_unit.values)
   let i ← core.slice.Slice.len s
@@ -956,7 +956,7 @@ def simd.portable.arithmetic.montgomery_multiply_by_constant
 def simd.portable.arithmetic.montgomery_multiply_loop.body
   (rhs : simd.portable.vector_type.Coefficients)
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize)) (Array Std.I32 8#usize))
   := do
   let (o, iter1) ←
@@ -980,7 +980,7 @@ def simd.portable.arithmetic.montgomery_multiply_loop.body
 def simd.portable.arithmetic.montgomery_multiply_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result (Array Std.I32 8#usize)
+  RustM (Array Std.I32 8#usize)
   := do
   loop
     (fun (iter1, a1) => simd.portable.arithmetic.montgomery_multiply_loop.body
@@ -992,7 +992,7 @@ def simd.portable.arithmetic.montgomery_multiply_loop
 def simd.portable.arithmetic.montgomery_multiply
   (lhs : simd.portable.vector_type.Coefficients)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let s ← lift (Array.to_slice lhs.values)
   let i ← core.slice.Slice.len s
@@ -1004,7 +1004,7 @@ def simd.portable.arithmetic.montgomery_multiply
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round_element]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 80:0-103:1 -/
 def simd.portable.arithmetic.power2round_element
-  (t : Std.I32) : Result (Std.I32 × Std.I32) := do
+  (t : Std.I32) : RustM (Std.I32 × Std.I32) := do
   let i ← t >>> 31#i32
   let i1 ← lift (i &&& simd.traits.FIELD_MODULUS)
   let t1 ← core.num.I32.wrapping_add t i1
@@ -1023,7 +1023,7 @@ def simd.portable.arithmetic.power2round_element
 def simd.portable.arithmetic.power2round_loop.body
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (t1 : simd.portable.vector_type.Coefficients) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize) × simd.portable.vector_type.Coefficients) ((Array Std.I32
     8#usize) × simd.portable.vector_type.Coefficients))
   := do
@@ -1045,7 +1045,7 @@ def simd.portable.arithmetic.power2round_loop.body
 def simd.portable.arithmetic.power2round_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (t1 : simd.portable.vector_type.Coefficients) :
-  Result ((Array Std.I32 8#usize) × simd.portable.vector_type.Coefficients)
+  RustM ((Array Std.I32 8#usize) × simd.portable.vector_type.Coefficients)
   := do
   loop
     (fun (iter1, a1, t11) => simd.portable.arithmetic.power2round_loop.body
@@ -1057,7 +1057,7 @@ def simd.portable.arithmetic.power2round_loop
 def simd.portable.arithmetic.power2round
   (t0 : simd.portable.vector_type.Coefficients)
   (t1 : simd.portable.vector_type.Coefficients) :
-  Result (simd.portable.vector_type.Coefficients ×
+  RustM (simd.portable.vector_type.Coefficients ×
     simd.portable.vector_type.Coefficients)
   := do
   let s ← lift (Array.to_slice t0.values)
@@ -1073,7 +1073,7 @@ def simd.portable.arithmetic.power2round
 def simd.portable.arithmetic.infinity_norm_exceeds_loop.body
   (a : Array Std.I32 8#usize) (bound : Std.I32)
   (iter : core.ops.range.Range Std.Usize) (result : Bool) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × Bool) Bool)
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × Bool) Bool)
   := do
   let (o, iter1) ←
     core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -1100,7 +1100,7 @@ def simd.portable.arithmetic.infinity_norm_exceeds_loop.body
 def simd.portable.arithmetic.infinity_norm_exceeds_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (bound : Std.I32) (result : Bool) :
-  Result Bool
+  RustM Bool
   := do
   loop
     (fun (iter1, result1) =>
@@ -1112,7 +1112,7 @@ def simd.portable.arithmetic.infinity_norm_exceeds_loop
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 115:0-147:1 -/
 def simd.portable.arithmetic.infinity_norm_exceeds
   (simd_unit : simd.portable.vector_type.Coefficients) (bound : Std.I32) :
-  Result Bool
+  RustM Bool
   := do
   let s ← lift (Array.to_slice simd_unit.values)
   let i ← core.slice.Slice.len s
@@ -1122,7 +1122,7 @@ def simd.portable.arithmetic.infinity_norm_exceeds
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::reduce_element]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 150:0-154:1 -/
 def simd.portable.arithmetic.reduce_element
-  (fe : Std.I32) : Result Std.I32 := do
+  (fe : Std.I32) : RustM Std.I32 := do
   let i ← 1#i32 <<< 22#i32
   let i1 ← core.num.I32.wrapping_add fe i
   let quotient ← i1 >>> 23#i32
@@ -1135,7 +1135,7 @@ def simd.portable.arithmetic.reduce_element
 def simd.portable.arithmetic.shift_left_then_reduce_loop.body
   (SHIFT_BY : Std.I32) (iter : core.ops.range.Range Std.Usize)
   (a : Array Std.I32 8#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize)) (Array Std.I32 8#usize))
   := do
   let (o, iter1) ←
@@ -1156,7 +1156,7 @@ def simd.portable.arithmetic.shift_left_then_reduce_loop.body
 def simd.portable.arithmetic.shift_left_then_reduce_loop
   (SHIFT_BY : Std.I32) (iter : core.ops.range.Range Std.Usize)
   (a : Array Std.I32 8#usize) :
-  Result (Array Std.I32 8#usize)
+  RustM (Array Std.I32 8#usize)
   := do
   loop
     (fun (iter1, a1) =>
@@ -1168,7 +1168,7 @@ def simd.portable.arithmetic.shift_left_then_reduce_loop
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 158:0-162:1 -/
 def simd.portable.arithmetic.shift_left_then_reduce
   (SHIFT_BY : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let s ← lift (Array.to_slice simd_unit.values)
   let i ← core.slice.Slice.len s
@@ -1180,7 +1180,7 @@ def simd.portable.arithmetic.shift_left_then_reduce
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 167:0-173:1 -/
 def simd.portable.arithmetic.compute_one_hint
-  (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) : Result Std.I32 := do
+  (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) : RustM Std.I32 := do
   if low > gamma2
   then ok 1#i32
   else
@@ -1194,6 +1194,27 @@ def simd.portable.arithmetic.compute_one_hint
            else ok 0#i32
       else ok 0#i32
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::closure<'_0>}::call_once]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 190:33-190:64 -/
+def
+  simd.portable.arithmetic.compute_hint.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+  (c : simd.portable.arithmetic.compute_hint.closure) (tupled_args : Std.Usize)
+  :
+  RustM Bool
+  := do
+  ok (c <= tupled_args)
+
+/-- Trait implementation: [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::closure<'_0>}]
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 190:33-190:64 -/
+@[reducible]
+def
+  simd.portable.arithmetic.compute_hint.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
+  : core.ops.function.FnOnce simd.portable.arithmetic.compute_hint.closure
+  Std.Usize Bool := {
+  call_once :=
+    simd.portable.arithmetic.compute_hint.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+}
+
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint]: loop body 0:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 188:4-198:5 -/
 @[rust_loop_body]
@@ -1202,7 +1223,7 @@ def simd.portable.arithmetic.compute_hint_loop.body
   (high : simd.portable.vector_type.Coefficients) (gamma2 : Std.I32)
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (one_hints_count : Std.Usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize) × Std.Usize) ((Array Std.I32 8#usize) × Std.Usize))
   := do
   let (o, iter1) ←
@@ -1211,6 +1232,10 @@ def simd.portable.arithmetic.compute_hint_loop.body
   match o with
   | core.option.Option.None => ok (done (a, one_hints_count))
   | core.option.Option.Some i =>
+    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
+      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
+      simd.portable.arithmetic.compute_hint.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
+      one_hints_count
     let i1 ← Array.index_usize low.values i
     let i2 ← libcrux_secrets.traits.Declassify.Blanket.declassify i1
     let i3 ← Array.index_usize high.values i
@@ -1232,7 +1257,7 @@ def simd.portable.arithmetic.compute_hint_loop
   (low : simd.portable.vector_type.Coefficients)
   (high : simd.portable.vector_type.Coefficients) (gamma2 : Std.I32)
   (a : Array Std.I32 8#usize) (one_hints_count : Std.Usize) :
-  Result ((Array Std.I32 8#usize) × Std.Usize)
+  RustM ((Array Std.I32 8#usize) × Std.Usize)
   := do
   loop
     (fun (iter1, a1, one_hints_count1) =>
@@ -1246,7 +1271,7 @@ def simd.portable.arithmetic.compute_hint
   (low : simd.portable.vector_type.Coefficients)
   (high : simd.portable.vector_type.Coefficients) (gamma2 : Std.I32)
   (hint : simd.portable.vector_type.Coefficients) :
-  Result (Std.Usize × simd.portable.vector_type.Coefficients)
+  RustM (Std.Usize × simd.portable.vector_type.Coefficients)
   := do
   let s ← lift (Array.to_slice hint.values)
   let i ← core.slice.Slice.len s
@@ -1258,7 +1283,7 @@ def simd.portable.arithmetic.compute_hint
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_element]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 219:0-266:1 -/
 def simd.portable.arithmetic.decompose_element
-  (gamma2 : Std.I32) (r : Std.I32) : Result (Std.I32 × Std.I32) := do
+  (gamma2 : Std.I32) (r : Std.I32) : RustM (Std.I32 × Std.I32) := do
   let i ← r >>> 31#i32
   let i1 ← lift (i &&& simd.traits.FIELD_MODULUS)
   let r1 ← core.num.I32.wrapping_add r i1
@@ -1300,7 +1325,7 @@ def simd.portable.arithmetic.decompose_element
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 270:0-304:1 -/
 def simd.portable.arithmetic.use_one_hint
-  (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) : Result Std.I32 := do
+  (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) : RustM Std.I32 := do
   let i ← libcrux_secrets.traits.Classify.Blanket.classify r
   let (r0, r1) ← simd.portable.arithmetic.decompose_element gamma2 i
   let r01 ← libcrux_secrets.traits.Declassify.Blanket.declassify r0
@@ -1335,7 +1360,7 @@ def simd.portable.arithmetic.decompose_loop.body
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
   (high : simd.portable.vector_type.Coefficients) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize) × simd.portable.vector_type.Coefficients) ((Array Std.I32
     8#usize) × simd.portable.vector_type.Coefficients))
   := do
@@ -1359,7 +1384,7 @@ def simd.portable.arithmetic.decompose_loop
   (iter : core.ops.range.Range Std.Usize) (gamma2 : Std.I32)
   (simd_unit : simd.portable.vector_type.Coefficients)
   (a : Array Std.I32 8#usize) (high : simd.portable.vector_type.Coefficients) :
-  Result ((Array Std.I32 8#usize) × simd.portable.vector_type.Coefficients)
+  RustM ((Array Std.I32 8#usize) × simd.portable.vector_type.Coefficients)
   := do
   loop
     (fun (iter1, a1, high1) => simd.portable.arithmetic.decompose_loop.body
@@ -1373,7 +1398,7 @@ def simd.portable.arithmetic.decompose
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
   (low : simd.portable.vector_type.Coefficients)
   (high : simd.portable.vector_type.Coefficients) :
-  Result (simd.portable.vector_type.Coefficients ×
+  RustM (simd.portable.vector_type.Coefficients ×
     simd.portable.vector_type.Coefficients)
   := do
   let s ← lift (Array.to_slice low.values)
@@ -1390,7 +1415,7 @@ def simd.portable.arithmetic.decompose
 def simd.portable.arithmetic.use_hint_loop.body
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array Std.I32
     8#usize)) (Array Std.I32 8#usize))
   := do
   let (o, iter1) ←
@@ -1416,7 +1441,7 @@ def simd.portable.arithmetic.use_hint_loop
   (iter : core.ops.range.Range Std.Usize) (gamma2 : Std.I32)
   (simd_unit : simd.portable.vector_type.Coefficients)
   (a : Array Std.I32 8#usize) :
-  Result (Array Std.I32 8#usize)
+  RustM (Array Std.I32 8#usize)
   := do
   loop
     (fun (iter1, a1) => simd.portable.arithmetic.use_hint_loop.body gamma2
@@ -1429,7 +1454,7 @@ def simd.portable.arithmetic.use_hint_loop
 def simd.portable.arithmetic.use_hint
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
   (hint : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let s ← lift (Array.to_slice hint.values)
   let i ← core.slice.Slice.len s
@@ -1444,7 +1469,7 @@ def simd.portable.arithmetic.use_hint
 def simd.portable.invntt.simd_unit_invert_ntt_at_layer_0
   (simd_unit : simd.portable.vector_type.Coefficients) (zeta0 : Std.I32)
   (zeta1 : Std.I32) (zeta2 : Std.I32) (zeta3 : Std.I32) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let i ← Array.index_usize simd_unit.values 1#usize
   let i1 ← Array.index_usize simd_unit.values 0#usize
@@ -1490,7 +1515,7 @@ def simd.portable.invntt.simd_unit_invert_ntt_at_layer_0
 def simd.portable.invntt.simd_unit_invert_ntt_at_layer_1
   (simd_unit : simd.portable.vector_type.Coefficients) (zeta0 : Std.I32)
   (zeta1 : Std.I32) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let i ← Array.index_usize simd_unit.values 2#usize
   let i1 ← Array.index_usize simd_unit.values 0#usize
@@ -1533,7 +1558,7 @@ def simd.portable.invntt.simd_unit_invert_ntt_at_layer_1
     Visibility: public -/
 def simd.portable.invntt.simd_unit_invert_ntt_at_layer_2
   (simd_unit : simd.portable.vector_type.Coefficients) (zeta : Std.I32) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let i ← Array.index_usize simd_unit.values 4#usize
   let i1 ← Array.index_usize simd_unit.values 0#usize
@@ -1576,7 +1601,7 @@ def simd.portable.invntt.invert_ntt_at_layer_0.round
   (re : Array simd.portable.vector_type.Coefficients 32#usize)
   (index : Std.Usize) (zeta0 : Std.I32) (zeta1 : Std.I32) (zeta2 : Std.I32)
   (zeta3 : Std.I32) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let (c, index_mut_back) ← Array.index_mut_usize re index
   let c1 ←
@@ -1588,7 +1613,7 @@ def simd.portable.invntt.invert_ntt_at_layer_0.round
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 73:0-118:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_0
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ←
     simd.portable.invntt.invert_ntt_at_layer_0.round re 0#usize 1976782#i32
@@ -1691,7 +1716,7 @@ def simd.portable.invntt.invert_ntt_at_layer_0
 def simd.portable.invntt.invert_ntt_at_layer_1.round
   (re : Array simd.portable.vector_type.Coefficients 32#usize)
   (index : Std.Usize) (zeta_00 : Std.I32) (zeta_01 : Std.I32) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let (c, index_mut_back) ← Array.index_mut_usize re index
   let c1 ←
@@ -1702,7 +1727,7 @@ def simd.portable.invntt.invert_ntt_at_layer_1.round
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 121:0-164:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_1
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ←
     simd.portable.invntt.invert_ntt_at_layer_1.round re 0#usize 3839961#i32
@@ -1805,7 +1830,7 @@ def simd.portable.invntt.invert_ntt_at_layer_1
 def simd.portable.invntt.invert_ntt_at_layer_2.round
   (re : Array simd.portable.vector_type.Coefficients 32#usize)
   (index : Std.Usize) (zeta1 : Std.I32) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let (c, index_mut_back) ← Array.index_mut_usize re index
   let c1 ← simd.portable.invntt.simd_unit_invert_ntt_at_layer_2 c zeta1
@@ -1815,7 +1840,7 @@ def simd.portable.invntt.invert_ntt_at_layer_2.round
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 167:0-204:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_2
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ←
     simd.portable.invntt.invert_ntt_at_layer_2.round re 0#usize (-2797779)#i32
@@ -1898,7 +1923,7 @@ def simd.portable.invntt.invert_ntt_at_layer_2
     Visibility: public -/
 def simd.portable.vector_type.Coefficients.Insts.CoreCloneClone.clone
   (self : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   ok self
 
@@ -1909,7 +1934,7 @@ def simd.portable.invntt.outer_3_plus_loop.body
   (STEP_BY : Std.Usize) (ZETA : Std.I32)
   (iter : core.ops.range.Range Std.Usize)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
     simd.portable.vector_type.Coefficients 32#usize)) (Array
     simd.portable.vector_type.Coefficients 32#usize))
   := do
@@ -1944,7 +1969,7 @@ def simd.portable.invntt.outer_3_plus_loop
   (STEP_BY : Std.Usize) (ZETA : Std.I32)
   (iter : core.ops.range.Range Std.Usize)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   loop
     (fun (iter1, re1) => simd.portable.invntt.outer_3_plus_loop.body STEP_BY
@@ -1956,7 +1981,7 @@ def simd.portable.invntt.outer_3_plus_loop
 def simd.portable.invntt.outer_3_plus
   (OFFSET : Std.Usize) (STEP_BY : Std.Usize) (ZETA : Std.I32)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let i ← OFFSET + STEP_BY
   simd.portable.invntt.outer_3_plus_loop STEP_BY ZETA
@@ -1966,7 +1991,7 @@ def simd.portable.invntt.outer_3_plus
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 225:0-245:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_3
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.invntt.outer_3_plus 0#usize 1#usize 280005#i32 re
   let re2 ← simd.portable.invntt.outer_3_plus 2#usize 1#usize 4010497#i32 re1
@@ -2011,7 +2036,7 @@ def simd.portable.invntt.invert_ntt_at_layer_3.STEP_BY : Std.Usize := 1#usize
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 248:0-260:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_4
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.invntt.outer_3_plus 0#usize 2#usize 2680103#i32 re
   let re2 ← simd.portable.invntt.outer_3_plus 4#usize 2#usize 3111497#i32 re1
@@ -2041,7 +2066,7 @@ def simd.portable.invntt.invert_ntt_at_layer_4.STEP_BY : Std.Usize := 2#usize
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 263:0-271:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_5
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.invntt.outer_3_plus 0#usize 4#usize 466468#i32 re
   let re2 ←
@@ -2064,7 +2089,7 @@ def simd.portable.invntt.invert_ntt_at_layer_5.STEP_BY : Std.Usize := 4#usize
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 274:0-280:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_6
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ←
     simd.portable.invntt.outer_3_plus 0#usize 8#usize (-518909)#i32 re
@@ -2084,7 +2109,7 @@ def simd.portable.invntt.invert_ntt_at_layer_6.STEP_BY : Std.Usize := 8#usize
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 283:0-288:1 -/
 def simd.portable.invntt.invert_ntt_at_layer_7
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   simd.portable.invntt.outer_3_plus 0#usize 16#usize 25847#i32 re
 
@@ -2104,7 +2129,7 @@ def simd.portable.invntt.invert_ntt_at_layer_7.STEP_BY : Std.Usize := 16#usize
 def simd.portable.invntt.invert_ntt_montgomery_loop.body
   (iter : core.ops.range.Range Std.Usize)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
     simd.portable.vector_type.Coefficients 32#usize)) (Array
     simd.portable.vector_type.Coefficients 32#usize))
   := do
@@ -2126,7 +2151,7 @@ def simd.portable.invntt.invert_ntt_montgomery_loop.body
 def simd.portable.invntt.invert_ntt_montgomery_loop
   (iter : core.ops.range.Range Std.Usize)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   loop
     (fun (iter1, re1) => simd.portable.invntt.invert_ntt_montgomery_loop.body
@@ -2137,7 +2162,7 @@ def simd.portable.invntt.invert_ntt_montgomery_loop
     Source: 'ml-dsa/src/simd/portable/invntt.rs', lines 290:0-311:1 -/
 def simd.portable.invntt.invert_ntt_montgomery
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.invntt.invert_ntt_at_layer_0 re
   let re2 ← simd.portable.invntt.invert_ntt_at_layer_1 re1
@@ -2158,7 +2183,7 @@ def simd.portable.invntt.invert_ntt_montgomery
 def simd.portable.ntt.simd_unit_ntt_at_layer_0
   (simd_unit : simd.portable.vector_type.Coefficients) (zeta0 : Std.I32)
   (zeta1 : Std.I32) (zeta2 : Std.I32) (zeta3 : Std.I32) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let i ← Array.index_usize simd_unit.values 1#usize
   let i1 ← libcrux_secrets.traits.Classify.Blanket.classify zeta0
@@ -2204,7 +2229,7 @@ def simd.portable.ntt.simd_unit_ntt_at_layer_0
 def simd.portable.ntt.simd_unit_ntt_at_layer_1
   (simd_unit : simd.portable.vector_type.Coefficients) (zeta1 : Std.I32)
   (zeta2 : Std.I32) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let i ← Array.index_usize simd_unit.values 2#usize
   let i1 ← libcrux_secrets.traits.Classify.Blanket.classify zeta1
@@ -2247,7 +2272,7 @@ def simd.portable.ntt.simd_unit_ntt_at_layer_1
     Visibility: public -/
 def simd.portable.ntt.simd_unit_ntt_at_layer_2
   (simd_unit : simd.portable.vector_type.Coefficients) (zeta : Std.I32) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let i ← Array.index_usize simd_unit.values 4#usize
   let i1 ← libcrux_secrets.traits.Classify.Blanket.classify zeta
@@ -2290,7 +2315,7 @@ def simd.portable.ntt.ntt_at_layer_0.round
   (re : Array simd.portable.vector_type.Coefficients 32#usize)
   (index : Std.Usize) (zeta_0 : Std.I32) (zeta_1 : Std.I32) (zeta_2 : Std.I32)
   (zeta_3 : Std.I32) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let (c, index_mut_back) ← Array.index_mut_usize re index
   let c1 ←
@@ -2301,7 +2326,7 @@ def simd.portable.ntt.ntt_at_layer_0.round
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 71:0-116:1 -/
 def simd.portable.ntt.ntt_at_layer_0
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ←
     simd.portable.ntt.ntt_at_layer_0.round re 0#usize 2091667#i32 3407706#i32
@@ -2404,7 +2429,7 @@ def simd.portable.ntt.ntt_at_layer_0
 def simd.portable.ntt.ntt_at_layer_1.round
   (re : Array simd.portable.vector_type.Coefficients 32#usize)
   (index : Std.Usize) (zeta_0 : Std.I32) (zeta_1 : Std.I32) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let (c, index_mut_back) ← Array.index_mut_usize re index
   let c1 ← simd.portable.ntt.simd_unit_ntt_at_layer_1 c zeta_0 zeta_1
@@ -2414,7 +2439,7 @@ def simd.portable.ntt.ntt_at_layer_1.round
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 119:0-162:1 -/
 def simd.portable.ntt.ntt_at_layer_1
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ←
     simd.portable.ntt.ntt_at_layer_1.round re 0#usize (-3930395)#i32
@@ -2514,7 +2539,7 @@ def simd.portable.ntt.ntt_at_layer_1
 def simd.portable.ntt.ntt_at_layer_2.round
   (re : Array simd.portable.vector_type.Coefficients 32#usize)
   (index : Std.Usize) (zeta : Std.I32) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let (c, index_mut_back) ← Array.index_mut_usize re index
   let c1 ← simd.portable.ntt.simd_unit_ntt_at_layer_2 c zeta
@@ -2524,7 +2549,7 @@ def simd.portable.ntt.ntt_at_layer_2.round
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 165:0-203:1 -/
 def simd.portable.ntt.ntt_at_layer_2
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.ntt.ntt_at_layer_2.round re 0#usize 2706023#i32
   let re2 ← simd.portable.ntt.ntt_at_layer_2.round re1 1#usize 95776#i32
@@ -2576,7 +2601,7 @@ def simd.portable.ntt.outer_3_plus_loop.body
   (STEP_BY : Std.Usize) (ZETA : Std.I32)
   (iter : core.ops.range.Range Std.Usize)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
     simd.portable.vector_type.Coefficients 32#usize)) (Array
     simd.portable.vector_type.Coefficients 32#usize))
   := do
@@ -2608,7 +2633,7 @@ def simd.portable.ntt.outer_3_plus_loop
   (STEP_BY : Std.Usize) (ZETA : Std.I32)
   (iter : core.ops.range.Range Std.Usize)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   loop
     (fun (iter1, re1) => simd.portable.ntt.outer_3_plus_loop.body STEP_BY ZETA
@@ -2620,7 +2645,7 @@ def simd.portable.ntt.outer_3_plus_loop
 def simd.portable.ntt.outer_3_plus
   (OFFSET : Std.Usize) (STEP_BY : Std.Usize) (ZETA : Std.I32)
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let i ← OFFSET + STEP_BY
   simd.portable.ntt.outer_3_plus_loop STEP_BY ZETA
@@ -2630,7 +2655,7 @@ def simd.portable.ntt.outer_3_plus
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 221:0-241:1 -/
 def simd.portable.ntt.ntt_at_layer_3
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.ntt.outer_3_plus 0#usize 1#usize 2725464#i32 re
   let re2 ← simd.portable.ntt.outer_3_plus 2#usize 1#usize 1024112#i32 re1
@@ -2670,7 +2695,7 @@ def simd.portable.ntt.ntt_at_layer_3.STEP_BY : Std.Usize := 1#usize
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 244:0-256:1 -/
 def simd.portable.ntt.ntt_at_layer_4
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.ntt.outer_3_plus 0#usize 2#usize 1826347#i32 re
   let re2 ← simd.portable.ntt.outer_3_plus 4#usize 2#usize 2353451#i32 re1
@@ -2697,7 +2722,7 @@ def simd.portable.ntt.ntt_at_layer_4.STEP_BY : Std.Usize := 2#usize
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 259:0-267:1 -/
 def simd.portable.ntt.ntt_at_layer_5
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.ntt.outer_3_plus 0#usize 4#usize 237124#i32 re
   let re2 ← simd.portable.ntt.outer_3_plus 8#usize 4#usize (-777960)#i32 re1
@@ -2718,7 +2743,7 @@ def simd.portable.ntt.ntt_at_layer_5.STEP_BY : Std.Usize := 4#usize
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 270:0-276:1 -/
 def simd.portable.ntt.ntt_at_layer_6
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.ntt.outer_3_plus 0#usize 8#usize (-2608894)#i32 re
   simd.portable.ntt.outer_3_plus 16#usize 8#usize (-518909)#i32 re1
@@ -2737,7 +2762,7 @@ def simd.portable.ntt.ntt_at_layer_6.STEP_BY : Std.Usize := 8#usize
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 279:0-284:1 -/
 def simd.portable.ntt.ntt_at_layer_7
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   simd.portable.ntt.outer_3_plus 0#usize 16#usize 25847#i32 re
 
@@ -2755,7 +2780,7 @@ def simd.portable.ntt.ntt_at_layer_7.STEP_BY : Std.Usize := 16#usize
     Source: 'ml-dsa/src/simd/portable/ntt.rs', lines 287:0-296:1 -/
 def simd.portable.ntt.ntt
   (re : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let re1 ← simd.portable.ntt.ntt_at_layer_7 re
   let re2 ← simd.portable.ntt.ntt_at_layer_6 re1
@@ -2785,7 +2810,7 @@ def simd.portable.vector_type.Coefficients.Insts.CoreMarkerCopy :
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::zero]:
     Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 14:0-18:1 -/
 def simd.portable.vector_type.zero
-  : Result simd.portable.vector_type.Coefficients := do
+  : RustM simd.portable.vector_type.Coefficients := do
   let i ← libcrux_secrets.traits.Classify.Blanket.classify 0#i32
   let a := Array.repeat 8#usize i
   ok { values := a }
@@ -2794,7 +2819,7 @@ def simd.portable.vector_type.zero
     Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 20:0-23:1 -/
 def simd.portable.vector_type.from_coefficient_array
   (array : Slice Std.I32) (out : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out.values)
   let s1 ←
@@ -2811,7 +2836,7 @@ def simd.portable.vector_type.from_coefficient_array
     Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 26:0-31:1 -/
 def simd.portable.vector_type.to_coefficient_array
   (value : simd.portable.vector_type.Coefficients) (out : Slice Std.I32) :
-  Result (Slice Std.I32)
+  RustM (Slice Std.I32)
   := do
   let a ←
     libcrux_secrets.SharedAT.Insts.Libcrux_secretsTraitsDeclassifyRefSharedAT.declassify_ref
@@ -2824,7 +2849,7 @@ def simd.portable.vector_type.to_coefficient_array
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.shift_left_then_reduce
   (SHIFT_BY : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.arithmetic.shift_left_then_reduce SHIFT_BY simd_unit
 
@@ -2835,7 +2860,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.reduce_loop.body
   (iter : core.ops.range.Range Std.Usize)
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
+  RustM (ControlFlow ((core.ops.range.Range Std.Usize) × (Array
     simd.portable.vector_type.Coefficients 32#usize)) (Array
     simd.portable.vector_type.Coefficients 32#usize))
   := do
@@ -2859,7 +2884,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.reduce_loop
   (iter : core.ops.range.Range Std.Usize)
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   loop
     (fun (iter1, simd_units1) =>
@@ -2872,7 +2897,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.reduce
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   let s ← lift (Array.to_slice simd_units)
   let i ← core.slice.Slice.len s
@@ -2884,7 +2909,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.invert_ntt_montgomery
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   simd.portable.invntt.invert_ntt_montgomery simd_units
 
@@ -2893,7 +2918,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.ntt
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
-  Result (Array simd.portable.vector_type.Coefficients 32#usize)
+  RustM (Array simd.portable.vector_type.Coefficients 32#usize)
   := do
   simd.portable.ntt.ntt simd_units
 
@@ -2902,7 +2927,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t1_deserialize
   (serialized : Slice Std.U8) (out : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.encoding.t1.deserialize serialized out
 
@@ -2911,7 +2936,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t1_serialize
   (simd_unit : simd.portable.vector_type.Coefficients) (out : Slice Std.U8) :
-  Result (Slice Std.U8)
+  RustM (Slice Std.U8)
   := do
   simd.portable.encoding.t1.serialize simd_unit out
 
@@ -2920,7 +2945,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t0_deserialize
   (serialized : Slice Std.U8) (out : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.encoding.t0.deserialize serialized out
 
@@ -2929,7 +2954,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t0_serialize
   (simd_unit : simd.portable.vector_type.Coefficients) (out : Slice Std.U8) :
-  Result (Slice Std.U8)
+  RustM (Slice Std.U8)
   := do
   simd.portable.encoding.t0.serialize simd_unit out
 
@@ -2939,7 +2964,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.error_deserialize
   (eta : constants.Eta) (serialized : Slice Std.U8)
   (out : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.encoding.error.deserialize eta serialized out
 
@@ -2949,7 +2974,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.error_serialize
   (eta : constants.Eta) (simd_unit : simd.portable.vector_type.Coefficients)
   (serialized : Slice Std.U8) :
-  Result (Slice Std.U8)
+  RustM (Slice Std.U8)
   := do
   simd.portable.encoding.error.serialize eta simd_unit serialized
 
@@ -2959,7 +2984,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.commitment_serialize
   (simd_unit : simd.portable.vector_type.Coefficients)
   (serialized : Slice Std.U8) :
-  Result (Slice Std.U8)
+  RustM (Slice Std.U8)
   := do
   simd.portable.encoding.commitment.serialize simd_unit serialized
 
@@ -2969,7 +2994,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.gamma1_deserialize
   (serialized : Slice Std.U8) (out : simd.portable.vector_type.Coefficients)
   (gamma1_exponent : Std.Usize) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.encoding.gamma1.deserialize serialized out gamma1_exponent
 
@@ -2979,7 +3004,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.gamma1_serialize
   (simd_unit : simd.portable.vector_type.Coefficients)
   (serialized : Slice Std.U8) (gamma1_exponent : Std.Usize) :
-  Result (Slice Std.U8)
+  RustM (Slice Std.U8)
   := do
   simd.portable.encoding.gamma1.serialize simd_unit serialized gamma1_exponent
 
@@ -2988,7 +3013,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.rejection_sample_less_than_eta_equals_4
   (randomness : Slice Std.U8) (out : Slice Std.I32) :
-  Result (Std.Usize × (Slice Std.I32))
+  RustM (Std.Usize × (Slice Std.I32))
   := do
   simd.portable.sample.rejection_sample_less_than_eta_equals_4 randomness out
 
@@ -2997,7 +3022,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.rejection_sample_less_than_eta_equals_2
   (randomness : Slice Std.U8) (out : Slice Std.I32) :
-  Result (Std.Usize × (Slice Std.I32))
+  RustM (Std.Usize × (Slice Std.I32))
   := do
   simd.portable.sample.rejection_sample_less_than_eta_equals_2 randomness out
 
@@ -3006,7 +3031,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.rejection_sample_less_than_field_modulus
   (randomness : Slice Std.U8) (out : Slice Std.I32) :
-  Result (Std.Usize × (Slice Std.I32))
+  RustM (Std.Usize × (Slice Std.I32))
   := do
   simd.portable.sample.rejection_sample_less_than_field_modulus randomness out
 
@@ -3016,7 +3041,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.use_hint
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
   (hint : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.arithmetic.use_hint gamma2 simd_unit hint
 
@@ -3027,7 +3052,7 @@ def
   (low : simd.portable.vector_type.Coefficients)
   (high : simd.portable.vector_type.Coefficients) (gamma2 : Std.I32)
   (hint : simd.portable.vector_type.Coefficients) :
-  Result (Std.Usize × simd.portable.vector_type.Coefficients)
+  RustM (Std.Usize × simd.portable.vector_type.Coefficients)
   := do
   simd.portable.arithmetic.compute_hint low high gamma2 hint
 
@@ -3038,7 +3063,7 @@ def
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
   (low : simd.portable.vector_type.Coefficients)
   (high : simd.portable.vector_type.Coefficients) :
-  Result (simd.portable.vector_type.Coefficients ×
+  RustM (simd.portable.vector_type.Coefficients ×
     simd.portable.vector_type.Coefficients)
   := do
   simd.portable.arithmetic.decompose gamma2 simd_unit low high
@@ -3048,7 +3073,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.infinity_norm_exceeds
   (simd_unit : simd.portable.vector_type.Coefficients) (bound : Std.I32) :
-  Result Bool
+  RustM Bool
   := do
   simd.portable.arithmetic.infinity_norm_exceeds simd_unit bound
 
@@ -3058,7 +3083,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.power2round
   (t0 : simd.portable.vector_type.Coefficients)
   (t1 : simd.portable.vector_type.Coefficients) :
-  Result (simd.portable.vector_type.Coefficients ×
+  RustM (simd.portable.vector_type.Coefficients ×
     simd.portable.vector_type.Coefficients)
   := do
   simd.portable.arithmetic.power2round t0 t1
@@ -3069,7 +3094,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.montgomery_multiply
   (lhs : simd.portable.vector_type.Coefficients)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.arithmetic.montgomery_multiply lhs rhs
 
@@ -3079,7 +3104,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.subtract
   (lhs : simd.portable.vector_type.Coefficients)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.arithmetic.subtract lhs rhs
 
@@ -3089,7 +3114,7 @@ def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.add
   (lhs : simd.portable.vector_type.Coefficients)
   (rhs : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.arithmetic.add lhs rhs
 
@@ -3098,7 +3123,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.to_coefficient_array
   (value : simd.portable.vector_type.Coefficients) (out : Slice Std.I32) :
-  Result (Slice Std.I32)
+  RustM (Slice Std.I32)
   := do
   simd.portable.vector_type.to_coefficient_array value out
 
@@ -3107,7 +3132,7 @@ def
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.from_coefficient_array
   (array : Slice Std.I32) (out : simd.portable.vector_type.Coefficients) :
-  Result simd.portable.vector_type.Coefficients
+  RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.vector_type.from_coefficient_array array out
 
@@ -3115,7 +3140,7 @@ def
     Source: 'ml-dsa/src/simd/portable.rs', lines 21:4-23:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.zero
-  : Result simd.portable.vector_type.Coefficients := do
+  : RustM simd.portable.vector_type.Coefficients := do
   simd.portable.vector_type.zero
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}]
@@ -3181,7 +3206,7 @@ def
     simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.ntt
   invert_ntt_montgomery :=
     simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.invert_ntt_montgomery
-  «reduce» :=
+  reduce :=
     simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.reduce
 }
 

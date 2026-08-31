@@ -14,8 +14,11 @@ rev = "v0.3.12"
 # The machine-extracted ML-KEM hacspec (crate `hacspec_ml_kem`, specs/ml-kem in
 # celabshq/libcrux); the proofs reference `hacspec_ml_kem.*`. Transitively brings
 # in HacspecSha3 (the spec references `hacspec_sha3.*`).
+# Local worktree path until the libcrux-side spec migration is pushed: the
+# pinned rev below still carried hax-lean v0.2.0, so lake resolved aeneas to
+# the old 52fd4383 and the build died inside hax-lean itself with
+# "Unknown identifier `Aeneas.Std.RustM`". TODO: restore a `git`+`rev`
+# require pointing at the pushed commit.
 [[require]]
 name = "HacspecMlKem"
-git = "https://github.com/celabshq/libcrux"
-rev = "12c12222c87cdd5ad5dcc1fa971a5efd30549859"
-subDir = "specs/ml-kem/proofs/lean"
+path = "../../../../../../libcrux/hax-v0.4.0-rc.1/specs/ml-kem/proofs/lean"

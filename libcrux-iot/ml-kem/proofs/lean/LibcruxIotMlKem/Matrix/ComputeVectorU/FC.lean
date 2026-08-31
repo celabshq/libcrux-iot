@@ -47,7 +47,7 @@ set_option mvcgen.warning false
 set_option linter.unusedVariables false
 
 /-- Local copy of the `private triple_exists_ok_fc` helper. -/
-private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_fc {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -56,7 +56,7 @@ private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
 /-- Local copy of the `private triple_of_ok_fc` helper. -/
-private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_fc {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -73,7 +73,7 @@ private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α}
 section PartA
 
 open hacspec_ml_kem.parameters (FieldElement)
-open Result ControlFlow
+open RustM ControlFlow
 
 /-- Polynomial as a 256-lane field-element array. -/
 private abbrev Poly256L := Std.Array FieldElement 256#usize
@@ -141,7 +141,7 @@ private theorem mcol_step_add_eq {K : Std.Usize}
         (Spec.multiply_ntts_pure (col.val[k]!) (vec.val[k]!))
       = .ok (mcolResult col vec (k + 1)) := by
   rw [Stage4MatrixAddFC.matrix_add_polynomials_eq_ok]
-  apply congrArg Result.ok
+  apply congrArg RustM.ok
   apply Subtype.ext
   show (List.range 256).map (fun n =>
       libcrux_iot_ml_kem.Spec.Pure.FieldElement.add_pure
@@ -185,8 +185,8 @@ private theorem multiply_vectors_eq_mcolL {K : Std.Usize}
         (fun k result => pure (result = mcolResult col vec k.val))
         (Nat.zero_le _)
         (by
-          show (pure _ : Result Prop).holds
-          simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+          show (pure _ : RustM Prop).holds
+          simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
           intro _
           apply Subtype.ext
           rw [Std.Array.repeat_val]
@@ -203,12 +203,12 @@ private theorem multiply_vectors_eq_mcolL {K : Std.Usize}
         ?_)
     · rw [PostCond.entails_noThrow]
       intro r hh
-      have h_eq : (pure (r = mcolResult col vec K.val) : Result Prop).holds := by
+      have h_eq : (pure (r = mcolResult col vec K.val) : RustM Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = mcolResult col vec k.val := by
-        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
+        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_vectors_loop.body
       by_cases h_lt : k.val < K.val
@@ -264,10 +264,10 @@ private theorem multiply_vectors_eq_mcolL {K : Std.Usize}
                   let product ← hacspec_ml_kem.ntt.multiply_ntts a a1'
                   let result1 ← hacspec_ml_kem.matrix.add_polynomials
                     (mcolResult col vec k.val) product
-                  Aeneas.Std.Result.ok (ControlFlow.cont
+                  Aeneas.Std.RustM.ok (ControlFlow.cont
                     (({ start := s_iter, «end» := K }
                       : CoreModels.core.ops.range.Range Std.Usize), result1)))
-                : Result _) = _
+                : RustM _) = _
           rw [h_idx_a1]
           simp only [Aeneas.Std.bind_tc_ok]
           rw [h_idx_a2]
@@ -279,8 +279,8 @@ private theorem multiply_vectors_eq_mcolL {K : Std.Usize}
         apply triple_of_ok_fc h_body
         refine ⟨h_lt, rfl, hs_iter_val, ?_⟩
         show (pure (mcolResult col vec (k.val + 1)
-                      = mcolResult col vec s_iter.val) : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+                      = mcolResult col vec s_iter.val) : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hs_iter_val]
         rfl
@@ -321,8 +321,8 @@ private theorem multiply_vectors_eq_mcolL {K : Std.Usize}
           rfl
         apply triple_of_ok_fc h_body
         show (pure (mcolResult col vec k.val
-                      = mcolResult col vec K.val) : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+                      = mcolResult col vec K.val) : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hk_eq]
         rfl
@@ -358,8 +358,8 @@ private theorem mmbc_at_eq_mcolL {K : Std.Usize}
         (fun k result => pure (result = mcolResult (extractColL m i) vec k.val))
         (Nat.zero_le _)
         (by
-          show (pure _ : Result Prop).holds
-          simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+          show (pure _ : RustM Prop).holds
+          simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
           intro _
           apply Subtype.ext
           rw [Std.Array.repeat_val]
@@ -377,12 +377,12 @@ private theorem mmbc_at_eq_mcolL {K : Std.Usize}
     · rw [PostCond.entails_noThrow]
       intro r hh
       have h_eq : (pure (r = mcolResult (extractColL m i) vec K.val)
-                  : Result Prop).holds := by
+                  : RustM Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = mcolResult (extractColL m i) vec k.val := by
-        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
+        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_matrix_by_column_at_loop.body
       by_cases h_lt : k.val < K.val
@@ -448,10 +448,10 @@ private theorem mmbc_at_eq_mcolL {K : Std.Usize}
                   let product ← hacspec_ml_kem.ntt.multiply_ntts a1 a2
                   let result1 ← hacspec_ml_kem.matrix.add_polynomials
                     (mcolResult (extractColL m i) vec k.val) product
-                  Aeneas.Std.Result.ok (ControlFlow.cont
+                  Aeneas.Std.RustM.ok (ControlFlow.cont
                     (({ start := s_iter, «end» := K }
                       : CoreModels.core.ops.range.Range Std.Usize), result1)))
-                : Result _) = _
+                : RustM _) = _
           rw [h_idx_mk]
           simp only [Aeneas.Std.bind_tc_ok]
           rw [h_idx_a1]
@@ -466,8 +466,8 @@ private theorem mmbc_at_eq_mcolL {K : Std.Usize}
         refine ⟨h_lt, rfl, hs_iter_val, ?_⟩
         show (pure (mcolResult (extractColL m i) vec (k.val + 1)
                       = mcolResult (extractColL m i) vec s_iter.val)
-              : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+              : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hs_iter_val]
         rfl
@@ -510,8 +510,8 @@ private theorem mmbc_at_eq_mcolL {K : Std.Usize}
         apply triple_of_ok_fc h_body
         show (pure (mcolResult (extractColL m i) vec k.val
                       = mcolResult (extractColL m i) vec K.val)
-              : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+              : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hk_eq]
         rfl
@@ -668,13 +668,13 @@ private theorem extractColL_transpose_eq {K : Std.Usize}
 
 /-! ### createi-stage reduction for the hacspec `compute_vector_u`. -/
 
-/-- `Result.ok`-extraction (default on non-ok); used to give `createi` a total
+/-- `RustM.ok`-extraction (default on non-ok); used to give `createi` a total
     index function from per-index `.ok`-ness. -/
-private def resGet {α : Type} [Inhabited α] : Result α → α
+private def resGet {α : Type} [Inhabited α] : RustM α → α
   | .ok v => v
   | _ => default
 
-private theorem resGet_ok {α : Type} [Inhabited α] {x : Result α} {v : α}
+private theorem resGet_ok {α : Type} [Inhabited α] {x : RustM α} {v : α}
     (h : x = .ok v) : x = .ok (resGet x) := by
   rw [h]; rfl
 
@@ -684,7 +684,7 @@ private theorem resGet_ok {α : Type} [Inhabited α] {x : Result α} {v : α}
     `call_mut c ⟨k⟩ = (do let a ← g k; ok (a, c))`. -/
 private theorem createi_stage_eq {K : Std.Usize} {T F : Type} [Inhabited T]
     (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F)
-    (g : Nat → Result T)
+    (g : Nat → RustM T)
     (hcall : ∀ k : Nat, k < K.val →
       inst.call_mut c ⟨BitVec.ofNat _ k⟩ = (do let a ← g k; .ok (a, c)))
     (hok : ∀ k : Nat, k < K.val → ∃ v, g k = .ok v) :
@@ -753,12 +753,12 @@ private theorem compute_vector_u_hacspec_eq {K : Std.Usize}
     obtain ⟨T', hT'_eq, hcol⟩ := extractColL_transpose_eq lm (⟨BitVec.ofNat _ i⟩ : Std.Usize)
       (by rw [ofNat_toNat_eq i hi]; exact hi)
     rw [hT_eq] at hT'_eq
-    have : T' = T := (Result.ok.inj hT'_eq).symm
+    have : T' = T := (RustM.ok.inj hT'_eq).symm
     rw [this] at hcol
     rw [hcol, ofNat_toNat_eq i hi]
   rw [hT_eq]; simp only [Aeneas.Std.bind_tc_ok]
   -- product := multiply_matrix_by_column T rvec, reduced via createi_stage_eq.
-  set g_prod : Nat → Result Poly256L :=
+  set g_prod : Nat → RustM Poly256L :=
     fun k => hacspec_ml_kem.matrix.multiply_matrix_by_column_at T rvec ⟨BitVec.ofNat _ k⟩
     with hg_prod_def
   have hg_prod_ok : ∀ k : Nat, k < K.val → ∃ v, g_prod k = .ok v := by
@@ -787,7 +787,7 @@ private theorem compute_vector_u_hacspec_eq {K : Std.Usize}
   have hP_at : ∀ i : Nat, i < K.val → P.val[i]! = resGet (g_prod i) := by
     intro i hi; rw [hP_def]; exact range_map_lane K.val _ i hi
   -- Stage 2: createi(ntt_inverse) P.
-  set g_inv : Nat → Result Poly256L :=
+  set g_inv : Nat → RustM Poly256L :=
     fun k => hacspec_ml_kem.invert_ntt.ntt_inverse (P.val[k]!) with hg_inv_def
   have hg_inv_ok : ∀ k : Nat, k < K.val → ∃ v, g_inv k = .ok v := by
     intro k hk
@@ -839,7 +839,7 @@ private theorem compute_vector_u_hacspec_eq {K : Std.Usize}
   have hPI_at : ∀ i : Nat, i < K.val → PI.val[i]! = resGet (g_inv i) := by
     intro i hi; rw [hPI_def]; exact range_map_lane K.val _ i hi
   -- Stage 3: add_vectors PI evec = .ok W.
-  set g_add : Nat → Result Poly256L :=
+  set g_add : Nat → RustM Poly256L :=
     fun k => hacspec_ml_kem.matrix.add_polynomials (PI.val[k]!) (evec.val[k]!) with hg_add_def
   have hg_add_ok : ∀ k : Nat, k < K.val → g_add k = .ok (W.val[k]!) := by
     intro k hk
@@ -904,7 +904,7 @@ private theorem compute_vector_u_hacspec_eq {K : Std.Usize}
       hacspec_ml_kem.matrix.add_vectors PI evec = .ok W := by
     unfold hacspec_ml_kem.matrix.add_vectors
     rw [createi_stage_eq _ _ g_add hcall_add (fun k hk => ⟨W.val[k]!, hg_add_ok k hk⟩)]
-    apply congrArg Result.ok
+    apply congrArg RustM.ok
     apply Subtype.ext
     show (List.range K.val).map (fun k => resGet (g_add k)) = W.val
     have hWval_len : W.val.length = K.val := by
@@ -982,13 +982,13 @@ theorem compute_vector_u_fc
   -- massert lengths.
   have h_len_r : core.slice.Slice.len r_as_ntt = .ok K := by
     unfold core.slice.Slice.len
-    apply congrArg Result.ok
+    apply congrArg RustM.ok
     apply Std.UScalar.eq_of_val_eq
     show r_as_ntt.val.length = K.val
     exact h_r_len
   have h_len_e : core.slice.Slice.len error_1 = .ok K := by
     unfold core.slice.Slice.len
-    apply congrArg Result.ok
+    apply congrArg RustM.ok
     apply Std.UScalar.eq_of_val_eq
     show error_1.val.length = K.val
     exact h_err_len
@@ -1030,14 +1030,14 @@ theorem compute_vector_u_fc
       (compute_vector_u_loop0_cache_len_fc hash_functionsHashInst matrix_entry seed r_as_ntt cache
         r_arr acc1 h_seed_len h_r_len h_cache_len h_r_arr h_r_bnd h_acc1_budget)
     rw [h_loop0_eq] at hv_eq
-    have : v = (me1, cache1, acc2) := (Result.ok.inj hv_eq).symm
+    have : v = (me1, cache1, acc2) := (RustM.ok.inj hv_eq).symm
     rw [this] at hv_len; exact hv_len
   -- row-0 acc-bridge: multiply_vectors lm[0] (lift r) = .ok (scaleZ 2285 (mont_strip (poly_reducing acc2))).
   have h_bridge0 := compute_vector_u_row0_acc_bridge seed r_as_ntt r_arr cache cache1 acc1 acc2
     h_acc1_zero h_r_arr h_r_bnd h_row0
   -- Destructure row0_inv once.
   obtain ⟨_h_ex, h_acc2_bnd_raw, h_cache_done, _h_cache_undone⟩ := by
-    simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
+    simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp,
       Row0FillFC.row0_inv, ← List.getElem!_eq_getElem?_getD] using h_row0
   -- cache-post bridge for loop1: from row0_inv conjunct (3) + h_r_arr.
   have h_cache_post : ∀ c : Nat, c < K.val →
@@ -1170,7 +1170,7 @@ theorem compute_vector_u_fc
   dsimp only at h_loop1_eq h_rows
   -- Destructure rows_inv: done rows [1,K) + unchanged rows + length.
   obtain ⟨h_rows_done, h_rows_undone, h_result3_len⟩ := by
-    simpa [AllRowsFillFC.rows_inv, Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp,
+    simpa [AllRowsFillFC.rows_inv, Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp,
       ← List.getElem!_eq_getElem?_getD] using h_rows
   -- result3[0] = s1[0] = row0poly (loop1 leaves row 0 since start = 1).
   have h_result3_at0 : result3.val[0]! = row0poly := by
@@ -1215,7 +1215,7 @@ theorem compute_vector_u_fc
     rw [h_len_r]; simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert]
     rw [h_len_e]; simp only [Aeneas.Std.bind_tc_ok]
     rw [show libcrux_secrets.traits.Classify.Blanket.classify (0#i32 : Std.I32)
-          = Aeneas.Std.Result.ok i2 from h_classify]
+          = Aeneas.Std.RustM.ok i2 from h_classify]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show (Std.Array.repeat (256#usize : Std.Usize) i2) = acc1 from rfl]
     rw [h_loop0_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -1240,26 +1240,26 @@ theorem compute_vector_u_fc
                 me1 seed r_as_ntt error_1 s1 scratch1 cache1 acc2
             .ok (matrix_entry2, result3, scratch2, cache1, accumulator3))
         = .ok (me2, result3, scratch2, cache1, acc3)
-    rw [show Aeneas.Std.lift (Aeneas.Std.Array.to_slice acc2) = Aeneas.Std.Result.ok acc_slice
+    rw [show Aeneas.Std.lift (Aeneas.Std.Array.to_slice acc2) = Aeneas.Std.RustM.ok acc_slice
           from by rw [h_acc_slice_def]; rfl]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [h_imt_result0]; simp only [Aeneas.Std.bind_tc_ok]
     rw [show libcrux_iot_ml_kem.polynomial.PolynomialRingElement.reducing_from_i32_array
           (vectortraitsOperationsInst := portable_ops_inst) acc_slice pre0
-          = Aeneas.Std.Result.ok result1 from h_result1_eq]
+          = Aeneas.Std.RustM.ok result1 from h_result1_eq]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show (result.set 0#usize) result1 = rslice1 from rfl, h_imt_rslice1]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show libcrux_iot_ml_kem.invert_ntt.invert_ntt_montgomery
           K (vectortraitsOperationsInst := portable_ops_inst) result1 scratch
-          = Aeneas.Std.Result.ok (result2, scratch1) from h_inv_eq]
+          = Aeneas.Std.RustM.ok (result2, scratch1) from h_inv_eq]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show (rslice1.set 0#usize) result2 = rslice2 from rfl, h_imt_rslice2]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [h_idx_err0]; simp only [Aeneas.Std.bind_tc_ok]
     rw [show libcrux_iot_ml_kem.polynomial.PolynomialRingElement.add_error_reduce
           (vectortraitsOperationsInst := portable_ops_inst) result2 err0
-          = Aeneas.Std.Result.ok row0poly from h_add0_eq]
+          = Aeneas.Std.RustM.ok row0poly from h_add0_eq]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show (rslice2.set 0#usize) row0poly = s1 from rfl]
     rw [h_loop1_eq]; simp only [Aeneas.Std.bind_tc_ok]

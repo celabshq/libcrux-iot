@@ -23,7 +23,7 @@ set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_dsa.Vector.Portable.NttDriver
-open Aeneas Aeneas.Std Std.Do Result
+open Aeneas Aeneas.Std Std.Do RustM
 open libcrux_iot_ml_dsa.Spec
 open libcrux_iot_ml_dsa.Spec.Lift libcrux_iot_ml_dsa.Spec.Montgomery
   libcrux_iot_ml_dsa.Spec.Parameters
@@ -33,7 +33,7 @@ open libcrux_iot_ml_dsa.Util.LoopHelper
 /-- Reflect a `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` Triple into an `.ok` witness plus the post
     (file-scoped copy of the §13.5 helper; the original is `private` in `Ntt`). -/
 private theorem triple_exists_ok
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -44,7 +44,7 @@ private theorem triple_exists_ok
 
 /-- `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v` (file-scoped §13.5 copy). -/
 private theorem triple_of_ok
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -339,7 +339,7 @@ theorem ntt_at_layer_5_fc
       (outer_3_plus_fc 24#usize 4#usize 466468#i32 r3 B3 zeta5_mag3 hB3raw hstep hbnd3 h2bd)
   -- Collapse the bind chain ONE call at a time (keeps each kernel-checked term
   -- shallow; a single `simp only [hr1_eq, hr2_eq, hr3_eq, ...]` builds a deeply
-  -- nested `Result` bind that triggers kernel deep recursion).
+  -- nested `RustM` bind that triggers kernel deep recursion).
   rw [hr1_eq]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hr2_eq]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hr3_eq]; simp only [Aeneas.Std.bind_tc_ok]

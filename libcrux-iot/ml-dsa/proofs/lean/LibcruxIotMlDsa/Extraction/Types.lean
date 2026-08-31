@@ -5,7 +5,7 @@ import CoreModels
 import LibcruxIotMlDsa.Extraction.TypesExternal
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
-open Result ControlFlow Error
+open RustM ControlFlow Error
 open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
@@ -31,39 +31,39 @@ inductive constants.Eta where
 structure simd.traits.Operations (Self : Type) where
   coremarkerCopyInst : core.marker.Copy Self
   corecloneCloneInst : core.clone.Clone Self
-  zero : Result Self
-  from_coefficient_array : Slice Std.I32 → Self → Result Self
-  to_coefficient_array : Self → Slice Std.I32 → Result (Slice Std.I32)
-  add : Self → Self → Result Self
-  subtract : Self → Self → Result Self
-  infinity_norm_exceeds : Self → Std.I32 → Result Bool
-  decompose : Std.I32 → Self → Self → Self → Result (Self × Self)
-  compute_hint : Self → Self → Std.I32 → Self → Result (Std.Usize ×
+  zero : RustM Self
+  from_coefficient_array : Slice Std.I32 → Self → RustM Self
+  to_coefficient_array : Self → Slice Std.I32 → RustM (Slice Std.I32)
+  add : Self → Self → RustM Self
+  subtract : Self → Self → RustM Self
+  infinity_norm_exceeds : Self → Std.I32 → RustM Bool
+  decompose : Std.I32 → Self → Self → Self → RustM (Self × Self)
+  compute_hint : Self → Self → Std.I32 → Self → RustM (Std.Usize ×
     Self)
-  use_hint : Std.I32 → Self → Self → Result Self
-  montgomery_multiply : Self → Self → Result Self
-  shift_left_then_reduce : forall (SHIFT_BY : Std.I32), Self → Result Self
-  power2round : Self → Self → Result (Self × Self)
+  use_hint : Std.I32 → Self → Self → RustM Self
+  montgomery_multiply : Self → Self → RustM Self
+  shift_left_then_reduce : forall (SHIFT_BY : Std.I32), Self → RustM Self
+  power2round : Self → Self → RustM (Self × Self)
   rejection_sample_less_than_field_modulus : Slice Std.U8 → Slice Std.I32 →
-    Result (Std.Usize × (Slice Std.I32))
+    RustM (Std.Usize × (Slice Std.I32))
   rejection_sample_less_than_eta_equals_2 : Slice Std.U8 → Slice Std.I32 →
-    Result (Std.Usize × (Slice Std.I32))
+    RustM (Std.Usize × (Slice Std.I32))
   rejection_sample_less_than_eta_equals_4 : Slice Std.U8 → Slice Std.I32 →
-    Result (Std.Usize × (Slice Std.I32))
-  gamma1_serialize : Self → Slice Std.U8 → Std.Usize → Result (Slice
+    RustM (Std.Usize × (Slice Std.I32))
+  gamma1_serialize : Self → Slice Std.U8 → Std.Usize → RustM (Slice
     Std.U8)
-  gamma1_deserialize : Slice Std.U8 → Self → Std.Usize → Result Self
-  commitment_serialize : Self → Slice Std.U8 → Result (Slice Std.U8)
-  error_serialize : constants.Eta → Self → Slice Std.U8 → Result (Slice
+  gamma1_deserialize : Slice Std.U8 → Self → Std.Usize → RustM Self
+  commitment_serialize : Self → Slice Std.U8 → RustM (Slice Std.U8)
+  error_serialize : constants.Eta → Self → Slice Std.U8 → RustM (Slice
     Std.U8)
-  error_deserialize : constants.Eta → Slice Std.U8 → Self → Result Self
-  t0_serialize : Self → Slice Std.U8 → Result (Slice Std.U8)
-  t0_deserialize : Slice Std.U8 → Self → Result Self
-  t1_serialize : Self → Slice Std.U8 → Result (Slice Std.U8)
-  t1_deserialize : Slice Std.U8 → Self → Result Self
-  ntt : Array Self 32#usize → Result (Array Self 32#usize)
-  invert_ntt_montgomery : Array Self 32#usize → Result (Array Self 32#usize)
-  «reduce» : Array Self 32#usize → Result (Array Self 32#usize)
+  error_deserialize : constants.Eta → Slice Std.U8 → Self → RustM Self
+  t0_serialize : Self → Slice Std.U8 → RustM (Slice Std.U8)
+  t0_deserialize : Slice Std.U8 → Self → RustM Self
+  t1_serialize : Self → Slice Std.U8 → RustM (Slice Std.U8)
+  t1_deserialize : Slice Std.U8 → Self → RustM Self
+  ntt : Array Self 32#usize → RustM (Array Self 32#usize)
+  invert_ntt_montgomery : Array Self 32#usize → RustM (Array Self 32#usize)
+  reduce : Array Self 32#usize → RustM (Array Self 32#usize)
 
 /-- [libcrux_iot_ml_dsa::polynomial::PolynomialRingElement]
     Source: 'ml-dsa/src/polynomial.rs', lines 9:0-11:1 -/
@@ -74,5 +74,10 @@ structure polynomial.PolynomialRingElement (SIMDUnit : Type) where
     Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 10:0-12:1 -/
 structure simd.portable.vector_type.Coefficients where
   values : Array Std.I32 8#usize
+
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::closure]
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 190:33-190:64 -/
+@[reducible]
+def simd.portable.arithmetic.compute_hint.closure := Std.Usize
 
 end libcrux_iot_ml_dsa

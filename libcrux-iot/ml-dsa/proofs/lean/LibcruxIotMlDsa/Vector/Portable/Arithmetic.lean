@@ -22,14 +22,14 @@ set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_dsa.Vector.Portable.Arithmetic
-open CoreModels Aeneas Aeneas.Std Std.Do Result ControlFlow
+open CoreModels Aeneas Aeneas.Std Std.Do RustM ControlFlow
 open libcrux_iot_ml_dsa.Spec.Parameters
 open libcrux_iot_ml_dsa.Spec.Montgomery
 open libcrux_iot_ml_dsa.Spec.Lift
 open libcrux_iot_ml_dsa.Util.LoopHelper
 
 /-- The Triple `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v`. -/
-private theorem triple_of_ok_l0 {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_l0 {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -37,7 +37,7 @@ private theorem triple_of_ok_l0 {α : Type} {x : Result α} {v : α}
 /-- Extract the `.ok` witness from a true-pre Triple — mirror of the SKILL §13.5
     helper, scoped to this file. Lets a downstream proof consume a `@[spec]`
     Triple without reaching into its privates. -/
-private theorem triple_exists_ok_l0 {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_l0 {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -626,7 +626,7 @@ def reduce_impl_value (fe : Std.I32) : Std.I32 :=
   let i2 : Std.I32 := Aeneas.Std.I32.wrapping_mul quotient (8380417#i32)
   Aeneas.Std.I32.wrapping_sub fe i2
 
-/-- The `do`-block reduces to `Result.ok (reduce_impl_value fe)`. -/
+/-- The `do`-block reduces to `RustM.ok (reduce_impl_value fe)`. -/
 theorem reduce_element_eq_ok (fe : Std.I32) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.reduce_element fe
       = .ok (reduce_impl_value fe) := by
@@ -893,7 +893,7 @@ theorem reduce_element_spec (fe : Std.I32) (h : fe.val.natAbs ≤ 2^31 - 2^23) :
     the operand), so it is proven the same way via `elementwise_unary_spec`.
 
     The one new ingredient is the signed-left-shift `.val` closed form:
-    `shiftLeft_ok` (the in-range `Result.ok` form) + `shiftLeft_shifted_val`
+    `shiftLeft_ok` (the in-range `RustM.ok` form) + `shiftLeft_shifted_val`
     (the no-overflow `.val = x·2^k` value, pure-`BitVec`); power2round/decompose
     will reuse these. Outputs are CLEAN mod-q, so the post is in `liftZ_std`
     form (residue-preserving): under `hbound`, the signed shift equals
@@ -907,7 +907,7 @@ private theorem coeff_slice_len_eq (a : CoeffArray) :
   show (Aeneas.Std.Array.to_slice a).length = (8#usize : Std.Usize).val
   rw [Aeneas.Std.Array.length_to_slice a]
 
-/-- Signed I32 left shift, `Result.ok` form. Generalizes the literal
+/-- Signed I32 left shift, `RustM.ok` form. Generalizes the literal
     `1#i32 <<< 22#i32` case used inside `reduce_element_eq_ok` to a runtime
     `SHIFT_BY`: `IScalar.shiftLeft_IScalar` discharges `SHIFT_BY.val ≥ 0` and
     `SHIFT_BY.toNat < I32.numBits`, yielding `⟨x.bv.shiftLeft SHIFT_BY.toNat⟩`. -/
@@ -995,7 +995,7 @@ private theorem slr_per_elem_spec (SHIFT_BY x : Std.I32)
   obtain ⟨rv, h_red_ok, h_red_P⟩ :=
     triple_exists_ok_l0 (reduce_element_spec i2 h_red_pre)
   rw [reduce_element_eq_ok] at h_red_ok
-  have h_eq : reduce_impl_value i2 = rv := Result.ok.inj h_red_ok
+  have h_eq : reduce_impl_value i2 = rv := RustM.ok.inj h_red_ok
   rw [h_eq]
   refine ⟨?_, h_red_P.2⟩
   rw [h_red_P.1, h_shl_val]
@@ -1074,9 +1074,9 @@ theorem shift_left_then_reduce_spec
     New shift-`.val` infra (reused by `decompose`/`use_hint`):
     - `sshiftRight_val_i32` — signed right shift `.val = x.val / 2^k` (T-division;
       for `x ≥ 0` this is floor; mirrors the inline `BitVec.toInt_sshiftRight` lemmas).
-    - `shiftRight_IScalar_ok` / `shiftRight_UScalar_ok` — the `Result.ok` forms for the
+    - `shiftRight_IScalar_ok` / `shiftRight_UScalar_ok` — the `RustM.ok` forms for the
       `>>> 31#i32` and `>>> 13#usize` shift mechanics.
-    - `shiftLeft_UScalar_ok` — the `Result.ok` form for `1#i32 <<< 12#usize` /
+    - `shiftLeft_UScalar_ok` — the `RustM.ok` form for `1#i32 <<< 12#usize` /
       `t11 <<< 13#usize` (usize-amount); `.val` via the existing
       `shiftLeft_shifted_val`.
     - `power2round_sign_mask_val` — the riskiest fact: the sign mask
@@ -1091,7 +1091,7 @@ private theorem sshiftRight_val_i32 (x : Std.I32) (k : Nat) :
   show (x.bv.sshiftRight k).toInt = _
   rw [BitVec.toInt_sshiftRight, Int.shiftRight_eq_div_pow]; norm_cast
 
-/-- `>>> SHIFT#i32` (I32-amount), `Result.ok` form, when `0 ≤ SHIFT < 32`. -/
+/-- `>>> SHIFT#i32` (I32-amount), `RustM.ok` form, when `0 ≤ SHIFT < 32`. -/
 private theorem shiftRight_IScalar_ok (x SHIFT : Std.I32)
     (h0 : 0 ≤ SHIFT.val) (h32 : SHIFT.toNat < 32) :
     (x >>> SHIFT) = .ok (⟨x.bv.sshiftRight SHIFT.toNat⟩ : Std.I32) := by
@@ -1099,7 +1099,7 @@ private theorem shiftRight_IScalar_ok (x SHIFT : Std.I32)
   unfold Aeneas.Std.IScalar.shiftRight_IScalar Aeneas.Std.IScalar.shiftRight
   rw [if_pos h0, if_pos (show SHIFT.toNat < Aeneas.Std.IScalarTy.I32.numBits from h32)]
 
-/-- `>>> SHIFT#usize` (usize-amount) on an I32, `Result.ok` form, when the value of
+/-- `>>> SHIFT#usize` (usize-amount) on an I32, `RustM.ok` form, when the value of
     `SHIFT` is `< 32`. -/
 private theorem shiftRight_UScalar_ok (x : Std.I32) (SHIFT : Std.Usize)
     (h32 : SHIFT.val < 32) :
@@ -1108,7 +1108,7 @@ private theorem shiftRight_UScalar_ok (x : Std.I32) (SHIFT : Std.Usize)
   unfold Aeneas.Std.IScalar.shiftRight_UScalar Aeneas.Std.IScalar.shiftRight
   rw [if_pos (show SHIFT.val < Aeneas.Std.IScalarTy.I32.numBits from h32)]
 
-/-- `<<< SHIFT#usize` (usize-amount) on an I32, `Result.ok` form, when the value of
+/-- `<<< SHIFT#usize` (usize-amount) on an I32, `RustM.ok` form, when the value of
     `SHIFT` is `< 32`. -/
 private theorem shiftLeft_UScalar_ok (x : Std.I32) (SHIFT : Std.Usize)
     (h32 : SHIFT.val < 32) :
@@ -1181,7 +1181,7 @@ def power2round_impl_value (t : Std.I32) : Std.I32 × Std.I32 :=
   (t0, t11)
 
 set_option maxHeartbeats 1000000 in
-/-- The `do`-block reduces to `Result.ok (power2round_impl_value t)`. -/
+/-- The `do`-block reduces to `RustM.ok (power2round_impl_value t)`. -/
 theorem power2round_element_eq_ok (t : Std.I32) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_element t
       = .ok (power2round_impl_value t) := by
@@ -1198,7 +1198,7 @@ theorem power2round_element_eq_ok (t : Std.I32) :
   obtain ⟨i3', h_i3eq, h_i3val⟩ :
       ∃ i3' : Std.Usize,
         (libcrux_iot_ml_dsa.constants.BITS_IN_LOWER_PART_OF_T - (1#usize : Std.Usize)
-          : Result Std.Usize) = .ok i3' ∧ i3'.val = 12 := by
+          : RustM Std.Usize) = .ok i3' ∧ i3'.val = 12 := by
     rw [h_d]
     have hs := Aeneas.Std.WP.spec_of_partialSpec
       (@Std.Usize.sub_spec (13#usize : Std.Usize) (1#usize : Std.Usize))
@@ -1231,7 +1231,7 @@ theorem power2round_element_eq_ok (t : Std.I32) :
   -- Chain the do-block.
   rw [h_shr31, h_q]
   simp only [Aeneas.Std.bind_tc_ok]
-  rw [show (Aeneas.Std.lift (⟨t.bv.sshiftRight 31⟩ &&& (8380417#i32 : Std.I32)) : Result Std.I32)
+  rw [show (Aeneas.Std.lift (⟨t.bv.sshiftRight 31⟩ &&& (8380417#i32 : Std.I32)) : RustM Std.I32)
         = .ok (⟨(⟨t.bv.sshiftRight 31⟩ : Std.I32).bv &&& (8380417#i32 : Std.I32).bv⟩) from rfl]
   simp only [Aeneas.Std.bind_tc_ok, CoreModels.core.num.I32.wrapping_sub,
              CoreModels.core.num.I32.wrapping_add,
@@ -1375,7 +1375,7 @@ private theorem power2round_per_elem_spec (x : Std.I32) :
   intro hlo hhi
   obtain ⟨v, hv_eq, hv_P⟩ := triple_exists_ok_l0 (power2round_element_spec x hlo hhi)
   rw [power2round_element_eq_ok x] at hv_eq
-  rw [Result.ok.inj hv_eq]; exact hv_P
+  rw [RustM.ok.inj hv_eq]; exact hv_P
 
 set_option maxHeartbeats 2000000 in
 @[spec]
@@ -1518,12 +1518,12 @@ theorem unit_norm_impl_val_abs (c : Std.I32) (hpre : c.val.natAbs ≤ 2^30) :
 /-! ### Per-unit Bool-accumulator loop. -/
 
 /-- Pure-prop holds helpers for the Bool-accumulator invariant. -/
-private theorem pure_prop_holds_inf {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_inf {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_inf {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
 
 /-- The whole per-coefficient chunk (computation + short-circuiting `if`) reduces to
     `.ok (cont (iter1, if result then true else unit_norm_impl c >= bound))`. -/
@@ -1540,7 +1540,7 @@ theorem inf_chunk_if_eq (c bound : Std.I32) (result : Bool)
       else
         let i4 ← libcrux_secrets.traits.Declassify.Blanket.declassify normalized
         ok (ControlFlow.cont (iter1, i4 >= bound)) :
-      Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
+      RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
     = .ok (ControlFlow.cont (iter1, if result then true else (unit_norm_impl c >= bound))) := by
   unfold unit_norm_impl
   have h_shr31 : (c >>> (31#i32 : Std.I32)) = .ok (⟨c.bv.sshiftRight 31⟩ : Std.I32) := by
@@ -1559,7 +1559,7 @@ theorem inf_chunk_if_eq (c bound : Std.I32) (result : Bool)
     8-element coefficient array `a`). -/
 def inf_body (a : CoeffArray) (bound : Std.I32)
     (iter : CoreModels.core.ops.range.Range Std.Usize) (result : Bool) :
-    Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool) := do
+    RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool) := do
   let (o, iter1) ←
     CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
       CoreModels.core.Usize.Insts.CoreIterRangeStep iter
@@ -1580,7 +1580,7 @@ def inf_body (a : CoeffArray) (bound : Std.I32)
 
 /-- The per-unit loop invariant: `result = decide(∃ j < k, bound ≤ |a[j]|)`. -/
 def inf_inv (a : CoeffArray) (bound : Std.I32) :
-    Std.Usize → Bool → Result Prop :=
+    Std.Usize → Bool → RustM Prop :=
   fun k result => pure
     (result = decide (∃ j : Nat, j < k.val ∧ (bound.val : Int) ≤ |(a.val[j]!).val|))
 
@@ -1659,8 +1659,8 @@ theorem inf_step_lemma
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | CoreModels.core.option.Option.None =>
-              (Result.ok (ControlFlow.done result) :
-                Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
+              (RustM.ok (ControlFlow.done result) :
+                RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
           | CoreModels.core.option.Option.Some i =>
             let coefficient ← Aeneas.Std.Array.index_usize a i
             let sign ← coefficient >>> 31#i32
@@ -1714,8 +1714,8 @@ theorem inf_step_lemma
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | CoreModels.core.option.Option.None =>
-              (Result.ok (ControlFlow.done result) :
-                Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
+              (RustM.ok (ControlFlow.done result) :
+                RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Bool) Bool))
           | CoreModels.core.option.Option.Some i =>
             let coefficient ← Aeneas.Std.Array.index_usize a i
             let sign ← coefficient >>> 31#i32

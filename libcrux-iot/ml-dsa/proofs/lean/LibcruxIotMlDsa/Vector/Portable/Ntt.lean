@@ -35,23 +35,23 @@ set_option linter.unusedVariables false
 set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_dsa.Vector.Portable.Ntt
-open CoreModels Aeneas Aeneas.Std Std.Do Result ControlFlow
+open CoreModels Aeneas Aeneas.Std Std.Do RustM ControlFlow
 open libcrux_iot_ml_dsa.Util.LoopHelper libcrux_iot_ml_dsa.Util.LoopSpecs
 open libcrux_iot_ml_dsa.Spec.Lift libcrux_iot_ml_dsa.Spec.Montgomery
   libcrux_iot_ml_dsa.Spec.Parameters
 
-/-! ## Local Triple ↔ Result.ok bridges (file-scoped copies of the §13.5 helpers). -/
+/-! ## Local Triple ↔ RustM.ok bridges (file-scoped copies of the §13.5 helpers). -/
 
 /-- `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v`. -/
 private theorem triple_of_ok
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 /-- Reflect a `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` Triple into an `.ok` witness plus the post. -/
 private theorem triple_exists_ok
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -88,7 +88,7 @@ private theorem sum_abs_bound (x t : Int) (B : Nat)
 private theorem checked_sub_ok (x t : Std.I32) (B : Nat)
     (hx : x.val.natAbs ≤ B) (ht : t.val.natAbs ≤ 2 ^ 24)
     (hB : (B : Int) + 2 ^ 24 ≤ 2 ^ 31 - 1) :
-    ∃ z : Std.I32, (x - t : Result Std.I32) = .ok z ∧ z.val = x.val - t.val
+    ∃ z : Std.I32, (x - t : RustM Std.I32) = .ok z ∧ z.val = x.val - t.val
       ∧ z.val.natAbs ≤ B + 2 ^ 24 := by
   have h_abs := (sum_abs_bound x.val t.val B hx ht).2
   have h_in : Aeneas.Std.IScalar.inBounds Aeneas.Std.IScalarTy.I32 (x.val - t.val) := by
@@ -100,7 +100,7 @@ private theorem checked_sub_ok (x t : Std.I32) (B : Nat)
       omega
     · omega
   have h := Aeneas.Std.IScalar.sub_equiv x t
-  cases hz : (x - t : Result Std.I32) with
+  cases hz : (x - t : RustM Std.I32) with
   | ok z =>
     rw [hz] at h
     refine ⟨z, rfl, h.2.1, ?_⟩
@@ -116,7 +116,7 @@ private theorem checked_sub_ok (x t : Std.I32) (B : Nat)
 private theorem checked_add_ok (x t : Std.I32) (B : Nat)
     (hx : x.val.natAbs ≤ B) (ht : t.val.natAbs ≤ 2 ^ 24)
     (hB : (B : Int) + 2 ^ 24 ≤ 2 ^ 31 - 1) :
-    ∃ z : Std.I32, (x + t : Result Std.I32) = .ok z ∧ z.val = x.val + t.val
+    ∃ z : Std.I32, (x + t : RustM Std.I32) = .ok z ∧ z.val = x.val + t.val
       ∧ z.val.natAbs ≤ B + 2 ^ 24 := by
   have h_abs := (sum_abs_bound x.val t.val B hx ht).1
   have h_in : Aeneas.Std.IScalar.inBounds Aeneas.Std.IScalarTy.I32 (x.val + t.val) := by
@@ -128,7 +128,7 @@ private theorem checked_add_ok (x t : Std.I32) (B : Nat)
       omega
     · omega
   have h := Aeneas.Std.IScalar.add_equiv x t
-  cases hz : (x + t : Result Std.I32) with
+  cases hz : (x + t : RustM Std.I32) with
   | ok z =>
     rw [hz] at h
     refine ⟨z, rfl, h.2.1, ?_⟩
@@ -219,7 +219,7 @@ theorem simd_unit_ntt_at_layer_0_fc
     rw [ha, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide)]
     rw [Std.Array.getElem!_Nat_eq]
   have hi_a0 : Array.index_usize a 0#usize = .ok v0 :=
-    (array_index_usize_ok_eq a 0#usize (by rw [ha_len]; decide)).trans (congrArg Result.ok ha_0)
+    (array_index_usize_ok_eq a 0#usize (by rw [ha_len]; decide)).trans (congrArg RustM.ok ha_0)
   have hu_a1 : Array.update a 0#usize p0 = .ok (a.set 0#usize p0) :=
     array_update_ok_eq a 0#usize p0 (by rw [ha_len]; decide)
   set a1 : CoeffArray := a.set 0#usize p0 with ha1
@@ -232,9 +232,9 @@ theorem simd_unit_ntt_at_layer_0_fc
     rw [ha1, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a13 : Array.index_usize a1 3#usize = .ok v3 :=
-    (array_index_usize_ok_eq a1 3#usize (by rw [ha1_len]; decide)).trans (congrArg Result.ok ha1_3)
+    (array_index_usize_ok_eq a1 3#usize (by rw [ha1_len]; decide)).trans (congrArg RustM.ok ha1_3)
   have hi_a12 : Array.index_usize a1 2#usize = .ok v2 :=
-    (array_index_usize_ok_eq a1 2#usize (by rw [ha1_len]; decide)).trans (congrArg Result.ok ha1_2)
+    (array_index_usize_ok_eq a1 2#usize (by rw [ha1_len]; decide)).trans (congrArg RustM.ok ha1_2)
   have hu_a2 : Array.update a1 3#usize s1 = .ok (a1.set 3#usize s1) :=
     array_update_ok_eq a1 3#usize s1 (by rw [ha1_len]; decide)
   set a2 : CoeffArray := a1.set 3#usize s1 with ha2
@@ -243,7 +243,7 @@ theorem simd_unit_ntt_at_layer_0_fc
     rw [ha2, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha1_2]
   have hi_a22 : Array.index_usize a2 2#usize = .ok v2 :=
-    (array_index_usize_ok_eq a2 2#usize (by rw [ha2_len]; decide)).trans (congrArg Result.ok ha2_2)
+    (array_index_usize_ok_eq a2 2#usize (by rw [ha2_len]; decide)).trans (congrArg RustM.ok ha2_2)
   have hu_a3 : Array.update a2 2#usize p1 = .ok (a2.set 2#usize p1) :=
     array_update_ok_eq a2 2#usize p1 (by rw [ha2_len]; decide)
   set a3 : CoeffArray := a2.set 2#usize p1 with ha3
@@ -260,9 +260,9 @@ theorem simd_unit_ntt_at_layer_0_fc
         ha1, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a35 : Array.index_usize a3 5#usize = .ok v5 :=
-    (array_index_usize_ok_eq a3 5#usize (by rw [ha3_len]; decide)).trans (congrArg Result.ok ha3_5)
+    (array_index_usize_ok_eq a3 5#usize (by rw [ha3_len]; decide)).trans (congrArg RustM.ok ha3_5)
   have hi_a34 : Array.index_usize a3 4#usize = .ok v4 :=
-    (array_index_usize_ok_eq a3 4#usize (by rw [ha3_len]; decide)).trans (congrArg Result.ok ha3_4)
+    (array_index_usize_ok_eq a3 4#usize (by rw [ha3_len]; decide)).trans (congrArg RustM.ok ha3_4)
   have hu_a4 : Array.update a3 5#usize s2 = .ok (a3.set 5#usize s2) :=
     array_update_ok_eq a3 5#usize s2 (by rw [ha3_len]; decide)
   set a4 : CoeffArray := a3.set 5#usize s2 with ha4
@@ -271,7 +271,7 @@ theorem simd_unit_ntt_at_layer_0_fc
     rw [ha4, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha3_4]
   have hi_a44 : Array.index_usize a4 4#usize = .ok v4 :=
-    (array_index_usize_ok_eq a4 4#usize (by rw [ha4_len]; decide)).trans (congrArg Result.ok ha4_4)
+    (array_index_usize_ok_eq a4 4#usize (by rw [ha4_len]; decide)).trans (congrArg RustM.ok ha4_4)
   have hu_a5 : Array.update a4 4#usize p2 = .ok (a4.set 4#usize p2) :=
     array_update_ok_eq a4 4#usize p2 (by rw [ha4_len]; decide)
   set a5 : CoeffArray := a4.set 4#usize p2 with ha5
@@ -292,9 +292,9 @@ theorem simd_unit_ntt_at_layer_0_fc
         ha1, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a57 : Array.index_usize a5 7#usize = .ok v7 :=
-    (array_index_usize_ok_eq a5 7#usize (by rw [ha5_len]; decide)).trans (congrArg Result.ok ha5_7)
+    (array_index_usize_ok_eq a5 7#usize (by rw [ha5_len]; decide)).trans (congrArg RustM.ok ha5_7)
   have hi_a56 : Array.index_usize a5 6#usize = .ok v6 :=
-    (array_index_usize_ok_eq a5 6#usize (by rw [ha5_len]; decide)).trans (congrArg Result.ok ha5_6)
+    (array_index_usize_ok_eq a5 6#usize (by rw [ha5_len]; decide)).trans (congrArg RustM.ok ha5_6)
   have hu_a6 : Array.update a5 7#usize s3 = .ok (a5.set 7#usize s3) :=
     array_update_ok_eq a5 7#usize s3 (by rw [ha5_len]; decide)
   set a6 : CoeffArray := a5.set 7#usize s3 with ha6
@@ -303,7 +303,7 @@ theorem simd_unit_ntt_at_layer_0_fc
     rw [ha6, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha5_6]
   have hi_a66 : Array.index_usize a6 6#usize = .ok v6 :=
-    (array_index_usize_ok_eq a6 6#usize (by rw [ha6_len]; decide)).trans (congrArg Result.ok ha6_6)
+    (array_index_usize_ok_eq a6 6#usize (by rw [ha6_len]; decide)).trans (congrArg RustM.ok ha6_6)
   have hu_a7 : Array.update a6 6#usize p3 = .ok (a6.set 6#usize p3) :=
     array_update_ok_eq a6 6#usize p3 (by rw [ha6_len]; decide)
   set a7 : CoeffArray := a6.set 6#usize p3 with ha7
@@ -515,7 +515,7 @@ theorem simd_unit_ntt_at_layer_1_fc
     rw [ha, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide)]
     rw [Std.Array.getElem!_Nat_eq]
   have hi_a0 : Array.index_usize a 0#usize = .ok v0 :=
-    (array_index_usize_ok_eq a 0#usize (by rw [ha_len]; decide)).trans (congrArg Result.ok ha_0)
+    (array_index_usize_ok_eq a 0#usize (by rw [ha_len]; decide)).trans (congrArg RustM.ok ha_0)
   have hu_a1 : Array.update a 0#usize p0 = .ok (a.set 0#usize p0) :=
     array_update_ok_eq a 0#usize p0 (by rw [ha_len]; decide)
   set a1 : CoeffArray := a.set 0#usize p0 with ha1
@@ -528,9 +528,9 @@ theorem simd_unit_ntt_at_layer_1_fc
     rw [ha1, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a13 : Array.index_usize a1 3#usize = .ok v3 :=
-    (array_index_usize_ok_eq a1 3#usize (by rw [ha1_len]; decide)).trans (congrArg Result.ok ha1_3)
+    (array_index_usize_ok_eq a1 3#usize (by rw [ha1_len]; decide)).trans (congrArg RustM.ok ha1_3)
   have hi_a11 : Array.index_usize a1 1#usize = .ok v1 :=
-    (array_index_usize_ok_eq a1 1#usize (by rw [ha1_len]; decide)).trans (congrArg Result.ok ha1_1)
+    (array_index_usize_ok_eq a1 1#usize (by rw [ha1_len]; decide)).trans (congrArg RustM.ok ha1_1)
   have hu_a2 : Array.update a1 3#usize s1 = .ok (a1.set 3#usize s1) :=
     array_update_ok_eq a1 3#usize s1 (by rw [ha1_len]; decide)
   set a2 : CoeffArray := a1.set 3#usize s1 with ha2
@@ -539,7 +539,7 @@ theorem simd_unit_ntt_at_layer_1_fc
     rw [ha2, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha1_1]
   have hi_a21 : Array.index_usize a2 1#usize = .ok v1 :=
-    (array_index_usize_ok_eq a2 1#usize (by rw [ha2_len]; decide)).trans (congrArg Result.ok ha2_1)
+    (array_index_usize_ok_eq a2 1#usize (by rw [ha2_len]; decide)).trans (congrArg RustM.ok ha2_1)
   have hu_a3 : Array.update a2 1#usize p1 = .ok (a2.set 1#usize p1) :=
     array_update_ok_eq a2 1#usize p1 (by rw [ha2_len]; decide)
   set a3 : CoeffArray := a2.set 1#usize p1 with ha3
@@ -556,9 +556,9 @@ theorem simd_unit_ntt_at_layer_1_fc
         ha1, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a36 : Array.index_usize a3 6#usize = .ok v6 :=
-    (array_index_usize_ok_eq a3 6#usize (by rw [ha3_len]; decide)).trans (congrArg Result.ok ha3_6)
+    (array_index_usize_ok_eq a3 6#usize (by rw [ha3_len]; decide)).trans (congrArg RustM.ok ha3_6)
   have hi_a34 : Array.index_usize a3 4#usize = .ok v4 :=
-    (array_index_usize_ok_eq a3 4#usize (by rw [ha3_len]; decide)).trans (congrArg Result.ok ha3_4)
+    (array_index_usize_ok_eq a3 4#usize (by rw [ha3_len]; decide)).trans (congrArg RustM.ok ha3_4)
   have hu_a4 : Array.update a3 6#usize s2 = .ok (a3.set 6#usize s2) :=
     array_update_ok_eq a3 6#usize s2 (by rw [ha3_len]; decide)
   set a4 : CoeffArray := a3.set 6#usize s2 with ha4
@@ -567,7 +567,7 @@ theorem simd_unit_ntt_at_layer_1_fc
     rw [ha4, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha3_4]
   have hi_a44 : Array.index_usize a4 4#usize = .ok v4 :=
-    (array_index_usize_ok_eq a4 4#usize (by rw [ha4_len]; decide)).trans (congrArg Result.ok ha4_4)
+    (array_index_usize_ok_eq a4 4#usize (by rw [ha4_len]; decide)).trans (congrArg RustM.ok ha4_4)
   have hu_a5 : Array.update a4 4#usize p2 = .ok (a4.set 4#usize p2) :=
     array_update_ok_eq a4 4#usize p2 (by rw [ha4_len]; decide)
   set a5 : CoeffArray := a4.set 4#usize p2 with ha5
@@ -588,9 +588,9 @@ theorem simd_unit_ntt_at_layer_1_fc
         ha1, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a57 : Array.index_usize a5 7#usize = .ok v7 :=
-    (array_index_usize_ok_eq a5 7#usize (by rw [ha5_len]; decide)).trans (congrArg Result.ok ha5_7)
+    (array_index_usize_ok_eq a5 7#usize (by rw [ha5_len]; decide)).trans (congrArg RustM.ok ha5_7)
   have hi_a55 : Array.index_usize a5 5#usize = .ok v5 :=
-    (array_index_usize_ok_eq a5 5#usize (by rw [ha5_len]; decide)).trans (congrArg Result.ok ha5_5)
+    (array_index_usize_ok_eq a5 5#usize (by rw [ha5_len]; decide)).trans (congrArg RustM.ok ha5_5)
   have hu_a6 : Array.update a5 7#usize s3 = .ok (a5.set 7#usize s3) :=
     array_update_ok_eq a5 7#usize s3 (by rw [ha5_len]; decide)
   set a6 : CoeffArray := a5.set 7#usize s3 with ha6
@@ -599,7 +599,7 @@ theorem simd_unit_ntt_at_layer_1_fc
     rw [ha6, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha5_5]
   have hi_a65 : Array.index_usize a6 5#usize = .ok v5 :=
-    (array_index_usize_ok_eq a6 5#usize (by rw [ha6_len]; decide)).trans (congrArg Result.ok ha6_5)
+    (array_index_usize_ok_eq a6 5#usize (by rw [ha6_len]; decide)).trans (congrArg RustM.ok ha6_5)
   have hu_a7 : Array.update a6 5#usize p3 = .ok (a6.set 5#usize p3) :=
     array_update_ok_eq a6 5#usize p3 (by rw [ha6_len]; decide)
   set a7 : CoeffArray := a6.set 5#usize p3 with ha7
@@ -809,7 +809,7 @@ theorem simd_unit_ntt_at_layer_2_fc
     rw [ha, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide)]
     rw [Std.Array.getElem!_Nat_eq]
   have hi_a0 : Array.index_usize a 0#usize = .ok v0 :=
-    (array_index_usize_ok_eq a 0#usize (by rw [ha_len]; decide)).trans (congrArg Result.ok ha_0)
+    (array_index_usize_ok_eq a 0#usize (by rw [ha_len]; decide)).trans (congrArg RustM.ok ha_0)
   have hu_a1 : Array.update a 0#usize p0 = .ok (a.set 0#usize p0) :=
     array_update_ok_eq a 0#usize p0 (by rw [ha_len]; decide)
   set a1 : CoeffArray := a.set 0#usize p0 with ha1
@@ -822,9 +822,9 @@ theorem simd_unit_ntt_at_layer_2_fc
     rw [ha1, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a15 : Array.index_usize a1 5#usize = .ok v5 :=
-    (array_index_usize_ok_eq a1 5#usize (by rw [ha1_len]; decide)).trans (congrArg Result.ok ha1_5)
+    (array_index_usize_ok_eq a1 5#usize (by rw [ha1_len]; decide)).trans (congrArg RustM.ok ha1_5)
   have hi_a11 : Array.index_usize a1 1#usize = .ok v1 :=
-    (array_index_usize_ok_eq a1 1#usize (by rw [ha1_len]; decide)).trans (congrArg Result.ok ha1_1)
+    (array_index_usize_ok_eq a1 1#usize (by rw [ha1_len]; decide)).trans (congrArg RustM.ok ha1_1)
   have hu_a2 : Array.update a1 5#usize s1 = .ok (a1.set 5#usize s1) :=
     array_update_ok_eq a1 5#usize s1 (by rw [ha1_len]; decide)
   set a2 : CoeffArray := a1.set 5#usize s1 with ha2
@@ -833,7 +833,7 @@ theorem simd_unit_ntt_at_layer_2_fc
     rw [ha2, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha1_1]
   have hi_a21 : Array.index_usize a2 1#usize = .ok v1 :=
-    (array_index_usize_ok_eq a2 1#usize (by rw [ha2_len]; decide)).trans (congrArg Result.ok ha2_1)
+    (array_index_usize_ok_eq a2 1#usize (by rw [ha2_len]; decide)).trans (congrArg RustM.ok ha2_1)
   have hu_a3 : Array.update a2 1#usize p1 = .ok (a2.set 1#usize p1) :=
     array_update_ok_eq a2 1#usize p1 (by rw [ha2_len]; decide)
   set a3 : CoeffArray := a2.set 1#usize p1 with ha3
@@ -850,9 +850,9 @@ theorem simd_unit_ntt_at_layer_2_fc
         ha1, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a36 : Array.index_usize a3 6#usize = .ok v6 :=
-    (array_index_usize_ok_eq a3 6#usize (by rw [ha3_len]; decide)).trans (congrArg Result.ok ha3_6)
+    (array_index_usize_ok_eq a3 6#usize (by rw [ha3_len]; decide)).trans (congrArg RustM.ok ha3_6)
   have hi_a32 : Array.index_usize a3 2#usize = .ok v2 :=
-    (array_index_usize_ok_eq a3 2#usize (by rw [ha3_len]; decide)).trans (congrArg Result.ok ha3_2)
+    (array_index_usize_ok_eq a3 2#usize (by rw [ha3_len]; decide)).trans (congrArg RustM.ok ha3_2)
   have hu_a4 : Array.update a3 6#usize s2 = .ok (a3.set 6#usize s2) :=
     array_update_ok_eq a3 6#usize s2 (by rw [ha3_len]; decide)
   set a4 : CoeffArray := a3.set 6#usize s2 with ha4
@@ -861,7 +861,7 @@ theorem simd_unit_ntt_at_layer_2_fc
     rw [ha4, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha3_2]
   have hi_a42 : Array.index_usize a4 2#usize = .ok v2 :=
-    (array_index_usize_ok_eq a4 2#usize (by rw [ha4_len]; decide)).trans (congrArg Result.ok ha4_2)
+    (array_index_usize_ok_eq a4 2#usize (by rw [ha4_len]; decide)).trans (congrArg RustM.ok ha4_2)
   have hu_a5 : Array.update a4 2#usize p2 = .ok (a4.set 2#usize p2) :=
     array_update_ok_eq a4 2#usize p2 (by rw [ha4_len]; decide)
   set a5 : CoeffArray := a4.set 2#usize p2 with ha5
@@ -882,9 +882,9 @@ theorem simd_unit_ntt_at_layer_2_fc
         ha1, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         ha, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide), Std.Array.getElem!_Nat_eq]
   have hi_a57 : Array.index_usize a5 7#usize = .ok v7 :=
-    (array_index_usize_ok_eq a5 7#usize (by rw [ha5_len]; decide)).trans (congrArg Result.ok ha5_7)
+    (array_index_usize_ok_eq a5 7#usize (by rw [ha5_len]; decide)).trans (congrArg RustM.ok ha5_7)
   have hi_a53 : Array.index_usize a5 3#usize = .ok v3 :=
-    (array_index_usize_ok_eq a5 3#usize (by rw [ha5_len]; decide)).trans (congrArg Result.ok ha5_3)
+    (array_index_usize_ok_eq a5 3#usize (by rw [ha5_len]; decide)).trans (congrArg RustM.ok ha5_3)
   have hu_a6 : Array.update a5 7#usize s3 = .ok (a5.set 7#usize s3) :=
     array_update_ok_eq a5 7#usize s3 (by rw [ha5_len]; decide)
   set a6 : CoeffArray := a5.set 7#usize s3 with ha6
@@ -893,7 +893,7 @@ theorem simd_unit_ntt_at_layer_2_fc
     rw [ha6, ← Std.Array.getElem!_Nat_eq, Std.Array.getElem!_Nat_set_ne _ _ _ _ (by decide),
         Std.Array.getElem!_Nat_eq, ha5_3]
   have hi_a63 : Array.index_usize a6 3#usize = .ok v3 :=
-    (array_index_usize_ok_eq a6 3#usize (by rw [ha6_len]; decide)).trans (congrArg Result.ok ha6_3)
+    (array_index_usize_ok_eq a6 3#usize (by rw [ha6_len]; decide)).trans (congrArg RustM.ok ha6_3)
   have hu_a7 : Array.update a6 3#usize p3 = .ok (a6.set 3#usize p3) :=
     array_update_ok_eq a6 3#usize p3 (by rw [ha6_len]; decide)
   set a7 : CoeffArray := a6.set 3#usize p3 with ha7
@@ -1048,7 +1048,7 @@ theorem simd_unit_ntt_at_layer_2_fc
 
 namespace Layer3OuterFC
 
-open Aeneas.Std Std.Do Result ControlFlow
+open Aeneas.Std Std.Do RustM ControlFlow
 open libcrux_iot_ml_dsa.Util.LoopSpecs
 
 /-- The cross-unit accumulator: the whole 32-unit array. -/
@@ -1056,7 +1056,7 @@ abbrev Acc := Aeneas.Std.Array libcrux_iot_ml_dsa.simd.portable.vector_type.Coef
 
 /-- Local `usize_add_ok_eq` helper. -/
 theorem usize_add_ok_eq (x y : Std.Usize) (h_max : x.val + y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
+    ∃ z : Std.Usize, (x + y : RustM Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
@@ -1068,7 +1068,7 @@ theorem usize_add_ok_eq (x y : Std.Usize) (h_max : x.val + y.val ≤ Std.Usize.m
 def inv
     (OFFSET STEP_BY : Std.Usize) (ZETA : Std.I32)
     (re : Acc) (B : Nat) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, OFFSET.val ≤ j → j < k.val →
         (∀ l : Nat, l < 8 →
@@ -1122,7 +1122,7 @@ theorem outer_3_plus_step_lemma_fc
     ⦃ ⇓ r => ⌜ Layer3OuterFC.step_post OFFSET STEP_BY ZETA re B e k r ⌝ ⦄ := by
   have h_acc_len : acc.length = 32 := Std.Array.length_eq _
   obtain ⟨h_done, h_undone, h_bd⟩ := by
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_dsa.simd.portable.ntt.outer_3_plus_loop.body
   by_cases h_lt : k.val < e.val
   · -- `Some j = k` branch.
@@ -1176,7 +1176,7 @@ theorem outer_3_plus_step_lemma_fc
     have h_idx_re1_i :
         Aeneas.Std.Array.index_usize re1 i = .ok ak :=
       (array_index_usize_ok_eq re1 i (by rw [hre1_len]; exact hi_lt_32)).trans
-        (congrArg Result.ok hre1_i)
+        (congrArg RustM.ok hre1_i)
     have h_imt_i :
         Aeneas.Std.Array.index_mut_usize re1 i = .ok (ak, re1.set i) := by
       unfold Aeneas.Std.Array.index_mut_usize
@@ -1214,7 +1214,7 @@ theorem outer_3_plus_step_lemma_fc
     have h_idx_re2_k :
         Aeneas.Std.Array.index_usize re2 k = .ok ak :=
       (array_index_usize_ok_eq re2 k (by rw [hre2_len]; exact hk_lt_32)).trans
-        (congrArg Result.ok hre2_k)
+        (congrArg RustM.ok hre2_k)
     have h_imt_k :
         Aeneas.Std.Array.index_mut_usize re2 k = .ok (ak, re2.set k) := by
       unfold Aeneas.Std.Array.index_mut_usize
@@ -1408,8 +1408,8 @@ theorem outer_3_plus_step_lemma_fc
                 Aeneas.Std.Array.getElem!_Nat_set_ne acc i u c2 (Ne.symm h_u_i)
             rw [h_a_u]
             exact h_bd u hu_lt l hl
-    show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ e, done.
     have hk_ge : k.val ≥ e.val := Nat.not_lt.mp h_lt
     have h_iter_none := iter_next_none_eq k e hk_ge
@@ -1461,8 +1461,8 @@ theorem outer_3_plus_step_lemma_fc
         · rcases hu_disj2 with h | h
           · exact Or.inl h
           · exact Or.inr (by rw [hk_eq]; exact h)
-    show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 set_option maxHeartbeats 16000000 in
 /-- KEYSTONE cross-unit forward NTT layer op `outer_3_plus` FC. Loops `j` over
@@ -1516,7 +1516,7 @@ theorem outer_3_plus_fc
       h_le
       (by
         -- h_init: at k = OFFSET the butterfly conjunct is vacuous, unchanged trivial, bound = hin.
-        show (pure _ : Result Prop).holds
+        show (pure _ : RustM Prop).holds
         have h_init_pure :
             (∀ j : Nat, OFFSET.val ≤ j → j < OFFSET.val →
                 (∀ l : Nat, l < 8 →
@@ -1536,7 +1536,7 @@ theorem outer_3_plus_fc
           · intro j hj_ge hj_lt; exact absurd hj_lt (by omega)
           · intro u _ _ _; rfl
           · intro u hu l hl; have hbu := hin u hu l hl; omega
-        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_init_pure)
+        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_init_pure)
       ?_)
   · -- Post-entailment: inv at k=e yields the locked post.
     rw [PostCond.entails_noThrow]
@@ -1544,7 +1544,7 @@ theorem outer_3_plus_fc
     have h_inv_holds : (Layer3OuterFC.inv OFFSET STEP_BY ZETA re B e r).holds := by
       simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
     obtain ⟨h_done, h_undone, h_bd⟩ := by
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_holds
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_holds
     refine ⟨?_, ?_, ?_⟩
     · -- Butterfly eqns: rewrite `< OFFSET+STEP_BY` into `< e.val`.
       intro j hj_ge hj_lt

@@ -33,7 +33,7 @@ open libcrux_iot_ml_kem.InvertNtt libcrux_iot_ml_kem.Matrix.Common libcrux_iot_m
 
 /-- Local copy of the `private triple_exists_ok_fc` helper (Impl/ComputeMessage):
     a `True`-pre Triple yielding `.ok` with the post is an existential witness. -/
-private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_fc {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -42,7 +42,7 @@ private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
 /-- Local copy of the `private triple_of_ok_fc` helper (Impl/ComputeMessage). -/
-private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_fc {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -158,7 +158,7 @@ theorem compute_message_fc
   have h_acc2_bnd : ∀ n : Nat, n < 256 → (acc2.val[n]!).val.natAbs ≤ 2^27 := by
     intro n hn
     obtain ⟨_, h_inv_bnd⟩ := by
-      simpa [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp] using h_char
+      simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_char
     have hb := h_inv_bnd n hn
     have h0 : (acc1.val[n]!).val.natAbs = 0 := by rw [h_acc1_zero n hn]; rfl
     rw [h0] at hb
@@ -216,7 +216,7 @@ theorem compute_message_fc
     rw [h_inv_eq]; simp only [Aeneas.Std.bind_tc_ok]
     show (do
         let result3 ← polynomial.PolynomialRingElement.subtract_reduce portable_ops_inst v result2
-        Aeneas.Std.Result.ok (result3, scratch1, acc2)) = Aeneas.Std.Result.ok (result3, scratch1, acc2)
+        Aeneas.Std.RustM.ok (result3, scratch1, acc2)) = Aeneas.Std.RustM.ok (result3, scratch1, acc2)
     rw [h_sub_eq]; simp only [Aeneas.Std.bind_tc_ok]
   · -- POST is now a CONJUNCTION: the spec equation, and the ≤ 3328 bound the
     -- consumer `compress_then_serialize_message_fc` requires (INC-2b.C).

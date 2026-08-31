@@ -23,7 +23,7 @@ set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_kem.Polynomial.PolyOps
 open libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement
-open CoreModels Aeneas Aeneas.Std Result ControlFlow Std.Do
+open CoreModels Aeneas Aeneas.Std RustM ControlFlow Std.Do
 open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper
 
 /-! ## Inhabited instances — needed for `.val[j]!` projections on
@@ -41,18 +41,18 @@ local instance instInhabitedPolynomialRingElement_l6 {Vector : Type} [Inhabited 
     Inhabited (libcrux_iot_ml_kem.polynomial.PolynomialRingElement Vector) :=
   ⟨{ coefficients := Std.Array.make 16#usize (List.replicate 16 default) (by simp) }⟩
 
-/-! ## Local helpers — Triple ↔ Result.ok bridges, pure-prop holds.
+/-! ## Local helpers — Triple ↔ RustM.ok bridges, pure-prop holds.
 
 Mirror the `triple_of_ok_l3` / `triple_exists_ok_l3` / `pure_prop_holds_l3`
 family used by `L3_NTTDrivers.lean`. Each phase file carries its own copy
 with a phase-local suffix to avoid cross-file shadowing. -/
 
-private theorem triple_of_ok_l6 {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_l6 {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
-private theorem triple_exists_ok_l6 {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_l6 {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -60,12 +60,12 @@ private theorem triple_exists_ok_l6 {α : Type} {x : Result α} {P : α → Prop
   | .fail _ => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_l6 {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_l6 {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_l6 {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
 
 /-! ## L6.1 — `PolynomialRingElement_poly_barrett_reduce_spec`
 
@@ -85,7 +85,7 @@ Loop invariant after `k` iterations (`k.val ∈ [0, 16]`), state `acc`:
 
 namespace BarrettReduce
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 /-- Step-local accumulator type. -/
 abbrev Acc :=
@@ -96,7 +96,7 @@ abbrev Acc :=
 def inv
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
         ((acc.coefficients.val[j]!).elements.val[ℓ]!).val.natAbs ≤ 3328)

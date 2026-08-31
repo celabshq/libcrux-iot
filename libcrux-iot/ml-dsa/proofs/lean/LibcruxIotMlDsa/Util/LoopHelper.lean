@@ -27,7 +27,7 @@
 
   Proof strategy mirrors ml-kem: turn each component of the body
   (`IteratorRange.next`, `Array.index_usize` ×2, `per_elem`, `Array.update`)
-  into a `Result` equation, compose into a single body equation, then close
+  into a `RustM` equation, compose into a single body equation, then close
   via `triple_of_ok_pv`. This is the cleanest substitute for `mvcgen` when
   the spec is generic in `per_elem`.
 
@@ -37,7 +37,7 @@
 import LibcruxIotMlDsa.Util.LoopSpecs
 import LibcruxIotMlDsa.Extraction.Funs
 
-open CoreModels Aeneas Aeneas.Std Result ControlFlow Std.Do
+open CoreModels Aeneas Aeneas.Std RustM ControlFlow Std.Do
 
 namespace libcrux_iot_ml_dsa.Util.LoopHelper
 open libcrux_iot_ml_dsa.Util.LoopSpecs libcrux_iot_ml_dsa.Util.SliceSpecs
@@ -66,18 +66,18 @@ theorem CoeffArray_length (a : CoeffArray) : a.length = 8 := by
   show a.val.length = 8
   exact this
 
-/-! ## Local helpers — Triple ↔ Result.ok bridges, pure-prop holds. -/
+/-! ## Local helpers — Triple ↔ RustM.ok bridges, pure-prop holds. -/
 
 section helpers
 
 private theorem triple_of_ok_pv
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 private theorem triple_exists_ok_pv
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -86,16 +86,16 @@ private theorem triple_exists_ok_pv
   | .fail _ => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_pv {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_pv {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_pv {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Triple, WP.wp] at h; exact h trivial
 
 end helpers
 
-/-! ## Iterator-next reduction to a `Result` equation (generic bound `e`). -/
+/-! ## Iterator-next reduction to a `RustM` equation (generic bound `e`). -/
 
 /-- `i.val < e.val`: `IteratorRange.next` returns `.ok (some i, iter')` with
     `iter'.end = e` and `iter'.start.val = i.val + 1`. -/
@@ -139,7 +139,7 @@ theorem iter_next_none_eq (i e : Std.Usize) (h_ge : i.val ≥ e.val) :
   obtain ⟨v, hveq, hP⟩ := triple_exists_ok_pv hT
   rw [hveq, hP]
 
-/-! ## Array index/update reduction to `Result` equations. -/
+/-! ## Array index/update reduction to `RustM` equations. -/
 
 theorem array_index_usize_ok_eq
     {α : Type u} {n : Std.Usize} [Inhabited α]
@@ -160,16 +160,16 @@ theorem array_update_ok_eq
 /-! ## Unary loop body (canonical shape from Funs.lean).
 
 The accumulator is the raw `CoeffArray = Array Std.I32 8#usize`. The per-element
-op has type `I32 → Result I32`; it reads `a[i]`, applies `per_elem`, and writes
+op has type `I32 → RustM I32`; it reads `a[i]`, applies `per_elem`, and writes
 back to `a[i]`. This is the binary body with the `rhs`/`input_rhs` operand
 dropped (e.g. `negate`, `montgomery_multiply_by_constant`'s per-lane op closes
 over a free constant `c`, so the loop carries a single array). -/
 
 def unary_loop_body
-    (per_elem : Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → RustM Std.I32)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (a : CoeffArray) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
       CoeffArray) := do
   let (o, iter1) ←
@@ -188,10 +188,10 @@ def unary_loop_body
       `input[j]` (carrying the per-elem predicate `P`).
     - For `j ≥ k`, `a[j] = input[j]`. -/
 def unary_loop_inv
-    (per_elem : Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Prop)
     (input : CoeffArray) :
-    Std.Usize → CoeffArray → Result Prop :=
+    Std.Usize → CoeffArray → RustM Prop :=
   fun k a => pure (
     (∀ j : Nat, j < k.val →
       ∃ r, per_elem (input.val[j]!) = .ok r
@@ -202,7 +202,7 @@ def unary_loop_inv
 
 /-- Per-iteration post for `unary_loop_body`. -/
 def unary_step_post
-    (per_elem : Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Prop)
     (input : CoeffArray)
     (k : Std.Usize)
@@ -218,7 +218,7 @@ def unary_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_unary_step
-    (per_elem : Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),
@@ -256,8 +256,8 @@ theorem elementwise_unary_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
                   CoeffArray))
           | core.option.Option.Some i =>
@@ -346,8 +346,8 @@ theorem elementwise_unary_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
                   CoeffArray))
           | core.option.Option.Some i =>
@@ -383,7 +383,7 @@ theorem elementwise_unary_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_unary_spec
-    (per_elem : Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),
@@ -434,15 +434,15 @@ theorem elementwise_unary_spec
 
 The accumulator is the raw `CoeffArray = Array Std.I32 8#usize`; `rhs` is the
 `Coefficients` struct (read-only, captured by the body lambda). The per-element
-op has type `I32 → I32 → Result I32`; it reads `a[i]` and `rhs.values[i]`,
+op has type `I32 → I32 → RustM I32`; it reads `a[i]` and `rhs.values[i]`,
 applies `per_elem`, and writes back to `a[i]`. -/
 
 def binary_loop_body
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (rhs : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (a : CoeffArray) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
       CoeffArray) := do
   let (o, iter1) ←
@@ -462,11 +462,11 @@ def binary_loop_body
       `input_lhs[j]` and `input_rhs.values[j]`.
     - For `j ≥ k`, `a[j] = input_lhs[j]` (rhs is read-only). -/
 def binary_loop_inv
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (input_lhs : CoeffArray)
     (input_rhs : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
-    Std.Usize → CoeffArray → Result Prop :=
+    Std.Usize → CoeffArray → RustM Prop :=
   fun k a => pure (
     (∀ j : Nat, j < k.val →
       ∃ r, per_elem (input_lhs.val[j]!) (input_rhs.values.val[j]!) = .ok r
@@ -479,7 +479,7 @@ def binary_loop_inv
     rather than an inline `match` to keep the `match_N` constant canonical
     across the step lemma and the `loop_range_spec_usize` call site). -/
 def binary_step_post
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (input_lhs : CoeffArray)
     (input_rhs : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
@@ -496,7 +496,7 @@ def binary_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_binary_step
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I32),
@@ -541,8 +541,8 @@ theorem elementwise_binary_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
                   CoeffArray))
           | core.option.Option.Some i =>
@@ -634,8 +634,8 @@ theorem elementwise_binary_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
                   CoeffArray))
           | core.option.Option.Some i =>
@@ -672,7 +672,7 @@ theorem elementwise_binary_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_binary_spec
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I32),
@@ -725,17 +725,17 @@ theorem elementwise_binary_spec
 The accumulator is `CoeffArray × Coefficients` — the loop carries `(iter, a1, b1)`
 where `a1 : CoeffArray` is the LOW-output array and `b1 : Coefficients` is the
 HIGH-output struct (its `.values` array is the scratch buffer written lane by lane).
-The per-element op has type `I32 → Result (I32 × I32)`; the body reads `a[i]`, applies
+The per-element op has type `I32 → RustM (I32 × I32)`; the body reads `a[i]`, applies
 `per_elem`, writes the first component to `a[i]` and the second to `b.values[i]`.
 This matches `simd.portable.arithmetic.power2round_loop.body` (`power2round`/`decompose`/
 `use_hint` are the dual-output rounding ops). -/
 
 def dual_output_loop_body
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (a : CoeffArray)
     (b : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray
         × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
       (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)) := do
@@ -758,11 +758,11 @@ def dual_output_loop_body
     The `b` tail (`j ≥ k`) is unconstrained: the top-level consumer only reads `j < 8`
     after the loop finishes (all lanes written). -/
 def dual_output_loop_inv
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (input : CoeffArray) :
     Std.Usize → (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) →
-      Result Prop :=
+      RustM Prop :=
   fun k ab => pure (
     (∀ j : Nat, j < k.val →
       ∃ p, per_elem (input.val[j]!) = .ok p
@@ -774,7 +774,7 @@ def dual_output_loop_inv
 
 /-- Per-iteration post for `dual_output_loop_body`. -/
 def dual_output_step_post
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (input : CoeffArray)
     (k : Std.Usize)
@@ -791,7 +791,7 @@ def dual_output_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_dual_output_step
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),
@@ -833,8 +833,8 @@ theorem elementwise_dual_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done (a, b)) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done (a, b)) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray
                     × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
                   (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)))
@@ -942,8 +942,8 @@ theorem elementwise_dual_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done (a, b)) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done (a, b)) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray
                     × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
                   (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)))
@@ -981,7 +981,7 @@ theorem elementwise_dual_output_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_dual_output_spec
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),
@@ -1045,12 +1045,12 @@ Because reads come from `src` (never `a`), the invariant needs NO `a`-tail conju
 written prefix `j < k` is constrained on `a`/`b`. -/
 
 def src_dual_output_loop_body
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (src : CoeffArray)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (a : CoeffArray)
     (b : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray
         × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
       (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)) := do
@@ -1072,11 +1072,11 @@ def src_dual_output_loop_body
     No tail constraint is needed: reads come from the read-only `src`, and the top-level
     consumer only reads `j < 8` after all lanes have been written. -/
 def src_dual_output_loop_inv
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (src : CoeffArray) :
     Std.Usize → (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) →
-      Result Prop :=
+      RustM Prop :=
   fun k ab => pure (
     ∀ j : Nat, j < k.val →
       ∃ p, per_elem (src.val[j]!) = .ok p
@@ -1086,7 +1086,7 @@ def src_dual_output_loop_inv
 
 /-- Per-iteration post for `src_dual_output_loop_body`. -/
 def src_dual_output_step_post
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (src : CoeffArray)
     (k : Std.Usize)
@@ -1103,7 +1103,7 @@ def src_dual_output_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_src_dual_output_step
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),
@@ -1146,8 +1146,8 @@ theorem elementwise_src_dual_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done (a, b)) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done (a, b)) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray
                     × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
                   (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)))
@@ -1237,8 +1237,8 @@ theorem elementwise_src_dual_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done (a, b)) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done (a, b)) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray
                     × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
                   (CoeffArray × libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)))
@@ -1272,7 +1272,7 @@ theorem elementwise_src_dual_output_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_src_dual_output_spec
-    (per_elem : Std.I32 → Result (Std.I32 × Std.I32))
+    (per_elem : Std.I32 → RustM (Std.I32 × Std.I32))
     (P : Std.I32 → (Std.I32 × Std.I32) → Prop)
     (per_elem_spec :
       ∀ (x : Std.I32),
@@ -1334,11 +1334,11 @@ write. The accumulator starts as `hint.values`, so a lane `j ≥ k` still reads 
 the running accumulator (whose `≥ k` value is `input.val[j]`). -/
 
 def two_src_single_output_loop_body
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (src : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (a : CoeffArray) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
       CoeffArray) := do
   let (o, iter1) ←
@@ -1358,11 +1358,11 @@ def two_src_single_output_loop_body
       original accumulator value `input[j]` (carrying the per-elem predicate `P`).
     - For `j ≥ k`, `a[j] = input[j]` (the accumulator is untouched there). -/
 def two_src_single_output_loop_inv
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (src : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
     (input : CoeffArray) :
-    Std.Usize → CoeffArray → Result Prop :=
+    Std.Usize → CoeffArray → RustM Prop :=
   fun k a => pure (
     (∀ j : Nat, j < k.val →
       ∃ r, per_elem (src.values.val[j]!) (input.val[j]!) = .ok r
@@ -1373,7 +1373,7 @@ def two_src_single_output_loop_inv
 
 /-- Per-iteration post for `two_src_single_output_loop_body`. -/
 def two_src_single_output_step_post
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (src : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
     (input : CoeffArray)
@@ -1390,7 +1390,7 @@ def two_src_single_output_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_two_src_single_output_step
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I32),
@@ -1435,8 +1435,8 @@ theorem elementwise_two_src_single_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
                   CoeffArray))
           | core.option.Option.Some i =>
@@ -1528,8 +1528,8 @@ theorem elementwise_two_src_single_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done acc) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done acc) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray)
                   CoeffArray))
           | core.option.Option.Some i =>
@@ -1566,7 +1566,7 @@ theorem elementwise_two_src_single_output_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_two_src_single_output_spec
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I32),
@@ -1638,12 +1638,12 @@ private theorem lh_classify_ok (z : Std.I32) :
     libcrux_secrets.traits.Classify.Blanket.classify z = .ok z := rfl
 
 def two_src_count_output_loop_body
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
     (a : CoeffArray)
     (count : Std.Usize) :
-    Result (ControlFlow
+    RustM (ControlFlow
       ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray × Std.Usize)
       (CoeffArray × Std.Usize)) := do
   let (o, iter1) ←
@@ -1668,10 +1668,10 @@ def two_src_count_output_loop_body
 /-- Invariant: written prefix carries `P`, and the count is the running sum of written bits.
     `P low high r` is expected to entail both `r.val = <spec bit>` and `r.val ∈ {0,1}`. -/
 def two_src_count_output_loop_inv
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
-    Std.Usize → (CoeffArray × Std.Usize) → Result Prop :=
+    Std.Usize → (CoeffArray × Std.Usize) → RustM Prop :=
   fun k ac => pure (
     (∀ j : Nat, j < k.val →
       ∃ r, per_elem (low.values.val[j]!) (high.values.val[j]!) = .ok r
@@ -1682,7 +1682,7 @@ def two_src_count_output_loop_inv
 
 /-- Per-iteration post for `two_src_count_output_loop_body`. -/
 def two_src_count_output_step_post
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
     (k : Std.Usize)
@@ -1698,7 +1698,7 @@ def two_src_count_output_step_post
 
 set_option maxHeartbeats 4000000 in
 theorem elementwise_two_src_count_output_step
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I32),
@@ -1793,8 +1793,8 @@ theorem elementwise_two_src_count_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done (a, count)) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done (a, count)) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray × Std.Usize)
                   (CoeffArray × Std.Usize)))
           | core.option.Option.Some i =>
@@ -1912,8 +1912,8 @@ theorem elementwise_two_src_count_output_step
               ({ start := k, «end» := 8#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | core.option.Option.None =>
-              (Result.ok (ControlFlow.done (a, count)) :
-                Result (ControlFlow
+              (RustM.ok (ControlFlow.done (a, count)) :
+                RustM (ControlFlow
                   ((CoreModels.core.ops.range.Range Std.Usize) × CoeffArray × Std.Usize)
                   (CoeffArray × Std.Usize)))
           | core.option.Option.Some i =>
@@ -1957,7 +1957,7 @@ theorem elementwise_two_src_count_output_step
 
 set_option maxHeartbeats 2000000 in
 theorem elementwise_two_src_count_output_spec
-    (per_elem : Std.I32 → Std.I32 → Result Std.I32)
+    (per_elem : Std.I32 → Std.I32 → RustM Std.I32)
     (P : Std.I32 → Std.I32 → Std.I32 → Prop)
     (per_elem_spec :
       ∀ (x y : Std.I32),

@@ -74,7 +74,7 @@ Wrapping the two calls in a named function lets the `@[spec]` matcher
 fire on the chain inside `round0_equiv_spec`. -/
 
 def keccakf1600_round0_pi_rho_chi_chain (s : state.KeccakState) :
-    Result state.KeccakState := do
+    RustM state.KeccakState := do
   let r1 ← keccak.keccakf1600_round0_pi_rho_chi_1 0#usize s
   keccak.keccakf1600_round0_pi_rho_chi_2 r1
 
@@ -133,7 +133,7 @@ the round-k spec via `theta_lift_spec_k` (auto-firing on the theta call)
 -/
 
 def keccakf1600_round1_pi_rho_chi_chain (s : state.KeccakState) :
-    Result state.KeccakState := do
+    RustM state.KeccakState := do
   let r1 ← keccak.keccakf1600_round1_pi_rho_chi_1 0#usize s
   keccak.keccakf1600_round1_pi_rho_chi_2 r1
 
@@ -153,7 +153,7 @@ theorem keccakf1600_round1_pi_rho_chi_chain_spec
   exact prc_lift_spec_1 s hi
 
 def keccakf1600_round2_pi_rho_chi_chain (s : state.KeccakState) :
-    Result state.KeccakState := do
+    RustM state.KeccakState := do
   let r1 ← keccak.keccakf1600_round2_pi_rho_chi_1 0#usize s
   keccak.keccakf1600_round2_pi_rho_chi_2 r1
 
@@ -174,7 +174,7 @@ theorem keccakf1600_round2_pi_rho_chi_chain_spec
   exact prc_lift_spec_2 s hi
 
 def keccakf1600_round3_pi_rho_chi_chain (s : state.KeccakState) :
-    Result state.KeccakState := do
+    RustM state.KeccakState := do
   let r1 ← keccak.keccakf1600_round3_pi_rho_chi_1 0#usize s
   keccak.keccakf1600_round3_pi_rho_chi_2 r1
 
@@ -285,9 +285,9 @@ Used by the round-chain compositions in `StructuralEquiv.lean` and
 i-increment facts and to lift pure-prop preconditions into proof-context
 hypotheses. -/
 
-/-- For `Result α` (a deterministic monad), if two Triples prove distinct
+/-- For `RustM α` (a deterministic monad), if two Triples prove distinct
 posts about the same computation, their conjunction also holds. -/
-theorem triple_conj_post {α} {e : Aeneas.Std.Result α} {Q R : α → Prop}
+theorem triple_conj_post {α} {e : Aeneas.Std.RustM α} {Q R : α → Prop}
     (hQ : ⦃⌜True⌝⦄ e ⦃⇓ r => ⌜Q r⌝⦄)
     (hR : ⦃⌜True⌝⦄ e ⦃⇓ r => ⌜R r⌝⦄) :
     ⦃⌜True⌝⦄ e ⦃⇓ r => ⌜Q r ∧ R r⌝⦄ := by
@@ -298,7 +298,7 @@ theorem triple_conj_post {α} {e : Aeneas.Std.Result α} {Q R : α → Prop}
 
 /-- Lift a pure-prop precondition `⌜P⌝` of a `Triple` into a Lean-level
 hypothesis. -/
-theorem triple_imp_intro {α} {e : Aeneas.Std.Result α} {P : Prop} {Q : α → Prop}
+theorem triple_imp_intro {α} {e : Aeneas.Std.RustM α} {P : Prop} {Q : α → Prop}
     (h : P → ⦃⌜True⌝⦄ e ⦃⇓ r => ⌜Q r⌝⦄) :
     ⦃⌜P⌝⦄ e ⦃⇓ r => ⌜Q r⌝⦄ := by
   cases e

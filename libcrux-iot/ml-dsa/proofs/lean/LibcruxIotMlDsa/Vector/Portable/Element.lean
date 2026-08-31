@@ -29,18 +29,18 @@ open libcrux_iot_ml_dsa.Util.LoopHelper libcrux_iot_ml_dsa.Util.LoopSpecs
 open libcrux_iot_ml_dsa.Spec.Lift libcrux_iot_ml_dsa.Spec.Montgomery
   libcrux_iot_ml_dsa.Spec.Parameters
 
-/-! ## Local Triple ↔ Result.ok bridges. -/
+/-! ## Local Triple ↔ RustM.ok bridges. -/
 
 /-- `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` closer for `x = .ok v`. -/
 private theorem triple_of_ok
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 /-- Reflect a `⦃True⦄ x ⦃⇓ r => ⌜P r⌝⦄` Triple into an `.ok` witness plus the post. -/
 private theorem triple_exists_ok
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -524,7 +524,7 @@ theorem zero_unit_spec :
 
 /-- **`to_coefficient_array` unit.** `declassify_ref value.values` is identity, then
     `copy_from_slice out (to_slice value.values)` returns the source slice (lengths
-    both `8`). Result slice's lanes equal `value`'s lanes. The precond `hout` (out
+    both `8`). RustM slice's lanes equal `value`'s lanes. The precond `hout` (out
     length `8`) is what the impl's `copy_from_slice` genuinely needs. -/
 theorem to_coefficient_array_spec
     (value : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) (out : Slice Std.I32)
@@ -555,7 +555,7 @@ theorem to_coefficient_array_spec
   rfl
 
 /-- **`from_coefficient_array` unit.** Indexes `array[0..8]` into `out.values` (via
-    `to_slice_mut` + `copy_from_slice` + write-back). Result unit's lanes equal the
+    `to_slice_mut` + `copy_from_slice` + write-back). RustM unit's lanes equal the
     first `8` lanes of `array`. The precond `harr` (`array` length `8`) is the
     in-bounds requirement of the `array[0..8]` index. -/
 theorem from_coefficient_array_spec
@@ -584,7 +584,7 @@ theorem from_coefficient_array_spec
                 (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.I32) array
                 { start := 0#usize, «end» := 8#usize }
         let s2 ← CoreModels.core.slice.Slice.copy_from_slice core.I32.Insts.CoreMarkerCopy sp s1
-        Result.ok ({ values := back s2 }
+        RustM.ok ({ values := back s2 }
           : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)) = .ok r
         ∧ ∀ j : Nat, j < 8 → (r.values.val[j]!).val = (array.val[j]!).val
     obtain ⟨s1, hs1_eq, hs1_val, hs1_len⟩ :=

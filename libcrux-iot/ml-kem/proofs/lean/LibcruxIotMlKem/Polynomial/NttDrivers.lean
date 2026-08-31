@@ -31,7 +31,7 @@ set_option linter.unusedSectionVars false
 
 namespace libcrux_iot_ml_kem.Polynomial.NttDrivers
 open libcrux_iot_ml_kem.Polynomial.PolyOps libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement libcrux_iot_ml_kem.Vector.Portable.Ntt
-open CoreModels Aeneas Aeneas.Std Result ControlFlow Std.Do
+open CoreModels Aeneas Aeneas.Std RustM ControlFlow Std.Do
 open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper
 
 /-! ## Inhabited instances — needed for `.val[j]!` projections.
@@ -50,14 +50,14 @@ instance {Vector : Type} [Inhabited Vector] :
     Inhabited (libcrux_iot_ml_kem.polynomial.PolynomialRingElement Vector) :=
   ⟨{ coefficients := Std.Array.make 16#usize (List.replicate 16 default) (by simp) }⟩
 
-/-! ## Local helpers — Triple ↔ Result.ok bridges, pure-prop holds. -/
+/-! ## Local helpers — Triple ↔ RustM.ok bridges, pure-prop holds. -/
 
-private theorem triple_of_ok_l3 {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_l3 {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
-private theorem triple_exists_ok_l3 {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_l3 {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -65,18 +65,18 @@ private theorem triple_exists_ok_l3 {α : Type} {x : Result α} {P : α → Prop
   | .fail _ => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_l3 {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_l3 {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_l3 {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
 
 /-! ## Small `Usize.add` helper — produces `.val`-form equations. -/
 
 private theorem usize_add_ok_eq (x y : Std.Usize)
     (h_max : x.val + y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x + y : Result Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
+    ∃ z : Std.Usize, (x + y : RustM Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   -- hT : x + y ⦃ z => (↑z : Nat) = ↑x + ↑y ⦄ — this is `WP.spec`, not Triple.
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
@@ -137,7 +137,7 @@ We specialise to `Vector := PortableVector` and the concrete trait
 instance. The `@[reducible]` instance field reduces
 `OpsInst.ntt_layer_1_step a z0 z1 z2 z3` to
 `vector.portable.ntt.ntt_layer_1_step a z0 z1 z2 z3` (mod a trivial
-`Result.ok` wrap), which is L2.2's target.
+`RustM.ok` wrap), which is L2.2's target.
 
 Loop invariant after `k` iterations (`k.val ∈ [0, 16]`), state
 `(cur_zeta_i, cur_re)`:
@@ -149,7 +149,7 @@ Loop invariant after `k` iterations (`k.val ∈ [0, 16]`), state
 
 namespace Layer1
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 /-- Step-local accumulator type — explicitly named to keep `loop_range_spec_usize`'s
     `β` parameter mounted to a concrete type for inference. -/
@@ -161,7 +161,7 @@ abbrev Acc := Std.Usize ×
 def inv
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = 63 + 4 * k.val
     ∧ (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -506,7 +506,7 @@ instantiation and is left untouched. -/
 
 namespace Layer1Bounded
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 abbrev Acc := Std.Usize ×
   libcrux_iot_ml_kem.polynomial.PolynomialRingElement
@@ -519,7 +519,7 @@ def inv_B
     (bnd : Nat)
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = 63 + 4 * k.val
     ∧ (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -837,7 +837,7 @@ bound per coefficient goes `6·3328 → 7·3328`. -/
 
 namespace Layer2
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 abbrev Acc := Std.Usize ×
   libcrux_iot_ml_kem.polynomial.PolynomialRingElement
@@ -846,7 +846,7 @@ abbrev Acc := Std.Usize ×
 def inv
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = 31 + 2 * k.val
     ∧ (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -1135,7 +1135,7 @@ two ζ lookups, dispatches `ntt_layer_2_step_spec_bnd`. Input bound
 
 namespace Layer2Bounded
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 abbrev Acc := Std.Usize ×
   libcrux_iot_ml_kem.polynomial.PolynomialRingElement
@@ -1145,7 +1145,7 @@ def inv_B
     (bnd : Nat)
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = 31 + 2 * k.val
     ∧ (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -1429,7 +1429,7 @@ coefficient goes `5·3328 → 6·3328`. -/
 
 namespace Layer3
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 abbrev Acc := Std.Usize ×
   libcrux_iot_ml_kem.polynomial.PolynomialRingElement
@@ -1438,7 +1438,7 @@ abbrev Acc := Std.Usize ×
 def inv
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = 15 + k.val
     ∧ (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -1714,7 +1714,7 @@ single ζ lookup, dispatches `ntt_layer_3_step_spec_bnd`. Input bound
 
 namespace Layer3Bounded
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 abbrev Acc := Std.Usize ×
   libcrux_iot_ml_kem.polynomial.PolynomialRingElement
@@ -1724,7 +1724,7 @@ def inv_B
     (bnd : Nat)
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     acc.1.val = 15 + k.val
     ∧ (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -2009,7 +2009,7 @@ So new re[j] = old re[j] + (-1600) * old re[i]; new re[i] = old re[j] -
 /-! ### Local helpers: `Usize.div` reduction + generic-`«end»` iter-next. -/
 
 private theorem usize_div_ok_eq (x y : Std.Usize) (hy : y.val ≠ 0) :
-    ∃ z : Std.Usize, (x / y : Result Std.Usize) = .ok z ∧ z.val = x.val / y.val := by
+    ∃ z : Std.Usize, (x / y : RustM Std.Usize) = .ok z ∧ z.val = x.val / y.val := by
   have hT := Std.UScalar.div_spec x hy
   obtain ⟨z, h_eq, h_v⟩ := hT
   exact ⟨z, h_eq, h_v⟩
@@ -2062,7 +2062,7 @@ private theorem iter_next_none_eq_gen
 
 namespace Layer7
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 /-- Step-local accumulator: a `PolynomialRingElement × scratch`. -/
 abbrev Acc :=
@@ -2078,7 +2078,7 @@ abbrev Acc :=
 def inv
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     (∀ j : Nat, j < k.val → ∀ ℓ : Nat, ℓ < 16 →
         ((acc.1.coefficients.val[j]!).elements.val[ℓ]!).val.natAbs ≤ 4803)
@@ -2942,7 +2942,7 @@ and `b_offset + step_vec ≤ 16` (with `a_offset ≤ b_offset` from L3.4's calle
 
 namespace Layer4PlusInner
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 /-- Inner-loop accumulator: a `(PolynomialRingElement × scratch)`. -/
 abbrev Acc :=
@@ -2956,7 +2956,7 @@ def inv
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (a_offset b_offset step_vec : Std.Usize) (bnd : Nat) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun j acc => pure (
     -- Processed-a zone: lanes [a_offset, a_offset + j).
     (∀ ℓ' : Nat, ℓ' < j.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -3317,7 +3317,7 @@ layer ∈ {4, 5, 6}).
     no-overflow on `Usize`. Mirrors `usize_add_ok_eq` / `usize_div_ok_eq`. -/
 private theorem usize_mul_ok_eq (x y : Std.Usize)
     (h_max : x.val * y.val ≤ Std.Usize.max) :
-    ∃ z : Std.Usize, (x * y : Result Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
+    ∃ z : Std.Usize, (x * y : RustM Std.Usize) = .ok z ∧ z.val = x.val * y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   refine ⟨z, h_eq, ?_⟩
@@ -3326,7 +3326,7 @@ private theorem usize_mul_ok_eq (x y : Std.Usize)
 
 namespace Layer4PlusOuter
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std RustM ControlFlow
 
 /-- Outer-loop accumulator: `(zeta_i, PolynomialRingElement, scratch)`. -/
 abbrev Acc := Std.Usize ×
@@ -3340,7 +3340,7 @@ def inv
     (re : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (zeta_i_init step_vec : Std.Usize) (bnd : Nat) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun round acc => pure (
     acc.1.val = zeta_i_init.val + round.val
     ∧ (∀ k : Nat, k < 2 * round.val * step_vec.val → ∀ ℓ : Nat, ℓ < 16 →

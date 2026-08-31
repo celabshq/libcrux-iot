@@ -31,7 +31,7 @@
 import LibcruxIotMlDsa.Spec.HacspecBridge
 import LibcruxIotMlDsa.Polynomial.InfinityNorm
 
-open CoreModels Aeneas Aeneas.Std Result Std.Do ControlFlow
+open CoreModels Aeneas Aeneas.Std RustM Std.Do ControlFlow
 
 namespace libcrux_iot_ml_dsa.Polynomial.HacspecNorm
 open libcrux_iot_ml_dsa
@@ -82,13 +82,13 @@ theorem coeff_norm_bridge (a : Std.I32) :
   set qI64 : Std.I64 := Aeneas.Std.IScalar.cast .I64 hacspec_ml_dsa.parameters.Q with hq_def
   have hq_val : qI64.val = 8380417 := by
     rw [hq_def]; unfold hacspec_ml_dsa.parameters.Q; decide
-  rw [show (Aeneas.Std.lift qI64 : Result Std.I64) = .ok qI64 from rfl]
+  rw [show (Aeneas.Std.lift qI64 : RustM Std.I64) = .ok qI64 from rfl]
   simp only [Aeneas.Std.bind_tc_ok]
   -- `i2 = wa % qI64` (tmod, value `wa.val.tmod 8380417`, `|·| < Q`).
   have hqnz : qI64.val ≠ 0 := by rw [hq_val]; decide
   obtain ⟨i2, hi2_eq, hi2_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.rem_spec wa hqnz)
-  rw [show (wa % qI64 : Result Std.I64) = .ok i2 from hi2_eq]
+  rw [show (wa % qI64 : RustM Std.I64) = .ok i2 from hi2_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hq_val] at hi2_val
   have hi2_abs : (i2.val).natAbs < 8380417 := by
@@ -104,13 +104,13 @@ theorem coeff_norm_bridge (a : Std.I32) :
   obtain ⟨i4, hi4_eq, hi4_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ i2 qI64)
       (fun e => by cases e <;> simp_all <;> omega) (by simp))
-  rw [show (i2 + qI64 : Result Std.I64) = .ok i4 from hi4_eq]
+  rw [show (i2 + qI64 : RustM Std.I64) = .ok i4 from hi4_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hq_val] at hi4_val
   -- `i6 = i4 % qI64`, value `(i2.val + Q).tmod Q = m ∈ [0, Q)` (since `i2.val + Q > 0`).
   obtain ⟨i6, hi6_eq, hi6_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.rem_spec i4 hqnz)
-  rw [show (i4 % qI64 : Result Std.I64) = .ok i6 from hi6_eq]
+  rw [show (i4 % qI64 : RustM Std.I64) = .ok i6 from hi6_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hq_val, hi4_val] at hi6_val
   -- `i6.val = m = ((a%q)+q)%q` — the canonical residue used by `Pure.coeff_norm`.
@@ -133,7 +133,7 @@ theorem coeff_norm_bridge (a : Std.I32) :
     obtain ⟨hlo, hhi⟩ := hi6_bnd; omega
   obtain ⟨a_mod, ha_mod_eq, ha_mod_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I32 i6 ha_mod_bnd)
-  rw [show (Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I32 i6) : Result Std.I32) = .ok a_mod
+  rw [show (Aeneas.Std.lift (Aeneas.Std.IScalar.cast .I32 i6) : RustM Std.I32) = .ok a_mod
         from ha_mod_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   -- `i7 = Q / 2#i32 = 4190208`.
@@ -146,7 +146,7 @@ theorem coeff_norm_bridge (a : Std.I32) :
         rintro ⟨_, hy⟩
         rw [show ((2#i32 : Std.I32)).val = (2 : Int) from rfl] at hy
         exact absurd hy (by decide))
-  rw [show (hacspec_ml_dsa.parameters.Q / 2#i32 : Result Std.I32) = .ok i7 from hi7_eq]
+  rw [show (hacspec_ml_dsa.parameters.Q / 2#i32 : RustM Std.I32) = .ok i7 from hi7_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   have hi7_v : i7.val = 4190208 := by rw [hi7_val, hQ_i32_val]; decide
   -- `Pure.coeff_norm a.val = if m > Q/2 then Q - m else m`, with the same `m = i6.val`.
@@ -250,16 +250,16 @@ Mirrors `Polynomial/InfinityNorm.lean`'s loop idiom: a running-max invariant
 `acc.val = (List.range k).foldl (fun m i => max m (Pure.coeff_norm (p[i].val))) 0`,
 discharging each per-cell `coeff_norm` via `coeff_norm_bridge`. -/
 
-/-! ### Triple ↔ `Result.ok` reflection (file-scoped copies). -/
+/-! ### Triple ↔ `RustM.ok` reflection (file-scoped copies). -/
 
 private theorem triple_of_ok_in
-    {α : Type} {x : Result α} {v : α} {P : α → Prop}
+    {α : Type} {x : RustM α} {v : α} {P : α → Prop}
     (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
 
 private theorem triple_exists_ok_in
-    {α : Type} {x : Result α} {P : α → Prop}
+    {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -268,12 +268,12 @@ private theorem triple_exists_ok_in
   | .fail _ => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div => exact absurd h (by simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-private theorem pure_prop_holds_in {P : Prop} (h : P) : (pure P : Result Prop).holds := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp]; intro _; exact h
+private theorem pure_prop_holds_in {P : Prop} (h : P) : (pure P : RustM Prop).holds := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp]; intro _; exact h
 
 private theorem of_pure_prop_holds_in {P : Prop}
-    (h : (pure P : Result Prop).holds) : P := by
-  simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
+    (h : (pure P : RustM Prop).holds) : P := by
+  simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h; exact h trivial
 
 /-- The running-max fold up to `k`: `max` over `coeff_norm(p[i])` for `i < k`, base `0`. -/
 def max_fold (p : Aeneas.Std.Array Std.I32 256#usize) (k : Nat) : Int :=
@@ -303,7 +303,7 @@ theorem max_fold_succ (p : Aeneas.Std.Array Std.I32 256#usize) (k : Nat) :
     reduced to `IteratorRange.next` by `rfl`). Accumulator is the running max `Std.I32`. -/
 def pinf_body (p : Aeneas.Std.Array Std.I32 256#usize)
     (iter : CoreModels.core.ops.range.Range Std.Usize) (max : Std.I32) :
-    Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Std.I32) Std.I32) := do
+    RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Std.I32) Std.I32) := do
   let (o, iter1) ←
     CoreModels.core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
       CoreModels.core.Usize.Insts.CoreIterRangeStep iter
@@ -318,7 +318,7 @@ def pinf_body (p : Aeneas.Std.Array Std.I32 256#usize)
 
 /-- The running-max loop invariant: `max.val = max_fold p k` and `0 ≤ max.val`. -/
 def pinf_inv (p : Aeneas.Std.Array Std.I32 256#usize) :
-    Std.Usize → Std.I32 → Result Prop :=
+    Std.Usize → Std.I32 → RustM Prop :=
   fun k max => pure (max.val = max_fold p k.val ∧ 0 ≤ max.val)
 
 /-- Per-iteration step post for the running-max loop. -/
@@ -364,8 +364,8 @@ theorem pinf_step_lemma
               ({ start := k, «end» := 256#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | CoreModels.core.option.Option.None =>
-              (Result.ok (ControlFlow.done max) :
-                Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Std.I32) Std.I32))
+              (RustM.ok (ControlFlow.done max) :
+                RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Std.I32) Std.I32))
           | CoreModels.core.option.Option.Some i =>
             let i1 ← Aeneas.Std.Array.index_usize p i
             let c ← hacspec_ml_dsa.arithmetic.coeff_norm i1
@@ -427,8 +427,8 @@ theorem pinf_step_lemma
               ({ start := k, «end» := 256#usize } : CoreModels.core.ops.range.Range Std.Usize)
           match o with
           | CoreModels.core.option.Option.None =>
-              (Result.ok (ControlFlow.done max) :
-                Result (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Std.I32) Std.I32))
+              (RustM.ok (ControlFlow.done max) :
+                RustM (ControlFlow ((CoreModels.core.ops.range.Range Std.Usize) × Std.I32) Std.I32))
           | CoreModels.core.option.Option.Some i =>
             let i1 ← Aeneas.Std.Array.index_usize p i
             let c ← hacspec_ml_dsa.arithmetic.coeff_norm i1

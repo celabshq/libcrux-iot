@@ -240,7 +240,7 @@ def Spec.pk_chunk (public_key : Slice Std.U8) (i : Nat) : Slice Std.U8 :=
     at `d = 12` asserts `len = 32 * 12 = 384`, `pk_chunk` delivers exactly 384 bytes
     whenever `i < K`, and every consumer carries
     `h_pk_len : public_key.length = K.val * 384`. It exists only to make the
-    definition total at the non-`Result` return type the locked statements use. -/
+    definition total at the non-`RustM` return type the locked statements use. -/
 def Spec.t_as_ntt_from_public_key_pure
     (public_key : Slice Std.U8) (K : Std.Usize) :
     Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
@@ -269,8 +269,8 @@ def lift_t_as_ntt_from_public_key
       - `polynomial.{add_to_ring_element,poly_barrett_reduce,subtract_reduce}_pure`
 
     We add here the missing `_pure` aliases referenced by FC equations
-    below. Each is the `Result`-stripped pure projection of a
-    `Result`-monadic hacspec op; bodies use the standard
+    below. Each is the `RustM`-stripped pure projection of a
+    `RustM`-monadic hacspec op; bodies use the standard
     `match | .ok r => r | _ => default`
     pattern (see `Spec.Pure.lean`). Bodies left `sorry` here for brevity
     — types are load-bearing. -/
@@ -1153,7 +1153,7 @@ private theorem nb_numbits_ge (n : Nat) (hn : n ≤ 7) : n < UScalarTy.Usize.num
   rcases System.Platform.numBits_eq with h | h <;> (rw [h]; omega)
 
 private theorem nb_div128_ok (len : Std.Usize) (hlen : len.val ≠ 0) :
-    ∃ g : Std.Usize, (128#usize / len : Result Std.Usize) = .ok g ∧ g.val = 128 / len.val := by
+    ∃ g : Std.Usize, (128#usize / len : RustM Std.Usize) = .ok g ∧ g.val = 128 / len.val := by
   obtain ⟨g, h_eq, h_v⟩ := Std.UScalar.div_spec (128#usize : Std.Usize) hlen
   exact ⟨g, h_eq, by simpa using h_v⟩
 
@@ -1256,8 +1256,8 @@ private theorem nb_zetas_bridge (i : Nat) (hi : i < 128) :
     `'`-variants below", and there are no `'`-suffixed lemmas here.) -/
 
 private theorem nb_uscalar_rem_ok_U32 (z m : Std.U32) (hm : m.val ≠ 0) :
-    ∃ w : Std.U32, (z % m : Result Std.U32) = .ok w ∧ w.val = z.val % m.val := by
-  have heq : (z % m : Result Std.U32) = Std.UScalar.rem z m := rfl
+    ∃ w : Std.U32, (z % m : RustM Std.U32) = .ok w ∧ w.val = z.val % m.val := by
+  have heq : (z % m : RustM Std.U32) = Std.UScalar.rem z m := rfl
   unfold Std.UScalar.rem at heq
   simp [hm] at heq
   refine ⟨_, heq, ?_⟩
@@ -1290,13 +1290,13 @@ private theorem nb_sub_eq_ok (a b : hacspec_ml_kem.parameters.FieldElement)
     show (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS).val = 3329
     unfold hacspec_ml_kem.parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.add_equiv x q
-  cases hxq : (x + q : Result Std.U32) with
+  cases hxq : (x + q : RustM Std.U32) with
   | ok s =>
     rw [hxq] at hae; simp at hae
     obtain ⟨_, hsval, _⟩ := hae
     simp only [bind_tc_ok]
     have hae2 := Std.UScalar.sub_equiv s y
-    cases hsy : (s - y : Result Std.U32) with
+    cases hsy : (s - y : RustM Std.U32) with
     | ok u =>
       rw [hsy] at hae2; simp at hae2
       simp only [bind_tc_ok]
@@ -1339,13 +1339,13 @@ private theorem nb_Canonical_sub_pure (a b : hacspec_ml_kem.parameters.FieldElem
     show (Std.UScalar.cast .U32 hacspec_ml_kem.parameters.FIELD_MODULUS).val = 3329
     unfold hacspec_ml_kem.parameters.FIELD_MODULUS; simp
   have hae := Std.UScalar.add_equiv x q
-  cases hxq : (x + q : Result Std.U32) with
+  cases hxq : (x + q : RustM Std.U32) with
   | ok s =>
     rw [hxq] at hae hsub; simp at hae
     obtain ⟨_, hsval, _⟩ := hae
     simp only [bind_tc_ok] at hsub
     have hae2 := Std.UScalar.sub_equiv s y
-    cases hsy : (s - y : Result Std.U32) with
+    cases hsy : (s - y : RustM Std.U32) with
     | ok u =>
       rw [hsy] at hae2 hsub; simp at hae2
       simp only [bind_tc_ok] at hsub
@@ -1376,10 +1376,10 @@ private theorem nb_Canonical_sub_pure (a b : hacspec_ml_kem.parameters.FieldElem
     omega
   | div => rw [hxq] at hae; exact hae.elim
 
-/-- `Result`-valued U32 multiplication is commutative (`UScalar.mul x y
+/-- `RustM`-valued U32 multiplication is commutative (`UScalar.mul x y
     = tryMk (x.val * y.val)`). -/
 private theorem nb_u32_mul_comm (x y : Std.U32) :
-    (x * y : Result Std.U32) = (y * x : Result Std.U32) := by
+    (x * y : RustM Std.U32) = (y * x : RustM Std.U32) := by
   show Std.UScalar.mul x y = Std.UScalar.mul y x
   unfold Std.UScalar.mul
   rw [Nat.mul_comm]
@@ -1473,14 +1473,14 @@ private theorem nb_layer_n_call_mut_eq
           let i2 ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) + len
           let fe2 ← Aeneas.Std.Array.index_usize p i2
           let (fe3, _) ← hacspec_ml_kem.ntt.butterfly fe fe1 fe2
-          Result.ok (fe3, (len, s, p))
+          RustM.ok (fe3, (len, s, p))
         else do
           let fe ← Aeneas.Std.Slice.index_usize s group
           let i2 ← (⟨BitVec.ofNat _ k⟩ : Std.Usize) - len
           let fe1 ← Aeneas.Std.Array.index_usize p i2
           let fe2 ← Aeneas.Std.Array.index_usize p (⟨BitVec.ofNat _ k⟩ : Std.Usize)
           let (_, fe3) ← hacspec_ml_kem.ntt.butterfly fe fe1 fe2
-          Result.ok (fe3, (len, s, p)))
+          RustM.ok (fe3, (len, s, p)))
     = .ok (nb_flat_lane p len.val (fun g => s.val[g]!) k, (len, s, p))
   obtain ⟨i1, hi1, hi1v⟩ := Util.ScalarSpecs.usize_mul_ok 2#usize len (by simpa using h2len)
   rw [hi1]; simp only [bind_tc_ok]

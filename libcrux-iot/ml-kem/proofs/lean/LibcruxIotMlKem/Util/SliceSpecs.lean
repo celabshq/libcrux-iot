@@ -22,7 +22,7 @@
   - `core_models_slice_Slice_copy_from_slice_spec` — write-into-slice;
     the impl model returns the source slice outright when lengths match.
   - `core_models_array_try_from_slice_spec`
-    (`Slice T → Result (result.Result (Array T N) ...)`).
+    (`Slice T → RustM (result.Result (Array T N) ...)`).
     The body invokes `CoreModels.rust_primitives.slice.array_from_fn` on the
     `try_from.closure`, whose Triple is established by induction over the
     closure's `call_mut` calls and the `List.range N.val` `foldlM`.
@@ -34,15 +34,15 @@ import LibcruxIotMlKem.Extraction.Funs
 
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
-open Result Std.Do
+open RustM Std.Do
 
 namespace libcrux_iot_ml_kem.Util.SliceSpecs
 set_option mvcgen.warning false
 set_option linter.unusedVariables false
 
-/-- Triple -> Result-equation converter, used by the try_from/createi
+/-- Triple -> RustM-equation converter, used by the try_from/createi
     pure-closure pattern here and in Util/{LoopSpecs,CreateI}.lean. -/
-theorem result_eq_of_triple {α : Type} {x : Result α} {v : α}
+theorem result_eq_of_triple {α : Type} {x : RustM α} {v : α}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ r = v ⌝ ⦄) : x = .ok v := by
   match hx : x, h with
   | .ok v', h =>
@@ -390,7 +390,7 @@ private theorem foldlM_try_from_closure_invariant
     show List.foldlM _ (acc, s) (List.range' start 0) = _
     rw [show List.range' start 0 = [] from rfl]
     rw [List.foldlM_nil]
-    show Result.ok (acc, s) = Result.ok (s.val.take (start + 0), s)
+    show RustM.ok (acc, s) = RustM.ok (s.val.take (start + 0), s)
     rw [hacc, Nat.add_zero]
   | succ k ih =>
     intro start acc hacc hk1 hk2
@@ -457,7 +457,7 @@ private theorem array_from_fn_try_from_eq_ok
     rw [h_fold] at heq; exact absurd heq (by simp)
   · rename_i result heq
     rw [h_fold] at heq
-    have hres : result = (s.val, s) := (Result.ok.inj heq).symm
+    have hres : result = (s.val, s) := (RustM.ok.inj heq).symm
     subst hres
     rfl
 

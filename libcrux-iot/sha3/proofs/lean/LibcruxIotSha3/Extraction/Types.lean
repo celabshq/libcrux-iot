@@ -5,7 +5,7 @@ import CoreModels
 import LibcruxIotSha3.Extraction.TypesExternal
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
-open Result ControlFlow Error
+open RustM ControlFlow Error
 open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
@@ -19,30 +19,6 @@ set_option maxRecDepth 2048
 
 namespace libcrux_iot_sha3
 
-/-- [libcrux_iot_sha3::impl_digest_trait::Sha3_224]
-    Source: 'sha3/src/impl_digest_trait.rs', lines 13:8-13:25
-    Visibility: public -/
-@[reducible]
-def impl_digest_trait.Sha3_224 := Unit
-
-/-- [libcrux_iot_sha3::impl_digest_trait::Sha3_256]
-    Source: 'sha3/src/impl_digest_trait.rs', lines 13:8-13:25
-    Visibility: public -/
-@[reducible]
-def impl_digest_trait.Sha3_256 := Unit
-
-/-- [libcrux_iot_sha3::impl_digest_trait::Sha3_384]
-    Source: 'sha3/src/impl_digest_trait.rs', lines 13:8-13:25
-    Visibility: public -/
-@[reducible]
-def impl_digest_trait.Sha3_384 := Unit
-
-/-- [libcrux_iot_sha3::impl_digest_trait::Sha3_512]
-    Source: 'sha3/src/impl_digest_trait.rs', lines 13:8-13:25
-    Visibility: public -/
-@[reducible]
-def impl_digest_trait.Sha3_512 := Unit
-
 /-- [libcrux_iot_sha3::lane::Lane2U32]
     Source: 'sha3/src/lane.rs', lines 7:0-7:41
     Visibility: public -/
@@ -50,7 +26,7 @@ def impl_digest_trait.Sha3_512 := Unit
 def lane.Lane2U32 := Array Std.U32 2#usize
 
 /-- [libcrux_iot_sha3::state::KeccakState]
-    Source: 'sha3/src/state.rs', lines 13:0-18:1 -/
+    Source: 'sha3/src/state.rs', lines 9:0-14:1 -/
 structure state.KeccakState where
   st : Array lane.Lane2U32 25#usize
   c : Array lane.Lane2U32 5#usize
@@ -65,8 +41,38 @@ structure keccak.KeccakXofState (RATE : Std.Usize) where
   buf_len : Std.Usize
   sponge : Bool
 
+/-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::absorb_full::closure]
+    Source: 'sha3/src/keccak.rs', lines 118:37-118:73 -/
+def keccak.KeccakXofState.absorb_full.closure (RATE : Std.Usize) :=
+  Std.Usize × Std.Usize
+
+/-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::store::closure]
+    Source: 'sha3/src/state.rs', lines 100:37-100:69 -/
+def state.KeccakState.store.closure (RATE : Std.Usize) :=
+  Slice Std.U8 × Std.Usize
+
+/-- [libcrux_iot_sha3::keccak::_squeeze::closure]
+    Source: 'sha3/src/keccak.rs', lines 233:33-235:9 -/
+def keccak._squeeze.closure (RATE : Std.Usize) :=
+  Slice Std.U8 × Std.Usize × Std.Usize
+
+/-- [libcrux_iot_sha3::state::store_block_2u32::closure]
+    Source: 'sha3/src/state.rs', lines 164:33-164:65 -/
+def state.store_block_2u32.closure (RATE : Std.Usize) :=
+  Slice Std.U8 × Std.Usize
+
+/-- [libcrux_iot_sha3::keccak::keccak::closure#1]
+    Source: 'sha3/src/keccak.rs', lines 2726:37-2728:13 -/
+def keccak.keccak.closure_1 (RATE : Std.Usize) (DELIM : Std.U8) :=
+  Slice Std.U8 × Std.Usize × Std.Usize
+
+/-- [libcrux_iot_sha3::keccak::keccak::closure]
+    Source: 'sha3/src/keccak.rs', lines 2711:33-2711:94 -/
+@[reducible]
+def keccak.keccak.closure (RATE : Std.Usize) (DELIM : Std.U8) := Std.Usize
+
 /-- [libcrux_iot_sha3::Algorithm]
-    Source: 'sha3/src/lib.rs', lines 82:0-94:1
+    Source: 'sha3/src/lib.rs', lines 87:0-99:1
     Visibility: public -/
 @[discriminant u32 [1,2,3,4]]
 inductive Algorithm where
@@ -76,30 +82,30 @@ inductive Algorithm where
 | Sha512 : Algorithm
 
 /-- Trait declaration: [libcrux_iot_sha3::incremental::private::Sealed]
-    Source: 'sha3/src/lib.rs', lines 380:8-380:27
+    Source: 'sha3/src/lib.rs', lines 385:8-385:27
     Visibility: public -/
 structure incremental.private.Sealed (Self : Type) where
 
 /-- [libcrux_iot_sha3::incremental::Shake128Xof]
-    Source: 'sha3/src/lib.rs', lines 387:4-389:5
+    Source: 'sha3/src/lib.rs', lines 392:4-394:5
     Visibility: public -/
 structure incremental.Shake128Xof where
   state : keccak.KeccakXofState 168#usize
 
 /-- [libcrux_iot_sha3::incremental::Shake256Xof]
-    Source: 'sha3/src/lib.rs', lines 392:4-394:5
+    Source: 'sha3/src/lib.rs', lines 397:4-399:5
     Visibility: public -/
 structure incremental.Shake256Xof where
   state : keccak.KeccakXofState 136#usize
 
 /-- Trait declaration: [libcrux_iot_sha3::incremental::Xof]
-    Source: 'sha3/src/lib.rs', lines 399:4-438:5
+    Source: 'sha3/src/lib.rs', lines 404:4-443:5
     Visibility: public -/
 structure incremental.Xof (Self : Type) (RATE : Std.Usize) where
   privateSealedInst : incremental.private.Sealed Self
-  new : Result Self
-  absorb : Self → Slice Std.U8 → Result Self
-  absorb_final : Self → Slice Std.U8 → Result Self
-  squeeze : Self → Slice Std.U8 → Result (Self × (Slice Std.U8))
+  new : RustM Self
+  absorb : Self → Slice Std.U8 → RustM Self
+  absorb_final : Self → Slice Std.U8 → RustM Self
+  squeeze : Self → Slice Std.U8 → RustM (Self × (Slice Std.U8))
 
 end libcrux_iot_sha3

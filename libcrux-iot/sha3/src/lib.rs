@@ -49,19 +49,16 @@
 #![no_std]
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
-// The `register_tool` feature is enabled by charon itself when it drives the
-// lean extraction (charon sets `--cfg hax_compilation` in that case), so we must
-// not enable it a second time then (it trips `deny(duplicate_features)`). But
-// when this crate is compiled as a plain-rustc dependency of another extraction
-// target — e.g. libcrux-iot ml-kem, which keeps sha3 opaque — charon does not
-// drive it, so we must enable the feature ourselves. Gate on
-// `not(hax_compilation)` to cover exactly that plain-rustc case.
-#![cfg_attr(all(hax_backend_lean, not(hax_compilation)), feature(register_tool))]
-// The `charon` tool namespace, needed for the `#[charon::exclude]` attributes
-// below, is registered by charon itself as of cargo-hax 0.4 -- registering it
-// here too is now an error ("tool `charon` was already registered"). Keep it
-// for the plain-rustc case, where charon does not drive the compilation.
-#![cfg_attr(all(hax_backend_lean, not(hax_compilation)), register_tool(charon))]
+// Neither `feature(register_tool)` nor `register_tool(charon)` is declared here.
+// As of cargo-hax 0.4 charon enables the feature and registers its own tool
+// namespace for every crate it compiles -- dependency crates included, so this
+// holds when ml-kem/ml-dsa extract with sha3 as a dependency too. Declaring
+// either here as well is a hard error ("tool `charon` was already registered",
+// "the feature `register_tool` has already been enabled").
+//
+// The old `not(hax_compilation)` gate no longer distinguishes anything: 0.4 does
+// not set `hax_compilation` at all (rustc lists the crate's known cfgs and it is
+// absent), so the gate was always true and both attributes always applied.
 
 use libcrux_secrets::{Classify, U8};
 
@@ -101,7 +98,7 @@ pub enum Algorithm {
     Sha512 = 4,
 }
 
-#[hax_lib::opaque]
+#[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
 impl From<u32> for Algorithm {
     fn from(v: u32) -> Algorithm {
         match v {

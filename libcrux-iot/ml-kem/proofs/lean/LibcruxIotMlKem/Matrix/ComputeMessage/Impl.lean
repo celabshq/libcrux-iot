@@ -43,7 +43,7 @@ open libcrux_iot_ml_kem.InvertNtt libcrux_iot_ml_kem.Matrix.Common libcrux_iot_m
     Triple yielding `.ok` with the post is equivalent to an existential
     `.ok` witness. The L7 files cannot see the private original, so this is
     re-derived from the public `Std.Do.Triple`/`WP.wp` unfolding. -/
-private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop}
+private theorem triple_exists_ok_fc {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
   match hx : x with
@@ -53,7 +53,7 @@ private theorem triple_exists_ok_fc {α : Type} {x : Result α} {P : α → Prop
 
 /-- Local copy of FCTargets' `private triple_of_ok_fc`: a `True`-pre Triple
     follows from an `.ok` reduction plus the post on the witness. -/
-private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_fc {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PostCond.noThrow, PredTrans.apply, hp]
@@ -67,7 +67,7 @@ private theorem triple_of_ok_fc {α : Type} {x : Result α} {v : α}
 
 namespace S1LoopFC
 
-open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do Result ControlFlow
+open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery libcrux_iot_ml_kem.Spec.NumericKeystones libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.LoopSpecs libcrux_iot_ml_kem.Util.SliceSpecs libcrux_iot_ml_kem.Vector.Portable.Arithmetic.BvMasks libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper Aeneas.Std Std.Do RustM ControlFlow
 
 abbrev Acc := UseCacheFC.Acc
 
@@ -86,7 +86,7 @@ def loop_inv {K : Std.Usize}
                   (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
     (acc_init : Acc) :
-    Std.Usize → Acc → Result Prop :=
+    Std.Usize → Acc → RustM Prop :=
   fun k acc => pure (
     -- (1) Per-(chunk j, lane ℓ) accumulator: canonical-form k-column sum.
     (∀ j : Nat, j < 16 → ∀ ℓ : Nat, ℓ < 16 →
@@ -173,7 +173,7 @@ private theorem compute_message_loop_step_lemma_fc
   have h_acc_init_len : acc_init.length = 256 := Std.Array.length_eq acc_init
   -- Destructure the 2-conjunct invariant.
   obtain ⟨h_inv_acc, h_inv_acc_bnd⟩ := by
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv
   unfold libcrux_iot_ml_kem.matrix.compute_message_loop.body
   by_cases h_lt : k.val < K.val
   · -- `Some k` branch.
@@ -255,7 +255,7 @@ private theorem compute_message_loop_step_lemma_fc
                   portable_ops_inst pre pre1 acc
               .ok (ControlFlow.cont (({ start := s_iter, «end» := K }
                           : CoreModels.core.ops.range.Range Std.Usize), accumulator1)))
-            : Result _) = _
+            : RustM _) = _
       rw [h_idx_secret]
       simp only [Aeneas.Std.bind_tc_ok]
       rw [h_idx_u]
@@ -341,8 +341,8 @@ private theorem compute_message_loop_step_lemma_fc
         have h_arith : (k.val + 1) * 2^25 = k.val * 2^25 + 2^25 := by ring
         rw [h_arith]
         linarith [h_acc1_bnd_n', h_inv_n]
-    show (pure _ : Result Prop).holds
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+    show (pure _ : RustM Prop).holds
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
   · -- `None` branch: k ≥ K, done.
     have hk_ge : k.val ≥ K.val := Nat.not_lt.mp h_lt
     have hk_eq : k.val = K.val := by omega
@@ -381,7 +381,7 @@ private theorem compute_message_loop_step_lemma_fc
     show S1LoopFC.step_post secret_as_ntt u_as_ntt acc_init k (.done acc)
     show (S1LoopFC.loop_inv secret_as_ntt u_as_ntt acc_init K acc).holds
     unfold S1LoopFC.loop_inv
-    show (pure _ : Result Prop).holds
+    show (pure _ : RustM Prop).holds
     have h_inv_pure :
         (∀ j : Nat, j < 16 → ∀ ℓ : Nat, ℓ < 16 →
           Spec.mont_reduce_pure (lift_fe_int (acc.val[16 * j + ℓ]!).val)
@@ -410,7 +410,7 @@ private theorem compute_message_loop_step_lemma_fc
         have h_arith : k.val * 2^25 = K.val * 2^25 := by rw [hk_eq]
         rw [h_arith] at h_b
         exact h_b
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_inv_pure
 
 /-- L7.4 S1 — `matrix.compute_message_loop`: the message-accumulation loop.
     Iterates over `i ∈ [0, K)`, accumulating column-i's contribution
@@ -468,8 +468,8 @@ theorem compute_message_loop_fc
         rw [h0]; exact Nat.zero_le _)
       (by
         -- Base case at k = 0.
-        show (pure _ : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+        show (pure _ : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         refine ⟨?_, ?_⟩
         · intro j hj ℓ hℓ
@@ -675,8 +675,8 @@ private theorem multiply_vectors_eq {K : Std.Usize}
         (Nat.zero_le _)
         (by
           -- Base: init = vec_loop_result_at_step ... 0.
-          show (pure _ : Result Prop).holds
-          simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+          show (pure _ : RustM Prop).holds
+          simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
           intro _
           apply Subtype.ext
           rw [Std.Array.repeat_val]
@@ -695,13 +695,13 @@ private theorem multiply_vectors_eq {K : Std.Usize}
       rw [PostCond.entails_noThrow]
       intro r hh
       have h_eq : (pure (r = vec_loop_result_at_step secret_as_ntt u_as_ntt K.val)
-                  : Result Prop).holds := by
+                  : RustM Prop).holds := by
         simpa [PostCond.noThrow, Std.Do.SPred.down_pure] using hh
-      simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
+      simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_eq
     · -- Step.
       intro acc k _h_ge h_le hinv
       have h_acc_eq : acc = vec_loop_result_at_step secret_as_ntt u_as_ntt k.val := by
-        simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
+        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
       subst h_acc_eq
       unfold hacspec_ml_kem.matrix.multiply_vectors_loop.body
       by_cases h_lt : k.val < K.val
@@ -810,10 +810,10 @@ private theorem multiply_vectors_eq {K : Std.Usize}
                   let product ← hacspec_ml_kem.ntt.multiply_ntts a a1'
                   let result1 ← hacspec_ml_kem.matrix.add_polynomials
                     (vec_loop_result_at_step secret_as_ntt u_as_ntt k.val) product
-                  Aeneas.Std.Result.ok (ControlFlow.cont
+                  Aeneas.Std.RustM.ok (ControlFlow.cont
                     (({ start := s_iter, «end» := K }
                       : CoreModels.core.ops.range.Range Std.Usize), result1)))
-                : Result _) = _
+                : RustM _) = _
           rw [h_idx_a1]
           simp only [Aeneas.Std.bind_tc_ok]
           rw [h_idx_a2]
@@ -827,8 +827,8 @@ private theorem multiply_vectors_eq {K : Std.Usize}
         refine ⟨h_lt, rfl, hs_iter_val, ?_⟩
         show (pure (vec_loop_result_at_step secret_as_ntt u_as_ntt (k.val + 1)
                       = vec_loop_result_at_step secret_as_ntt u_as_ntt s_iter.val)
-              : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+              : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hs_iter_val]
         rfl
@@ -877,8 +877,8 @@ private theorem multiply_vectors_eq {K : Std.Usize}
         apply triple_of_ok_fc h_body
         show (pure (vec_loop_result_at_step secret_as_ntt u_as_ntt k.val
                       = vec_loop_result_at_step secret_as_ntt u_as_ntt K.val)
-              : Result Prop).holds
-        simp only [Aeneas.Std.Result.holds, Std.Do.Triple, Std.Do.WP.wp]
+              : RustM Prop).holds
+        simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
         intro _
         rw [hk_eq]
         rfl
@@ -1181,7 +1181,7 @@ theorem compute_message_acc_bridge {K : Std.Usize}
   rw [multiply_vectors_eq secret_as_ntt u_as_ntt]
   -- Destructure `h_char`'s conjunct (1): the per-lane `no_acc` foldl characterization.
   obtain ⟨h_inv_acc, _⟩ := by
-    simpa [Aeneas.Std.Result.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_char
+    simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_char
   -- Abbreviations.
   set P : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize :=
     Impl.mont_strip_pure

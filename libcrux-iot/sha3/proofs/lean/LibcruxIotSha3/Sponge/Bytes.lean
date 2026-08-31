@@ -22,7 +22,7 @@
 import LibcruxIotSha3.Sponge.LoopSpecs
 import LibcruxIotSha3.Sponge.XorBlockSpec
 
-open Aeneas Aeneas.Std Result ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -36,15 +36,15 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 /-! ## Top-level Triples for `load_block` / `store_block` /
        `load_block_full`. -/
 
-/-- Local copy of `triple_of_ok_local`: an `.ok v` `Result` satisfies any
+/-- Local copy of `triple_of_ok_local`: an `.ok v` `RustM` satisfies any
     Triple whose post `P r` holds at `v`. -/
-private theorem triple_of_ok_bytes {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_bytes {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
 
 /-- Local existence extractor: a Triple yields `∃ v, x = .ok v ∧ P v`. -/
-private theorem triple_exists_ok_bytes {α : Type} {x : Result α}
+private theorem triple_exists_ok_bytes {α : Type} {x : RustM α}
     {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
     ∃ v, x = .ok v ∧ P v := by
@@ -69,7 +69,7 @@ private theorem core_slice_len_eq_ok {T : Type} (v : Slice T) :
 
 /-- `RATE % 8#usize = .ok 0#usize` whenever `RATE.val % 8 = 0`. -/
 private theorem rate_mod_8_eq_ok (RATE : Std.Usize) (h : RATE.val % 8 = 0) :
-    (RATE % 8#usize : Result Std.Usize) = .ok 0#usize := by
+    (RATE % 8#usize : RustM Std.Usize) = .ok 0#usize := by
   -- Use the bv-spec from Aeneas.
   have hnz : ((8#usize : Std.Usize).val : Nat) ≠ 0 := by decide
   -- `UScalar.rem` is `if y.val != 0 then ok ⟨BitVec.umod ...⟩ else fail`.
@@ -88,7 +88,7 @@ private theorem rate_mod_8_eq_ok (RATE : Std.Usize) (h : RATE.val % 8 = 0) :
 
 /-- `lane.Lane2U32.zero = .ok ⟨[0#u32, 0#u32], _⟩`. -/
 private theorem lane_zero_eq_ok :
-    (lane.Lane2U32.zero : Result lane.Lane2U32) =
+    (lane.Lane2U32.zero : RustM lane.Lane2U32) =
       .ok ⟨[0#u32, 0#u32], by decide⟩ := by
   unfold lane.Lane2U32.zero
          libcrux_secrets.traits.Classify.Blanket.classify
@@ -97,7 +97,7 @@ private theorem lane_zero_eq_ok :
 
 /-- `RATE / 8#usize` succeeds and returns a value `i` with `i.val = RATE.val / 8`. -/
 private theorem rate_div_8_ok (RATE : Std.Usize) :
-    ∃ i : Std.Usize, (RATE / 8#usize : Result Std.Usize) = .ok i
+    ∃ i : Std.Usize, (RATE / 8#usize : RustM Std.Usize) = .ok i
       ∧ i.val = RATE.val / 8 := by
   have h := Std.UScalar.div_bv_spec RATE (y := 8#usize) (by decide)
   obtain ⟨i, hi_eq, hi_val, _⟩ := h
@@ -497,14 +497,14 @@ theorem state.KeccakState.load_block_full_spec
   show state.KeccakState.load_block_full RATE s blocks start = .ok r_final
   unfold state.KeccakState.load_block_full state.load_block_full_2u32
   -- The body is `do s1 ← lift (Array.to_slice blocks); load_block_2u32 RATE s s1 start`.
-  -- For the public `Slice U8`, `lift` (here `Std.lift`) is `Result.ok` (identity).
+  -- For the public `Slice U8`, `lift` (here `Std.lift`) is `RustM.ok` (identity).
   -- We reduce `lift x = .ok x` and then chain.
   show (do
         let s1 ← Std.lift (α := Slice Std.U8) (Std.Array.to_slice blocks)
         state.load_block_2u32 RATE s s1 start) = .ok r_final
   unfold Std.lift
   show (do
-        let s1 ← (Result.ok (Std.Array.to_slice blocks) : Result (Slice Std.U8))
+        let s1 ← (RustM.ok (Std.Array.to_slice blocks) : RustM (Slice Std.U8))
         state.load_block_2u32 RATE s s1 start) = .ok r_final
   simp only [bind_tc_ok]
   exact h_inner_unfold

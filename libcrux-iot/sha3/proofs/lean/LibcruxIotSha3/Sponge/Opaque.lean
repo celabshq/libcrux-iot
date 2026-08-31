@@ -15,7 +15,7 @@
 -/
 import LibcruxIotSha3.Composition.HacspecBridge
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -23,7 +23,7 @@ open libcrux_iot_sha3.Foundation libcrux_iot_sha3.Composition
 
 /-! ## Opaque seal for `keccakf1600`. -/
 
-/-- Local shape: `Triple` postshape for `Result α` (matches the one used
+/-- Local shape: `Triple` postshape for `RustM α` (matches the one used
     in `HacspecBridge.lean`). -/
 private abbrev ResultPSU :=
   PostShape.except Aeneas.Std.Error (PostShape.except PUnit PostShape.pure)
@@ -31,7 +31,7 @@ private abbrev ResultPSU :=
 /-- If a `Triple ⦃ True ⦄ x ⦃ noThrow Q ⦄` holds then `x` reduces to some
     `ok v`. Re-derived locally from the private helper of the same
     purpose in `HacspecBridge.lean`. -/
-private theorem triple_noThrow_exists_ok_local {α : Type} {x : Result α}
+private theorem triple_noThrow_exists_ok_local {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) : ∃ v, x = .ok v := by
   match x, h with
@@ -41,7 +41,7 @@ private theorem triple_noThrow_exists_ok_local {α : Type} {x : Result α}
 
 /-- If `x = .ok v` and `Triple ⦃ True ⦄ x ⦃ noThrow Q ⦄`, then `Q v`
     holds. -/
-private theorem triple_noThrow_elim_local {α : Type} {x : Result α}
+private theorem triple_noThrow_elim_local {α : Type} {x : RustM α}
     {Q : α → Assertion ResultPSU}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ PostCond.noThrow Q ⦄) {v : α} (hv : x = .ok v) :
     (Q v).down := by
@@ -49,7 +49,7 @@ private theorem triple_noThrow_elim_local {α : Type} {x : Result α}
 
 /-- If `x = .ok v` and we have `P v`, repackage as a Triple with a
     `pure-prop` post. -/
-private theorem triple_of_ok_local {α : Type} {x : Result α} {v : α}
+private theorem triple_of_ok_local {α : Type} {x : RustM α} {v : α}
     {P : α → Prop} (hx : x = .ok v) (hp : P v) :
     ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
   subst hx; simp [Triple, WP.wp, PredTrans.apply, hp]
@@ -97,7 +97,7 @@ theorem keccakf1600_seal_spec (s : state.KeccakState) (h_i : s.i.val = 0) :
   -- Bridge 1 gives the spec-equality half of the post.
   have h_bridge :=
     Composition.keccakf1600_equiv_hacspec s h_i'
-  -- Extract the underlying Result equation `keccak.keccakf1600 s = .ok r0`.
+  -- Extract the underlying RustM equation `keccak.keccakf1600 s = .ok r0`.
   obtain ⟨r0, h_ok⟩ := triple_noThrow_exists_ok_local h_bridge
   -- Bridge 1's post evaluated at `r0`: spec-equality half.
   have h_spec : keccak_f.keccak_f (Foundation.lift s) = .ok (Foundation.lift r0) :=

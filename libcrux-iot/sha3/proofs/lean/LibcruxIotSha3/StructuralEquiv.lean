@@ -3433,12 +3433,12 @@ open libcrux_iot_sha3.Foundation (triple_imp_intro triple_conj_post
   loop_range_spec_i32 IteratorRange_next_spec_i32
   pure_prop_holds of_pure_prop_holds)
 
-open Result ControlFlow
+open RustM ControlFlow
 
 /-- Local copy of the private `triple_of_ok_i32` from `Keccakf1600Loop.lean`:
     a pure `ok v` value satisfies any `Triple` whose post `P r` holds at `v`. -/
-private theorem triple_of_ok_local {α : Type} {x : Result α} {v : α} {P : α → Prop}
-    (hx : x = Aeneas.Std.Result.ok v) (hp : P v) :
+private theorem triple_of_ok_local {α : Type} {x : RustM α} {v : α} {P : α → Prop}
+    (hx : x = Aeneas.Std.RustM.ok v) (hp : P v) :
     (⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) := by
   subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
 
@@ -3610,7 +3610,7 @@ theorem keccakf1600_loop_eq (s : state.KeccakState) (h_i : s.i = 0#usize) :
       have h6 : (6#i32 : Std.I32).val = 6 := by decide
       have hk_eq : k.val = 6 := by omega
       have hk_eq_i32 : k = 6#i32 := Std.IScalar.eq_of_val_eq (by rw [hk_eq, h6])
-      show ⦃⌜True⌝⦄ (Aeneas.Std.Result.ok (done acc) : Result _) ⦃_⦄
+      show ⦃⌜True⌝⦄ (Aeneas.Std.RustM.ok (done acc) : RustM _) ⦃_⦄
       apply triple_of_ok_local rfl
       apply pure_prop_holds
       refine ⟨by decide, by decide, ?_, ?_⟩
@@ -3624,7 +3624,7 @@ theorem keccakf1600_loop_eq (s : state.KeccakState) (h_i : s.i = 0#usize) :
       have hk_toNat_lt : k.val.toNat < 6 := by omega
       have h_i_bnd : acc.i.val + 4 ≤ 24 := by rw [h_acc_i]; omega
       show ⦃⌜True⌝⦄
-        (do let s1 ← keccak.keccakf1600_4rounds 0#usize acc; Aeneas.Std.Result.ok (cont (iter1, s1)))
+        (do let s1 ← keccak.keccakf1600_4rounds 0#usize acc; Aeneas.Std.RustM.ok (cont (iter1, s1)))
         ⦃_⦄
       apply Std.Do.Triple.bind _ _ (keccakf1600_4rounds_eq 0#usize acc h_i_bnd)
       intro s1

@@ -3,7 +3,7 @@
 
   Mirrors the Aeneas-extracted `keccak.keccakf1600_*` sub-functions
   line-by-line, but as plain `BitVec 32` arithmetic on the pure-Lean
-  `KState` record (no `Result` monad, no `Aeneas.Std.UScalar`, no
+  `KState` record (no `RustM` monad, no `Aeneas.Std.UScalar`, no
   `Lane2U32` wrappers).
 
   This is the impl side of the algebraic equivalence's domain — the

@@ -1,5 +1,5 @@
 /-
-  # Aeneas-Result lifts of `Lane2U32.interleave` / `Lane2U32.deinterleave`.
+  # Aeneas-RustM lifts of `Lane2U32.interleave` / `Lane2U32.deinterleave`.
 
   Bridges the impl's 13-stage bit-deposit code (`Extraction/Funs.lean` lines
   116-163 and 3993-4065) to the pure-`BitVec` models `interleave_bv` /
@@ -26,7 +26,7 @@
 -/
 import LibcruxIotSha3.Sponge.Opaque
 
-open Aeneas Aeneas.Std Result Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -192,7 +192,7 @@ private theorem append_zero_32_eq_shiftLeft_setWidth (x : BitVec 32) :
   omega
 
 
-/-! ## Aeneas-`Result` lift of `Lane2U32.interleave`. -/
+/-! ## Aeneas-`RustM` lift of `Lane2U32.interleave`. -/
 @[spec]
 theorem lane.Lane2U32.interleave_spec (self : lane.Lane2U32) :
     ⦃ ⌜ True ⌝ ⦄
@@ -232,7 +232,7 @@ theorem lane.Lane2U32.interleave_spec (self : lane.Lane2U32) :
                   *]
        refine Prod.mk.injEq .. |>.mpr ⟨?_, ?_⟩ <;> rw [BitVec.or_comm])
 
-/-! ## Aeneas-`Result` lift of `Lane2U32.deinterleave`. -/
+/-! ## Aeneas-`RustM` lift of `Lane2U32.deinterleave`. -/
 @[spec]
 theorem lane.Lane2U32.deinterleave_spec (self : lane.Lane2U32) :
     ⦃ ⌜ True ⌝ ⦄

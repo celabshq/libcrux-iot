@@ -76,4 +76,65 @@ content = content.replace(
     "lane.Lane2U32.", "_root_.libcrux_iot_sha3.lane.Lane2U32."
 )
 
+
+# aeneas omits fields that `CoreModels`'s `cmp` traits declare without defaults:
+# `PartialEq.ne` and `PartialOrd.{lt,le,gt,ge}`. The generated record literals are
+# then rejected ("Fields missing: `ne`" / "`lt`, `le`, `gt`, `ge`"). Fill them from
+# the CoreModels defaults, self-referentially, the way CoreModels does for its own
+# instances; the self-reference needs `impl_def`, which aeneas only emits when it
+# fills the fields itself, so promote the declaration.
+_CMP_FIELDS = {"core.cmp.PartialEq": ("ne",), "core.cmp.PartialOrd": ("lt", "le", "gt", "ge")}
+
+
+def _complete_cmp_records(text: str) -> str:
+    lines = text.split("\n")
+    DECL = re.compile(r"^(impl_def|def) (\S+)")
+    for k in range(len(lines) - 1, -1, -1):   # back-to-front: edits never shift pending sites
+        if not lines[k].rstrip().endswith(":= {"):
+            continue
+        # walk back over the (possibly wrapped) signature to its declaration line
+        d = k
+        while d >= 0 and not DECL.match(lines[d]):
+            d -= 1
+        if d < 0 or k - d > 4:
+            continue
+        header = " ".join(lines[d:k + 1])
+        trait = next((t for t in _CMP_FIELDS if t + " " in header), None)
+        if trait is None:
+            continue
+        fields = _CMP_FIELDS[trait]
+        name = DECL.match(lines[d]).group(2)
+        close = next((j for j in range(k + 1, min(k + 40, len(lines))) if lines[j] == "}"), None)
+        if close is None or any(l.startswith(f"  {fields[0]} :=") for l in lines[k + 1:close]):
+            continue
+        add = []
+        for f in fields:
+            add += [f"  {f} := {trait}.{f}.default", f"    {name}"]
+        lines[close:close] = add
+        lines[d] = re.sub(r"^def ", "impl_def ", lines[d])
+    return "\n".join(lines)
+
+
+content = _complete_cmp_records(content)
+
 funs_lean.write_text(content)
+
+# The lean backend emits per-function Specs.lean + ProofObligations.lean
+# (proof-obligation scaffolding). They are not imported by the hand-written
+# proofs and carry codegen quirks -- here a swapped tuple order in the generated
+# `post` of the squeeze/absorb functions (`Usize x KeccakXofState RATE` where the
+# obligation expects `KeccakXofState RATE x Usize`), the same class of bug the
+# ml-kem driver records. Drop them, and drop their import from the
+# `Extraction.lean` aggregator that cargo-hax 0.4 generates, since the lakefile
+# globs every module under the package.
+for _f in ("Specs.lean", "ProofObligations.lean"):
+    _p = Path("proofs/lean/LibcruxIotSha3/Extraction") / _f
+    if _p.exists():
+        _p.unlink()
+
+_agg = Path("proofs/lean/LibcruxIotSha3/Extraction.lean")
+if _agg.exists():
+    _agg.write_text("".join(
+        l for l in _agg.read_text().splitlines(keepends=True)
+        if "Extraction.Specs" not in l and "Extraction.ProofObligations" not in l
+    ))

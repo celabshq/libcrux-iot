@@ -6,7 +6,7 @@
   - `keccakf1600_post_canonical` is the top-level post shape used by
     `AlgebraicEquiv.lean`'s `keccakf1600_equiv_via_bit` and the
     hacspec coupling in `HacspecBridge.lean`.
-  - `holds_chain_eq_ok` extracts a Result equation from a
+  - `holds_chain_eq_ok` extracts a RustM equation from a
     `(do C; pure (r = X)).holds` hypothesis.
 -/
 import LibcruxIotSha3.Foundation.RoundEquiv
@@ -16,18 +16,18 @@ open Aeneas Aeneas.Std Std.Do libcrux_iot_sha3 hacspec_sha3
 namespace libcrux_iot_sha3.Foundation
 
 /-- From a `.holds` claim of the form `(do let r ← C; pure (r = X)).holds`
-    derive the underlying Result equation `C = .ok X`. -/
-theorem holds_chain_eq_ok {α : Type} {C : Aeneas.Std.Result α} {X : α}
+    derive the underlying RustM equation `C = .ok X`. -/
+theorem holds_chain_eq_ok {α : Type} {C : Aeneas.Std.RustM α} {X : α}
     (h : (do let r ← C; pure (r = X)).holds) : C = .ok X := by
   cases C with
   | ok v =>
-    simp only [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp] at h
+    simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp] at h
     exact congrArg _ (h trivial)
   | fail e =>
-    simp_all [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
+    simp_all [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
               Functor.map, Std.Do.SPred.down_pure]
   | div =>
-    simp_all [Aeneas.Std.Result.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
+    simp_all [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
               Functor.map, Std.Do.SPred.down_pure]
 
 /-! ## Spec-side one-round step (theta + rho + pi + chi + iota)
@@ -36,7 +36,7 @@ Bundles the 5-step spec round into a single function so we can talk
 about iterating it. -/
 
 def spec_round_step (state : Std.Array Std.U64 25#usize) (round : Std.Usize) :
-    Result (Std.Array Std.U64 25#usize) := do
+    RustM (Std.Array Std.U64 25#usize) := do
   let s_theta ← keccak_f.theta state
   let s_rho ← keccak_f.rho s_theta
   let s_pi ← keccak_f.pi s_rho
