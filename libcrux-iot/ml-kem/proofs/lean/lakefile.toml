@@ -11,9 +11,11 @@ name = "Hax"
 git = "https://github.com/cryspen/hax-lean"
 rev = "v0.2.0"
 
-# TODO: point back at a pushed cryspen/libcrux rev (subDir specs/ml-kem/proofs/lean)
-# once the spec migration lands; local worktree path for now. This transitively
-# brings in HacspecSha3 (the spec references hacspec_sha3.*).
+# The machine-extracted ML-KEM hacspec (crate `hacspec_ml_kem`, specs/ml-kem in
+# celabshq/libcrux); the proofs reference `hacspec_ml_kem.*`. Transitively brings
+# in HacspecSha3 (the spec references `hacspec_sha3.*`).
 [[require]]
 name = "HacspecMlKem"
-path = "../../../../../libcrux-proofs-update/specs/ml-kem/proofs/lean"
+git = "https://github.com/celabshq/libcrux"
+rev = "12c12222c87cdd5ad5dcc1fa971a5efd30549859"
+subDir = "specs/ml-kem/proofs/lean"

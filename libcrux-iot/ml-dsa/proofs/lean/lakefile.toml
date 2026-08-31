@@ -12,9 +12,10 @@ git = "https://github.com/cryspen/hax-lean"
 rev = "v0.2.0"
 
 # The machine-extracted clean-Z_q ML-DSA hacspec (crate `hacspec_ml_dsa`,
-# specs/ml-dsa in cryspen/libcrux). The poly-layer spec-bridge lemmas reference
-# `hacspec_ml_dsa.*`. Local worktree path for now (transitively brings in
-# HacspecSha3); TODO: repoint at a pushed cryspen/libcrux rev.
+# specs/ml-dsa in celabshq/libcrux). The poly-layer spec-bridge lemmas reference
+# `hacspec_ml_dsa.*`. Transitively brings in HacspecSha3.
 [[require]]
 name = "HacspecMlDsa"
-path = "../../../../../libcrux-proofs-update/specs/ml-dsa/proofs/lean"
+git = "https://github.com/celabshq/libcrux"
+rev = "12c12222c87cdd5ad5dcc1fa971a5efd30549859"
+subDir = "specs/ml-dsa/proofs/lean"

@@ -11,8 +11,10 @@ name = "Hax"
 git = "https://github.com/cryspen/hax-lean"
 rev = "v0.2.0"
 
-# TODO: point back at a pushed cryspen/libcrux rev (subDir specs/sha3/proofs/lean)
-# once the spec migration lands; local worktree path for now.
+# The machine-extracted FIPS-202 hacspec (crate `hacspec_sha3`, specs/sha3 in
+# celabshq/libcrux); the proofs reference `hacspec_sha3.*`.
 [[require]]
 name = "HacspecSha3"
-path = "../../../../../libcrux-proofs-update/specs/sha3/proofs/lean"
+git = "https://github.com/celabshq/libcrux"
+rev = "12c12222c87cdd5ad5dcc1fa971a5efd30549859"
+subDir = "specs/sha3/proofs/lean"
