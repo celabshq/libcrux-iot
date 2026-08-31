@@ -21,12 +21,15 @@
     # `cargo hax` from cryspen/hax main instead of the private `hax-evit` fork
     # (no more SSH access required to evaluate the shell).
     #
-    # aeneas + charon are consumed as the prebuilt binaries pinned by hax in its
-    # `pins.toml`; run `install-aeneas` inside `nix develop .#lean` to fetch them
-    # (see the devShell below). Keep this revision in sync with
-    # `libcrux-iot/sha3/hax_aeneas.py` and the Lean project's
-    # `{lean-toolchain,lakefile.toml}`.
-    hax-main.url = "github:cryspen/hax/2fedcb2b196f5adea55975d0a023596ec6383ff2";
+    # aeneas + charon are prebuilt binaries that `cargo hax` now downloads
+    # itself: as of 0.4.0 the old root `pins.toml` + `install-aeneas.sh` are
+    # gone, replaced by versions embedded from `cli/cargo-hax/defaults.toml`
+    # and fetched by `cargo hax tools install` (see the devShell below). Keep
+    # this revision in sync with `libcrux-iot/*/hax_aeneas.py` and the Lean
+    # projects' `{lean-toolchain,lakefile.toml}`.
+    #
+    # cargo-hax v0.4.0-rc.1.
+    hax-main.url = "github:cryspen/hax/4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800";
   };
 
   outputs =
@@ -123,14 +126,6 @@
             install -m555 ${haxVersionScript} $out/bin/cargo-hax
           '';
         };
-
-        # `install-aeneas` fetches the prebuilt aeneas + charon binaries pinned
-        # by hax (in its `pins.toml`) into ~/.cargo/bin. It is a thin wrapper
-        # around the script shipped in the hax source tree, so the aeneas/charon
-        # pins stay in lock-step with the `cargo hax` built above.
-        installAeneas = pkgs.writeShellScriptBin "install-aeneas" ''
-          exec ${inputs.hax-main}/install-aeneas.sh "$@"
-        '';
       in
       {
         devShells.default = pkgs.mkShell (tools-environment // {
@@ -170,7 +165,7 @@
         #
         # Extraction (Rust -> Lean):
         #   cd libcrux-iot/sha3
-        #   install-aeneas          # once: fetch pinned aeneas + charon
+        #   cargo hax tools install # once: fetch pinned aeneas + charon
         #   ./hax_aeneas.py
         # Proving:
         #   cd libcrux-iot/sha3/proofs/lean
@@ -180,11 +175,11 @@
             # Extraction: `cargo hax into lean` drives charon + aeneas.
             # cargo-hax is version-wrapped (see the `let` block) so the version
             # check in hax_aeneas.py passes against the flake-locked rev; aeneas
-            # and charon are fetched as prebuilt binaries by `install-aeneas`.
+            # and charon are downloaded on first use by cargo-hax itself, or
+            # eagerly by `cargo hax tools install`.
             haxMain # cargo-hax (with the lean backend)
-            installAeneas # fetches pinned aeneas + charon into ~/.cargo/bin
             rustToolchain # `cargo` launcher for `cargo hax` + rust-src
-            # charon (the prebuilt binary fetched by `install-aeneas`) drives a
+            # charon (the prebuilt binary cargo-hax fetches) drives a
             # pinned rustc via rustup: with rustup on PATH it auto-installs its
             # baked toolchain (currently nightly-2026-06-01 + rustc-dev, ...)
             # and runs charon-driver under it. Without rustup charon aborts.
@@ -196,7 +191,7 @@
             pkgs.elan
 
             # Common build deps for lake / native crates, and for the
-            # `install-aeneas` download + extract step.
+            # `cargo hax tools install` download + extract step.
             pkgs.git
             pkgs.curl
             pkgs.gnutar
@@ -206,7 +201,7 @@
             pkgs.pkg-config
           ];
           RUST_SRC_PATH = "${rustToolchain.outPath}/lib/rustlib/src/rust/library";
-          # `install-aeneas` drops aeneas/charon in ~/.cargo/bin; make sure
+          # cargo-hax caches aeneas/charon under ~/.cargo/bin; make sure
           # `cargo hax into lean` can find them on PATH.
           shellHook = ''
             export PATH="''${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"

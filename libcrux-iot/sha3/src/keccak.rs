@@ -254,7 +254,7 @@ fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakXofState<RATE>, out: &mu
 
 #[cfg_attr(
     hax_backend_lean,
-    hax_lib::lean::before("set_option maxRecDepth 1000 in")
+    hax_lib::legacy_lean::before("set_option maxRecDepth 1000 in")
 )]
 #[hax_lib::opaque]
 const RC_INTERLEAVED_0: [u32; 255] = [
@@ -294,7 +294,7 @@ const RC_INTERLEAVED_0: [u32; 255] = [
 
 #[cfg_attr(
     hax_backend_lean,
-    hax_lib::lean::before("set_option maxRecDepth 1000 in")
+    hax_lib::legacy_lean::before("set_option maxRecDepth 1000 in")
 )]
 #[hax_lib::opaque]
 const RC_INTERLEAVED_1: [u32; 255] = [
@@ -1992,7 +1992,7 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_2(s: &mut KeccakState) {
 #[inline(always)]
 #[cfg_attr(
     hax_backend_lean,
-    hax_lib::lean::before("set_option maxRecDepth 1000 in")
+    hax_lib::legacy_lean::before("set_option maxRecDepth 1000 in")
 )]
 #[hax_lib::opaque]
 pub(crate) fn keccakf1600_round3_theta_c_x0_z0(s: &mut KeccakState) {

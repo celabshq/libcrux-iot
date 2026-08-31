@@ -57,9 +57,11 @@
 // drive it, so we must enable the feature ourselves. Gate on
 // `not(hax_compilation)` to cover exactly that plain-rustc case.
 #![cfg_attr(all(hax_backend_lean, not(hax_compilation)), feature(register_tool))]
-// Register the `charon` tool namespace so the `#[charon::exclude]` attributes
-// below are recognised.
-#![cfg_attr(hax_backend_lean, register_tool(charon))]
+// The `charon` tool namespace, needed for the `#[charon::exclude]` attributes
+// below, is registered by charon itself as of cargo-hax 0.4 -- registering it
+// here too is now an error ("tool `charon` was already registered"). Keep it
+// for the plain-rustc case, where charon does not drive the compilation.
+#![cfg_attr(all(hax_backend_lean, not(hax_compilation)), register_tool(charon))]
 
 use libcrux_secrets::{Classify, U8};
 

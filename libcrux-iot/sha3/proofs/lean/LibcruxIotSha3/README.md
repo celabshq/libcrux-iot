@@ -208,16 +208,16 @@ The resulting Lean files are:
 
 - For running the proofs:
   - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
-  - The Hax Lean proof library `cryspen/hax-lean` at `v0.2.0` (pulled in as a
+  - The Hax Lean proof library `cryspen/hax-lean` at `v0.3.12` (pulled in as a
     `lake` dependency via `lakefile.toml`).
   - Hacspec-style implementation from https://github.com/cryspen/libcrux at commit `a4cfb1ebf26431b2ee81f0dc19383158aaf397b7`
 - For extraction:
-  - Hax at commit `2fedcb2b196f5adea55975d0a023596ec6383ff2`
+  - Hax at commit `4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800` (`cargo-hax-v0.4.0-rc.1`)
     (mainline https://github.com/cryspen/hax) providing the `lean` backend,
     with the charon/aeneas binaries it pins in `pins.toml`:
-    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.07.16
-    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.07.21-52fd438
-    These are fetched automatically by the `install-aeneas` helper inside the
+    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.08.20
+    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.08.24-f8a0eb8
+    These are fetched automatically by `cargo hax tools install` inside the
     `nix develop .#lean` shell.
 
 ### Building
