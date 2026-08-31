@@ -63,4 +63,13 @@ panic_block = (
 )
 content = content.replace(panic_block, "/-\n" + panic_block + "\n-/\n    fail panic", 1)
 
+# `state::load_block_2u32` binds a local named `lane` (state.rs: `let lane =
+# Lane2U32::from(...).interleave()`), which shadows the `lane` sub-namespace, so
+# every later `lane.Lane2U32.…` is parsed as a field projection on that local
+# ("Invalid field `Lane2U32`: … does not contain `Subtype.Lane2U32`"). Force
+# top-level resolution, as the specs/ml-kem driver does for `matrix`.
+content = content.replace(
+    "lane.Lane2U32.", "_root_.libcrux_iot_sha3.lane.Lane2U32."
+)
+
 funs_lean.write_text(content)
