@@ -215,13 +215,14 @@ pub(super) fn compute_hint(
 //
 // Note that 0 ≤ r₁ < (q-1)/α.
 #[inline(always)]
-#[hax_lib::requires(gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)]
+// The range bound on `r` used to be a commented-out `debug_assert!` here, with a
+// note that it "should be a precondition for hax instead". It now is one, which
+// is also exactly the `hlo`/`hhi` that `decompose_element_spec` assumes. Stated
+// with `>=` rather than the `>` of the old assert, to match that theorem.
+#[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
+    && r >= -FIELD_MODULUS
+    && r < FIELD_MODULUS)]
 fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
-    // #[cfg(not(eurydice))]
-    // // XXX: Below debug assert violates the classification regime
-    // // in Debug mode. It should be a precondition for hax
-    // // instead.
-    // debug_assert!(r > -FIELD_MODULUS && r < FIELD_MODULUS);
 
     // Convert the signed representative to the standard unsigned one.
     let r = r.wrapping_add((r >> 31) & FIELD_MODULUS);
@@ -305,25 +306,70 @@ pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
     }
 }
 
+// Spec-only lane predicates.
+//
+// These exist because the natural phrasing of the bound,
+//   hax_lib::forall(|i: usize| hax_lib::implies(i < 8,
+//       simd_unit.values[i] >= -FIELD_MODULUS && simd_unit.values[i] < FIELD_MODULUS))
+// does not work, for two separate reasons:
+//
+//  1. The bool `&&` inside the quantifier closure makes AENEAS fail outright:
+//       [Error] Internal error, please file an issue
+//       Could not translate the body of function
+//         '..::requires::{impl Fn<(usize,), hax_lib::prop::Prop> for ..closure<'_0>}::call'
+//       Compiler source: interp/Interp.ml, line 609
+//     Writing it as a Prop-level `&` on two `.to_prop()`s avoids that, so the
+//     trigger is specifically short-circuiting `&&` in a `Prop` closure body.
+//
+//  2. Even then the resulting precondition is UNSATISFIABLE, so `decompose.spec`
+//     would be vacuously true. `hax_lib::prop::forall` is modelled as
+//       ok (forall t : T, holds (fn.call f t))
+//     i.e. it ranges over ALL of `usize`, while the extracted closure body
+//     evaluates `Array.index_usize simd_unit.values i` BEFORE the `i < 8` guard.
+//     Out of range that index fails, `holds` of a failing computation is `False`,
+//     and the whole `forall` is `False`. (Proved; see the Lean-side note in
+//     proofs/lean/LibcruxIotMlDsa/Verification/ProofObligations.lean.)
+//
+// An explicit 8-way conjunction over constant indices has neither problem: the
+// `&&`s are in an ordinary function rather than a `Prop` closure, and every
+// index is in range, so the precondition is satisfiable and usable.
+#[cfg(hax)]
+fn lane_in_field(x: FieldElement) -> bool {
+    x >= -FIELD_MODULUS && x < FIELD_MODULUS
+}
+
+#[cfg(hax)]
+fn coefficients_in_field(c: &Coefficients) -> bool {
+    lane_in_field(c.values[0])
+        && lane_in_field(c.values[1])
+        && lane_in_field(c.values[2])
+        && lane_in_field(c.values[3])
+        && lane_in_field(c.values[4])
+        && lane_in_field(c.values[5])
+        && lane_in_field(c.values[6])
+        && lane_in_field(c.values[7])
+}
+
+#[cfg(hax)]
+fn lane_is_hint(x: FieldElement) -> bool {
+    x == 0 || x == 1
+}
+
+#[cfg(hax)]
+fn coefficients_are_hints(c: &Coefficients) -> bool {
+    lane_is_hint(c.values[0])
+        && lane_is_hint(c.values[1])
+        && lane_is_hint(c.values[2])
+        && lane_is_hint(c.values[3])
+        && lane_is_hint(c.values[4])
+        && lane_is_hint(c.values[5])
+        && lane_is_hint(c.values[6])
+        && lane_is_hint(c.values[7])
+}
+
 #[inline(always)]
-// The coefficient bound this function's Lean proof needs is a `forall` over the
-// eight lanes. It IS expressible --
-//   #[cfg(hax)] use hax_lib::ToProp;
-//   #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888).to_prop()
-//     & hax_lib::forall(|i: usize| hax_lib::implies(i < 8,
-//         simd_unit.values[i] >= -FIELD_MODULUS && simd_unit.values[i] < FIELD_MODULUS)))]
-// -- and rustc and charon both accept it, but AENEAS then fails:
-//   [Error] Internal error, please file an issue
-//   Could not translate the body of function
-//     '..::requires::{impl Fn<(usize,), hax_lib::prop::Prop> for ..::requires::closure<'_0>}::call'
-//   Compiler source: interp/Interp.ml, line 609
-// i.e. aeneas cannot translate a quantifier closure in a `requires`. Left out
-// until that is fixed upstream; the bound stays an explicit hypothesis in
-// proofs/lean/LibcruxIotMlDsa/Verification/ProofObligations.lean. Same for
-// `use_hint` below. NOTE that non-quantified bounds on secret-typed values DO
-// work (see `decompose_element`'s Lean-side note), so this is specifically the
-// quantifier that is blocked.
-#[hax_lib::requires(gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)]
+#[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
+    && coefficients_in_field(simd_unit))]
 pub fn decompose(
     gamma2: Gamma2,
     simd_unit: &Coefficients,
@@ -336,7 +382,9 @@ pub fn decompose(
 }
 
 #[inline(always)]
-#[hax_lib::requires(gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)]
+#[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
+    && coefficients_in_field(simd_unit)
+    && coefficients_are_hints(hint))]
 pub fn use_hint(gamma2: Gamma2, simd_unit: &Coefficients, hint: &mut Coefficients) {
     for i in 0..hint.values.len() {
         // Declassifications: The hint values themselves are not

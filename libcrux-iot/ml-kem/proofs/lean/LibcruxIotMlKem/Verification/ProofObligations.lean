@@ -31,42 +31,58 @@ about, e.g. `import LibcruxIotMlKem.Extraction`. -/
   annotated, and `LibcruxIotSha3`'s corresponding file discharges all six
   outright.)
 
-  ## The second finding: the annotations are weaker than the proofs' domains
+  ## The second finding: the annotations were weaker than the proofs' domains
 
   For the vector primitives that DO have a hand-written theorem, the generated
-  `pre` is systematically weaker than the theorem's hypotheses. `ntt_step` is
-  representative: it is annotated `requires(i < 16 && j < 16)`, while
-  `Vector.Portable.Ntt.ntt_step_spec` additionally assumes `i ≠ j`, a bound on the
-  zeta (`|zeta| <= 1664`) and coefficient magnitude bounds (`|vec[i]|, |vec[j]| <=
-  3*3328`). The magnitude bounds are the whole substance of the Kyber
-  bounds-tracking argument, and the Rust says nothing about them.
+  `pre` was systematically weaker than the theorem's hypotheses. `ntt_step` was
+  representative: it was annotated `requires(i < 16 && j < 16)`, while
+  `Vector.Portable.Ntt.ntt_step_spec` additionally assumes `i != j`, a bound on
+  the zeta (`|zeta| <= 1664`) and coefficient magnitude bounds (`|vec[i]|,
+  |vec[j]| <= 3*3328`). The magnitude bounds are the whole substance of the
+  Kyber bounds-tracking argument, and the Rust said nothing about them.
 
   So the generated obligation was STRICTLY STRONGER than what was proved, and no
-  post-weakening closes that. The annotation has since been strengthened to
-  `i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664`, which closes two
-  of the four gaps: `i != j` and the zeta bound now come out of the generated
-  `pre`.
+  post-weakening closes that. The annotations have since been strengthened and
+  BOTH `ntt`-layer primitives now discharge OUTRIGHT: every hypothesis of both
+  theorems comes out of the generated `pre`.
 
-  The coefficient magnitude bounds remain open, and deliberately so: `vec.elements`
-  holds SECRET-typed `libcrux_secrets::I16` values, and a `#[requires]` comparing
-  them would have to declassify inside a specification. Stating those bounds is
-  therefore a design question about the secret-integer API, not a one-line
-  annotation change, so they are still supplied as explicit arguments below and
-  flagged rather than hidden behind a `sorry`.
+  The magnitude bounds are carried by a spec-only boolean helper,
+  `ntt::elements_abs_le`, written as an explicit sixteen-way conjunction rather
+  than a `hax_lib::forall`. `ntt.rs` carries the full note; the two reasons, both
+  established by experiment, are:
+
+  1. a bool `&&` inside a quantifier closure makes aeneas fail outright
+     (`interp/Interp.ml, line 609`) -- a Prop-level `&` on `.to_prop()`s does
+     not, so short-circuiting `&&` in a `Prop` closure is the trigger;
+
+  2. even with `&`, the resulting precondition is UNSATISFIABLE, which would make
+     `<fn>.spec` VACUOUS rather than fail loudly. `hax_lib::prop::forall` is
+     modelled (`CoreModels/HaxLib/Prop.lean`) as
+     `ok (forall t : T, Result.holds (do let u <- fn.call f t; inst.into u))`,
+     i.e. it ranges over ALL of `Usize`, while the extracted closure body
+     indexes `vec.elements[k]` BEFORE the `k < 16` guard -- out of range that
+     index is `fail .panic` and `Result.holds` of a failing computation is
+     `False`.
+
+  Note that `vec.elements` holds SECRET-typed `libcrux_secrets::I16` values.
+  Bounding them in a `#[requires]` turned out to be fine after all: the helper is
+  `#[cfg(hax)]` and `#[hax_lib::requires]` is an identity macro in non-hax
+  builds, so nothing declassifies outside verification.
+
+  One caveat, recorded because it is a real difference: `elements_abs_le` bounds
+  ALL SIXTEEN lanes, whereas `ntt_step_spec` needs only lanes `i` and `j`. That
+  is the invariant the NTT layers maintain, so no caller is excluded, but the
+  extracted contract does ask for slightly more than the proof consumes.
 
   ## What this file proves
 
-  The two `ntt`-layer primitives are discharged UNDER THE HYPOTHESES THE
-  ANNOTATION IS MISSING, stated explicitly as extra arguments. Each is a real
-  theorem that reuses the existing proof, and its hypothesis list beyond
-  `(… .pre …).holds` is exactly the gap -- i.e. exactly what the `#[requires]`
-  would have to gain.
+  Both `ntt`-layer primitives are discharged unconditionally from the existing
+  proofs in `Vector/Portable/Ntt.lean`.
 
   They are done as representatives, not as a complete sweep: the same shape
-  applies to the `serialize_*`/`deserialize_*`/`compress*` families, and extending
-  it there is mechanical once the annotation question above is settled. Doing all
-  38 before that decision would bake in hypothesis lists that the Rust may be
-  about to absorb.
+  applies to the `serialize_*`/`deserialize_*`/`compress*` families, and
+  extending it there is mechanical.
+
 -/
 import LibcruxIotMlKem.Extraction
 import LibcruxIotMlKem.Vector.Portable.Ntt
@@ -101,74 +117,205 @@ private theorem bool_of_holds_map_ok {b : Bool}
   rw [hmap] at h
   simpa [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] using h
 
+/-- Like `bool_of_holds_map_ok`, but for a `pre` that is not syntactically an
+    `ok` -- here it is a nested-`if` computation. -/
+private theorem eq_ok_true_of_holds_map {x : RustM Bool}
+    (h : RustM.holds ((fun a => a = true) <$> x)) : x = .ok true := by
+  cases x with
+  | ok b => rw [bool_of_holds_map_ok h]
+  | fail e =>
+      exfalso
+      have hm : ((fun a => a = true) <$> (RustM.fail e : RustM Bool))
+          = (RustM.fail e : RustM Prop) := rfl
+      rw [hm] at h
+      simp [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] at h
+  | div =>
+      exfalso
+      have hm : ((fun a => a = true) <$> (RustM.div : RustM Bool))
+          = (RustM.div : RustM Prop) := rfl
+      rw [hm] at h
+      simp [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] at h
+
+/-- An in-range `Array.index_usize` as a plain equation, so the unrolled
+    conjunction can be rewritten index by index. -/
+private theorem array_index_ok {alpha : Type} [Inhabited alpha] {n : Std.Usize}
+    (v : Aeneas.Std.Array alpha n) (i : Std.Usize) (h : i.val < v.val.length) :
+    v.index_usize i = .ok (v.val[i.val]!) := by
+  unfold Aeneas.Std.Array.index_usize
+  rw [Aeneas.Std.Array.getElem?_Usize_eq, List.getElem?_eq_getElem h,
+    List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]
+  rfl
+
+/-- One link of the unrolled conjunction: `&&` extracts to
+    `if b then rest else false`, so a `true` result forces both sides. -/
+private theorem bind_if_ok_true {x rest : RustM Bool}
+    (h : (do let b ← x; if b then rest else RustM.ok false) = RustM.ok true) :
+    x = .ok true ∧ rest = .ok true := by
+  cases x with
+  | ok b =>
+      cases b with
+      | true => exact ⟨rfl, by simpa using h⟩
+      | false => exfalso; simp at h
+  | fail e => exfalso; simp at h
+  | div => exfalso; simp at h
+
+/-- `lane_abs_le x bound = ok true` decoded into a `natAbs` bound. The `-bound`
+    comparison arrives as a CHECKED negation (`-. bound`, a `RustM I16`), which
+    is why the resolved negation is passed in. -/
+private theorem lane_abs_le_true {x bound negb : Std.I16} {B : Nat}
+    (hneg : (-. bound : RustM Std.I16) = .ok negb)
+    (hnegv : negb.val = -(B : Int)) (hboundv : bound.val = (B : Int))
+    (h : libcrux_iot_ml_kem.vector.portable.ntt.lane_abs_le x bound = .ok true) : x.val.natAbs ≤ B := by
+  simp only [libcrux_iot_ml_kem.vector.portable.ntt.lane_abs_le, hneg, Aeneas.Std.bind_tc_ok] at h
+  by_cases h1 : x ≥ negb
+  · by_cases h2 : x ≤ bound
+    · have hlo : negb.val ≤ x.val := by scalar_tac
+      have hhi : x.val ≤ bound.val := by scalar_tac
+      rw [hnegv] at hlo; rw [hboundv] at hhi
+      omega
+    · exfalso; rw [if_pos h1] at h; simp [h2] at h
+  · exfalso; rw [if_neg h1] at h; simp at h
+
+/-- `|x| <= 3 * 3328`, the bound `ntt_step_spec` wants. -/
+private theorem lane_abs_le_9984 {x : Std.I16}
+    (h : libcrux_iot_ml_kem.vector.portable.ntt.lane_abs_le x 9984#i16 = .ok true) : x.val.natAbs ≤ 3 * 3328 :=
+  lane_abs_le_true (negb := (-9984)#i16) (B := 3 * 3328)
+    (by first | rfl | decide) (by first | rfl | decide) (by first | rfl | decide) h
+
+/-- `|x| <= 4 * 3328`, the bound `inv_ntt_step_spec` wants. -/
+private theorem lane_abs_le_13312 {x : Std.I16}
+    (h : libcrux_iot_ml_kem.vector.portable.ntt.lane_abs_le x 13312#i16 = .ok true) : x.val.natAbs ≤ 4 * 3328 :=
+  lane_abs_le_true (negb := (-13312)#i16) (B := 4 * 3328)
+    (by first | rfl | decide) (by first | rfl | decide) (by first | rfl | decide) h
+
+/-- All sixteen lanes of `elements_abs_le` pass. `bound` stays abstract, so this
+    serves both the `ntt_step` and the `inv_ntt_step` bound. -/
+private theorem elements_abs_le_lanes
+    (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    (bound : Std.I16)
+    (h : libcrux_iot_ml_kem.vector.portable.ntt.elements_abs_le vec bound = .ok true) :
+    ∀ k : Nat, k < 16 → libcrux_iot_ml_kem.vector.portable.ntt.lane_abs_le (vec.elements.val[k]!) bound = .ok true := by
+  have hlen : vec.elements.val.length = 16 := vec.elements.property
+  simp only [libcrux_iot_ml_kem.vector.portable.ntt.elements_abs_le,
+    array_index_ok vec.elements 0#usize (by simp [hlen]),
+    array_index_ok vec.elements 1#usize (by simp [hlen]),
+    array_index_ok vec.elements 2#usize (by simp [hlen]),
+    array_index_ok vec.elements 3#usize (by simp [hlen]),
+    array_index_ok vec.elements 4#usize (by simp [hlen]),
+    array_index_ok vec.elements 5#usize (by simp [hlen]),
+    array_index_ok vec.elements 6#usize (by simp [hlen]),
+    array_index_ok vec.elements 7#usize (by simp [hlen]),
+    array_index_ok vec.elements 8#usize (by simp [hlen]),
+    array_index_ok vec.elements 9#usize (by simp [hlen]),
+    array_index_ok vec.elements 10#usize (by simp [hlen]),
+    array_index_ok vec.elements 11#usize (by simp [hlen]),
+    array_index_ok vec.elements 12#usize (by simp [hlen]),
+    array_index_ok vec.elements 13#usize (by simp [hlen]),
+    array_index_ok vec.elements 14#usize (by simp [hlen]),
+    array_index_ok vec.elements 15#usize (by simp [hlen]),
+    Aeneas.Std.bind_tc_ok] at h
+  obtain ⟨h0, h⟩ := bind_if_ok_true h
+  obtain ⟨h1, h⟩ := bind_if_ok_true h
+  obtain ⟨h2, h⟩ := bind_if_ok_true h
+  obtain ⟨h3, h⟩ := bind_if_ok_true h
+  obtain ⟨h4, h⟩ := bind_if_ok_true h
+  obtain ⟨h5, h⟩ := bind_if_ok_true h
+  obtain ⟨h6, h⟩ := bind_if_ok_true h
+  obtain ⟨h7, h⟩ := bind_if_ok_true h
+  obtain ⟨h8, h⟩ := bind_if_ok_true h
+  obtain ⟨h9, h⟩ := bind_if_ok_true h
+  obtain ⟨h10, h⟩ := bind_if_ok_true h
+  obtain ⟨h11, h⟩ := bind_if_ok_true h
+  obtain ⟨h12, h⟩ := bind_if_ok_true h
+  obtain ⟨h13, h⟩ := bind_if_ok_true h
+  obtain ⟨h14, h15⟩ := bind_if_ok_true h
+  intro k hk
+  -- `interval_cases` is a Mathlib tactic and is not imported here; peel the
+  -- sixteen literals off by hand. Each `exact` closes up to `(n#usize).val = n`.
+  rcases k with _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | k
+  · exact h0
+  · exact h1
+  · exact h2
+  · exact h3
+  · exact h4
+  · exact h5
+  · exact h6
+  · exact h7
+  · exact h8
+  · exact h9
+  · exact h10
+  · exact h11
+  · exact h12
+  · exact h13
+  · exact h14
+  · exact h15
+  · exact absurd hk (by omega)
+
 /-! ## The NTT butterfly steps
 
-    Generated `pre`: `i < 16 && j < 16 && i != j && |zeta| <= 1664`, all of which
-    the theorems need and all of which are now decoded from it. Only the
-    coefficient magnitude bounds are still supplied by hand. -/
+    Generated `pre`: `i < 16 && j < 16 && i != j && |zeta| <= 1664` plus the
+    per-lane magnitude bound via `elements_abs_le`. Every hypothesis of both
+    theorems is decoded from it, so both discharge outright. -/
 
-theorem ntt_step_spec_proof
-    (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (zeta : Std.I16) (i j : Std.Usize)
-    -- still supplied: the coefficient magnitude bounds, which the `#[requires]`
-    -- cannot state (see the note above)
-    (h_a : (vec.elements.val[i.val]!).val.natAbs ≤ 3 * 3328)
-    (h_b : (vec.elements.val[j.val]!).val.natAbs ≤ 3 * 3328) :
+/-- Shared decode of the four scalar conjuncts plus the lane-bound helper call.
+    `bound` is the helper's argument, so one lemma serves both steps. -/
+private theorem ntt_pre_decode {bound : Std.I16}
+    {vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector} {zeta : Std.I16} {i j : Std.Usize}
+    (hok : (if i < (16#usize : Std.Usize)
+            then if j < (16#usize : Std.Usize)
+              then if i != j
+                then if zeta ≥ (-1664)#i16
+                  then if zeta ≤ 1664#i16
+                    then libcrux_iot_ml_kem.vector.portable.ntt.elements_abs_le vec bound
+                    else RustM.ok false
+                  else RustM.ok false
+                else RustM.ok false
+              else RustM.ok false
+            else RustM.ok false) = RustM.ok true) :
+    i.val < 16 ∧ j.val < 16 ∧ i.val ≠ j.val ∧ zeta.val.natAbs ≤ 1664
+      ∧ libcrux_iot_ml_kem.vector.portable.ntt.elements_abs_le vec bound = .ok true := by
+  by_cases h1 : i < (16#usize : Std.Usize)
+  · by_cases h2 : j < (16#usize : Std.Usize)
+    · by_cases h3 : i != j
+      · by_cases h4 : zeta ≥ (-1664)#i16
+        · by_cases h5 : zeta ≤ 1664#i16
+          · rw [if_pos h1, if_pos h2, if_pos h3, if_pos h4, if_pos h5] at hok
+            refine ⟨by scalar_tac, by scalar_tac, ?_, ?_, hok⟩
+            · have hne : i ≠ j := by simpa using h3
+              intro hc; exact hne (Aeneas.Std.UScalar.eq_of_val_eq hc)
+            · have hlo : -(1664 : Int) ≤ zeta.val := by scalar_tac
+              have hhi : zeta.val ≤ (1664 : Int) := by scalar_tac
+              omega
+          · exfalso
+            rw [if_pos h1, if_pos h2, if_pos h3, if_pos h4, if_neg h5] at hok
+            simp at hok
+        · exfalso; rw [if_pos h1, if_pos h2, if_pos h3, if_neg h4] at hok; simp at hok
+      · exfalso; rw [if_pos h1, if_pos h2, if_neg h3] at hok; simp at hok
+    · exfalso; rw [if_pos h1, if_neg h2] at hok; simp at hok
+  · exfalso; rw [if_neg h1] at hok; simp at hok
+
+/-- Discharged OUTRIGHT. -/
+theorem ntt_step_spec_proof (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (zeta : Std.I16) (i j : Std.Usize) :
     libcrux_iot_ml_kem.vector.portable.ntt.ntt_step.spec vec zeta i j := by
   intro hpre
-  simp only [libcrux_iot_ml_kem.vector.portable.ntt.ntt_step.pre] at hpre
-  -- the strengthened `#[requires]` now yields `i < 16`, `j < 16`, `i != j` and the
-  -- zeta bound; only the coefficient magnitude bounds remain to be supplied.
-  have key : i.val < 16 ∧ j.val < 16 ∧ i.val ≠ j.val ∧ zeta.val.natAbs ≤ 1664 := by
-    by_cases h1 : i < (16#usize : Std.Usize)
-    · by_cases h2 : j < (16#usize : Std.Usize)
-      · by_cases h3 : i != j
-        · by_cases h4 : zeta ≥ (-1664)#i16
-          · rw [if_pos h1, if_pos h2, if_pos h3, if_pos h4] at hpre
-            have h5 := of_decide_eq_true (bool_of_holds_map_ok hpre)
-            refine ⟨by scalar_tac, by scalar_tac, ?_, by scalar_tac⟩
-            have : i ≠ j := by simpa using h3
-            intro hc; exact this (Aeneas.Std.UScalar.eq_of_val_eq hc)
-          · rw [if_pos h1, if_pos h2, if_pos h3, if_neg h4] at hpre
-            exact absurd (bool_of_holds_map_ok hpre) (by simp)
-        · rw [if_pos h1, if_pos h2, if_neg h3] at hpre
-          exact absurd (bool_of_holds_map_ok hpre) (by simp)
-      · rw [if_pos h1, if_neg h2] at hpre
-        exact absurd (bool_of_holds_map_ok hpre) (by simp)
-    · rw [if_neg h1] at hpre
-      exact absurd (bool_of_holds_map_ok hpre) (by simp)
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_kem.vector.portable.ntt.ntt_step.pre] at hok
+  obtain ⟨hi, hj, hne, hz, hlanes⟩ := ntt_pre_decode hok
+  have hb := elements_abs_le_lanes vec 9984#i16 hlanes
   exact triple_true_of_triple
-    (Vector.Portable.Ntt.ntt_step_spec vec zeta i j key.1 key.2.1 key.2.2.1 key.2.2.2 h_a h_b)
+    (Vector.Portable.Ntt.ntt_step_spec vec zeta i j hi hj hne hz
+      (lane_abs_le_9984 (hb i.val hi)) (lane_abs_le_9984 (hb j.val hj)))
 
-theorem inv_ntt_step_spec_proof
-    (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    (zeta : Std.I16) (i j : Std.Usize)
-    -- still supplied: the coefficient magnitude bounds
-    (hbnd : ∀ k : Nat, k < 16 → (vec.elements.val[k]!).val.natAbs ≤ 4 * 3328) :
+/-- Discharged OUTRIGHT. -/
+theorem inv_ntt_step_spec_proof (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) (zeta : Std.I16) (i j : Std.Usize) :
     libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_step.spec vec zeta i j := by
   intro hpre
-  simp only [libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_step.pre] at hpre
-  -- the strengthened `#[requires]` now yields `i < 16`, `j < 16`, `i != j` and the
-  -- zeta bound; only the coefficient magnitude bounds remain to be supplied.
-  have key : i.val < 16 ∧ j.val < 16 ∧ i.val ≠ j.val ∧ zeta.val.natAbs ≤ 1664 := by
-    by_cases h1 : i < (16#usize : Std.Usize)
-    · by_cases h2 : j < (16#usize : Std.Usize)
-      · by_cases h3 : i != j
-        · by_cases h4 : zeta ≥ (-1664)#i16
-          · rw [if_pos h1, if_pos h2, if_pos h3, if_pos h4] at hpre
-            have h5 := of_decide_eq_true (bool_of_holds_map_ok hpre)
-            refine ⟨by scalar_tac, by scalar_tac, ?_, by scalar_tac⟩
-            have : i ≠ j := by simpa using h3
-            intro hc; exact this (Aeneas.Std.UScalar.eq_of_val_eq hc)
-          · rw [if_pos h1, if_pos h2, if_pos h3, if_neg h4] at hpre
-            exact absurd (bool_of_holds_map_ok hpre) (by simp)
-        · rw [if_pos h1, if_pos h2, if_neg h3] at hpre
-          exact absurd (bool_of_holds_map_ok hpre) (by simp)
-      · rw [if_pos h1, if_neg h2] at hpre
-        exact absurd (bool_of_holds_map_ok hpre) (by simp)
-    · rw [if_neg h1] at hpre
-      exact absurd (bool_of_holds_map_ok hpre) (by simp)
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_step.pre] at hok
+  obtain ⟨hi, hj, hne, hz, hlanes⟩ := ntt_pre_decode hok
+  have hb := elements_abs_le_lanes vec 13312#i16 hlanes
   exact triple_true_of_triple
-    (Vector.Portable.Ntt.inv_ntt_step_spec vec zeta i j key.1 key.2.1 key.2.2.1 key.2.2.2 hbnd)
+    (Vector.Portable.Ntt.inv_ntt_step_spec vec zeta i j hi hj hne hz
+      (fun k hk => lane_abs_le_13312 (hb k hk)))
 
 end libcrux_iot_ml_kem.Verification

@@ -2,11 +2,61 @@ use super::arithmetic::*;
 use super::vector_type::*;
 use libcrux_secrets::*;
 
-// The Lean theorems `Vector.Portable.Ntt.{ntt_step,inv_ntt_step}_spec` also need
-// `i != j` and |zeta| <= 1664; both are expressible here. (The coefficient
-// magnitude bounds they need are not -- see the note in
-// proofs/lean/LibcruxIotMlKem/Verification/ProofObligations.lean.)
-#[hax_lib::requires(i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664)]
+// Spec-only lane predicates, used by the `#[requires]` of `ntt_step` and
+// `inv_ntt_step` below to state the coefficient magnitude bounds that
+// `Vector.Portable.Ntt.{ntt_step,inv_ntt_step}_spec` assume.
+//
+// Written as an explicit sixteen-way conjunction over constant indices rather
+// than as `hax_lib::forall(|k| hax_lib::implies(k < 16, ...))`, for two reasons:
+//
+//  1. a bool `&&` inside a quantifier closure makes AENEAS fail outright
+//     ("Internal error ... Could not translate the body of function
+//     '..::requires::{impl Fn<(usize,), hax_lib::prop::Prop> for ..closure}::call'",
+//     interp/Interp.ml line 609). A Prop-level `&` on two `.to_prop()`s avoids
+//     that, so short-circuiting `&&` in a `Prop` closure is the trigger.
+//
+//  2. even with `&`, the resulting precondition is UNSATISFIABLE, so the
+//     generated `<fn>.spec` would be VACUOUS rather than fail loudly:
+//     `hax_lib::prop::forall` is modelled as `ok (forall t : T, holds (...))`,
+//     ranging over ALL of `usize`, while the extracted closure body indexes
+//     `vec.elements[k]` BEFORE the `k < 16` guard -- out of range that index
+//     fails, and `holds` of a failing computation is `False`.
+//
+// The unrolled form has neither problem: its `&&`s sit in an ordinary function
+// rather than a `Prop` closure, and every index is in range.
+//
+// NOTE that this is slightly STRONGER than `ntt_step_spec` needs: the theorem
+// bounds only lanes `i` and `j`, whereas this bounds all sixteen. That is the
+// invariant the NTT layers actually maintain, so no caller is excluded, but it
+// does mean the extracted contract asks for more than the proof consumes.
+#[cfg(hax)]
+fn lane_abs_le(x: FieldElement, bound: i16) -> bool {
+    x >= -bound && x <= bound
+}
+
+#[cfg(hax)]
+fn elements_abs_le(vec: &PortableVector, bound: i16) -> bool {
+    lane_abs_le(vec.elements[0], bound)
+        && lane_abs_le(vec.elements[1], bound)
+        && lane_abs_le(vec.elements[2], bound)
+        && lane_abs_le(vec.elements[3], bound)
+        && lane_abs_le(vec.elements[4], bound)
+        && lane_abs_le(vec.elements[5], bound)
+        && lane_abs_le(vec.elements[6], bound)
+        && lane_abs_le(vec.elements[7], bound)
+        && lane_abs_le(vec.elements[8], bound)
+        && lane_abs_le(vec.elements[9], bound)
+        && lane_abs_le(vec.elements[10], bound)
+        && lane_abs_le(vec.elements[11], bound)
+        && lane_abs_le(vec.elements[12], bound)
+        && lane_abs_le(vec.elements[13], bound)
+        && lane_abs_le(vec.elements[14], bound)
+        && lane_abs_le(vec.elements[15], bound)
+}
+
+// `ntt_step_spec` needs |vec[i]|, |vec[j]| <= 3 * 3328 = 9984.
+#[hax_lib::requires(i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664
+    && elements_abs_le(vec, 9984))]
 #[inline(always)]
 pub(crate) fn ntt_step(vec: &mut PortableVector, zeta: i16, i: usize, j: usize) {
     let t = montgomery_multiply_fe_by_fer(vec.elements[j], zeta.classify());
@@ -60,22 +110,9 @@ pub(crate) fn ntt_layer_3_step(vec: &mut PortableVector, zeta: i16) {
     ntt_step(vec, zeta, 7, 15);
 }
 
-// The Lean theorems `Vector.Portable.Ntt.{ntt_step,inv_ntt_step}_spec` also need
-// `i != j` and |zeta| <= 1664; both are expressible here. (The coefficient
-// magnitude bounds they need are not -- see the note in
-// proofs/lean/LibcruxIotMlKem/Verification/ProofObligations.lean.)
-// `ntt_step` above could additionally state the two coefficient bounds its Lean
-// proof needs -- `vec.elements[i] >= -9984 && vec.elements[i] <= 9984` and the
-// same at `j` -- and that extracts cleanly (verified: the generated `pre` picks
-// them up via `Array.index_usize`), even though `vec.elements` is secret-typed.
-// It is not stated yet only because the Lean-side decode then has to resolve
-// those `Array.index_usize` steps; see
-// proofs/lean/LibcruxIotMlKem/Verification/ProofObligations.lean.
-//
-// `inv_ntt_step` is different: its proof needs the bound for ALL 16 lanes, which
-// requires `hax_lib::forall`, and aeneas cannot translate a quantifier closure in
-// a `requires` (internal error at interp/Interp.ml:609). That one is blocked.
-#[hax_lib::requires(i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664)]
+// `inv_ntt_step_spec` needs |vec[k]| <= 4 * 3328 = 13312 for every lane.
+#[hax_lib::requires(i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664
+    && elements_abs_le(vec, 13312))]
 #[inline(always)]
 pub(crate) fn inv_ntt_step(vec: &mut PortableVector, zeta: i16, i: usize, j: usize) {
     let a_minus_b = vec.elements[j].wrapping_sub(vec.elements[i]);

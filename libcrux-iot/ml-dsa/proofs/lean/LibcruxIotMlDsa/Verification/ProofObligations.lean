@@ -19,15 +19,32 @@ about, e.g. `import LibcruxIotMlDsa.Extraction`. -/
 
   ## The original finding, and what was done about it
 
-  As first generated, NOT ONE of the eight was dischargeable. The annotations have
-  since been STRENGTHENED to match the domains the Lean proofs actually verify, so
-  `compute_one_hint`, `compute_hint` and `use_one_hint` now discharge OUTRIGHT --
-  every hypothesis of their theorems comes out of the generated `pre`. The
-  remaining three (`decompose_element`, `decompose`, `use_hint`) still need
-  hypotheses supplied on the side, because what they are missing is a bound on
-  SECRET-typed coefficients (`libcrux_secrets::I32`), and for the two vector
-  versions a `forall` over the eight lanes -- neither of which is expressible in a
-  `#[requires]` the way the scalar bounds were. Those three are the open items.
+  As first generated, NOT ONE of the eight was dischargeable. The annotations
+  have since been STRENGTHENED to match the domains the Lean proofs actually
+  verify, and ALL SIX that have a correctness theorem now discharge OUTRIGHT:
+  every hypothesis of every one of them comes out of its generated `pre`. No
+  theorem below takes a hypothesis beyond `(... .pre ...).holds`.
+
+  What that took, beyond pinning `gamma2`:
+
+  - `decompose_element` and `use_one_hint` gained scalar range bounds on their
+    coefficient arguments (`r >= -FIELD_MODULUS && r < FIELD_MODULUS`, and
+    `hint == 0 || hint == 1`). For `decompose_element` this makes good on the
+    `// XXX: ... should be a precondition for hax instead` note that sat next to
+    a commented-out `debug_assert!` in `arithmetic.rs`.
+
+  - `decompose` and `use_hint` gained the same bounds PER LANE, via the
+    spec-only boolean helpers `coefficients_in_field` / `coefficients_are_hints`.
+    Those are written as an explicit eight-way conjunction rather than a
+    `hax_lib::forall`, for two reasons documented in full both in
+    `arithmetic.rs` and at the decoding lemmas below. In short: a bool `&&`
+    inside a quantifier closure makes aeneas fail outright, and even with a
+    Prop-level `&` the resulting precondition is unsatisfiable, which would make
+    the generated spec vacuous rather than fail loudly.
+
+  Note that the coefficients here are SECRET-typed (`libcrux_secrets::I32`);
+  bounding them in a `#[requires]` turned out to be fine, because the annotation
+  is erased in non-hax builds.
 
   ## The original diagnosis (retained, because it is what drove the change)
 
@@ -60,17 +77,13 @@ about, e.g. `import LibcruxIotMlDsa.Extraction`. -/
 
   ## What this file does prove
 
-  For each of the six, the generated spec is discharged UNDER THE HYPOTHESES THE
-  ANNOTATION IS MISSING, stated explicitly as extra arguments. Each theorem below
-  is therefore a real result that reuses the existing correctness proof, and its
-  hypothesis list is exactly the gap: whatever appears there beyond
-  `(… .pre …).holds` is what the corresponding `#[requires]` would have to gain
-  for the generated obligation to hold outright.
+  All six generated specs are discharged unconditionally from the existing
+  correctness proofs in `Vector/Portable/Rounding.lean`.
 
   `compute_one_hint` is the most informative case: it is the one ML-DSA function
   with an `#[ensures]`, so its generated `post` is a real property
-  (`0 <= out <= 1`) rather than `⌜True⌝` -- and that post IS delivered by the
-  existing theorem, which proves `r.val ∈ {0, 1}`.
+  (`0 <= out <= 1`) rather than `True` -- and that post IS delivered by the
+  existing theorem, which proves `r.val in {0, 1}`.
 
   The remaining two generated specs, `get_n_least_significant_bits` and
   `shift_left_then_reduce`, have no correctness theorem in the tree at all and are
@@ -137,26 +150,214 @@ private theorem triple_exists_ok {α : Type} {x : RustM α} {P : α → Prop}
   | .div =>
       exfalso; have h' := h; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h'
 
+/-! ### Decoding the unrolled lane conjunctions
+
+    `decompose` and `use_hint` are annotated with the spec-only boolean helpers
+    `coefficients_in_field` / `coefficients_are_hints`, so the per-lane bounds
+    their theorems need now come OUT OF the generated `pre` instead of being
+    supplied by hand.
+
+    Those helpers are written in Rust as an explicit eight-way conjunction over
+    constant indices rather than as `hax_lib::forall(|i| implies(i < 8, ...))`.
+    `arithmetic.rs` carries the full note; the two reasons, both established by
+    experiment, are:
+
+    1. a bool `&&` inside a quantifier closure makes aeneas fail outright
+       (`interp/Interp.ml, line 609`) -- a Prop-level `&` on `.to_prop()`s does
+       not, so short-circuiting `&&` in a `Prop` closure is the trigger;
+
+    2. even with `&`, the resulting precondition is UNSATISFIABLE, which would
+       make `<fn>.spec` VACUOUS rather than fail loudly. `hax_lib::prop::forall`
+       is modelled (`CoreModels/HaxLib/Prop.lean`) as
+
+         ok (∀ t : T, Result.holds (do let u <- fn.call f t; inst.into u))
+
+       i.e. it ranges over ALL of `Usize`, while the extracted closure body
+       evaluates `Array.index_usize simd_unit.values i` BEFORE the `i < 8` guard.
+       Out of range that index is `fail .panic`, `Result.holds` of a failing
+       computation is `False`, and so the whole `forall` is `False`.
+
+    The unrolled form has neither problem: its `&&`s sit in an ordinary function
+    rather than a `Prop` closure, and every index is in range. -/
+
+/-- Like `bool_of_holds_map_ok`, but for a `pre` that is not syntactically an
+    `ok` -- here it is a nested-`if` computation. -/
+private theorem eq_ok_true_of_holds_map {x : RustM Bool}
+    (h : RustM.holds ((fun a => a = true) <$> x)) : x = .ok true := by
+  cases x with
+  | ok b => rw [bool_of_holds_map_ok h]
+  | fail e =>
+      exfalso
+      have hm : ((fun a => a = true) <$> (RustM.fail e : RustM Bool))
+          = (RustM.fail e : RustM Prop) := rfl
+      rw [hm] at h
+      simp [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] at h
+  | div =>
+      exfalso
+      have hm : ((fun a => a = true) <$> (RustM.div : RustM Bool))
+          = (RustM.div : RustM Prop) := rfl
+      rw [hm] at h
+      simp [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] at h
+
+/-- An in-range `Array.index_usize` as a plain equation, so the unrolled
+    conjunction can be rewritten index by index. -/
+private theorem array_index_ok {alpha : Type} [Inhabited alpha] {n : Std.Usize}
+    (v : Aeneas.Std.Array alpha n) (i : Std.Usize) (h : i.val < v.val.length) :
+    v.index_usize i = .ok (v.val[i.val]!) := by
+  unfold Aeneas.Std.Array.index_usize
+  rw [Aeneas.Std.Array.getElem?_Usize_eq, List.getElem?_eq_getElem h,
+    List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]
+  rfl
+
+/-- One link of the unrolled conjunction: `&&` extracts to
+    `if b then rest else false`, so a `true` result forces both sides. -/
+private theorem bind_if_ok_true {x rest : RustM Bool}
+    (h : (do let b ← x; if b then rest else RustM.ok false) = RustM.ok true) :
+    x = .ok true ∧ rest = .ok true := by
+  cases x with
+  | ok b =>
+      cases b with
+      | true => exact ⟨rfl, by simpa using h⟩
+      | false => exfalso; simp at h
+  | fail e => exfalso; simp at h
+  | div => exfalso; simp at h
+
+/-- `lane_in_field x = ok true` decoded. The `-FIELD_MODULUS` bound arrives as a
+    CHECKED negation (`-. FIELD_MODULUS`, a `RustM I32`) and is resolved first. -/
+private theorem lane_in_field_true {x : Std.I32}
+    (h : libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_in_field x = .ok true) :
+    -(8380417 : Int) ≤ x.val ∧ x.val < (8380417 : Int) := by
+  have hneg : (-. libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS : RustM Std.I32)
+      = .ok (-8380417)#i32 := by
+    simp [libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS]
+    first | rfl | decide
+  have hFM : (libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS).val = 8380417 := by
+    simp [libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS]
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_in_field, hneg,
+    Aeneas.Std.bind_tc_ok] at h
+  by_cases h1 : x ≥ (-8380417)#i32
+  · by_cases h2 : x < libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS
+    · exact ⟨by scalar_tac, by scalar_tac⟩
+    · exfalso; rw [if_pos h1] at h; simp [h2] at h
+  · exfalso; rw [if_neg h1] at h; simp at h
+
+/-- `lane_is_hint x = ok true` decoded. -/
+private theorem lane_is_hint_true {x : Std.I32}
+    (h : libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_is_hint x = .ok true) :
+    x.val = 0 ∨ x.val = 1 := by
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_is_hint] at h
+  by_cases h1 : x = 0#i32
+  · exact Or.inl (by scalar_tac)
+  · rw [if_neg h1] at h
+    have hx : x = 1#i32 := by simpa using h
+    exact Or.inr (by scalar_tac)
+
+/-- All eight lanes of `coefficients_in_field` pass. -/
+private theorem coefficients_in_field_lanes
+    (c : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (h : libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_in_field c = .ok true) :
+    ∀ j : Nat, j < 8 → libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_in_field (c.values.val[j]!) = .ok true := by
+  have hlen : c.values.val.length = 8 := c.values.property
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_in_field,
+    array_index_ok c.values 0#usize (by simp [hlen]),
+    array_index_ok c.values 1#usize (by simp [hlen]),
+    array_index_ok c.values 2#usize (by simp [hlen]),
+    array_index_ok c.values 3#usize (by simp [hlen]),
+    array_index_ok c.values 4#usize (by simp [hlen]),
+    array_index_ok c.values 5#usize (by simp [hlen]),
+    array_index_ok c.values 6#usize (by simp [hlen]),
+    array_index_ok c.values 7#usize (by simp [hlen]),
+    Aeneas.Std.bind_tc_ok] at h
+  obtain ⟨h0, h⟩ := bind_if_ok_true h
+  obtain ⟨h1, h⟩ := bind_if_ok_true h
+  obtain ⟨h2, h⟩ := bind_if_ok_true h
+  obtain ⟨h3, h⟩ := bind_if_ok_true h
+  obtain ⟨h4, h⟩ := bind_if_ok_true h
+  obtain ⟨h5, h⟩ := bind_if_ok_true h
+  obtain ⟨h6, h7⟩ := bind_if_ok_true h
+  intro j hj
+  -- `interval_cases` is a Mathlib tactic and is not imported here; peel the
+  -- eight literals off by hand. Each `exact` closes up to `(k#usize).val = k`.
+  rcases j with _ | _ | _ | _ | _ | _ | _ | _ | j
+  · exact h0
+  · exact h1
+  · exact h2
+  · exact h3
+  · exact h4
+  · exact h5
+  · exact h6
+  · exact h7
+  · exact absurd hj (by omega)
+
+/-- All eight lanes of `coefficients_are_hints` pass. -/
+private theorem coefficients_are_hints_lanes
+    (c : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (h : libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_are_hints c = .ok true) :
+    ∀ j : Nat, j < 8 → libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_is_hint (c.values.val[j]!) = .ok true := by
+  have hlen : c.values.val.length = 8 := c.values.property
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_are_hints,
+    array_index_ok c.values 0#usize (by simp [hlen]),
+    array_index_ok c.values 1#usize (by simp [hlen]),
+    array_index_ok c.values 2#usize (by simp [hlen]),
+    array_index_ok c.values 3#usize (by simp [hlen]),
+    array_index_ok c.values 4#usize (by simp [hlen]),
+    array_index_ok c.values 5#usize (by simp [hlen]),
+    array_index_ok c.values 6#usize (by simp [hlen]),
+    array_index_ok c.values 7#usize (by simp [hlen]),
+    Aeneas.Std.bind_tc_ok] at h
+  obtain ⟨h0, h⟩ := bind_if_ok_true h
+  obtain ⟨h1, h⟩ := bind_if_ok_true h
+  obtain ⟨h2, h⟩ := bind_if_ok_true h
+  obtain ⟨h3, h⟩ := bind_if_ok_true h
+  obtain ⟨h4, h⟩ := bind_if_ok_true h
+  obtain ⟨h5, h⟩ := bind_if_ok_true h
+  obtain ⟨h6, h7⟩ := bind_if_ok_true h
+  intro j hj
+  -- `interval_cases` is a Mathlib tactic and is not imported here; peel the
+  -- eight literals off by hand. Each `exact` closes up to `(k#usize).val = k`.
+  rcases j with _ | _ | _ | _ | _ | _ | _ | _ | j
+  · exact h0
+  · exact h1
+  · exact h2
+  · exact h3
+  · exact h4
+  · exact h5
+  · exact h6
+  · exact h7
+  · exact absurd hj (by omega)
+
 /-! ## The `gamma2 ∈ {95232, 261888}` group
 
     Here the generated `pre` delivers exactly the theorems' `hg`; what has to be
     supplied on the side is the input-range information the Rust omits. -/
 
-theorem decompose_element_spec_proof (gamma2 r : Std.I32)
-    -- supplied because `#[requires]` does not state it:
-    (hlo : -(8380417 : Int) ≤ r.val) (hhi : r.val < (8380417 : Int)) :
+/-- Discharged OUTRIGHT. The `#[requires]` now states the `[-q, q)` range for
+    `r` as well as pinning `gamma2`, so both hypotheses of
+    `decompose_element_spec` come out of the generated `pre`.
+
+    hax duplicates the range block under each `gamma2` disjunct, and each copy is
+    definitionally `lane_in_field r`, so `lane_in_field_true` decodes it. -/
+theorem decompose_element_spec_proof (gamma2 r : Std.I32) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_element.spec gamma2 r := by
   intro hpre
-  have hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32 := by
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_element.pre] at hok
+  have key : (gamma2 = 95232#i32 ∨ gamma2 = 261888#i32)
+      ∧ -(8380417 : Int) ≤ r.val ∧ r.val < (8380417 : Int) := by
     by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
-    · exact Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1)
-    · simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_element.pre,
-        if_neg h1] at hpre
-      exact Or.inr (by
-        simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using
-          of_decide_eq_true (bool_of_holds_map_ok hpre))
+    · rw [if_pos h1] at hok
+      have hr : libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_in_field r = .ok true := hok
+      exact ⟨Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1),
+        (lane_in_field_true hr).1, (lane_in_field_true hr).2⟩
+    · rw [if_neg h1] at hok
+      by_cases h5 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V261_888
+      · rw [if_pos h5] at hok
+        have hr : libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_in_field r = .ok true := hok
+        exact ⟨Or.inr (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using h5),
+          (lane_in_field_true hr).1, (lane_in_field_true hr).2⟩
+      · exfalso; rw [if_neg h5] at hok; simp at hok
   exact triple_true_of_triple
-    (Vector.Portable.Rounding.decompose_element_spec gamma2 r hg hlo hhi)
+    (Vector.Portable.Rounding.decompose_element_spec gamma2 r key.1 key.2.1 key.2.2)
 
 /-- Discharged OUTRIGHT: the `#[requires]` now states the `[-q, q)` range for `r`
     and `hint in {0, 1}` as well as pinning `gamma2`, so every hypothesis of
@@ -221,47 +422,66 @@ theorem use_one_hint_spec_proof (gamma2 r hint : Std.I32) :
   exact triple_true_of_triple
     (Vector.Portable.Rounding.use_one_hint_spec gamma2 r hint hg key.1.1 key.1.2 key.2)
 
+/-- Discharged OUTRIGHT. The `#[requires]` now carries the per-lane
+    `[-q, q)` bound via `coefficients_in_field`, so `decompose_spec`'s `hbound`
+    comes out of the generated `pre`. -/
 theorem decompose_spec_proof (gamma2 : Std.I32)
-    (simd_unit low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
-    -- supplied because `#[requires]` does not state it:
-    (hbound : ∀ j : Nat, j < 8 →
-        -(8380417 : Int) ≤ (simd_unit.values.val[j]!).val
-          ∧ (simd_unit.values.val[j]!).val < (8380417 : Int)) :
-    libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose.spec
-      gamma2 simd_unit low high := by
+    (simd_unit low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose.spec gamma2 simd_unit low high := by
   intro hpre
-  have hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32 := by
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose.pre] at hok
+  have key : (gamma2 = 95232#i32 ∨ gamma2 = 261888#i32)
+      ∧ libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_in_field simd_unit = .ok true := by
     by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
-    · exact Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1)
-    · simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose.pre,
-        if_neg h1] at hpre
-      exact Or.inr (by
-        simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using
-          of_decide_eq_true (bool_of_holds_map_ok hpre))
+    · rw [if_pos h1] at hok
+      exact ⟨Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1), hok⟩
+    · rw [if_neg h1] at hok
+      by_cases h5 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V261_888
+      · rw [if_pos h5] at hok
+        exact ⟨Or.inr (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using h5), hok⟩
+      · exfalso; rw [if_neg h5] at hok; simp at hok
+  have hbound : ∀ j : Nat, j < 8 →
+      -(8380417 : Int) ≤ (simd_unit.values.val[j]!).val
+        ∧ (simd_unit.values.val[j]!).val < (8380417 : Int) :=
+    fun j hj => lane_in_field_true
+      (coefficients_in_field_lanes simd_unit key.2 j hj)
   exact triple_true_of_triple
-    (Vector.Portable.Rounding.decompose_spec gamma2 simd_unit low high hg hbound)
+    (Vector.Portable.Rounding.decompose_spec gamma2 simd_unit low high key.1 hbound)
 
+/-- Discharged OUTRIGHT. `use_hint`'s `#[requires]` carries both missing pieces
+    -- the per-lane `[-q, q)` bound and `hint[j] ∈ {0, 1}` -- via
+    `coefficients_in_field` and `coefficients_are_hints`. -/
 theorem use_hint_spec_proof (gamma2 : Std.I32)
-    (simd_unit hint : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
-    -- supplied because `#[requires]` does not state them:
-    (hbound : ∀ j : Nat, j < 8 →
-        -(8380417 : Int) ≤ (simd_unit.values.val[j]!).val
-          ∧ (simd_unit.values.val[j]!).val < (8380417 : Int))
-    (hhint : ∀ j : Nat, j < 8 →
-        (hint.values.val[j]!).val = 0 ∨ (hint.values.val[j]!).val = 1) :
-    libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint.spec
-      gamma2 simd_unit hint := by
+    (simd_unit hint : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint.spec gamma2 simd_unit hint := by
   intro hpre
-  have hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32 := by
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint.pre] at hok
+  have key : (gamma2 = 95232#i32 ∨ gamma2 = 261888#i32)
+      ∧ libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_in_field simd_unit = .ok true
+      ∧ libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_are_hints hint = .ok true := by
     by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
-    · exact Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1)
-    · simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint.pre,
-        if_neg h1] at hpre
-      exact Or.inr (by
-        simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using
-          of_decide_eq_true (bool_of_holds_map_ok hpre))
+    · rw [if_pos h1] at hok
+      obtain ⟨hf, hh⟩ := bind_if_ok_true hok
+      exact ⟨Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1), hf, hh⟩
+    · rw [if_neg h1] at hok
+      by_cases h5 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V261_888
+      · rw [if_pos h5] at hok
+        obtain ⟨hf, hh⟩ := bind_if_ok_true hok
+        exact ⟨Or.inr (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using h5), hf, hh⟩
+      · exfalso; rw [if_neg h5] at hok; simp at hok
+  have hbound : ∀ j : Nat, j < 8 →
+      -(8380417 : Int) ≤ (simd_unit.values.val[j]!).val
+        ∧ (simd_unit.values.val[j]!).val < (8380417 : Int) :=
+    fun j hj => lane_in_field_true
+      (coefficients_in_field_lanes simd_unit key.2.1 j hj)
+  have hhint : ∀ j : Nat, j < 8 →
+      (hint.values.val[j]!).val = 0 ∨ (hint.values.val[j]!).val = 1 :=
+    fun j hj => lane_is_hint_true
+      (coefficients_are_hints_lanes hint key.2.2 j hj)
   exact triple_true_of_triple
-    (Vector.Portable.Rounding.use_hint_spec gamma2 simd_unit hint hg hbound hhint)
+    (Vector.Portable.Rounding.use_hint_spec gamma2 simd_unit hint key.1 hbound hhint)
 
 /-! ## The `gamma2 != i32::MIN` group
 
