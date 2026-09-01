@@ -153,22 +153,57 @@ content = _erase_loop_invariant_markers(content)
 
 funs_lean.write_text(content)
 
-# The lean backend emits per-function Specs.lean + ProofObligations.lean
-# (proof-obligation scaffolding). They are not imported by the hand-written
-# proofs and carry codegen quirks -- here a swapped tuple order in the generated
-# `post` of the squeeze/absorb functions (`Usize x KeccakXofState RATE` where the
-# obligation expects `KeccakXofState RATE x Usize`), the same class of bug the
-# ml-kem driver records. Drop them, and drop their import from the
-# `Extraction.lean` aggregator that cargo-hax 0.4 generates, since the lakefile
-# globs every module under the package.
-for _f in ("Specs.lean", "ProofObligations.lean"):
-    _p = Path("proofs/lean/LibcruxIotSha3/Extraction") / _f
-    if _p.exists():
-        _p.unlink()
+# CODEGEN BUG (hax 4c9e2b7c): for a method taking `&mut self` and returning a
+# value, the extracted function returns `(return value, future self)` -- e.g.
+# `absorb_full(&mut self, inputs) -> usize` becomes
+# `RustM (Usize x KeccakXofState RATE)` -- but the `post` generated from its
+# `#[ensures]` destructures the pair the OTHER way round
+# (`let (self__future, remainder) := p`, i.e. `(future self, return value)`).
+# The `post`'s logical content is right; only the pairing convention disagrees,
+# so `<fn>.spec` fails to typecheck with
+#   "argument res has type Usize x KeccakXofState RATE
+#    but is expected to have type KeccakXofState RATE x Usize".
+#
+# Fixed here by applying the generated `post` to the swapped pair, which leaves
+# `post` itself exactly as hax emitted it (so it still reads against the Rust
+# `ensures`). Keyed on the affected names and asserted, so that when hax fixes
+# the ordering upstream this pass fails loudly instead of silently re-swapping a
+# now-correct application.
+_specs = Path("proofs/lean/LibcruxIotSha3/Extraction/Specs.lean")
+if _specs.exists():
+    _s = _specs.read_text()
+    for _fn in ("keccak.KeccakXofState.absorb_full",
+                "keccak.KeccakXofState.fill_buffer"):
+        # ASCII-only anchor on purpose: the surrounding Lean brackets are
+        # U+231C/U+231D/U+2984 and easy to get wrong in a source-level pass.
+        _old = f"{_fn}.post self inputs res)"
+        _new = f"{_fn}.post self inputs (res.2, res.1))"
+        if _s.count(_old) != 1:
+            print(f"error: expected exactly one un-swapped `{_fn}.post` application in "
+                  f"Specs.lean, found {_s.count(_old)}. If hax now emits the pair in "
+                  f"declaration order, delete this pass.", file=sys.stderr)
+            sys.exit(1)
+        _s = _s.replace(_old, _new)
+    _specs.write_text(_s)
+
+# The lean backend emits per-function Specs.lean + ProofObligations.lean from the
+# `#[hax_lib::requires]` / `#[ensures]` annotations.
+#
+# Specs.lean is KEPT: it is pure statements (`<fn>.pre` as a `RustM Bool`, and
+# `<fn>.spec` as `pre.holds -> triple`), and the top-level ones are discharged in
+# Verification/GeneratedSpecs.lean from the hand-written correctness theorems.
+#
+# ProofObligations.lean is DROPPED: its generated bodies are `sorry`, and every
+# one is `@[spec]`-tagged, so keeping it would both put sorries in the build and
+# feed unproved specs to `hax_mvcgen`. Its import is stripped from the
+# `Extraction.lean` aggregator too (the lakefile globs every module).
+_p = Path("proofs/lean/LibcruxIotSha3/Extraction/ProofObligations.lean")
+if _p.exists():
+    _p.unlink()
 
 _agg = Path("proofs/lean/LibcruxIotSha3/Extraction.lean")
 if _agg.exists():
     _agg.write_text("".join(
         l for l in _agg.read_text().splitlines(keepends=True)
-        if "Extraction.Specs" not in l and "Extraction.ProofObligations" not in l
+        if "Extraction.ProofObligations" not in l
     ))

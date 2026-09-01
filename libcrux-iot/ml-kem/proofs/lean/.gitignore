@@ -1,5 +1,4 @@
 .lake
 *.llbc
 aeneas-error.log
-LibcruxIotMlKem/Extraction/Specs.lean
 LibcruxIotMlKem/Extraction/ProofObligations.lean

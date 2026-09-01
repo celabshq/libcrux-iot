@@ -218,14 +218,47 @@ content = _erase_loop_invariant_markers(content)
 
 funs_lean.write_text(content)
 
-# The lean backend also emits per-function Specs.lean + ProofObligations.lean
-# (proof-obligation scaffolding). They are not imported by the hand-written
-# proofs and currently have codegen quirks (e.g. a swapped tuple order in
-# `rej_sample.post`: `Usize × Slice I16` vs `Slice I16 × Usize`), so drop them.
-for _f in ("Specs.lean", "ProofObligations.lean"):
-    _p = Path("proofs/lean/LibcruxIotMlKem/Extraction") / _f
-    if _p.exists():
-        _p.unlink()
+# CODEGEN BUG (hax 4c9e2b7c): for a function taking `&mut` arguments and also
+# returning a value, the extracted function returns `(return value, future args)`
+# -- `rej_sample(a, &mut out) -> usize` becomes `RustM (Usize x Slice I16)` -- but
+# the `post` generated from its `#[ensures]` destructures the pair the OTHER way
+# round, so `<fn>.spec` fails to typecheck with
+#   "argument res has type Usize x Slice I16
+#    but is expected to have type Slice I16 x Usize".
+# The `post`'s logical content is right; only the pairing convention disagrees, so
+# it is fixed by applying the generated `post` to the swapped pair, leaving `post`
+# itself exactly as hax emitted it. Keyed on the two affected names (the
+# `serialize_*` posts in the same file are NOT affected -- their `&mut` argument is
+# the only result) and asserted, so when hax fixes the ordering upstream this pass
+# fails loudly rather than silently re-swapping a now-correct application.
+_specs = Path("proofs/lean/LibcruxIotMlKem/Extraction/Specs.lean")
+if _specs.exists():
+    _s = _specs.read_text()
+    for _fn in ("vector.portable.sampling.rej_sample",
+                "vector.portable.OperationsPortableVector.rej_sample"):
+        _old = f"{_fn}.post a out res)"
+        _new = f"{_fn}.post a out (res.2, res.1))"
+        if _s.count(_old) != 1:
+            print(f"error: expected exactly one un-swapped `{_fn}.post` application in "
+                  f"Specs.lean, found {_s.count(_old)}. If hax now emits the pair in "
+                  f"declaration order, delete this pass.", file=sys.stderr)
+            sys.exit(1)
+        _s = _s.replace(_old, _new)
+    _specs.write_text(_s)
+
+# The lean backend emits per-function Specs.lean + ProofObligations.lean from the
+# `#[hax_lib::requires]` / `#[ensures]` annotations.
+#
+# Specs.lean is KEPT: it is pure statements (`<fn>.pre` as a `RustM Bool`, and
+# `<fn>.spec` as `pre.holds -> triple`), and the top-level ones are discharged in
+# Verification/ProofObligations.lean from the hand-written correctness theorems.
+#
+# ProofObligations.lean is DROPPED: its generated bodies are `sorry`, and every
+# one is `@[spec]`-tagged, so keeping it would both put sorries in the build and
+# feed unproved specs to `hax_mvcgen`.
+_p = Path("proofs/lean/LibcruxIotMlKem/Extraction/ProofObligations.lean")
+if _p.exists():
+    _p.unlink()
 
 # The 0.4 extraction also generates an `Extraction.lean` aggregator that imports
 # the two modules deleted just above, so strip those imports or the package has a
@@ -235,5 +268,5 @@ _agg = Path("proofs/lean/LibcruxIotMlKem/Extraction.lean")
 if _agg.exists():
     _agg.write_text("".join(
         l for l in _agg.read_text().splitlines(keepends=True)
-        if "Extraction.Specs" not in l and "Extraction.ProofObligations" not in l
+        if "Extraction.ProofObligations" not in l
     ))
