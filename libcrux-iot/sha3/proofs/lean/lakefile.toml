@@ -13,11 +13,14 @@ rev = "v0.3.12"
 
 # The machine-extracted FIPS-202 hacspec (crate `hacspec_sha3`, specs/sha3 in
 # celabshq/libcrux); the proofs reference `hacspec_sha3.*`.
-# Local worktree path until the libcrux-side spec migration is pushed: the
-# pinned rev below still carried hax-lean v0.2.0, so lake resolved aeneas to
-# the old 52fd4383 and the build died inside hax-lean itself with
-# "Unknown identifier `Aeneas.Std.RustM`". TODO: restore a `git`+`rev`
-# require pointing at the pushed commit.
+# Pinned by COMMIT SHA, not by branch name: this is the tip of celabshq/libcrux
+# `proofs-update`, the commit that carries the hax v0.4.0-rc.1 spec migration.
+# (The earlier pin carried hax-lean v0.2.0, so lake resolved aeneas to the old
+# 52fd4383 and the build died inside hax-lean with
+# "Unknown identifier `Aeneas.Std.RustM`" -- hence the interim local path, now
+# no longer needed.)
 [[require]]
 name = "HacspecSha3"
-path = "../../../../../../libcrux/hax-v0.4.0-rc.1/specs/sha3/proofs/lean"
+git = "https://github.com/celabshq/libcrux"
+rev = "718a601178c06afa6b4b10d143819da38df8770f"
+subDir = "specs/sha3/proofs/lean"
