@@ -46,7 +46,11 @@ criterion = "0.5.1"
 hex = "0.4.3"
 rand = "0.8.5"
 pretty_env_logger = "0.5.0"
-hacspec_sha3 = { git = "https://github.com/cryspen/libcrux.git", rev = "a4cfb1ebf26431b2ee81f0dc19383158aaf397b7" }
+# Pinned to the SAME repo and commit as the Hacspec* Lean package in
+# proofs/lean/lakefile.toml, so the Rust cross-spec tests and the Lean proofs
+# check against one single spec revision. These used to disagree: this was
+# cryspen/libcrux@a4cfb1eb while the lakefile was celabshq/libcrux@718a6011.
+hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "718a601178c06afa6b4b10d143819da38df8770f" }
 proptest = "1.2.0"
 libcrux-kats = { workspace = true, features = ["sha3"] }
 
