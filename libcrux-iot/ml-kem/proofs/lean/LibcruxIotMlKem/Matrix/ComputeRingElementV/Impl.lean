@@ -78,7 +78,11 @@ theorem enumerate_chunks_next_cont
       ∧ drop.length = rest.length - cs.val
       ∧ (∀ ℓ : Nat, ℓ < cs.val → chunk.val[ℓ]! = rest.val[ℓ]!) := by
   -- `split_at` succeeds since `cs ≤ rest.length`.
-  have hsa := core.slice.Slice.split_at.spec rest cs (by simpa using h_le)
+  -- `split_at.spec` is a `partialSpec` since aeneas nightly-2026.08.24 (same treatment as
+  -- `Usize.add_spec` just below): `cs ≤ rest.length` now rules out the `panic` case.
+  have hsa_p := core.slice.Slice.split_at.spec rest cs
+  have hsa := Std.WP.spec_of_partialSpec hsa_p
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨⟨s0, s1⟩, hsa_eq, hs0len, hs1len, hs0val, hs1val⟩ := WP.spec_imp_exists hsa
   -- `cnt + 1#usize` succeeds.
   have hadd := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec cnt 1#usize)
@@ -87,7 +91,9 @@ theorem enumerate_chunks_next_cont
   have hcnt'_val : cnt'.val = cnt.val + 1 := by
     have h1 : (1#usize : Std.Usize).val = 1 := rfl
     simp only [h1] at hcnt'_post; omega
-  refine ⟨s0, s1, cnt', ?_, hcnt'_val, hs0len, hs1len, ?_⟩
+  -- the new `split_at.spec` states the tail length as `s1.length + cs = rest.length`
+  -- rather than `s1.length = rest.length - cs`; `omega` bridges the two.
+  refine ⟨s0, s1, cnt', ?_, hcnt'_val, hs0len, by omega, ?_⟩
   · -- compute the `next`
     simp only [enumCENext,
       CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next,
@@ -262,7 +268,11 @@ theorem enumerate_chunks_next_cont_drop
       ∧ drop.length = rest.length - cs.val
       ∧ (∀ ℓ : Nat, ℓ < cs.val → chunk.val[ℓ]! = rest.val[ℓ]!)
       ∧ (∀ ℓ : Nat, drop.val[ℓ]! = rest.val[cs.val + ℓ]!) := by
-  have hsa := core.slice.Slice.split_at.spec rest cs (by simpa using h_le)
+  -- `split_at.spec` is a `partialSpec` since aeneas nightly-2026.08.24 (same treatment as
+  -- `Usize.add_spec` just below): `cs ≤ rest.length` now rules out the `panic` case.
+  have hsa_p := core.slice.Slice.split_at.spec rest cs
+  have hsa := Std.WP.spec_of_partialSpec hsa_p
+    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
   obtain ⟨⟨s0, s1⟩, hsa_eq, hs0len, hs1len, hs0val, hs1val⟩ := WP.spec_imp_exists hsa
   have hadd := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec cnt 1#usize)
     (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
@@ -270,7 +280,9 @@ theorem enumerate_chunks_next_cont_drop
   have hcnt'_val : cnt'.val = cnt.val + 1 := by
     have h1 : (1#usize : Std.Usize).val = 1 := rfl
     simp only [h1] at hcnt'_post; omega
-  refine ⟨s0, s1, cnt', ?_, hcnt'_val, hs0len, hs1len, ?_, ?_⟩
+  -- the new `split_at.spec` states the tail length as `s1.length + cs = rest.length`
+  -- rather than `s1.length = rest.length - cs`; `omega` bridges the two.
+  refine ⟨s0, s1, cnt', ?_, hcnt'_val, hs0len, by omega, ?_, ?_⟩
   · simp only [enumCENext,
       CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next,
       CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice.next]

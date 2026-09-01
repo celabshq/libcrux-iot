@@ -1022,13 +1022,13 @@ theorem compute_vector_u_fc
   -- S1: row-0 column loop.
   obtain ⟨⟨me1, cache1, acc2⟩, h_loop0_eq, h_row0⟩ := triple_exists_ok_fc
     (compute_vector_u_loop0_fc hash_functionsHashInst matrix_entry seed r_as_ntt cache
-      r_arr acc1 h_seed_len h_r_len h_cache_len h_r_arr h_r_bnd h_acc1_budget)
+      result r_arr acc1 h_seed_len h_r_len h_cache_len h_r_arr h_r_bnd h_acc1_budget)
   dsimp only at h_loop0_eq h_row0
   -- cache1 length preservation (same impl call, deterministic).
   have h_cache1_len : cache1.length = K.val := by
     obtain ⟨v, hv_eq, hv_len⟩ := triple_exists_ok_fc
       (compute_vector_u_loop0_cache_len_fc hash_functionsHashInst matrix_entry seed r_as_ntt cache
-        r_arr acc1 h_seed_len h_r_len h_cache_len h_r_arr h_r_bnd h_acc1_budget)
+        result r_arr acc1 h_seed_len h_r_len h_cache_len h_r_arr h_r_bnd h_acc1_budget)
     rw [h_loop0_eq] at hv_eq
     have : v = (me1, cache1, acc2) := (RustM.ok.inj hv_eq).symm
     rw [this] at hv_len; exact hv_len
@@ -1275,9 +1275,7 @@ info: 'libcrux_iot_ml_kem.Matrix.ComputeVectorU.FC.compute_vector_u_fc' depends 
  Classical.choice,
  Quot.sound,
  matrix.sample_matrix_entry,
- sample_matrix_entry_fc,
- Array.update_subslice_le_eq,
- Slice.subslice_le_eq]
+ sample_matrix_entry_fc]
 -/
 #guard_msgs in
 #print axioms compute_vector_u_fc

@@ -1547,9 +1547,13 @@ private theorem shl_one_ok (n : Std.Usize) (hn : n.val < UScalarTy.Usize.numBits
     rcases System.Platform.numBits_eq with h32 | h64
     · rw [h32]; rw [h32] at hnb; exact Nat.pow_lt_pow_right (by decide) hnb
     · rw [h64]; rw [h64] at hnb; exact Nat.pow_lt_pow_right (by decide) hnb
+  -- aeneas nightly-2026.08.24: a `partialSpec`; `hn` is no longer an argument (it moved into
+  -- the postcondition) and is instead what rules out the `panic` case.
   have hT := Aeneas.Std.UScalar.ShiftLeft_spec (1#usize : Std.Usize) n
-    (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) hn rfl
-  obtain ⟨z, h_eq, h_v_mod, _h_bv⟩ := Std.WP.spec_imp_exists hT
+    (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) rfl
+  have hT' := Std.WP.spec_of_partialSpec hT
+    (by intro e; cases e <;> first | exact not_false | exact Nat.not_le.mpr hn) (by simp)
+  obtain ⟨z, h_eq, h_v_mod, _h_bv, _h_lt⟩ := Std.WP.spec_imp_exists hT'
   refine ⟨z, h_eq, ?_⟩
   have h_one_eq : (1#usize : Std.Usize).val = 1 := rfl
   have h_size_eq : (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) = 2 ^ System.Platform.numBits := by

@@ -1558,41 +1558,6 @@ private theorem nb_ntt_layer_n_flat
     (fun k hk => nb_layer_n_call_mut_eq p len s hlen h2len k hk
       (hslen k hk) (hpart k hk).1 (hpart k hk).2)
 
-/-- `Slice.subslice` on a STRICTLY non-empty in-bounds range, straight from the
-    definition. (`Util.SliceSpecs.Slice.index_RangeUsize_eq` would do this too,
-    but it goes through the `AENEAS-SUBSLICE-STRICT` axiom, which exists only to
-    cover `start = end`. Here `start = groups ≥ 1` and `end = 2·groups`, so the
-    strict inequality holds and no axiom is needed.) -/
-private theorem nb_subslice_ok {T : Type} (s : Slice T) (a b : Std.Usize)
-    (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
-    ∃ ns : Slice T, Aeneas.Std.Slice.subslice s ⟨a, b⟩ = .ok ns ∧
-      ns.val = s.val.slice a.val b.val := by
-  unfold Aeneas.Std.Slice.subslice
-  rw [if_pos (show (⟨a, b⟩ : CoreModels.core.ops.range.Range Std.Usize).start.val
-        < (⟨a, b⟩ : CoreModels.core.ops.range.Range Std.Usize).end.val ∧
-      (⟨a, b⟩ : CoreModels.core.ops.range.Range Std.Usize).end.val ≤ s.length from ⟨h0, h1⟩)]
-  exact ⟨_, rfl, rfl⟩
-
-/-- Axiom-free `Range<usize>` slice index for strictly non-empty ranges. -/
-private theorem nb_index_RangeUsize_eq {T : Type} (s : Slice T) (a b : Std.Usize)
-    (h0 : a.val < b.val) (h1 : b.val ≤ s.val.length) :
-    ∃ ns : Slice T,
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) s
-        ⟨a, b⟩ = .ok ns ∧ ns.val = s.val.slice a.val b.val := by
-  obtain ⟨ns, hns_eq, hns_val⟩ := nb_subslice_ok s a b h0 h1
-  refine ⟨ns, ?_, hns_val⟩
-  unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-         CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
-         CoreModels.rust_primitives.slice.slice_slice
-         CoreModels.rust_primitives.slice.slice_length
-  simp only [hns_eq, bind_tc_ok]
-  split_ifs with hc1 hc2
-  · rfl
-  · exfalso; scalar_tac
-  · exfalso; scalar_tac
-
 /-- The hacspec range-slice `ZETAS[a..b]` reduces to `List.slice a b`. -/
 private theorem nb_zetas_range_slice
     (zs : Std.Array hacspec_ml_kem.parameters.FieldElement 128#usize)
@@ -1608,8 +1573,12 @@ private theorem nb_zetas_range_slice
             simp only [List.length_take, List.length_drop, h]
             scalar_tac⟩ : Slice hacspec_ml_kem.parameters.FieldElement) := by
   have hzl : zs.val.length = 128 := zs.property
+  -- `nb_subslice_ok`/`nb_index_RangeUsize_eq` used to be re-proved locally here to
+  -- dodge the `AENEAS-SUBSLICE-STRICT` axiom; that axiom is now discharged, so
+  -- `Util.SliceSpecs`'s `≤`-version is used directly.
   obtain ⟨ns, hns_eq, hns_val⟩ :=
-    nb_index_RangeUsize_eq (Aeneas.Std.Array.to_slice zs) a b h0
+    libcrux_iot_ml_kem.Util.SliceSpecs.Slice.index_RangeUsize_eq
+      (Aeneas.Std.Array.to_slice zs) a b (Nat.le_of_lt h0)
       (by rw [Aeneas.Std.Array.val_to_slice]; omega)
   unfold CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
          CoreModels.core.array.Array.as_slice

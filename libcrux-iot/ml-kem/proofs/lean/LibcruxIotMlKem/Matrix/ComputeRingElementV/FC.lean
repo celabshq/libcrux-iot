@@ -326,9 +326,7 @@ theorem compute_ring_element_v_fc
 info: 'libcrux_iot_ml_kem.Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc' depends on axioms: [propext,
  Classical.choice,
  Quot.sound,
- deserialize_to_reduced_ring_element_fc,
- Util.SliceSpecs.Array.update_subslice_le_eq,
- Util.SliceSpecs.Slice.subslice_le_eq]-/
+ deserialize_to_reduced_ring_element_fc]-/
 #guard_msgs in
 #print axioms compute_ring_element_v_fc
 

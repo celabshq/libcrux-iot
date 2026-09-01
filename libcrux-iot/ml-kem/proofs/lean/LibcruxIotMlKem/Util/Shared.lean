@@ -120,7 +120,9 @@ theorem slice_range_index_ok {T : Type} [Inhabited T]
     split
     · rfl
     · rename_i hcon
-      exact absurd ⟨h0, h1⟩ hcon]
+      -- aeneas nightly-2026.08.24: the guard is `start ≤ end`, so `h0`'s strict
+      -- `<` is weakened here.
+      exact absurd ⟨Nat.le_of_lt h0, h1⟩ hcon]
   rfl
 
 /-- `Slice.index_mut_usize` in closed form (the `Slice` analogue of the file's
@@ -163,37 +165,28 @@ theorem slice_index_mut_range_strict {T : Type} [Inhabited T]
       ∧ ns.val.length = b.val - a.val
       ∧ (∀ s' : Slice T, s'.val.length = b.val - a.val →
             (wb s').val = s.val.setSlice! a.val s'.val) := by
-  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
-    Std.WP.spec_imp_exists (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩ h0 h1)
-  have hlen : ns.val.length = b.val - a.val := by
-    rw [hns_val]
-    show (List.slice a.val b.val s.val).length = b.val - a.val
-    rw [List.slice_length]; omega
-  have hTR : HaxToRange.toRange ({ start := a, «end» := b }
-        : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)
-      = ({ start := a, «end» := b } : Aeneas.Std.core.ops.range.Range Std.Usize) := rfl
-  refine ⟨ns, (fun sub' =>
-      match Aeneas.Std.Slice.update_subslice s
-          (HaxToRange.toRange
-            ({ start := a, «end» := b } : CoreModels.core.ops.range.Range Std.Usize)
-            (Aeneas.Std.Slice.len s)) sub' with
-      | .ok s'' => s''
-      | _ => s), ?_, hlen, ?_⟩
+  -- New model (hax v0.4.0-rc.1): `index_mut inst s i` is `inst.get_unchecked_mut i s`,
+  -- and the `RangeUsize` instance's `get_unchecked_mut` is
+  -- `rust_primitives.slice.slice_slice_mut s i.start i.end`, whose write-back is a DIRECT
+  -- `setSlice!` closure. It no longer detours through `Slice.update_subslice` +
+  -- `HaxToRange.toRange`, so the old `hTR`/`hupd` bridge is gone and the write-back
+  -- equation holds by construction (it needs no length hypothesis at all).
+  have hsub : Aeneas.Std.Slice.subslice s ⟨a, b⟩
+      = .ok ⟨s.val.slice a.val b.val, by
+          have := s.val.slice_length_le a.val b.val; scalar_tac⟩ := by
+    unfold Aeneas.Std.Slice.subslice
+    rw [if_pos (show a.val ≤ b.val ∧ b.val ≤ s.length from ⟨Nat.le_of_lt h0, h1⟩)]
+  refine ⟨⟨s.val.slice a.val b.val, by
+            have := s.val.slice_length_le a.val b.val; scalar_tac⟩,
+          (fun ss => ⟨s.val.setSlice! a.val ss.val, by scalar_tac⟩), ?_, ?_, ?_⟩
   · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
     simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-      CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-      CoreModels.rust_primitives.slice.slice_slice, hns_eq, Aeneas.Std.bind_tc_ok]
+      CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+      CoreModels.rust_primitives.slice.slice_slice_mut, hsub, Aeneas.Std.bind_tc_ok]
+  · show (List.slice a.val b.val s.val).length = b.val - a.val
+    rw [List.slice_length]; omega
+  · intro s' _
     rfl
-  · intro s' hs'
-    have hupd : Aeneas.Std.Slice.update_subslice s
-        (HaxToRange.toRange ({ start := a, «end» := b }
-            : CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Slice.len s)) s'
-        = .ok ⟨s.val.setSlice! a.val s'.val, by scalar_tac⟩ := by
-      rw [hTR]
-      unfold Aeneas.Std.Slice.update_subslice
-      rw [dif_pos ⟨h0, by simpa [Aeneas.Std.Slice.length] using h1, by
-        simpa [Aeneas.Std.Slice.length] using hs'⟩]
-    simp only [hupd]
 
 /-- Generic-bound analogue of `LoopHelper.iter_next_some_eq`. -/
 theorem iter_some_gen (i e : Std.Usize) (h_lt : i.val < e.val) :

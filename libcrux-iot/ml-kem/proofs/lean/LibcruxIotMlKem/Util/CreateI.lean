@@ -58,32 +58,32 @@ set_option linter.unusedVariables false
 
 /-! ## `Fn`-wrapped variant: `createi N inst.FnMutInst c` -/
 
-/-- Per-element foldlM evaluation for pure closures. The closure state `c`
-    is invariant; the result list is `acc ++ l.map f`. -/
-private theorem createi_foldlM_pure_aux
+/-- Per-index evaluation of `array_from_fn_go` for pure closures: the closure
+    state is invariant and the list produced for `n` indices is
+    `(List.range n).map f`.
+
+    CoreModels v0.3.12 builds the array by structural recursion over the index
+    count plus a length-guarded `if`, rather than by folding `List.range`, so the
+    previous `createi_foldlM_pure_aux`/`from_fn_foldlM_pure_aux` characterizations
+    (and the `split` over the fold's three outcomes) are replaced by this. -/
+private theorem array_from_fn_go_pure
     {T F : Type}
     (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (f : Nat → T)
-    (l : List Nat) (acc : List T)
-    (hpure : ∀ k ∈ l,
+    (n : Nat)
+    (hpure : ∀ k : Nat, k < n →
       inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c)) :
-    l.foldlM
-      (fun (s : List T × F) (i : Nat) => do
-        let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        RustM.ok (s.1 ++ [v], f'))
-      (acc, c) = .ok (acc ++ l.map f, c) := by
-  induction l generalizing acc with
-  | nil =>
-      simp only [List.foldlM_nil, List.map_nil, List.append_nil]
-      rfl
-  | cons h t ih =>
-      have hh : inst.call_mut c ⟨BitVec.ofNat _ h⟩ = .ok (f h, c) :=
-        hpure h List.mem_cons_self
-      have ht : ∀ k ∈ t, inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
-        fun k hk => hpure k (List.mem_cons_of_mem _ hk)
-      have hih := ih (acc ++ [f h]) ht
-      simp only [List.foldlM_cons, hh, bind_tc_ok, List.map_cons]
-      rw [hih]
-      simp [List.append_assoc]
+    rust_primitives.slice.array_from_fn_go inst c n
+      = .ok ((List.range n).map f, c) := by
+  induction n with
+  | zero =>
+      simp [rust_primitives.slice.array_from_fn_go]
+  | succ n ih =>
+      have ht : ∀ k : Nat, k < n →
+          inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
+        fun k hk => hpure k (Nat.lt_succ_of_lt hk)
+      simp only [rust_primitives.slice.array_from_fn_go, ih ht, bind_tc_ok,
+        hpure n (Nat.lt_succ_self n), List.range_succ, List.map_append, List.map_cons,
+        List.map_nil]
 
 /-- Lean-level equation for `createi` over pure closures. Used to power
     `createi_pure_spec` (Triple form). -/
@@ -95,88 +95,10 @@ theorem createi_pure_eq
     createi N inst.FnMutInst c =
       .ok ⟨(List.range N.val).map f,
            by simp [List.length_map, List.length_range]⟩ := by
-  have hf : ∀ k ∈ List.range N.val,
-      inst.FnMutInst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) := by
-    intro k hk; exact hpure k (List.mem_range.mp hk)
-  have h_fold :=
-    createi_foldlM_pure_aux inst.FnMutInst c f (List.range N.val) [] hf
-  simp only [List.nil_append] at h_fold
   unfold createi core.array.from_fn rust_primitives.slice.array_from_fn
-  split
-  · rename_i e heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i result heq
-    rw [h_fold] at heq
-    have hres : result = ((List.range N.val).map f, c) :=
-      (RustM.ok.inj heq).symm
-    subst hres
-    rfl
-
-/-- **Generic pure-closure `[spec]` for `createi`.**
-
-For any closure whose `call_mut` is pure (doesn't mutate captured state),
-`createi N inst.FnMutInst c` succeeds and its `i`-th cell is `f i`. The hypothesis
-`hpure` is a Triple over each call_mut so `hax_mvcgen` can recurse into
-it via per-closure `@[spec]` lemmas.
-
-Tagged `@[spec]` so `hax_mvcgen` chains through nested `createi` calls. -/
-@[spec]
-theorem createi_pure_spec
-    {T F : Type} [Inhabited T] (N : Std.Usize)
-    (inst : CoreModels.core.ops.function.Fn F Std.Usize T) (c : F) (f : Nat → T)
-    (hpure : ∀ k : Nat, k < N.val →
-      ⦃ ⌜ True ⌝ ⦄
-      inst.FnMutInst.call_mut c ⟨BitVec.ofNat _ k⟩
-      ⦃ ⇓ r => ⌜ r = (f k, c) ⌝ ⦄) :
-    ⦃ ⌜ True ⌝ ⦄
-    createi N inst.FnMutInst c
-    ⦃ ⇓ a => ⌜ ∀ i : Nat, i < N.val → a.val[i]! = f i ⌝ ⦄ := by
-  have hpure_eq : ∀ k : Nat, k < N.val →
-      inst.FnMutInst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
-    fun k hk => result_eq_of_triple (hpure k hk)
-  have heq := createi_pure_eq N inst c f hpure_eq
-  rw [heq]
-  simp only [Triple, WP.wp]
-  apply SPred.pure_intro
-  intro i hi
-  show ((List.range N.val).map f)[i]! = f i
-  rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
-      List.getElem?_range hi]
-  rfl
-
-/-! ## `FnMut`-direct variant: `core.array.from_fn N inst c`
-
-Analogous to `createi_*` but takes a `core.ops.function.FnMut`
-instance directly (no `Fn` wrapper). Required when the hax extraction
-calls `core.array.from_fn` directly with the `FnMut` instance of
-its closure (e.g. SHA-3's `sponge.xor_block_into_state`; ML-KEM
-matrix/poly constructors). -/
-
-private theorem from_fn_foldlM_pure_aux
-    {T F : Type}
-    (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (f : Nat → T)
-    (l : List Nat) (acc : List T)
-    (hpure : ∀ k ∈ l,
-      inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c)) :
-    l.foldlM
-      (fun (s : List T × F) (i : Nat) => do
-        let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        RustM.ok (s.1 ++ [v], f'))
-      (acc, c) = .ok (acc ++ l.map f, c) := by
-  induction l generalizing acc with
-  | nil =>
-      simp only [List.foldlM_nil, List.map_nil, List.append_nil]; rfl
-  | cons h t ih =>
-      have hh : inst.call_mut c ⟨BitVec.ofNat _ h⟩ = .ok (f h, c) :=
-        hpure h List.mem_cons_self
-      have ht : ∀ k ∈ t, inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
-        fun k hk => hpure k (List.mem_cons_of_mem _ hk)
-      have hih := ih (acc ++ [f h]) ht
-      simp only [List.foldlM_cons, hh, bind_tc_ok, List.map_cons]
-      rw [hih]
-      simp [List.append_assoc]
+  rw [array_from_fn_go_pure inst.FnMutInst c f N.val hpure]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp : ((List.range N.val).map f).length = N.val)]
 
 /-- Lean-level equation for `from_fn` over pure closures. -/
 theorem from_fn_pure_eq
@@ -187,24 +109,10 @@ theorem from_fn_pure_eq
     core.array.from_fn N inst c =
       .ok ⟨(List.range N.val).map f,
            by simp [List.length_map, List.length_range]⟩ := by
-  have hf : ∀ k ∈ List.range N.val,
-      inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) := by
-    intro k hk; exact hpure k (List.mem_range.mp hk)
-  have h_fold :=
-    from_fn_foldlM_pure_aux inst c f (List.range N.val) [] hf
-  simp only [List.nil_append] at h_fold
   unfold core.array.from_fn rust_primitives.slice.array_from_fn
-  split
-  · rename_i e heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i result heq
-    rw [h_fold] at heq
-    have hres : result = ((List.range N.val).map f, c) :=
-      (RustM.ok.inj heq).symm
-    subst hres
-    rfl
+  rw [array_from_fn_go_pure inst c f N.val hpure]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp : ((List.range N.val).map f).length = N.val)]
 
 /-- **Generic pure-closure `[spec]` for `core.array.from_fn`.**
 

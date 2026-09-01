@@ -3688,6 +3688,9 @@ theorem multiply_matrix_by_column_eq
   exact h_from_fn
 
 set_option maxHeartbeats 32000000 in
+-- The two `show`-driven `RustM.ok` normalizations inside elaborate deeper terms under the
+-- hax v0.4.0-rc.1 slice/array models than the default 512 frames allow.
+set_option maxRecDepth 4000 in
 /-- **Helper 5 (main bridge).** Given the per-row, per-lane characterization
     of `t_as_ntt_final`, proves the hacspec `compute_As_plus_e` equation that
     L7.1's POST demands. -/
@@ -4113,9 +4116,7 @@ theorem compute_As_plus_e_fc
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc' depends on axioms: [propext,
  Classical.choice,
- Quot.sound,
- Util.SliceSpecs.Array.update_subslice_le_eq,
- Util.SliceSpecs.Slice.subslice_le_eq]
+ Quot.sound]
 -/
 #guard_msgs in
 #print axioms compute_As_plus_e_fc

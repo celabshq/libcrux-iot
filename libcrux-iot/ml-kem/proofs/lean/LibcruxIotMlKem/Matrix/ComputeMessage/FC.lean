@@ -274,9 +274,7 @@ theorem compute_message_fc
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,
  Classical.choice,
- Quot.sound,
- Util.SliceSpecs.Array.update_subslice_le_eq,
- Util.SliceSpecs.Slice.subslice_le_eq]
+ Quot.sound]
 -/
 #guard_msgs in
 #print axioms compute_message_fc

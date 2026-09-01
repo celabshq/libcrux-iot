@@ -2188,6 +2188,10 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
     (re0 : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (a_offset b_offset step_vec : Std.Usize) (zeta_i1 : Std.Usize)
+    -- `layer`/`round` are DEAD parameters of the extracted loop bodies as of hax
+    -- v0.4.0-rc.1 (threaded for the erased loop-invariant markers, unused in the
+    -- computation); quantified here so the spec matches the real call sites.
+    (layer round : Std.Usize)
     (h_zi1_lt : zeta_i1.val < 128)
     (h_step_vec_pos : 1 ≤ step_vec.val)
     (h_a_offset_b : a_offset.val + step_vec.val ≤ 16)
@@ -2204,7 +2208,7 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
       (vectortraitsOperationsInst := portable_ops_inst)
-      zeta_i1 a_offset b_offset
+      zeta_i1 layer round a_offset b_offset
       { start := k, «end» := step_vec } acc.1 acc.2
     ⦃ ⇓ r => ⌜ Layer4PlusInnerFC.step_post re0 a_offset b_offset step_vec
               (Spec.zeta_at zeta_i1.val) k r ⌝ ⦄ := by
@@ -2274,7 +2278,7 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          zeta_i1 a_offset b_offset
+          zeta_i1 layer round a_offset b_offset
           { start := k, «end» := step_vec } acc.1 acc.2
         = .ok (ControlFlow.cont (({ start := s, «end» := step_vec }
                         : CoreModels.core.ops.range.Range Std.Usize), acc')) := by
@@ -2419,7 +2423,7 @@ theorem invert_ntt_at_layer_4_plus_inner_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          zeta_i1 a_offset b_offset
+          zeta_i1 layer round a_offset b_offset
           { start := k, «end» := step_vec } acc.1 acc.2
         = .ok (ControlFlow.done (acc.1, acc.2)) := by
       unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
@@ -2608,6 +2612,10 @@ theorem invert_ntt_at_layer_4_plus_inner_loop_fc
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (a_offset b_offset step_vec : Std.Usize) (zeta_i1 : Std.Usize)
+    -- `layer`/`round` are DEAD parameters of the extracted loop bodies as of hax
+    -- v0.4.0-rc.1 (threaded for the erased loop-invariant markers, unused in the
+    -- computation); quantified here so the spec matches the real call sites.
+    (layer round : Std.Usize)
     (h_zi1_lt : zeta_i1.val < 128)
     (h_step_vec_pos : 1 ≤ step_vec.val)
     (h_a_offset_b : a_offset.val + step_vec.val ≤ 16)
@@ -2622,7 +2630,7 @@ theorem invert_ntt_at_layer_4_plus_inner_loop_fc
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0
       (vectortraitsOperationsInst := portable_ops_inst)
-      { start := 0#usize, «end» := step_vec } zeta_i1 re0 scratch a_offset b_offset
+      { start := 0#usize, «end» := step_vec } zeta_i1 re0 layer scratch round a_offset b_offset
     ⦃ ⇓ r => ⌜
       (∀ j' : Nat, j' < step_vec.val →
         lift_chunk (r.1.coefficients.val[a_offset.val + j']!)
@@ -2647,7 +2655,7 @@ theorem invert_ntt_at_layer_4_plus_inner_loop_fc
       (fun (iter1, acc1) =>
         libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          zeta_i1 a_offset b_offset iter1 acc1.1 acc1.2)
+          zeta_i1 layer round a_offset b_offset iter1 acc1.1 acc1.2)
       (β := Layer4PlusInnerFC.Acc)
       (re0, scratch)
       0#usize step_vec
@@ -2706,7 +2714,7 @@ theorem invert_ntt_at_layer_4_plus_inner_loop_fc
   · -- Step lemma dispatch.
     intro acc k _h_ge h_le hinv
     have h_step := invert_ntt_at_layer_4_plus_inner_step_lemma_fc re0 a_offset b_offset step_vec
-      zeta_i1 h_zi1_lt h_step_vec_pos h_a_offset_b h_b_offset_b h_disjoint h_pre_a h_pre_b
+      zeta_i1 layer round h_zi1_lt h_step_vec_pos h_a_offset_b h_b_offset_b h_disjoint h_pre_a h_pre_b
       acc k h_le hinv
     apply Std.Do.Triple.of_entails_right _ h_step
     rw [PostCond.entails_noThrow]
@@ -2727,6 +2735,8 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
     (re0 : libcrux_iot_ml_kem.polynomial.PolynomialRingElement
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (zeta_i_0 step_vec i_end : Std.Usize)
+    -- dead loop parameter, see `invert_ntt_at_layer_4_plus_inner_step_lemma_fc`
+    (layer : Std.Usize)
     (h_pre : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
       ((re0.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328)
     (h_step_vec_pos : 1 ≤ step_vec.val)
@@ -2739,7 +2749,7 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
       (vectortraitsOperationsInst := portable_ops_inst)
-      step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
+      layer step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
     ⦃ ⇓ r => ⌜ Layer4PlusOuterFC.step_post re0 zeta_i_0 step_vec i_end k r ⌝ ⦄ := by
   obtain ⟨h_zeta_acc, h_acc_a, h_acc_b, h_acc_undone, h_acc_bnd⟩ := by
     simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
@@ -2845,7 +2855,7 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
       apply h_pre _ _ ℓ hℓ
       rw [h_bo_arith]; omega
     -- Dispatch inner loop.
-    have h_inner := invert_ntt_at_layer_4_plus_inner_loop_fc acc.2.1 acc.2.2 ao bo step_vec zi1
+    have h_inner := invert_ntt_at_layer_4_plus_inner_loop_fc acc.2.1 acc.2.2 ao bo step_vec zi1 layer k
       h_zi1_lt_128 h_step_vec_pos h_a_offset_b h_b_offset_b h_disjoint h_pre_a h_pre_b h_acc_bnd
     obtain ⟨r_pair, h_r_eq, h_r_a, h_r_b, h_r_undone, h_r_bnd⟩ :=
       triple_exists_ok_fc h_inner
@@ -2854,7 +2864,7 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
+          layer step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
         = .ok (ControlFlow.cont (({ start := s, «end» := i_end }
                         : CoreModels.core.ops.range.Range Std.Usize), acc')) := by
       unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
@@ -2878,7 +2888,8 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
               let (re1, scratch1) ←
                 libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0
                   (vectortraitsOperationsInst := portable_ops_inst)
-                  { start := 0#usize, «end» := step_vec } zi1' acc.2.1 acc.2.2 ao' bo'
+                  { start := 0#usize, «end» := step_vec } zi1' acc.2.1 layer acc.2.2
+                  k ao' bo'
               .ok (ControlFlow.cont (({ start := s, «end» := i_end }
                           : CoreModels.core.ops.range.Range Std.Usize),
                         zi1', re1, scratch1))) = _
@@ -3046,7 +3057,7 @@ theorem invert_ntt_at_layer_4_plus_outer_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
+          layer step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
         = .ok (ControlFlow.done (acc.1, acc.2.1, acc.2.2)) := by
       unfold libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
       conv_lhs =>
@@ -3144,9 +3155,14 @@ theorem invert_ntt_at_layer_4_plus_portable_fc
   have h_step_ex : ∃ step : Std.Usize,
       ((1#usize : Std.Usize) <<< layer : RustM Std.Usize) = .ok step
       ∧ step.val = 1 <<< layer.val := by
+    -- aeneas nightly-2026.08.24: a `partialSpec`; the `layer < numBits` bound moved out
+    -- of the arguments into the postcondition and the `panic` precondition.
     have hT := Aeneas.Std.UScalar.ShiftLeft_spec (1#usize : Std.Usize) layer
-      (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) h_layer_bits rfl
-    obtain ⟨z, h_eq, h_v_mod, _h_bv⟩ := Std.WP.spec_imp_exists hT
+      (Aeneas.Std.UScalar.size Aeneas.Std.UScalarTy.Usize) rfl
+    have hT' := Std.WP.spec_of_partialSpec hT
+      (by intro e; cases e <;>
+        first | exact not_false | exact Nat.not_le.mpr h_layer_bits) (by simp)
+    obtain ⟨z, h_eq, h_v_mod, _h_bv, _h_lt⟩ := Std.WP.spec_imp_exists hT'
     refine ⟨z, h_eq, ?_⟩
     have h_one_eq : (1#usize : Std.Usize).val = 1 := rfl
     rw [h_v_mod, h_one_eq, h_size_eq, Nat.mod_eq_of_lt]
@@ -3170,9 +3186,11 @@ theorem invert_ntt_at_layer_4_plus_portable_fc
     have h_16_eq : (16#usize : Std.Usize).val = 16 := rfl
     rw [h_step_vec_val, h_step_val, h_16_eq]
   -- Resolve i_end ← 128 >>> layer.
-  obtain ⟨i_end, h_i_end_eq, h_i_end_val, _h_i_end_bv⟩ :=
-    Std.WP.spec_imp_exists (Aeneas.Std.UScalar.ShiftRight_spec (128#usize : Std.Usize) layer
-      h_layer_bits)
+  obtain ⟨i_end, h_i_end_eq, h_i_end_val, _h_i_end_bv, _h_i_end_lt⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Aeneas.Std.UScalar.ShiftRight_spec (128#usize : Std.Usize) layer)
+      (by intro e; cases e <;>
+        first | exact not_false | exact Nat.not_le.mpr h_layer_bits) (by simp))
   rw [h_i_end_eq]
   have h_i_end_arith : i_end.val = 128 >>> layer.val := h_i_end_val
   have h_step_vec_pos : 1 ≤ step_vec.val := by
@@ -3192,7 +3210,7 @@ theorem invert_ntt_at_layer_4_plus_portable_fc
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, acc1) =>
         libcrux_iot_ml_kem.invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) step_vec
+          (vectortraitsOperationsInst := portable_ops_inst) layer step_vec
           iter1 acc1.1 acc1.2.1 acc1.2.2)
       (β := Layer4PlusOuterFC.Acc)
       (zeta_i, re, scratch)
@@ -3372,7 +3390,7 @@ theorem invert_ntt_at_layer_4_plus_portable_fc
     exact ⟨by rw [h_zeta_done, h_i_end_arith], h_final.symm, h_done_bnd⟩
   · -- Step lemma dispatch.
     intro acc k _h_ge h_le hinv
-    have h_step := invert_ntt_at_layer_4_plus_outer_step_lemma_fc re zeta_i step_vec i_end
+    have h_step := invert_ntt_at_layer_4_plus_outer_step_lemma_fc re zeta_i step_vec i_end layer
       h_bnd h_step_vec_pos h_step_vec_dvd h_zeta_lo' h_zeta_hi acc k h_le hinv
     apply Std.Do.Triple.of_entails_right _ h_step
     rw [PostCond.entails_noThrow]

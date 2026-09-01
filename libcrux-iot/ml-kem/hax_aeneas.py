@@ -226,3 +226,14 @@ for _f in ("Specs.lean", "ProofObligations.lean"):
     _p = Path("proofs/lean/LibcruxIotMlKem/Extraction") / _f
     if _p.exists():
         _p.unlink()
+
+# The 0.4 extraction also generates an `Extraction.lean` aggregator that imports
+# the two modules deleted just above, so strip those imports or the package has a
+# bad import. The lakefile globs every module under the package, so the deleted
+# files must not be referenced anywhere.
+_agg = Path("proofs/lean/LibcruxIotMlKem/Extraction.lean")
+if _agg.exists():
+    _agg.write_text("".join(
+        l for l in _agg.read_text().splitlines(keepends=True)
+        if "Extraction.Specs" not in l and "Extraction.ProofObligations" not in l
+    ))

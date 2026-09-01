@@ -154,16 +154,17 @@ Every theorem depends on Lean's three standard axioms: `propext`,
 
 ### Per-theorem axiom status
 
-Every theorem additionally depends on the two **subslice** axioms **A3/A4**
-below (introduced by the hax-mainline re-extraction — see note); they are
-listed once here rather than repeated per row.
+The two **subslice** axioms **A3/A4** that every theorem used to carry are
+**gone** as of the hax v0.4.0-rc.1 / aeneas nightly-2026.08.24 migration — see
+[the note below](#the-two-former-subslice-axioms-a3--a4). The `Subslice` column
+is retained only to record that it is now discharged everywhere.
 
 | Theorem | Standard | Subslice (A3/A4) | Deferred leaf axiom |
 |---------|----------|------------------|---------------------|
-| L7.1 `Matrix.ComputeAsPlusE.compute_As_plus_e_fc`        | ✓ | ✓ | — |
-| L7.2 `Matrix.ComputeVectorU.FC.compute_vector_u_fc`      | ✓ | ✓ | **A1** `Sampling.sample_matrix_entry_fc` (+ the opaque `matrix.sample_matrix_entry`) |
-| L7.3 `Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc` | ✓ | ✓ | **A2** `Serialize.deserialize_to_reduced_ring_element_fc` |
-| L7.4 `Matrix.ComputeMessage.FC.compute_message_fc`       | ✓ | ✓ | — |
+| L7.1 `Matrix.ComputeAsPlusE.compute_As_plus_e_fc`        | ✓ | discharged | — |
+| L7.2 `Matrix.ComputeVectorU.FC.compute_vector_u_fc`      | ✓ | discharged | **A1** `Sampling.sample_matrix_entry_fc` (+ the opaque `matrix.sample_matrix_entry`) |
+| L7.3 `Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc` | ✓ | discharged | **A2** `Serialize.deserialize_to_reduced_ring_element_fc` |
+| L7.4 `Matrix.ComputeMessage.FC.compute_message_fc`       | ✓ | discharged | — |
 
 ### The two deferred-leaf axioms (A1 / A2)
 
@@ -185,14 +186,16 @@ listed once here rather than repeated per row.
 These are largly orthogonal to the matrix arithmetic,
 which is why we omitted its verification.
 
-### The two subslice axioms (A3 / A4)
+### The two former subslice axioms (A3 / A4)
 
-Introduced by the migration to mainline hax / the CoreModels v0.2 library
-(see [Reproduction](#reproduction)): the Aeneas `Slice.subslice` /
-`Array.update_subslice` primitives require a **strict** `start < end` range
-and fail on empty ranges. We localize this to two `≤`-range specs, tagged
-`AENEAS-SUBSLICE-STRICT` in [`Util/SliceSpecs.lean`](Util/SliceSpecs.lean),
-to be discharged once the aeneas primitive is fixed:
+**Resolved by the hax v0.4.0-rc.1 migration — no longer axioms.**
+
+The migration to mainline hax / the CoreModels v0.2 library introduced these:
+Aeneas's `Slice.subslice` / `Array.update_subslice` primitives required a
+**strict** `start < end` range and failed on empty ranges, whereas Rust's
+`&xs[i..i]` is a valid empty slice. The intended `≤` behaviour was localized to
+two `≤`-range specs tagged `AENEAS-SUBSLICE-STRICT` and *axiomatized*, to be
+discharged once the aeneas primitive was fixed:
 
 - **A3** `libcrux_iot_ml_kem.Util.SliceSpecs.Slice.subslice_le_eq` — reading a
   sub-slice `s[a..b]` for `a ≤ b ≤ s.length` returns `s.val.slice a b`.
@@ -200,8 +203,24 @@ to be discharged once the aeneas primitive is fixed:
   writing back a sub-slice over `a ≤ b ≤ length` yields the expected
   `setSlice!`. (The slice-level `Slice.update_subslice_le_eq` is subsumed.)
 
-All four matrix theorems route their range-slice reads/writes through these,
-so all four depend on A3/A4.
+As of aeneas nightly-2026.08.24 all three primitives guard on `start ≤ end`, so
+the aeneas primitive **is** fixed and all three statements are now **theorems**
+proved directly from the definitions (`if_pos`/`dif_pos` + `rfl`), kept verbatim
+in [`Util/SliceSpecs.lean`](Util/SliceSpecs.lean) so no use site changed. All
+four matrix theorems still route their range-slice reads/writes through them and
+now depend on nothing beyond the three standard axioms plus their own deferred
+leaf.
+
+This also closes a **soundness** gap, not merely a bookkeeping one. While the old
+model was strict, A3 asserted success exactly where the definition failed, so
+`False` was derivable from A3 at `s = ⟨[], _⟩`, `r = ⟨0,0⟩` (the r3 review
+kernel-checked this, then removed the witness). Because
+`core_models_Slice_Insts_index_RangeUsize_spec` and its `index_mut` sibling are
+`@[spec]`-tagged, `hax_mvcgen` selected the refutable axiom automatically on any
+slice-range subscript, so the exposure was every row whose recorded axiom list
+mentioned them — which is why the reviews leaned on an axiom allowlist. With A3/A4
+discharged against the real definitions that exposure is gone: there is no longer
+an inconsistent axiom in the development to inherit.
 
 ## Proof architecture
 

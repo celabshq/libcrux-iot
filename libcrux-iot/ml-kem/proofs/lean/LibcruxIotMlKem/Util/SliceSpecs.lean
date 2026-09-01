@@ -53,36 +53,49 @@ theorem result_eq_of_triple {α : Type} {x : RustM α} {v : α}
   | .fail e, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
   | .div, h => exact absurd h (by simp [Triple, WP.wp, PostCond.noThrow, PredTrans.apply])
 
-/-! ### AENEAS-SUBSLICE-STRICT — axiomatized `≤`-specs for sub-slicing.
+/-! ### `≤`-specs for sub-slicing (formerly AENEAS-SUBSLICE-STRICT).
 
-Aeneas's `Slice.subslice` / `Slice.update_subslice` currently require **strict**
-`start < end` and `fail` on empty ranges (`start = end`), whereas Rust's
-`&xs[i..i]` is a valid empty slice. Until aeneas is fixed to allow `start = end`,
-we axiomatize the intended `≤` behaviour (existential-equation form, so no
-`Slice` length-invariant proof term is needed) and build the CoreModels
-slice-index specs on top. **Delete these and revert to the real
-`Slice.subslice_spec` / `Slice.update_subslice_spec` once aeneas supports empty
-subslices.** -/
+Rust's `&xs[i..i]` is a valid empty slice. Aeneas used to require **strict**
+`start < end` in `Slice.subslice` / `Slice.update_subslice` and `fail` on empty
+ranges, so these three results had to be *axiomatized* under the tag
+`AENEAS-SUBSLICE-STRICT`.
 
-axiom Slice.subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
+As of aeneas nightly-2026.08.24 all three definitions guard on `start ≤ end`,
+so the intended `≤` behaviour is now a consequence of the definitions and the
+axioms are **discharged** — the statements are kept verbatim (existential-equation
+form, so no `Slice` length-invariant proof term is needed at the use sites) and
+everything downstream is unchanged. -/
+
+theorem Slice.subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
     (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize)
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length) :
     ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.subslice s r = .ok ns ∧
-      ns.val = s.val.slice r.start.val r.end.val
+      ns.val = s.val.slice r.start.val r.end.val := by
+  unfold Aeneas.Std.Slice.subslice
+  rw [if_pos (show r.start.val ≤ r.end.val ∧ r.end.val ≤ s.length from ⟨h0, h1⟩)]
+  exact ⟨_, rfl, rfl⟩
 
-axiom Slice.update_subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
+theorem Slice.update_subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
     (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize) (ss : Aeneas.Std.Slice α)
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length)
     (h2 : ss.val.length = r.end.val - r.start.val) :
     ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.update_subslice s r ss = .ok ns ∧
-      ns.val = s.val.setSlice! r.start.val ss.val
+      ns.val = s.val.setSlice! r.start.val ss.val := by
+  unfold Aeneas.Std.Slice.update_subslice
+  rw [dif_pos (show r.start.val ≤ r.end.val ∧ r.end.val ≤ s.length ∧
+        ss.val.length = r.end.val - r.start.val from ⟨h0, h1, h2⟩)]
+  exact ⟨_, rfl, rfl⟩
 
-axiom Array.update_subslice_le_eq {α : Type} {n : Aeneas.Std.Usize} (a : Aeneas.Std.Array α n)
+theorem Array.update_subslice_le_eq {α : Type} {n : Aeneas.Std.Usize} (a : Aeneas.Std.Array α n)
     (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize) (ss : Aeneas.Std.Slice α)
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ a.val.length)
     (h2 : ss.val.length = r.end.val - r.start.val) :
     ∃ na : Aeneas.Std.Array α n, Aeneas.Std.Array.update_subslice a r ss = .ok na ∧
-      na.val = a.val.setSlice! r.start.val ss.val
+      na.val = a.val.setSlice! r.start.val ss.val := by
+  unfold Aeneas.Std.Array.update_subslice
+  rw [dif_pos (show r.start.val ≤ r.end.val ∧ r.end.val ≤ a.length ∧
+        ss.val.length = r.end.val - r.start.val from ⟨h0, h1, h2⟩)]
+  exact ⟨_, rfl, rfl⟩
 
 /-! ### Bounded array `index_usize` / `update` (existential form).
 
@@ -96,6 +109,18 @@ theorem Array.index_usize_exists {α : Type u} [Inhabited α] {n : Aeneas.Std.Us
   ⟨v.val[i.val]'h, by
     simp only [Aeneas.Std.Array.index_usize, Aeneas.Std.Array.getElem?_Usize_eq,
                List.getElem?_eq_getElem h], rfl⟩
+
+/-- `Slice.update` in closed form. `Slice.update_spec` is now a `partialSpec` with the
+    bound in its postcondition rather than its arguments, so the six `NttMultiply`
+    element-writes go through this instead of unpacking a `partialSpec` each time. -/
+theorem Slice.update_ok_eq {α : Type u} (v : Aeneas.Std.Slice α) (i : Aeneas.Std.Usize) (x : α)
+    -- stated with `Slice.length` (not `v.val.length`) so the call sites' `h_out_len`-style
+    -- hypotheses rewrite directly; the two are definitionally equal
+    (h : i.val < v.length) :
+    Aeneas.Std.Slice.update v i x = .ok (v.set i x) := by
+  unfold Aeneas.Std.Slice.update
+  rw [List.getElem?_eq_getElem h]
+  rfl
 
 theorem Array.update_exists {α : Type u} {n : Aeneas.Std.Usize}
     (v : Aeneas.Std.Array α n) (i : Aeneas.Std.Usize) (x : α) (h : i.val < v.val.length) :
@@ -138,7 +163,10 @@ theorem core_models_slice_Slice_len_spec {T : Type} (s : Slice T) :
     ⦃ ⌜ True ⌝ ⦄
     CoreModels.core.slice.Slice.len s
     ⦃ ⇓ r => ⌜ r.val = s.val.length ⌝ ⦄ := by
+  -- CoreModels v0.3.12 routes this through `rust_primitives.slice.slice_length`,
+  -- so unfolding `Slice.len` alone leaves the body untouched.
   unfold CoreModels.core.slice.Slice.len
+    CoreModels.rust_primitives.slice.slice_length
   simp [Triple, WP.wp, PredTrans.apply, pure, Pure.pure, Aeneas.Std.Slice.len_val,
         Aeneas.Std.Slice.length]
 
@@ -278,36 +306,90 @@ theorem core_models_Slice_Insts_index_mut_RangeUsize_spec
                       (p.2 s').val = s.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
   obtain ⟨ns, hns_eq, hns_val⟩ := Slice.subslice_le_eq s ⟨r.start, r.end⟩ h0 h1
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-             CoreModels.rust_primitives.slice.slice_slice, hns_eq]
+  -- CoreModels v0.3.12 supplies this instance: `index_mut` delegates to the
+  -- `SliceIndex`'s `get_unchecked_mut` = `rust_primitives.slice.slice_slice_mut`,
+  -- whose write-back is directly `setSlice!`. The `Slice.update_subslice` detour
+  -- (and `HaxToRange`) is gone, and the write-back conjunct falls out of simp.
+  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+             CoreModels.rust_primitives.slice.slice_slice_mut, hns_eq]
   simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok,
              Std.Do.SPred.pure, Std.Do.SPred.entails]
   intro _
   refine ⟨hns_val, ?_, ?_⟩
   · simp only [hns_val, List.slice_length]; omega
-  · intro s' hs'
-    obtain ⟨nu, hnu_eq, hnu_val⟩ := Slice.update_subslice_le_eq s ⟨r.start, r.end⟩ s' h0 h1 hs'
-    simp only [HaxToRange.toRange, hnu_eq]
-    exact hnu_val
+  · intro s' _
+    trivial
 
 /-! ### `CoreModels.core.slice.Slice.copy_from_slice` -/
 
-/-- `copy_from_slice dst src` succeeds with the source slice `src`
-    whenever both slices have the same length (the impl model returns
-    `src` outright when lengths match). -/
-@[spec]
-theorem core_models_slice_Slice_copy_from_slice_spec
+/-- `l.mapM cl = .ok l` for an effect-free `cl`. -/
+private theorem mapM_id_of_clone_id {T : Type} (cl : T → RustM T)
+    (hcl : ∀ x : T, cl x = .ok x) : ∀ l : List T, l.mapM cl = .ok l := by
+  intro l
+  induction l with
+  | nil => rfl
+  | cons x xs ih => simp [List.mapM_cons, hcl, ih]; rfl
+
+/-- `copy_from_slice dst src = .ok src` for equal lengths **and an effect-free
+    element `clone`**.
+
+    The `clone` hypothesis is not incidental. CoreModels v0.3.12 routes
+    `copy_from_slice` through `rust_primitives.slice.slice_clone_from_slice`,
+    which clones every element -- "Cloned, so `clone`'s effects are observable
+    and cannot be skipped" -- where the model this development previously used
+    returned `src` outright. So `r = src` holds only when `clone` is the
+    identity, and that is stated rather than assumed. -/
+theorem core_models_slice_Slice_copy_from_slice_eq
     {T : Type} (cpy : CoreModels.core.marker.Copy T) (dst src : Slice T)
+    (h : dst.val.length = src.val.length)
+    (hclone : ∀ x : T, cpy.cloneCloneInst.clone x = .ok x) :
+    CoreModels.core.slice.Slice.copy_from_slice cpy dst src = .ok src := by
+  unfold CoreModels.core.slice.Slice.copy_from_slice
+    CoreModels.rust_primitives.slice.slice_clone_from_slice
+  have hmap : src.val.mapM cpy.cloneCloneInst.clone = .ok src.val :=
+    mapM_id_of_clone_id _ hclone src.val
+  simp only [Std.Slice.length, h, if_pos]
+  -- the clone chain is a *dependent* match (`match h : .. with`), so its
+  -- discriminant cannot simply be rewritten; split and use each branch's equation
+  split
+  · rename_i cloned heq
+    rw [hmap] at heq
+    have hc : cloned = src.val := (RustM.ok.inj heq).symm
+    subst hc
+    rfl
+  · rename_i e heq
+    rw [hmap] at heq; exact absurd heq (by simp)
+  · rename_i heq
+    rw [hmap] at heq; exact absurd heq (by simp)
+
+/-- `@[spec]` at `U8` -- one of the two element types this crate copies.
+
+    Specialized deliberately: as an `@[spec]`, a `clone` hypothesis would become
+    a side goal at every `mvcgen` site that steps over a `copy_from_slice`, and
+    those sites cannot close it. `U8`'s `clone` is literally `ok self`, so it is
+    discharged once, here, by `rfl`. -/
+@[spec]
+theorem core_models_slice_Slice_copy_from_slice_spec_u8
+    (dst src : Slice Std.U8)
     (h : dst.val.length = src.val.length) :
     ⦃ ⌜ True ⌝ ⦄
-    CoreModels.core.slice.Slice.copy_from_slice cpy dst src
+    CoreModels.core.slice.Slice.copy_from_slice
+      CoreModels.core.U8.Insts.CoreMarkerCopy dst src
     ⦃ ⇓ r => ⌜ r = src ⌝ ⦄ := by
-  unfold CoreModels.core.slice.Slice.copy_from_slice
-  have h' : dst.len = src.len := by
-    apply Std.UScalar.eq_of_val_eq
-    simp [h]
-  simp [Triple, WP.wp, PredTrans.apply, h']
+  rw [core_models_slice_Slice_copy_from_slice_eq _ dst src h (by intro x; rfl)]
+  simp [Triple, WP.wp, PredTrans.apply]
+
+/-- `@[spec]` at `I16` -- the other one (the coefficient slices). -/
+@[spec]
+theorem core_models_slice_Slice_copy_from_slice_spec_i16
+    (dst src : Slice Std.I16)
+    (h : dst.val.length = src.val.length) :
+    ⦃ ⌜ True ⌝ ⦄
+    CoreModels.core.slice.Slice.copy_from_slice
+      CoreModels.core.I16.Insts.CoreMarkerCopy dst src
+    ⦃ ⇓ r => ⌜ r = src ⌝ ⦄ := by
+  rw [core_models_slice_Slice_copy_from_slice_eq _ dst src h (by intro x; rfl)]
+  simp [Triple, WP.wp, PredTrans.apply]
 
 /-! ### `CoreModels.core.Array.Insts.CoreConvertTryFromShared0SliceTryFromSliceError.try_from`
 
@@ -362,63 +444,42 @@ private theorem try_from_closure_call_mut_eq
   rw [hsome]
   rfl
 
-/-- The closure-fold accumulator at step `k` is `s.val.take k`. We prove
-    a slightly stronger invariant: starting from any accumulator `acc`
-    with the closure state `s`, folding over `List.range' acc.length k`
-    yields `(acc ++ s.val.slice acc.length (acc.length + k), s)` when
-    `acc.length + k ≤ s.length` and acc lines up with the slice prefix. -/
-private theorem foldlM_try_from_closure_invariant
+/-- `array_from_fn_go` invariant for the `try_from` closure: running the first
+    `n` indices yields `s.val.take n`, with the closure state (the slice itself)
+    unchanged.
+
+    CoreModels v0.3.12 builds the array by structural recursion on the index
+    count rather than by folding `List.range'`, so this replaces the previous
+    `foldlM_try_from_closure_invariant`. The recursion carries no accumulator, so
+    the invariant no longer needs the `start`/`acc` generalization the fold
+    version did. -/
+private theorem array_from_fn_go_try_from_invariant
     {T : Type} [Inhabited T] {N : Std.Usize} (cpy : CoreModels.core.marker.Copy T)
-    (s : Slice T)
-    (_hN : s.val.length ≤ Std.Usize.max) :
-    ∀ (k start : Nat) (acc : List T),
-      acc = s.val.take start →
-      start + k ≤ s.val.length →
-      start + k ≤ Std.Usize.max →
-      (List.range' start k).foldlM
-        (fun (p : List T × Slice T) (i : Nat) => do
-          let (v, f') ←
-            CoreModels.core.convert.TryFromArrayShared0SliceTryFromSliceError.try_from.closure.Insts.CoreOpsFunctionFnMutTupleUsizeT.call_mut
-              (T := T) (N := N) cpy p.2 ⟨BitVec.ofNat _ i⟩
-          ok (p.1 ++ [v], f'))
-        (acc, s)
-      = .ok (s.val.take (start + k), s) := by
-  intro k
-  induction k with
+    (s : Slice T) (hmax : s.val.length ≤ Std.Usize.max) :
+    ∀ n : Nat, n ≤ s.val.length →
+      CoreModels.rust_primitives.slice.array_from_fn_go
+        (CoreModels.core.convert.TryFromArrayShared0SliceTryFromSliceError.try_from.closure.Insts.CoreOpsFunctionFnMutTupleUsizeT
+          (T := T) (N := N) cpy) s n
+      = .ok (s.val.take n, s) := by
+  intro n
+  induction n with
   | zero =>
-    intro start acc hacc hk1 hk2
-    show List.foldlM _ (acc, s) (List.range' start 0) = _
-    rw [show List.range' start 0 = [] from rfl]
-    rw [List.foldlM_nil]
-    show RustM.ok (acc, s) = RustM.ok (s.val.take (start + 0), s)
-    rw [hacc, Nat.add_zero]
-  | succ k ih =>
-    intro start acc hacc hk1 hk2
-    -- `List.range' start (k+1) = start :: List.range' (start+1) k`
-    rw [show List.range' start (k + 1) = start :: List.range' (start + 1) k from rfl]
-    simp only [List.foldlM_cons]
-    -- The step at `start` calls `call_mut s ⟨BitVec.ofNat _ start⟩`.
-    have hstart_lt : start < s.val.length := by omega
-    have hstart_max : start ≤ Std.Usize.max := by omega
-    have hval : (⟨BitVec.ofNat Std.UScalarTy.Usize.numBits start⟩ : Std.Usize).val = start :=
-      bv_ofNat_usize_val_eq start hstart_max
-    have hcall := try_from_closure_call_mut_eq (T := T) (N := N) cpy s
-                    ⟨BitVec.ofNat _ start⟩ (by rw [hval]; exact hstart_lt)
-    -- Rewrite both the closure-call output's `.val` and the `i` arg uniformly.
-    rw [hval] at hcall
-    rw [hcall]
-    simp only [bind_tc_ok]
-    -- New accumulator is `acc ++ [s.val[start]!] = s.val.take (start + 1)`.
-    have hacc' : acc ++ [s.val[start]!] = s.val.take (start + 1) := by
-      rw [hacc]
-      have : start < s.val.length := hstart_lt
-      rw [List.take_add_one]
-      simp [List.getElem?_eq_getElem this, List.getElem!_eq_getElem?_getD]
-    -- Now apply IH at `start := start + 1`. Note `(start + 1) + k = start + (k + 1)`.
-    have ih' := ih (start + 1) (acc ++ [s.val[start]!]) hacc' (by omega) (by omega)
-    have h_assoc : (start + 1) + k = start + (k + 1) := by omega
-    rw [h_assoc] at ih'
-    exact ih'
+      intro _
+      simp [CoreModels.rust_primitives.slice.array_from_fn_go]
+  | succ n ih =>
+      intro hn
+      have hn_lt : n < s.val.length := by omega
+      have hn_max : n ≤ Std.Usize.max := by omega
+      have hval : (⟨BitVec.ofNat Std.UScalarTy.Usize.numBits n⟩ : Std.Usize).val = n :=
+        bv_ofNat_usize_val_eq n hn_max
+      have hcall := try_from_closure_call_mut_eq (T := T) (N := N) cpy s
+                      ⟨BitVec.ofNat _ n⟩ (by rw [hval]; exact hn_lt)
+      rw [hval] at hcall
+      have htake : s.val.take n ++ [s.val[n]!] = s.val.take (n + 1) := by
+        rw [List.take_add_one]
+        simp [List.getElem?_eq_getElem hn_lt, List.getElem!_eq_getElem?_getD]
+      simp only [CoreModels.rust_primitives.slice.array_from_fn_go, ih (by omega),
+                 bind_tc_ok, hcall, htake]
 
 /-- `array_from_fn N (try_from closure) s = .ok (Array.make N s.val)`
     when `s.length = N.val`. -/
@@ -429,37 +490,16 @@ private theorem array_from_fn_try_from_eq_ok
       (CoreModels.core.convert.TryFromArrayShared0SliceTryFromSliceError.try_from.closure.Insts.CoreOpsFunctionFnMutTupleUsizeT
         (T := T) (N := N) cpy) s
     = .ok (Std.Array.make N s.val (by simp [hlen])) := by
-  -- Foldl invariant at start=0, k=N.val, acc=[].
-  have hN_max : s.val.length ≤ Std.Usize.max := by
-    have := s.property; exact this
-  have hN_max' : N.val ≤ Std.Usize.max := by
-    rw [← hlen]; exact hN_max
-  have h_fold :=
-    foldlM_try_from_closure_invariant (T := T) (N := N) cpy s hN_max
-      N.val 0 [] (by simp) (by omega) (by omega)
-  -- Normalize `0 + N.val = N.val` and reduce `take N.val s.val = s.val`.
-  simp only [Nat.zero_add] at h_fold
-  have h_take : s.val.take N.val = s.val :=
-    List.take_of_length_le (by omega)
-  rw [h_take] at h_fold
-  -- Match `range N.val` with `range' 0 N.val` (`range` is defined as `range' 0 _`).
-  have hrange : (List.range N.val) = List.range' 0 N.val := List.range_eq_range'
-  -- The `array_from_fn` definition is a `match` on the foldlM result.
-  -- We can't `rw [hrange]` (dependent motive); instead transfer h_fold to the
-  -- `List.range` form first, then unfold and split.
-  rw [← hrange] at h_fold
+  have hN_max : s.val.length ≤ Std.Usize.max := s.property
+  have h_go :=
+    array_from_fn_go_try_from_invariant (T := T) (N := N) cpy s hN_max N.val (by omega)
+  have h_take : s.val.take N.val = s.val := List.take_of_length_le (by omega)
+  rw [h_take] at h_go
   unfold CoreModels.rust_primitives.slice.array_from_fn
-  -- Now transport the foldlM equation through the `split`.
-  split
-  · rename_i e heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i result heq
-    rw [h_fold] at heq
-    have hres : result = (s.val, s) := (RustM.ok.inj heq).symm
-    subst hres
-    rfl
+  rw [h_go]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp [hlen] : (s.val).length = N.val)]
+  rfl
 
 /-- The main Triple: `try_from N cpy s` succeeds with `Ok (Array.make N s.val _)`,
     whenever `s.val.length = N.val`. -/

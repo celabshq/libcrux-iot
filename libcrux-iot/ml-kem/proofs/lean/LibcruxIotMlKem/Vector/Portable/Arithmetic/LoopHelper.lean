@@ -762,9 +762,14 @@ theorem slice_index_usize_ok_eq
   have h_bd' : i.val < v.length := by
     show i.val < v.val.length
     exact h_bd
-  have hT := Slice.index_usize_spec v i h_bd'
-  have h_ex := Aeneas.Std.WP.spec_imp_exists hT
-  obtain ⟨v', hveq, hPv'⟩ := h_ex
+  -- aeneas nightly-2026.08.24 made this a `partialSpec` and moved the bound out
+  -- of the hypotheses into the postcondition, so the bound is supplied when
+  -- ruling out the panic rather than up front.
+  have hT := Slice.index_usize_spec v i
+  have hT' := Aeneas.Std.WP.spec_of_partialSpec hT
+    (by intro e; cases e <;> simp_all) (by simp)
+  obtain ⟨v', hveq, hPv'⟩ := Aeneas.Std.WP.spec_imp_exists hT'
+  obtain ⟨_, hPv'⟩ := hPv'
   rw [hveq, hPv', getElem!_pos]
 
 /-! ### I/O loop body (canonical shape from Funs.lean) -/

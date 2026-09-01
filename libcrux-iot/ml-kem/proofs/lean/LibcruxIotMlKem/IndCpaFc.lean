@@ -154,9 +154,9 @@ private theorem byte_decode_dyn_12_arr (b : Slice Std.U8) (hb : b.val.length = 3
       = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   have hlen := slice_len_384 b hb
   have hl := slice_len_eq_384 b hb
+  -- (the `massert` prelude this `simp only` discharged is gone from the hax v0.4.0-rc.1
+  --  spec extraction; `unfold` now lands directly on the `match d.val` dispatch)
   unfold hacspec_ml_kem.serialize.byte_decode_dyn
-  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-    le_refl, if_true, Aeneas.Std.bind_tc_ok, hlen, e2]
   show (do
       let r ←
         CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
@@ -204,14 +204,10 @@ private theorem spec_vector_decode_12_eq (K : Std.Usize) (secret_key : Slice Std
       secret_key
       (fun k => (Spec.t_as_ntt_from_public_key_pure secret_key K).val[k]!)
       (fun k hk => vector_decode_12_closure_eq K secret_key h_sk k hk)
+  -- hax v0.4.0-rc.1 dropped the `len encoded` / `t_as_ntt_encoded_size` / `massert`
+  -- prelude, so `hlen_eq`, `hacspec_bpre` and `htot_eq` no longer take part here.
   unfold hacspec_ml_kem.serialize.vector_decode_12
-  rw [slice_len_gen secret_key]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [hacspec_bpre]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [htot_eq]
-  simp only [Aeneas.Std.bind_tc_ok, hlen_eq, Aeneas.Std.massert, if_true,
-    hacspec_ml_kem.parameters.createi, hfn]
+  simp only [hacspec_ml_kem.parameters.createi, hfn]
   congr 1
   apply Subtype.ext
   show (List.range K.val).map
@@ -271,7 +267,7 @@ private theorem dv_loop_fc (K : Std.Usize) (secret_key : Slice Std.U8)
     (h_out : out.length = K.val) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop
-      (vectortraitsOperationsInst := portable_ops_inst)
+      (vectortraitsOperationsInst := portable_ops_inst) K
       { start := 0#usize, «end» := K } secret_key out
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (dvInv secret_key K K.val p)).holds ⌝ ⦄ := by
   have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
@@ -326,7 +322,7 @@ private theorem dv_loop_fc (K : Std.Usize) (secret_key : Slice Std.U8)
       (v := .cont (({ start := s', «end» := K } : CoreModels.core.ops.range.Range Std.Usize),
                    Aeneas.Std.Slice.set acc i te)) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
-        portable_ops_inst secret_key
+        K portable_ops_inst secret_key
         ({ start := i, «end» := K } : CoreModels.core.ops.range.Range Std.Usize) acc = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
       rw [hnext]
@@ -386,7 +382,7 @@ private theorem dv_loop_fc (K : Std.Usize) (secret_key : Slice Std.U8)
   · -- i = K: the loop is done
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
-        portable_ops_inst secret_key
+        K portable_ops_inst secret_key
         ({ start := i, «end» := K } : CoreModels.core.ops.range.Range Std.Usize) acc = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
       rw [iter_none_gen i K (by omega)]
@@ -944,6 +940,9 @@ private def svInv (K : Std.Usize) (key : Std.Array SPoly K) (k : Nat)
   ∧ (∀ ℓ : Nat, ℓ < k * 384 → acc.1.val[ℓ]! = encBy (key.val[ℓ / 384]!) (ℓ % 384))
 
 set_option maxHeartbeats 4000000 in
+-- Elaborates deeper terms under the hax v0.4.0-rc.1 slice/array models than the default
+-- 512 frames allow (the dropped `massert` preludes used to split the `do` block up).
+set_option maxRecDepth 4000 in
 /-- The rank-K encode loop: after `K` iterations every byte `< 384K` is written. -/
 private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
     (h_bnd : ∀ i : Nat, i < K.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
@@ -952,7 +951,7 @@ private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
     (h_out : out.val.length = K.val * 384) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop
-      (vectortraitsOperationsInst := portable_ops_inst)
+      (vectortraitsOperationsInst := portable_ops_inst) K
       ({ iter := Aeneas.Std.Array.to_slice key, count := 0#usize } : EnumIter SPoly)
       out scratch
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (svInv K key K.val p)).holds ⌝ ⦄ := by
@@ -1011,7 +1010,7 @@ private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
     refine triple_of_ok_fc
       (v := .cont (({ iter := rest', count := cnt' } : EnumIter SPoly), (wb p.2, p.1))) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
-        portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
+        K portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
       rw [hnext]
       simp only [Aeneas.Std.bind_tc_ok]
@@ -1069,7 +1068,7 @@ private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
     have h_e : rest.val.length = 0 := by rw [hlen]; omega
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
-        portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
+        K portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
       rw [enum_iter_next_done rest cnt h_e]
       rfl
@@ -1153,7 +1152,7 @@ theorem serialize_vector_fc
     have hred : libcrux_iot_ml_kem.ind_cpa.serialize_vector
           (vectortraitsOperationsInst := portable_ops_inst) (K := K) key out scratch
         = libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop
-            (vectortraitsOperationsInst := portable_ops_inst)
+            (vectortraitsOperationsInst := portable_ops_inst) K
             ({ iter := Aeneas.Std.Array.to_slice key, count := 0#usize } : EnumIter SPoly)
             out scratch := rfl
     rw [hred]
@@ -1265,41 +1264,30 @@ private theorem slice_index_mut_rangefrom {T : Type} [Inhabited T]
       ∧ ns.val.length = s.val.length - a.val
       ∧ (∀ s' : Slice T, s'.val.length = s.val.length - a.val →
             (wb s').val = s.val.setSlice! a.val s'.val) := by
+  -- New model (hax v0.4.0-rc.1): `index_mut inst s i` is `inst.get_unchecked_mut i s`, and
+  -- the `RangeFrom` instance's `get_unchecked_mut` is
+  -- `rust_primitives.slice.slice_slice_mut s i.start (len s)`, whose write-back is a DIRECT
+  -- `setSlice!` closure. The old `HaxToRange.toRange` + `Slice.update_subslice` detour
+  -- (`hTR`/`hupd`) is gone, and the write-back equation now holds by construction.
   have hlen : (Aeneas.Std.Slice.len s).val = s.val.length := Aeneas.Std.Slice.len_val s
-  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
-    Std.WP.spec_imp_exists
-      (Aeneas.Std.Slice.subslice_spec s ⟨a, Aeneas.Std.Slice.len s⟩ (by scalar_tac) (by scalar_tac))
-  have hns_len : ns.val.length = s.val.length - a.val := by
-    rw [hns_val]
-    show (List.slice a.val (Aeneas.Std.Slice.len s).val s.val).length = s.val.length - a.val
-    rw [List.slice_length, hlen]; omega
-  have hTR : HaxToRange.toRange ({ start := a }
-        : CoreModels.core.ops.range.RangeFrom Std.Usize) (Aeneas.Std.Slice.len s)
-      = ({ start := a, «end» := Aeneas.Std.Slice.len s }
-          : Aeneas.Std.core.ops.range.Range Std.Usize) := rfl
-  refine ⟨ns, (fun sub' =>
-      match Aeneas.Std.Slice.update_subslice s
-          (HaxToRange.toRange
-            ({ start := a } : CoreModels.core.ops.range.RangeFrom Std.Usize)
-            (Aeneas.Std.Slice.len s)) sub' with
-      | .ok s'' => s''
-      | _ => s), ?_, hns_len, ?_⟩
+  have hsub : Aeneas.Std.Slice.subslice s ⟨a, Aeneas.Std.Slice.len s⟩
+      = .ok ⟨s.val.slice a.val (Aeneas.Std.Slice.len s).val, by
+          have := s.val.slice_length_le a.val (Aeneas.Std.Slice.len s).val; scalar_tac⟩ := by
+    unfold Aeneas.Std.Slice.subslice
+    rw [if_pos (show a.val ≤ (Aeneas.Std.Slice.len s).val
+        ∧ (Aeneas.Std.Slice.len s).val ≤ s.length from ⟨by scalar_tac, by scalar_tac⟩)]
+  refine ⟨⟨s.val.slice a.val (Aeneas.Std.Slice.len s).val, by
+            have := s.val.slice_length_le a.val (Aeneas.Std.Slice.len s).val; scalar_tac⟩,
+          (fun ss => ⟨s.val.setSlice! a.val ss.val, by scalar_tac⟩), ?_, ?_, ?_⟩
   · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
     simp only
-      [CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
+      [CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
        CoreModels.rust_primitives.slice.slice_length,
-       CoreModels.rust_primitives.slice.slice_slice, Aeneas.Std.bind_tc_ok, hns_eq]
+       CoreModels.rust_primitives.slice.slice_slice_mut, Aeneas.Std.bind_tc_ok, hsub]
+  · show (List.slice a.val (Aeneas.Std.Slice.len s).val s.val).length = s.val.length - a.val
+    rw [List.slice_length, hlen]; omega
+  · intro s' _
     rfl
-  · intro s' hs'
-    have hupd : Aeneas.Std.Slice.update_subslice s
-        (HaxToRange.toRange ({ start := a }
-            : CoreModels.core.ops.range.RangeFrom Std.Usize) (Aeneas.Std.Slice.len s)) s'
-        = .ok ⟨s.val.setSlice! a.val s'.val, by scalar_tac⟩ := by
-      rw [hTR]
-      unfold Aeneas.Std.Slice.update_subslice
-      rw [dif_pos ⟨by scalar_tac, by scalar_tac, by
-        simpa [Aeneas.Std.Slice.length, hlen] using hs'⟩]
-    simp only [hupd]
 
 /-! ### SPEC side — `serialize_public_key` IS `encBy` on `[0, 384K)` and `seed` after.
 
@@ -1485,10 +1473,11 @@ private theorem copy_from_slice_ok (dst src : Slice Std.U8)
     (h : dst.val.length = src.val.length) :
     CoreModels.core.slice.Slice.copy_from_slice CoreModels.core.U8.Insts.CoreMarkerCopy dst src
       = .ok src := by
-  unfold CoreModels.core.slice.Slice.copy_from_slice
-  rw [if_pos (show Aeneas.Std.Slice.len dst = Aeneas.Std.Slice.len src from
-    Aeneas.Std.UScalar.eq_of_val_eq (by
-      rw [Aeneas.Std.Slice.len_val dst, Aeneas.Std.Slice.len_val src]; exact h))]
+  -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`
+  -- (a `mapM clone` over the source); `Util.SliceSpecs` has the bridge that collapses it
+  -- for a `Copy` instance whose `clone` is the identity.
+  exact libcrux_iot_ml_kem.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+    _ dst src h (by intro x; rfl)
 
 /-- **The banked proof of INC-2a.3.** Identical to the locked statement of
     `serialize_public_key_mut_fc` except for `h_K_pos` and `h_K_bnd`, the two hypotheses
@@ -1657,7 +1646,7 @@ private theorem spkm_core
     exposed to the closed-large-scalar pitfall (skill §6) — that is the whole reason
     counterexample B is stated as a symbolic bound rather than at r1's witness `K`. -/
 private theorem usize_mul_overflow (x y : Std.Usize) (h : Std.Usize.max < x.val * y.val) :
-    (x * y : RustM Std.Usize) = .fail .integerOverflow := by
+    (x * y : RustM Std.Usize) = .fail .panic := by
   have h1 : ¬ (Aeneas.Std.UScalar.check_bounds .Usize (x.val * y.val)) := by
     simp only [Aeneas.Std.UScalar.check_bounds, decide_eq_true_eq, Nat.not_lt]
     have hm : Std.Usize.max = 2 ^ Aeneas.Std.UScalarTy.Usize.numBits - 1 := by
@@ -1673,7 +1662,7 @@ private theorem usize_mul_overflow (x y : Std.Usize) (h : Std.Usize.max < x.val 
     (`K * 3072`) and only then divides by 8, so it overflows 8× sooner than `K * 384 + 32`
     does. The dual of `ranked_bpre`, which is the same computation on the succeeding side. -/
 private theorem ranked_bpre_overflow (K : Std.Usize) (hK : Std.Usize.max < K.val * 3072) :
-    libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element K = .fail .integerOverflow := by
+    libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element K = .fail .panic := by
   unfold libcrux_iot_ml_kem.constants.ranked_bytes_per_ring_element
   rw [impl_bits]
   simp only [Aeneas.Std.bind_tc_ok]
@@ -1681,42 +1670,26 @@ private theorem ranked_bpre_overflow (K : Std.Usize) (hK : Std.Usize.max < K.val
     (by show Std.Usize.max < K.val * ((3072#usize : Std.Usize)).val; exact hK)]
   rfl
 
-/-- **Counterexample A's seam.** `&mut s[0 .. 0]`: `index_mut` reads through
-    `Slice.subslice`, whose *definition* (`aeneas/Std/Slice.lean:293`) requires
-    `start < end` and fails on the empty range. Note carefully that this is the DEFINITION,
-    reached by `unfold` — it is NOT `Util.SliceSpecs.Slice.subslice_le_eq`, the axiom that
-    asserts the opposite (see `spkm_locked_false`). -/
-private theorem idx_mut_empty_fail {T : Type} (s : Slice T) (i : Std.Usize) (hi : i.val = 0) :
-    CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-      (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T)
-      s { start := 0#usize, «end» := i } = .fail .panic := by
-  unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-    CoreModels.rust_primitives.slice.slice_slice]
-  have hsub : Aeneas.Std.Slice.subslice s ⟨0#usize, i⟩ = .fail .panic := by
-    unfold Aeneas.Std.Slice.subslice
-    rw [if_neg (by show ¬ (((0#usize : Std.Usize)).val < i.val ∧ _); rw [hi]; omega)]
-  rw [hsub]
-  rfl
+/-! #### Counterexample A is RETIRED (hax v0.4.0-rc.1 / aeneas nightly-2026.08.24).
 
-/-- **SPECREQ INC-2a.3-A, PROVED.** At `K = 0` the extracted `serialize_public_key_mut` fails
-    for EVERY `PUBLIC_KEY_SIZE`, every `serialized`, every `seed_for_a`, every `scratch`, at
-    every vector type — so no choice of the remaining arguments can rescue the Triple. -/
-private theorem spkm_fail_at_K0 {V : Type}
-    (inst : libcrux_iot_ml_kem.vector.traits.Operations V)
-    (PUBLIC_KEY_SIZE : Std.Usize)
-    (t_as_ntt : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement V) (0#usize))
-    (seed_for_a serialized : Slice Std.U8) (scratch : V) :
-    libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut (Vector := V) (K := 0#usize)
-        PUBLIC_KEY_SIZE inst t_as_ntt seed_for_a serialized scratch
-      = .fail .panic := by
-  obtain ⟨i, hi_eq, hi_val⟩ := ranked_bpre (0#usize : Std.Usize) (by scalar_tac)
-  have hi0 : i.val = 0 := by rw [hi_val]; scalar_tac
-  unfold libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
-  rw [hi_eq]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [idx_mut_empty_fail serialized i hi0]
-  rfl
+    A was `K = 0`: `ranked_bytes_per_ring_element 0 = 0`, so the extraction took
+    `&mut serialized[0 .. 0]`, and `Slice.subslice`'s definition required a STRICT
+    `start < end` and failed on the empty range. Aeneas now guards on `start ≤ end`
+    (`&xs[i..i]` is a valid empty slice in Rust, so this was the bug, not the feature), so
+    at `K = 0` the empty subslice SUCCEEDS and the whole chain goes through: the 0-element
+    `serialize_vector` writes nothing, and `copy_from_slice` gets a 32-byte destination for
+    the 32-byte seed. The two lemmas that carried A — `idx_mut_empty_fail` and
+    `spkm_fail_at_K0` — are therefore FALSE under the new model and are DELETED rather than
+    repaired: `K = 0` is no longer a counterexample to anything.
+
+    Consequence for the locked statement, stated precisely: `h_rank` is still NECESSARY, on
+    counterexample B alone (overflow at large `K`, below) — and that is what
+    `spkm_locked_false` is now proved from. What A used to be the evidence for, the LOWER
+    bound `0 < K`, no longer has a counterexample behind it in this file. That is a change in
+    the *evidence*, not in the statement: `h_rank` (`K ∈ {2,3,4}`) still implies `0 < K`, so
+    the locked statement is unchanged and still provable; it is only the claim "every dropped
+    hypothesis has a witness" that now rests on B for the upper bound and on nothing for the
+    lower one. -/
 
 /-- **SPECREQ INC-2a.3-B, PROVED** to the same depth as A: once `K * 3072 > Usize.max` the
     function fails for every choice of the remaining arguments. What is NOT mechanised is
@@ -1733,19 +1706,79 @@ private theorem spkm_fail_at_large_K {V : Type} {K : Std.Usize}
     (hK : Std.Usize.max < K.val * 3072) :
     libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut (Vector := V) (K := K)
         PUBLIC_KEY_SIZE inst t_as_ntt seed_for_a serialized scratch
-      = .fail .integerOverflow := by
+      = .fail .panic := by
   unfold libcrux_iot_ml_kem.ind_cpa.serialize_public_key_mut
   rw [ranked_bpre_overflow K hK]
   rfl
 
-/-! #### The witnesses for A. All four locked hypotheses hold at them. -/
+/-! #### The witnesses for B. All four locked hypotheses hold at them.
+
+    `K` is chosen SYMBOLICALLY in `Usize.max` rather than as a word-size literal:
+    `Kbig.val = Usize.max / 3072 + 1` is the least `K` that overflows the bit-count
+    multiply. Everything then follows from `4294967295 ≤ Usize.max` (which `scalar_tac`
+    has via `Usize.bounds_eq`) by `omega`, so no case split on `Usize.numBits` and no
+    20-digit literal appears anywhere — the earlier note that B's witness would need
+    those was about spelling `K` as a numeral. The headroom is real and not tight:
+    `Kbig.val * 3072 > Usize.max` while `Kbig.val * 384 + 32 ≈ Usize.max / 8`, because
+    `ranked_bytes_per_ring_element` multiplies at the BIT count and divides by 8 only
+    afterwards — exactly the 8× gap `ranked_bpre_overflow` records. -/
 
 private def w32 : Slice Std.U8 := ⟨List.replicate 32 (0#u8), by simp; scalar_tac⟩
-private def wT0 : Std.Array SPoly (0#usize) := ⟨[], by simp⟩
 private def wV : SVec := ⟨⟨List.replicate 16 (0#i16), by simp⟩⟩
+private def wP : SPoly := ⟨⟨List.replicate 16 wV, by simp⟩⟩
 
 private theorem w32_len : w32.length = 32 := by
   show (List.replicate 32 (0#u8)).length = 32
+  simp
+
+/-- `(List.replicate n x)[i]! = x` for `i < n`. Stated with `n` GENERIC on purpose: at a
+    literal `n` (16, say) `simp` expands the `replicate` into a 16-element literal list and
+    then cannot finish, so B's witnesses go through this instead. -/
+private theorem getElem!_replicate_lt {T : Type} [Inhabited T] (n i : Nat) (x : T)
+    (h : i < n) : (List.replicate n x)[i]! = x := by simp [h]
+
+private def Kbig : Std.Usize :=
+  Aeneas.Std.UScalar.ofNatCore (Aeneas.Std.Usize.max / 3072 + 1) (by scalar_tac)
+
+private theorem Kbig_val : Kbig.val = Aeneas.Std.Usize.max / 3072 + 1 :=
+  Aeneas.Std.Usize.ofNatCore_val_eq (by scalar_tac)
+
+private def PKbig : Std.Usize :=
+  Aeneas.Std.UScalar.ofNatCore ((Aeneas.Std.Usize.max / 3072 + 1) * 384 + 32) (by scalar_tac)
+
+private theorem PKbig_val : PKbig.val = (Aeneas.Std.Usize.max / 3072 + 1) * 384 + 32 :=
+  Aeneas.Std.Usize.ofNatCore_val_eq (by scalar_tac)
+
+/-- B's defining property: the bit-count multiply overflows at `Kbig`. -/
+private theorem Kbig_overflow : Aeneas.Std.Usize.max < Kbig.val * 3072 := by
+  rw [Kbig_val]; omega
+
+/-- Locked hypothesis 2 holds at `(Kbig, PKbig)`. -/
+private theorem PKbig_eq : PKbig.val = Kbig.val * 384 + 32 := by
+  rw [PKbig_val, Kbig_val]
+
+private def wbig : Slice Std.U8 :=
+  ⟨List.replicate PKbig.val (0#u8), by simp; scalar_tac⟩
+
+set_option maxRecDepth 4000 in
+/-- Locked hypothesis 3 holds at `(PKbig, wbig)`. -/
+private theorem wbig_len : wbig.length = PKbig.val := by
+  simp [wbig, Aeneas.Std.Slice.length]
+
+private def tbig : Std.Array SPoly Kbig := ⟨List.replicate Kbig.val wP, by simp⟩
+
+/-- Locked hypothesis 4 holds at `tbig`: every coefficient is `0`. -/
+private theorem tbig_bnd :
+    ∀ i : Nat, i < Kbig.val → ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+      (((tbig.val[i]!).coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328 := by
+  intro i hi chunk hchunk ℓ hℓ
+  have h1 : tbig.val[i]! = wP :=
+    getElem!_replicate_lt Kbig.val i wP hi
+  have h2 : (wP.coefficients.val)[chunk]! = wV :=
+    getElem!_replicate_lt 16 chunk wV hchunk
+  have h3 : (wV.elements.val)[ℓ]! = (0#i16 : Std.I16) :=
+    getElem!_replicate_lt 16 ℓ (0#i16 : Std.I16) hℓ
+  rw [h1, h2, h3]
   simp
 
 /-- **THE REFUTATION.** The PRE-2026-08-19 statement of `serialize_public_key_mut_fc` — the
@@ -1786,11 +1819,13 @@ private theorem spkm_locked_false :
                        ∧ ∀ ℓ : Nat, ℓ < PUBLIC_KEY_SIZE.val →
                              p.1.val[ℓ]! = enc.val[ℓ]! ⌝ ⦄) := by
   intro h
-  -- the witness: K = 0, PUBLIC_KEY_SIZE = 32, both slices 32 zero bytes, `h_bnd` vacuous
-  have hT := h (0#usize) (32#usize) wT0 w32 w32 wV w32_len (by scalar_tac)
-    (by rw [w32_len]; scalar_tac) (by intro i hi; exact absurd hi (by scalar_tac))
+  -- The witness is now B (A is retired — see the note above `spkm_fail_at_large_K`):
+  -- `K = Usize.max / 3072 + 1`, `PUBLIC_KEY_SIZE = K * 384 + 32`, `serialized` that many
+  -- zero bytes, `t_as_ntt` all-zero polynomials, seed 32 zero bytes. All four locked
+  -- hypotheses hold; the function overflows in `ranked_bytes_per_ring_element`.
+  have hT := h Kbig PKbig tbig w32 wbig wV w32_len PKbig_eq wbig_len tbig_bnd
   obtain ⟨v, hv, _⟩ := triple_exists_ok_fc hT
-  rw [spkm_fail_at_K0 portable_ops_inst (32#usize) wT0 w32 w32 wV] at hv
+  rw [spkm_fail_at_large_K portable_ops_inst PKbig tbig w32 wbig wV Kbig_overflow] at hv
   exact absurd hv (by simp)
 
 end SPKMBank
@@ -2155,35 +2190,23 @@ private theorem bei_10 (a : FePoly) (s : Slice Std.U8) (hs : s.val.length = 320)
       = (do let e ← hacspec_ml_kem.serialize.byte_encode (320#usize : Std.Usize)
                       (2560#usize : Std.Usize) a (10#usize : Std.Usize)
             RustM.ok (Aeneas.Std.Array.to_slice e)) := by
-  have hlen : CoreModels.core.slice.Slice.len s = .ok (320#usize : Std.Usize) := by
-    show RustM.ok (Aeneas.Std.Slice.len s) = _
-    congr 1
-    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-    rw [Aeneas.Std.Slice.len_val]
-    show s.val.length = _
-    rw [hs]; scalar_tac
+  -- hax v0.4.0-rc.1 dropped `byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
+  -- `massert (out.len = 32 * d)` prelude, so the length/bound stepping is unnecessary; and
+  -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`,
+  -- which the `Util.SliceSpecs` bridge collapses for an identity `clone`.
   unfold hacspec_ml_kem.serialize.byte_encode_into
-  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-    Aeneas.Std.bind_tc_ok, Aeneas.Std.lift, show ((10#usize : Std.Usize).val) = 10 from rfl]
-  rw [if_pos (show ((10#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [hlen]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [usize_mul_lit (32#usize : Std.Usize) (10#usize : Std.Usize) (320#usize : Std.Usize)
-    (by scalar_tac) (by scalar_tac)]
-  simp only [Aeneas.Std.bind_tc_ok, if_true]
+  simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+    show ((10#usize : Std.Usize).val) = 10 from rfl]
   cases hacspec_ml_kem.serialize.byte_encode (320#usize : Std.Usize)
       (2560#usize : Std.Usize) a (10#usize : Std.Usize) with
   | ok e =>
     simp only [Aeneas.Std.bind_tc_ok]
-    unfold CoreModels.core.slice.Slice.copy_from_slice
-    rw [if_pos (show Aeneas.Std.Slice.len s
-        = Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice e) from by
-      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-      rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val]
-      show s.val.length = e.val.length
-      rw [hs, show e.val.length = ((320#usize : Std.Usize)).val from by simp]
-      scalar_tac)]
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+      _ s (Aeneas.Std.Array.to_slice e)
+      (by show s.val.length = e.val.length
+          rw [hs, show e.val.length = ((320#usize : Std.Usize)).val from by simp]
+          scalar_tac)
+      (by intro x; rfl)
   | fail err => rfl
   | div => rfl
 
@@ -2192,35 +2215,23 @@ private theorem bei_11 (a : FePoly) (s : Slice Std.U8) (hs : s.val.length = 352)
       = (do let e ← hacspec_ml_kem.serialize.byte_encode (352#usize : Std.Usize)
                       (2816#usize : Std.Usize) a (11#usize : Std.Usize)
             RustM.ok (Aeneas.Std.Array.to_slice e)) := by
-  have hlen : CoreModels.core.slice.Slice.len s = .ok (352#usize : Std.Usize) := by
-    show RustM.ok (Aeneas.Std.Slice.len s) = _
-    congr 1
-    refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-    rw [Aeneas.Std.Slice.len_val]
-    show s.val.length = _
-    rw [hs]; scalar_tac
+  -- hax v0.4.0-rc.1 dropped `byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
+  -- `massert (out.len = 32 * d)` prelude, so the length/bound stepping is unnecessary; and
+  -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`,
+  -- which the `Util.SliceSpecs` bridge collapses for an identity `clone`.
   unfold hacspec_ml_kem.serialize.byte_encode_into
-  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-    Aeneas.Std.bind_tc_ok, Aeneas.Std.lift, show ((11#usize : Std.Usize).val) = 11 from rfl]
-  rw [if_pos (show ((11#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [hlen]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [usize_mul_lit (32#usize : Std.Usize) (11#usize : Std.Usize) (352#usize : Std.Usize)
-    (by scalar_tac) (by scalar_tac)]
-  simp only [Aeneas.Std.bind_tc_ok, if_true]
+  simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+    show ((11#usize : Std.Usize).val) = 11 from rfl]
   cases hacspec_ml_kem.serialize.byte_encode (352#usize : Std.Usize)
       (2816#usize : Std.Usize) a (11#usize : Std.Usize) with
   | ok e =>
     simp only [Aeneas.Std.bind_tc_ok]
-    unfold CoreModels.core.slice.Slice.copy_from_slice
-    rw [if_pos (show Aeneas.Std.Slice.len s
-        = Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice e) from by
-      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-      rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val]
-      show s.val.length = e.val.length
-      rw [hs, show e.val.length = ((352#usize : Std.Usize)).val from by simp]
-      scalar_tac)]
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+      _ s (Aeneas.Std.Array.to_slice e)
+      (by show s.val.length = e.val.length
+          rw [hs, show e.val.length = ((352#usize : Std.Usize)).val from by simp]
+          scalar_tac)
+      (by intro x; rfl)
   | fail err => rfl
   | div => rfl
 
@@ -2545,6 +2556,9 @@ private theorem enum_into_next_done (K : Std.Usize) (rest : Slice SPoly) (cnt : 
              ({ iter := rest, count := cnt } : EnumIntoIter K)) :=
   enum_iter_next_done rest cnt h
 
+-- Elaborates deeper terms under the hax v0.4.0-rc.1 slice/array models than the default
+-- 512 frames allow (the dropped `massert` preludes used to split the `do` block up).
+set_option maxRecDepth 4000 in
 /-- The rank-K compressed encode loop. -/
 private theorem ctsu_loop_fc (K C1_LEN du BL : Std.Usize) (input : Std.Array SPoly K)
     (hdu : du.val = 10 ∨ du.val = 11) (hbl : BL.val = 32 * du.val)
@@ -2921,13 +2935,17 @@ private def dduInv (ciphertext : Slice Std.U8) (du : Std.Usize) (cs K : Nat) (k 
 
 set_option maxHeartbeats 4000000 in
 /-- The rank-K fused loop: after `K` chunks the written prefix covers every index `< K`. -/
-private theorem ddu_loop_fc (K du csz : Std.Usize) (ciphertext : Slice Std.U8)
+private theorem ddu_loop_fc (K du csz : Std.Usize)
+    -- `deserialize_then_decompress_u_loop` gained leading explicit `K` and
+    -- `CIPHERTEXT_SIZE` parameters in hax v0.4.0-rc.1; `CIPHERTEXT_SIZE` is DEAD in
+    -- the body, so it is quantified here rather than pinned.
+    (CIPHERTEXT_SIZE : Std.Usize) (ciphertext : Slice Std.U8)
     (hdu : du.val = 10 ∨ du.val = 11) (hcs : csz.val = 32 * du.val)
     (h_ct : ciphertext.val.length = K.val * csz.val)
     (out : Slice SPoly) (scratch : SVec) (h_out : out.length = K.val) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop
-      (vectortraitsOperationsInst := portable_ops_inst) du
+      (vectortraitsOperationsInst := portable_ops_inst) K CIPHERTEXT_SIZE du
       ({ iter := { cs := csz, elements := ciphertext }, count := 0#usize } : EnumCE)
       out scratch
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (dduInv ciphertext du csz.val K.val K.val p)).holds ⌝ ⦄ := by
@@ -2996,7 +3014,7 @@ private theorem ddu_loop_fc (K du csz : Std.Usize) (ciphertext : Slice Std.U8)
       (v := .cont (({ iter := { cs := csz, elements := drop }, count := cnt' } : EnumCE),
                    (Aeneas.Std.Slice.set acc.1 cnt v1.1, v1.2))) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
-        du portable_ops_inst
+        K CIPHERTEXT_SIZE du portable_ops_inst
         ({ iter := { cs := csz, elements := rest }, count := cnt } : EnumCE) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
@@ -3061,7 +3079,7 @@ private theorem ddu_loop_fc (K du csz : Std.Usize) (ciphertext : Slice Std.U8)
     have hrest0 : rest.length = 0 := by rw [hrest, hkK]; simp
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
-        du portable_ops_inst
+        K CIPHERTEXT_SIZE du portable_ops_inst
         ({ iter := { cs := csz, elements := rest }, count := cnt } : EnumCE) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
@@ -3338,7 +3356,7 @@ theorem deserialize_then_decompress_u_fc
   -- The fused loop, then the two-`createi` spec bridge.
   obtain ⟨p, hp_eq, hp_holds⟩ :=
     triple_exists_ok_fc
-      (ddu_loop_fc K U_COMPRESSION_FACTOR csz ciphertext h_du hcsz_val h_ctK
+      (ddu_loop_fc K U_COMPRESSION_FACTOR csz _ ciphertext h_du hcsz_val h_ctK
         u_as_ntt scratch h_out_len)
   obtain ⟨hp_len, hp_cell, hp_bnd⟩ := (holds_ok _).mp hp_holds
   refine triple_of_ok_fc (v := p) ?_ ?_
@@ -3347,8 +3365,16 @@ theorem deserialize_then_decompress_u_fc
     simp only [Aeneas.Std.bind_tc_ok]
     rw [hdiv]
     simp only [Aeneas.Std.bind_tc_ok]
+    -- `chunks_exact` now guards on `cs != 0` (it panics on a zero chunk width), so this is
+    -- no longer `rfl`: the guard is discharged from `hcsz_val` and `h_du`.
     rw [show (CoreModels.core.slice.Slice.chunks_exact ciphertext csz)
-          = .ok { cs := csz, elements := ciphertext } from rfl]
+          = .ok { cs := csz, elements := ciphertext } from by
+      unfold CoreModels.core.slice.Slice.chunks_exact
+      rw [if_neg (show ¬ (csz = (0#usize : Std.Usize)) from by
+        intro hc
+        rw [hc] at hcsz_val
+        rcases h_du with h | h <;> simp at hcsz_val <;> omega)]
+      rfl]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show (CoreModels.core.iter.traits.iterator.Iterator.enumerate.default
           (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice
@@ -3811,21 +3837,14 @@ theorem decrypt_unpacked_fc
       unfold Aeneas.Std.massert
       rw [if_pos rfl]
     -- One `rw` per spec step; each callee's post supplies the `.ok`.
+    -- hax v0.4.0-rc.1 dropped the spec's whole 7-step ciphertext-length check
+    -- (`len ciphertext`, `RANK * COEFFICIENTS_IN_RING_ELEMENT`, `* du`, `COEFFICIENTS * dv`,
+    -- `+`, `/ 8`, `massert`), so `slice_len_gen`, `hcoef`/`hi1`..`hi5`, `hlen_ct` and
+    -- `hmassert` no longer step anything: `u_encoded_size` is now the first spec step.
     unfold hacspec_ml_kem.ind_cpa.decrypt_unpacked
-    rw [slice_len_gen]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hcoef, hi1]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [h_ucf, hi2]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [h_vcf, hi3]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hi4]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hi5]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hlen_ct, hmassert]
-    simp only [Aeneas.Std.bind_tc_ok]
+    -- the dropped prelude used to be where `params.du` / `params.dv` got normalised to
+    -- `U_COMPRESSION_FACTOR` / `V_COMPRESSION_FACTOR`; do it directly now.
+    rw [h_ucf, h_vcf]
     rw [hues]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [hc1_spec]
@@ -4039,29 +4058,13 @@ theorem decrypt_fc
     -- (d) the `to_slice_mut` round-trip, at lift level: SLICE post meets ARRAY consumer.
     rw [lift_vec_from_slice_eq A ps hps_len'] at hout_spec
     -- One `rw` per spec step; each callee's post supplies the `.ok`.
+    -- hax v0.4.0-rc.1 dropped BOTH of the spec's length checks: `decrypt`'s
+    -- `massert (dk.len = t_as_ntt_encoded_size)` prelude and `decrypt_unpacked`'s 7-step
+    -- ciphertext-length check. The spec is now literally
+    -- `deserialize_ring_elements_reduced RANK dk >>= decrypt_unpacked params · ciphertext`,
+    -- so `slice_len_gen`, `hacspec_bpre`, `hskb`, `hmassert_sk`, `hlen_ct`,
+    -- `hcoef`/`hi1`..`hi5` and `hmassert_ct` no longer step anything here.
     unfold hacspec_ml_kem.ind_cpa.decrypt
-    rw [slice_len_gen]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [SerializeFc.hacspec_bpre]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hskb]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hmassert_sk]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [slice_len_gen, hlen_ct]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hcoef, hi1]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [h_ucf, hi2]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [h_vcf, hi3]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hi4]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hi5]
-    simp only [Aeneas.Std.bind_tc_ok]
-    rw [hmassert_ct]
-    simp only [Aeneas.Std.bind_tc_ok]
     rw [hdrer, hps_spec]
     simp only [Aeneas.Std.bind_tc_ok]
     exact hout_spec

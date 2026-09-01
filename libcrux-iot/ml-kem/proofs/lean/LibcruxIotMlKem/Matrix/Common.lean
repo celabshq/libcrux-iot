@@ -327,8 +327,10 @@ theorem entry_eq_ok_fc_aux
     rw [h_len]; exact h_idx_lt_KK
   -- Now reduce the do-block step by step.
   unfold libcrux_iot_ml_kem.matrix.entry
-  -- Step 1: `core.slice.Slice.len matrix` = `.ok matrix.len`.
-  unfold core.slice.Slice.len
+  -- Step 1: `core.slice.Slice.len matrix` = `.ok matrix.len`. In hax v0.4.0-rc.1 this goes
+  -- through `rust_primitives.slice.slice_length` (an `ok`, not a `pure`), so that layer has
+  -- to be unfolded too and `pure`/`Pure.pure` are no longer part of the rewrite.
+  unfold core.slice.Slice.len CoreModels.rust_primitives.slice.slice_length
   -- Step 2: `K * K` = `.ok` of a Usize with val = K.val * K.val.
   obtain ⟨kk, h_kk_eq, h_kk_val⟩ := usize_mul_ok_eq_fc K K h_KK_max
   -- Step 3: `i * K` = `.ok` of a Usize with val = i.val * K.val.
@@ -348,7 +350,7 @@ theorem entry_eq_ok_fc_aux
       Aeneas.Std.Slice.index_usize matrix idx = .ok (matrix.val[idx.val]!) :=
     libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.slice_index_usize_ok_eq matrix idx h_idx_lt_matrix
   -- Rewrite the do-block.
-  simp only [pure, Pure.pure, Aeneas.Std.bind_tc_ok, h_kk_eq, h_ik_eq, h_idx_eq,
+  simp only [Aeneas.Std.bind_tc_ok, h_kk_eq, h_ik_eq, h_idx_eq,
              h_slice_idx, h_massert_len]
   -- Discharge massert (i = kk equality), massert (i < K), massert (j < K).
   unfold Aeneas.Std.massert

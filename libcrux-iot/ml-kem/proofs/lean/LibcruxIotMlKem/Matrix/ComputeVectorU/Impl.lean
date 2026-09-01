@@ -263,7 +263,10 @@ private theorem compute_vector_u_loop0_step_lemma_fc
     (hash_functionsHashInst : libcrux_iot_ml_kem.hash_functions.Hash Hasher)
     (matrix_entry0 : Row0FillFC.Poly)
     (seed : Slice Std.U8)
-    (r_as_ntt cache_init : Slice
+    -- `K`/`result` became parameters of the extracted `compute_vector_u` loop bodies
+    -- in hax v0.4.0-rc.1 and are DEAD there (neither appears in the computation);
+    -- `result` is quantified here so the spec matches the real call sites.
+    (r_as_ntt cache_init result : Slice
                   (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
     (r_arr : Std.Array
@@ -287,7 +290,8 @@ private theorem compute_vector_u_loop0_step_lemma_fc
                 k acc cache).holds) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
       { start := k, «end» := K } matrix_entry cache acc
     ⦃ ⇓ r => ⌜ Row0FillFC.row0_step_post (lift_matrix_from_seed seed K).val[0]! r_arr cache_init
                 acc_init k r ⌝ ⦄ := by
@@ -387,7 +391,8 @@ private theorem compute_vector_u_loop0_step_lemma_fc
     -- (7) Body equation.
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
           { start := k, «end» := K } matrix_entry cache acc
         = .ok (ControlFlow.cont (({ start := s_iter, «end» := K }
                         : CoreModels.core.ops.range.Range Std.Usize), me1, cache1, acc1)) := by
@@ -618,7 +623,8 @@ private theorem compute_vector_u_loop0_step_lemma_fc
     obtain ⟨v_iter, hv_iter_eq, hv_iter_post⟩ := triple_exists_ok_fc h_iter_none
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
           { start := k, «end» := K } matrix_entry cache acc
         = .ok (ControlFlow.done (matrix_entry, cache, acc)) := by
       unfold libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
@@ -713,7 +719,10 @@ private theorem compute_vector_u_loop0_step_lemma_fc
 theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
     (hash_functionsHashInst : libcrux_iot_ml_kem.hash_functions.Hash Hasher)
     (matrix_entry : Row0FillFC.Poly) (seed : Slice Std.U8)
-    (r_as_ntt cache : Slice (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    -- `K`/`result` became parameters of the extracted `compute_vector_u` loop bodies
+    -- in hax v0.4.0-rc.1 and are DEAD there (neither appears in the computation);
+    -- `result` is quantified here so the spec matches the real call sites.
+    (r_as_ntt cache result : Slice (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                               libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
     (r_arr : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
@@ -727,8 +736,8 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
     (h_acc_bnd : ∀ n : Fin 256, (accumulator.val[n.val]!).val.natAbs + K.val * 2^25 ≤ 2^30) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop0
-      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
-      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache accumulator
+      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
+      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache accumulator
     ⦃ ⇓ p => ⌜ (Row0FillFC.row0_inv (lift_matrix_from_seed seed K).val[0]! r_arr cache accumulator
                   K p.2.2 p.2.1).holds ⌝ ⦄ := by
   set lm0 : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
@@ -749,7 +758,8 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, p) =>
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
           iter1 p.1 p.2.1 p.2.2)
       (β := (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) ×
@@ -809,7 +819,7 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
       simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
     obtain ⟨hinv_row0, hinv_clen⟩ := hinv_pair
     have h_step := compute_vector_u_loop0_step_lemma_fc
-      hash_functionsHashInst matrix_entry seed r_as_ntt cache r_arr accumulator
+      hash_functionsHashInst matrix_entry seed r_as_ntt cache result r_arr accumulator
       h_seed_len h_r_len h_r_arr h_r_bnd h_acc_bnd p.1 p.2.2 p.2.1 k h_le hinv_clen
       (by rw [hlm0_def] at hinv_row0; exact hinv_row0)
     apply Std.Do.Triple.of_entails_right _ h_step
@@ -860,7 +870,10 @@ set_option maxHeartbeats 1600000 in
 theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
     (hash_functionsHashInst : libcrux_iot_ml_kem.hash_functions.Hash Hasher)
     (matrix_entry : Row0FillFC.Poly) (seed : Slice Std.U8)
-    (r_as_ntt cache : Slice (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    -- `K`/`result` became parameters of the extracted `compute_vector_u` loop bodies
+    -- in hax v0.4.0-rc.1 and are DEAD there (neither appears in the computation);
+    -- `result` is quantified here so the spec matches the real call sites.
+    (r_as_ntt cache result : Slice (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                               libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
     (r_arr : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
@@ -874,8 +887,8 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
     (h_acc_bnd : ∀ n : Fin 256, (accumulator.val[n.val]!).val.natAbs + K.val * 2^25 ≤ 2^30) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop0
-      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
-      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache accumulator
+      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
+      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache accumulator
     ⦃ ⇓ p => ⌜ p.2.1.length = K.val ⌝ ⦄ := by
   set lm0 : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
     (lift_matrix_from_seed seed K).val[0]! with hlm0_def
@@ -892,7 +905,8 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, p) =>
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
           iter1 p.1 p.2.1 p.2.2)
       (β := (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) ×
@@ -944,7 +958,7 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
       simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
     obtain ⟨hinv_row0, hinv_clen⟩ := hinv_pair
     have h_step := compute_vector_u_loop0_step_lemma_fc
-      hash_functionsHashInst matrix_entry seed r_as_ntt cache r_arr accumulator
+      hash_functionsHashInst matrix_entry seed r_as_ntt cache result r_arr accumulator
       h_seed_len h_r_len h_r_arr h_r_bnd h_acc_bnd p.1 p.2.2 p.2.1 k h_le hinv_clen
       (by rw [hlm0_def] at hinv_row0; exact hinv_row0)
     apply Std.Do.Triple.of_entails_right _ h_step
@@ -1230,7 +1244,10 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
     {K : Std.Usize} {Hasher : Type}
     (hash_functionsHashInst : libcrux_iot_ml_kem.hash_functions.Hash Hasher)
     (seed : Slice Std.U8)
-    (r_as_ntt cache : Slice
+    -- `K`/`result` became parameters of the extracted `compute_vector_u` loop bodies
+    -- in hax v0.4.0-rc.1 and are DEAD there (neither appears in the computation);
+    -- `result` is quantified here so the spec matches the real call sites.
+    (r_as_ntt cache result : Slice
                   (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                     libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
     (r_arr : Std.Array
@@ -1255,7 +1272,8 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
                 k acc).holds) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
       cache i { start := k, «end» := K } matrix_entry acc
     ⦃ ⇓ r => ⌜ RowIFillFC.row_i_step_post (lift_matrix_from_seed seed K).val[i.val]! r_arr
                 acc_init k r ⌝ ⦄ := by
@@ -1333,7 +1351,8 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
     -- (6) Body equation.
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
           cache i { start := k, «end» := K } matrix_entry acc
         = .ok (ControlFlow.cont (({ start := s_iter, «end» := K }
                         : CoreModels.core.ops.range.Range Std.Usize), me1, acc1)) := by
@@ -1532,7 +1551,8 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
     obtain ⟨v_iter, hv_iter_eq, hv_iter_post⟩ := triple_exists_ok_fc h_iter_none
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
           cache i { start := k, «end» := K } matrix_entry acc
         = .ok (ControlFlow.done (matrix_entry, acc)) := by
       unfold libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
@@ -1616,7 +1636,10 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
 theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
     (hash_functionsHashInst : libcrux_iot_ml_kem.hash_functions.Hash Hasher)
     (matrix_entry : RowIFillFC.Poly) (seed : Slice Std.U8)
-    (r_as_ntt cache : Slice (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
+    -- `K`/`result` became parameters of the extracted `compute_vector_u` loop bodies
+    -- in hax v0.4.0-rc.1 and are DEAD there (neither appears in the computation);
+    -- `result` is quantified here so the spec matches the real call sites.
+    (r_as_ntt cache result : Slice (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                               libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector))
     (r_arr : Std.Array (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) K)
@@ -1633,8 +1656,8 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
         accumulating_ntt_multiply_poly_cache_post (r_as_ntt.val[c]!) (cache.val[c]!)) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0
-      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
-      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache accumulator i
+      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
+      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache accumulator i
     ⦃ ⇓ p => ⌜ (RowIFillFC.row_i_inv (lift_matrix_from_seed seed K).val[i.val]! r_arr accumulator
                   K p.2).holds ⌝ ⦄ := by
   set lm_i : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
@@ -1653,7 +1676,8 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, p) =>
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
+          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
+          result
           cache i iter1 p.1 p.2)
       (β := (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) ×
@@ -1702,7 +1726,7 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
     have hinv_row : (RowIFillFC.row_i_inv lm_i r_arr accumulator k p.2).holds := by
       simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using hinv
     have h_step := compute_vector_u_loop1_loop0_step_lemma_fc
-      hash_functionsHashInst seed r_as_ntt cache r_arr accumulator i h_i
+      hash_functionsHashInst seed r_as_ntt cache result r_arr accumulator i h_i
       h_seed_len h_r_len h_r_arr h_r_bnd h_acc_bnd h_cache p.1 p.2 k h_le h_cache_len
       (by rw [hlm_i_def] at hinv_row; exact hinv_row)
     apply Std.Do.Triple.of_entails_right _ h_step
@@ -2081,7 +2105,7 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
     -- (3) Run the use-cache inner column loop at row k with the zeroed acc.
     have h_stage2 :=
       compute_vector_u_loop1_loop0_fc hash_functionsHashInst matrix_entry seed r_as_ntt cache
-        r_arr acc1 k h_lt h_seed_len h_r_len h_cache_len h_r_arr h_r_bnd h_acc1_bnd h_cache
+        result r_arr acc1 k h_lt h_seed_len h_r_len h_cache_len h_r_arr h_r_bnd h_acc1_bnd h_cache
     obtain ⟨me_acc, h_me_acc_eq, h_rowi⟩ := triple_exists_ok_fc h_stage2
     set me1 : AllRowsFillFC.Poly := me_acc.1 with h_me1_def
     set acc2 : AllRowsFillFC.Acc := me_acc.2 with h_acc2_def
@@ -2264,8 +2288,8 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
       show ((do
               let (matrix_entry1, accumulator2) ←
                 libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0
-                  (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
-                  { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache
+                  (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
+                  { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache
                   (Aeneas.Std.Array.repeat 256#usize i_zero) k
               let s ← Aeneas.Std.lift (Aeneas.Std.Array.to_slice accumulator2)
               let (pre, index_mut_back) ← Aeneas.Std.Slice.index_mut_usize result k

@@ -139,10 +139,6 @@ def serialize.serialize_uncompressed_ring_element_loop.body
   match o with
   | core.option.Option.None => ok (done (scratch, serialized))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (serialize.serialize_uncompressed_ring_element.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) serialized
     let t ← Array.index_usize re.coefficients i
     let scratch1 ←
       serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
@@ -234,10 +230,6 @@ def ind_cpa.serialize_vector_loop.body
   | core.option.Option.None => ok (done (out, scratch))
   | core.option.Option.Some p =>
     let (i, re) := p
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ind_cpa.serialize_vector.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K vectortraitsOperationsInst) out
     let i1 ← constants.BYTES_PER_RING_ELEMENT
     let i2 ← i * i1
     let i3 ← i + 1#usize
@@ -383,10 +375,6 @@ def serialize.compress_then_serialize_11_loop.body
   match o with
   | core.option.Option.None => ok (done (serialized, scratch))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (serialize.compress_then_serialize_11.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      BLOCK_LEN vectortraitsOperationsInst) serialized
     let t ← Array.index_usize re.coefficients i
     let scratch1 ←
       vector.traits.to_unsigned_representative vectortraitsOperationsInst t
@@ -479,10 +467,6 @@ def serialize.compress_then_serialize_10_loop.body
   match o with
   | core.option.Option.None => ok (done (serialized, scratch))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (serialize.compress_then_serialize_10.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      BLOCK_LEN vectortraitsOperationsInst) serialized
     let t ← Array.index_usize re.coefficients i
     let scratch1 ←
       serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
@@ -599,10 +583,6 @@ def ind_cpa.compress_then_serialize_u_loop.body
   | core.option.Option.None => ok (done (out, scratch))
   | core.option.Option.Some p =>
     let (i, re) := p
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ind_cpa.compress_then_serialize_u.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K C1_LEN U_COMPRESSION_FACTOR BLOCK_LEN vectortraitsOperationsInst) out
     let i1 ← C1_LEN / K
     let i2 ← i * i1
     let i3 ← i + 1#usize
@@ -696,10 +676,6 @@ def serialize.compress_then_serialize_5_loop.body
   match o with
   | core.option.Option.None => ok (done (serialized, scratch))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (serialize.compress_then_serialize_5.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) serialized
     let t ← Array.index_usize re.coefficients i
     let scratch1 ←
       vector.traits.to_unsigned_representative vectortraitsOperationsInst t
@@ -785,10 +761,6 @@ def serialize.compress_then_serialize_4_loop.body
   match o with
   | core.option.Option.None => ok (done (serialized, scratch))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (serialize.compress_then_serialize_4.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) serialized
     let t ← Array.index_usize re.coefficients i
     let scratch1 ←
       serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
@@ -1323,10 +1295,6 @@ def invert_ntt.invert_ntt_at_layer_4_plus_loop0_loop0.body
   match o with
   | core.option.Option.None => ok (done (re, scratch))
   | core.option.Option.Some j =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (invert_ntt.invert_ntt_at_layer_4_plus.closure_1.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) (zeta_i, layer, round)
     let i ← a_offset + j
     let i1 ← b_offset + j
     let i2 ← polynomial.zeta zeta_i
@@ -1371,10 +1339,6 @@ def invert_ntt.invert_ntt_at_layer_4_plus_loop0.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re, scratch))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (invert_ntt.invert_ntt_at_layer_4_plus.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) (zeta_i, layer)
     let zeta_i1 ← zeta_i - 1#usize
     let i ← round * 2#usize
     let a_offset ← i * step_vec
@@ -1457,10 +1421,6 @@ def invert_ntt.invert_ntt_at_layer_3_loop.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (invert_ntt.invert_ntt_at_layer_3.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) zeta_i
     let zeta_i1 ← zeta_i - 1#usize
     let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
     let i ← polynomial.zeta zeta_i1
@@ -1536,10 +1496,6 @@ def invert_ntt.invert_ntt_at_layer_2_loop.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (invert_ntt.invert_ntt_at_layer_2.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) zeta_i
     let zeta_i1 ← zeta_i - 1#usize
     let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
     let i ← polynomial.zeta zeta_i1
@@ -1617,10 +1573,6 @@ def invert_ntt.invert_ntt_at_layer_1_loop.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (invert_ntt.invert_ntt_at_layer_1.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) zeta_i
     let zeta_i1 ← zeta_i - 1#usize
     let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
     let i ← polynomial.zeta zeta_i1
@@ -2095,10 +2047,6 @@ def ntt.ntt_at_layer_4_plus_loop0_loop0.body
   match o with
   | core.option.Option.None => ok (done (re, scratch))
   | core.option.Option.Some j =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ntt.ntt_at_layer_4_plus.closure_1.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) (zeta_i, layer, round)
     let i ← a_offset + j
     let i1 ← b_offset + j
     let i2 ← polynomial.zeta zeta_i
@@ -2142,10 +2090,6 @@ def ntt.ntt_at_layer_4_plus_loop0.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re, scratch))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ntt.ntt_at_layer_4_plus.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) (zeta_i, layer)
     let zeta_i1 ← zeta_i + 1#usize
     let i ← round * 2#usize
     let a_offset ← i * step_vec
@@ -2226,10 +2170,6 @@ def ntt.ntt_at_layer_3_loop.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ntt.ntt_at_layer_3.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) zeta_i
     let zeta_i1 ← zeta_i + 1#usize
     let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
     let i ← polynomial.zeta zeta_i1
@@ -2304,10 +2244,6 @@ def ntt.ntt_at_layer_2_loop.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ntt.ntt_at_layer_2.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) zeta_i
     let zeta_i1 ← zeta_i + 1#usize
     let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
     let i ← polynomial.zeta zeta_i1
@@ -2384,10 +2320,6 @@ def ntt.ntt_at_layer_1_loop.body
   match o with
   | core.option.Option.None => ok (done (zeta_i, re))
   | core.option.Option.Some round =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ntt.ntt_at_layer_1.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) zeta_i
     let zeta_i1 ← zeta_i + 1#usize
     let (t, index_mut_back) ← Array.index_mut_usize re.coefficients round
     let i ← polynomial.zeta zeta_i1
@@ -2515,11 +2447,6 @@ def ind_cpa.deserialize_then_decompress_u_loop.body
   | core.option.Option.None => ok (done (u_as_ntt, scratch))
   | core.option.Option.Some p =>
     let (i, u_bytes) := p
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ind_cpa.deserialize_then_decompress_u.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K CIPHERTEXT_SIZE U_COMPRESSION_FACTOR vectortraitsOperationsInst)
-      u_as_ntt
     let (pre, index_mut_back) ← Slice.index_mut_usize u_as_ntt i
     let pre1 ←
       serialize.deserialize_then_decompress_ring_element_u U_COMPRESSION_FACTOR
@@ -2670,10 +2597,6 @@ def ind_cpa.deserialize_vector_loop.body
   match o with
   | core.option.Option.None => ok (done secret_as_ntt)
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (ind_cpa.deserialize_vector.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K vectortraitsOperationsInst) secret_as_ntt
     let i1 ← constants.BYTES_PER_RING_ELEMENT
     let i2 ← i * i1
     let i3 ← i + 1#usize
@@ -2898,10 +2821,6 @@ def serialize.compress_then_serialize_message_loop.body
   match o with
   | core.option.Option.None => ok (done (serialized, scratch))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (serialize.compress_then_serialize_message.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      vectortraitsOperationsInst) serialized
     let t ← Array.index_usize re.coefficients i
     let scratch1 ←
       serialize.to_unsigned_field_modulus vectortraitsOperationsInst t scratch
@@ -3650,10 +3569,6 @@ def matrix.compute_vector_u_loop0.body
   match o with
   | core.option.Option.None => ok (done (matrix_entry, cache, accumulator))
   | core.option.Option.Some j =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (matrix.compute_vector_u.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K vectortraitsOperationsInst hash_functionsHashInst) (result, cache)
     let matrix_entry1 ←
       matrix.sample_matrix_entry vectortraitsOperationsInst hash_functionsHashInst matrix_entry seed
         0#usize j
@@ -3710,10 +3625,6 @@ def matrix.compute_vector_u_loop1_loop0.body
   match o with
   | core.option.Option.None => ok (done (matrix_entry, accumulator))
   | core.option.Option.Some j =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (matrix.compute_vector_u.closure_2.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K vectortraitsOperationsInst hash_functionsHashInst) (result, cache)
     let matrix_entry1 ←
       matrix.sample_matrix_entry vectortraitsOperationsInst hash_functionsHashInst matrix_entry seed i
         j
@@ -3774,10 +3685,6 @@ def matrix.compute_vector_u_loop1.body
   | core.option.Option.None =>
     ok (done (matrix_entry, result, scratch, accumulator))
   | core.option.Option.Some i1 =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (matrix.compute_vector_u.closure_1.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K vectortraitsOperationsInst hash_functionsHashInst) (result, cache)
     let accumulator1 := Array.repeat 256#usize i
     let (matrix_entry1, accumulator2) ←
       matrix.compute_vector_u_loop1_loop0 K vectortraitsOperationsInst hash_functionsHashInst
@@ -4289,10 +4196,6 @@ def serialize.deserialize_ring_elements_reduced_loop.body
   | core.option.Option.None => ok (done deserialized_pk)
   | core.option.Option.Some p =>
     let (i, ring_element) := p
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (serialize.deserialize_ring_elements_reduced.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      K vectortraitsOperationsInst) deserialized_pk
     let (pre, index_mut_back) ← Slice.index_mut_usize deserialized_pk i
     let pre1 ←
       serialize.deserialize_to_reduced_ring_element vectortraitsOperationsInst
@@ -5508,10 +5411,6 @@ def vector.portable.sampling.rej_sample_loop.body
   match o with
   | core.option.Option.None => ok (done (sampled, out))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      vector.portable.sampling.rej_sample.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      (out, sampled)
     let i1 ← i * 3#usize
     let i2 ← i1 + 0#usize
     let i3 ← Slice.index_usize a i2

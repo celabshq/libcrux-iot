@@ -35,9 +35,6 @@ noncomputable section
 
 namespace CoreModels.core
 
-def num.I16.wrapping_neg (x : Std.I16) : RustM Std.I16 :=
-  rust_primitives.arithmetic.wrapping_sub_i16 (0#i16) x
-
 def cmRangeUsizeToAeneas (r : ops.range.Range Aeneas.Std.Usize) :
     Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize :=
   { start := r.start, «end» := r.«end» }

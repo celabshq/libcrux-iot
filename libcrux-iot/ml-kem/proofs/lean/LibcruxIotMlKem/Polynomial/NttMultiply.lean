@@ -1523,9 +1523,10 @@ theorem accumulating_ntt_multiply_binomials_fc
     omega
   -- Step: out1 = Slice.update out i1 new_e (= out.set i1 new_e).
   have h_upd_e : Aeneas.Std.Slice.update out i1 new_e = .ok (out.set i1 new_e) := by
-    have hT := Aeneas.Std.Slice.update_spec out i1 new_e (by rw [h_out_len, h_i1_val']; exact h_2i_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
+    -- `Slice.update_spec` is a `partialSpec` since aeneas nightly-2026.08.24; the closed
+    -- form lives in `Util.SliceSpecs` (not `open`ed this early in the file).
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.Slice.update_ok_eq out i1 new_e
+      (by rw [h_out_len, h_i1_val']; exact h_2i_lt)
   set out1 : Aeneas.Std.Slice Std.I32 := out.set i1 new_e with hout1_def
   -- The impl computes `i12 = i1 + 1#usize` again (extracted as identical
   -- to i2). After `simp only [h_i2_eq]` in the body composition, all four
@@ -1563,10 +1564,8 @@ theorem accumulating_ntt_multiply_binomials_fc
     have h_tri := Int.natAbs_add_le old_o.val ai_bj_aj_bi.val
     omega
   have h_upd_o : Aeneas.Std.Slice.update out1 i2 new_o = .ok (out1.set i2 new_o) := by
-    have hT := Aeneas.Std.Slice.update_spec out1 i2 new_o
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.Slice.update_ok_eq out1 i2 new_o
       (by rw [h_out1_len, h_i2_val']; exact h_2i1_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
   set out2 : Aeneas.Std.Slice Std.I32 := out1.set i2 new_o with hout2_def
   -- ===== Compose the monadic chain =====
   -- The four `i1 + 1#usize` invocations all yield i2 (same Lean expression).
@@ -4363,9 +4362,10 @@ theorem accumulating_ntt_multiply_binomials_fill_cache_fc
     have h_tri := Int.natAbs_add_le old_e.val ai_bi_aj_bj.val
     omega
   have h_upd_e : Aeneas.Std.Slice.update out i1 new_e = .ok (out.set i1 new_e) := by
-    have hT := Aeneas.Std.Slice.update_spec out i1 new_e (by rw [h_out_len, h_i1_val']; exact h_2i_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
+    -- `Slice.update_spec` is a `partialSpec` since aeneas nightly-2026.08.24; the closed
+    -- form lives in `Util.SliceSpecs` (not `open`ed this early in the file).
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.Slice.update_ok_eq out i1 new_e
+      (by rw [h_out_len, h_i1_val']; exact h_2i_lt)
   set out1 : Aeneas.Std.Slice Std.I32 := out.set i1 new_e with hout1_def
   have h_out1_len : out1.length = 16 := by simp [hout1_def]; exact h_out_len
   have h_out1_val_len : out1.val.length = 16 := h_out1_len
@@ -4398,10 +4398,8 @@ theorem accumulating_ntt_multiply_binomials_fill_cache_fc
     have h_tri := Int.natAbs_add_le old_o.val ai_bj_aj_bi.val
     omega
   have h_upd_o : Aeneas.Std.Slice.update out1 i2 new_o = .ok (out1.set i2 new_o) := by
-    have hT := Aeneas.Std.Slice.update_spec out1 i2 new_o
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.Slice.update_ok_eq out1 i2 new_o
       (by rw [h_out1_len, h_i2_val']; exact h_2i1_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
   set out2 : Aeneas.Std.Slice Std.I32 := out1.set i2 new_o with hout2_def
   -- ===== Compose the monadic body =====
   have h_body :
@@ -4805,9 +4803,10 @@ theorem accumulating_ntt_multiply_binomials_use_cache_fc
     have h_tri := Int.natAbs_add_le old_e.val ai_bi_aj_bj.val
     omega
   have h_upd_e : Aeneas.Std.Slice.update out i1 new_e = .ok (out.set i1 new_e) := by
-    have hT := Aeneas.Std.Slice.update_spec out i1 new_e (by rw [h_out_len, h_i1_val']; exact h_2i_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
+    -- `Slice.update_spec` is a `partialSpec` since aeneas nightly-2026.08.24; the closed
+    -- form lives in `Util.SliceSpecs` (not `open`ed this early in the file).
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.Slice.update_ok_eq out i1 new_e
+      (by rw [h_out_len, h_i1_val']; exact h_2i_lt)
   set out1 : Aeneas.Std.Slice Std.I32 := out.set i1 new_e with hout1_def
   have h_out1_len : out1.length = 16 := by simp [hout1_def]; exact h_out_len
   have h_out1_val_len : out1.val.length = 16 := h_out1_len
@@ -4840,10 +4839,8 @@ theorem accumulating_ntt_multiply_binomials_use_cache_fc
     have h_tri := Int.natAbs_add_le old_o.val ai_bj_aj_bi.val
     omega
   have h_upd_o : Aeneas.Std.Slice.update out1 i2 new_o = .ok (out1.set i2 new_o) := by
-    have hT := Aeneas.Std.Slice.update_spec out1 i2 new_o
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.Slice.update_ok_eq out1 i2 new_o
       (by rw [h_out1_len, h_i2_val']; exact h_2i1_lt)
-    obtain ⟨v', h_eq, h_v'⟩ := Aeneas.Std.WP.spec_imp_exists hT
-    rw [h_eq, h_v']
   set out2 : Aeneas.Std.Slice Std.I32 := out1.set i2 new_o with hout2_def
   -- ===== Compose monadic body =====
   have h_body :
@@ -9498,11 +9495,15 @@ theorem array_index_mut_range_ok_eq_fc
         (HaxToRange.toRange ({ start := r.start, «end» := r.end } :
           CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Array.to_slice a).len) sub' with
       | .ok x => x | _ => a), ?_, ?_, ?_, ?_⟩
-  · -- The index_mut equation: `.index` over the `RangeUsize` instance is `Slice.subslice`.
+  · -- The index_mut equation. hax v0.4.0-rc.1 routes the *mutable* borrow through
+    -- `get_unchecked_mut` → `rust_primitives.slice.slice_slice_mut` (whose first component
+    -- is `Slice.subslice`), NOT through the shared `.index` → `slice_slice`. The write-back
+    -- half is unchanged: still `Array.update_subslice` under a `HaxToRange.toRange`.
     unfold core.Array.Insts.CoreOpsIndexIndexMut.index_mut
            core.Slice.Insts.CoreOpsIndexIndexMut
-    simp only [core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-               rust_primitives.slice.slice_slice, hns_eq, bind_tc_ok]
+           core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
+    simp only [core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+               rust_primitives.slice.slice_slice_mut, hns_eq, bind_tc_ok]
     rfl
   · -- Sub-slice val.
     rw [hns_val, h_ts_val]

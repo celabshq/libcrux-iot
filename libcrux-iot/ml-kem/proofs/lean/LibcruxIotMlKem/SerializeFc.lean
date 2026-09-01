@@ -446,8 +446,12 @@ private theorem slice_index_range_strict {T : Type} [Inhabited T]
         ⟨a, b⟩ = .ok ns
       ∧ ns.val.length = b.val - a.val
       ∧ ∀ i : Nat, i < b.val - a.val → ns.val[i]! = s.val[a.val + i]! := by
-  obtain ⟨ns, hns_eq, hns_val, hns_get⟩ :=
-    Std.WP.spec_imp_exists (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩ h0 h1)
+  -- aeneas nightly-2026.08.24: now a `partialSpec`; the bounds moved out of the
+  -- arguments into the postcondition and the `panic` precondition.
+  obtain ⟨ns, hns_eq, hns_val, -, -, -, hns_get⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩)
+      (by intro e; cases e <;> simp_all <;> omega) (by simp))
   have hlen : ns.val.length = b.val - a.val := by
     rw [hns_val]
     show (List.slice a.val b.val s.val).length = b.val - a.val
@@ -782,8 +786,12 @@ private theorem u8_val_eq_one_iff (w : Std.U8) : (w = 1#u8) ↔ (w.val = 1) := b
 private theorem shr_and1_eq (x : Std.U8) (sh : Std.Usize) (hsh : sh.val < 8) :
     ∃ y : Std.U8, (x >>> sh) = .ok y
       ∧ decide ((y &&& 1#u8) = 1#u8) = natBit x.val sh.val := by
-  obtain ⟨y, hy_eq, hy_val, _⟩ :=
-    Std.WP.spec_imp_exists (Std.UScalar.ShiftRight_spec (ty0 := .U8) x sh (by simpa using hsh))
+  -- aeneas nightly-2026.08.24: now a `partialSpec`; the bounds moved out of the
+  -- arguments into the postcondition and the `panic` precondition.
+  obtain ⟨y, hy_eq, hy_val, _, _⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Std.UScalar.ShiftRight_spec (ty0 := .U8) x sh)
+      (by intro e; cases e <;> simp_all) (by simp))
   refine ⟨y, hy_eq, ?_⟩
   have hand : (y &&& 1#u8).val = y.val % 2 := by
     rw [Std.UScalar.val_and]
@@ -859,9 +867,10 @@ private theorem bytes_to_bits_get (a : Std.Array Std.U8 384#usize) :
           (hacspec_ml_kem.serialize.bytes_to_bits.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
             384#usize 3072#usize) a := by
     unfold hacspec_ml_kem.serialize.bytes_to_bits
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro m hm
@@ -1833,9 +1842,12 @@ private theorem enc_or_shift_eq_add {lo hi i : Nat} (h : lo < 2 ^ i) :
 private theorem u8_shl_iscalar (x : Std.U8) (t : Std.I32) (ht0 : 0 ≤ t.val) (ht : t.val < 8)
     (hx : x.val * 2 ^ t.toNat < 256) :
     ∃ z : Std.U8, (x <<< t : RustM Std.U8) = .ok z ∧ z.val = x.val * 2 ^ t.toNat := by
-  obtain ⟨z, hz, hv, _⟩ :=
-    Std.WP.spec_imp_exists (Std.UScalar.ShiftLeft_IScalar_spec (ty0 := .U8) x t
-      (Std.UScalar.size .U8) ht0 (by simpa using ht) rfl)
+  -- aeneas nightly-2026.08.24: now a `partialSpec`; the bounds moved out of the
+  -- arguments into the postcondition and the `panic` precondition.
+  obtain ⟨z, hz, hv, _, _⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Std.UScalar.ShiftLeft_IScalar_spec (ty0 := .U8) x t (Std.UScalar.size .U8) rfl)
+      (by intro e; cases e <;> simp_all <;> omega) (by simp))
   refine ⟨z, hz, ?_⟩
   have hsize : Std.UScalar.size .U8 = 256 := by
     rw [Std.UScalar.size_def]; norm_num [Std.UScalarTy.numBits]
@@ -1918,8 +1930,12 @@ private theorem u16_val_eq_one_iff (w : Std.U16) : (w = 1#u16) ↔ (w.val = 1) :
 private theorem u16_shr_and1_eq (x : Std.U16) (sh : Std.Usize) (hsh : sh.val < 16) :
     ∃ y : Std.U16, (x >>> sh) = .ok y
       ∧ decide ((y &&& 1#u16) = 1#u16) = natBit x.val sh.val := by
-  obtain ⟨y, hy_eq, hy_val, _⟩ :=
-    Std.WP.spec_imp_exists (Std.UScalar.ShiftRight_spec (ty0 := .U16) x sh (by simpa using hsh))
+  -- aeneas nightly-2026.08.24: now a `partialSpec`; the bounds moved out of the
+  -- arguments into the postcondition and the `panic` precondition.
+  obtain ⟨y, hy_eq, hy_val, _, _⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Std.UScalar.ShiftRight_spec (ty0 := .U16) x sh)
+      (by intro e; cases e <;> simp_all) (by simp))
   refine ⟨y, hy_eq, ?_⟩
   have hand : (y &&& 1#u16).val = y.val % 2 := by
     rw [Std.UScalar.val_and]
@@ -1995,9 +2011,10 @@ private theorem bvfb_3072_12_get
             (256#usize : Std.Usize) (3072#usize : Std.Usize))
           (p_raw, (12#usize : Std.Usize)) := by
     unfold hacspec_ml_kem.serialize.bitvector_from_bounded_ints
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro m hm
@@ -2167,9 +2184,10 @@ private theorem bits_to_bytes_384_get (bv : Std.Array Bool 3072#usize) :
           (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
             (384#usize : Std.Usize) (3072#usize : Std.Usize)) bv := by
     unfold hacspec_ml_kem.serialize.bits_to_bytes
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro n hn
@@ -2244,21 +2262,27 @@ theorem byte_encode_into_12_eq
     rw [ha_len]; scalar_tac
   have hslen : CoreModels.core.slice.Slice.len serialized
       = .ok (384#usize : Std.Usize) := by
-    simp only [CoreModels.core.slice.Slice.len, hraw]
-    rfl
+    -- `core.slice.Slice.len` now delegates to `rust_primitives.slice.slice_length`
+    simp only [CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length, hraw]
   have hmul : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : RustM Std.Usize)
       = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   -- dispatch: `d ≤ BITS_PER_COEFFICIENT` and `out.len = 32 * d` discharge, and
   -- `(12#usize).val = 12` selects the `d = 12` branch, which is M-B(1)
+  -- hax v0.4.0-rc.1 dropped `byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
+  -- `massert (out.len = 32 * d)` prelude, so `hslen`/`hmul` no longer take part here; only
+  -- the `d = 12` branch selection and `ha` remain.
   unfold hacspec_ml_kem.serialize.byte_encode_into
-  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-    le_refl, if_true, Aeneas.Std.bind_tc_ok, hslen, hmul, ha,
+  simp only [Aeneas.Std.bind_tc_ok, ha,
     show ((12#usize : Std.Usize).val) = 12 from rfl,
     Aeneas.Std.lift]
   -- `copy_from_slice` returns the source slice outright when the lengths agree
   refine ⟨Aeneas.Std.Array.to_slice a, ?_, ?_, ?_⟩
-  · unfold CoreModels.core.slice.Slice.copy_from_slice
-    rw [hraw, hraw_a, if_pos rfl]
+  · -- `copy_from_slice` now goes through `rust_primitives.slice.slice_clone_from_slice`,
+    -- i.e. a `mapM clone` over the source; `Util.SliceSpecs` already has the bridge that
+    -- collapses it for a `Copy` instance whose `clone` is the identity.
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+      _ serialized (Aeneas.Std.Array.to_slice a) (by rw [hlen, ha_len]) (by intro x; rfl)
   · exact ha_len
   · intro n hn
     rw [ha_val]
@@ -2563,10 +2587,12 @@ private theorem u8_shr_lit (x : Std.U8) (t : Std.I32) (k : Nat)
   have hkn : Std.IScalar.toNat t = k := by
     show t.val.toNat = k
     rw [htv]; exact Int.toNat_natCast k
-  obtain ⟨z, hz, hzv, _⟩ :=
-    Std.WP.spec_imp_exists
-      (Std.UScalar.ShiftRight_IScalar_spec (ty0 := .U8) x t h0
-        (by rw [htv]; exact_mod_cast hk))
+  -- aeneas nightly-2026.08.24: now a `partialSpec`; the bounds moved out of the
+  -- arguments into the postcondition and the `panic` precondition.
+  obtain ⟨z, hz, hzv, _, _⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Std.UScalar.ShiftRight_IScalar_spec (ty0 := .U8) x t)
+      (by intro e; cases e <;> simp_all <;> omega) (by simp))
   exact ⟨z, hz, by rw [hzv, hkn, Nat.shiftRight_eq_div_pow]⟩
 
 /-- The recipe's `or_shift_eq_add` in the orientation the impl writes it (high field
@@ -2855,26 +2881,41 @@ private theorem specreq_L53_slice_len_zero (sl : Slice Std.U8) (h : sl.val.lengt
     rw [Aeneas.Std.Slice.len_val]
     show sl.val.length = ((0#usize : Std.Usize)).val
     rw [h]; scalar_tac
-  simp only [CoreModels.core.slice.Slice.len, hlen]; rfl
+  simp only [CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length,
+    CoreModels.rust_primitives.slice.slice_length, hlen]
 
-/-- Spec side: `byte_decode_dyn` at `d = 4` asserts `len = 32 * 4 = 128`, so a
-    zero-length input makes the whole spec chain fail. -/
+/-- Spec side at `d = 4` on a zero-length input: the whole spec chain FAILS, so the
+    spec/impl divergence this SPECREQ records still stands — only the *seam* moved.
+
+    Until hax v0.4.0-rc.1 the seam was `byte_decode_dyn`'s `massert (len = 32 * d)`, and the
+    failure was `.assertionFailure`. That `massert` is gone from the extraction (all 74
+    spec-side `massert`s are), and `Error` itself lost the `assertionFailure` constructor —
+    it is now just `panic | undef`. The chain fails one step later instead: at `d = 4` the
+    dispatch does `try_from 128#usize serialized`, which returns `Result.Err ()` because
+    `serialized.len = 0 ≠ 128`, and `Result.unwrap` on an `Err` is
+    `core.panicking.internal.panic`, i.e. `.fail .panic`.
+
+    So the conclusion is now `.fail .panic`. Read together with
+    `specreq_L53_d4_empty_ok` (the impl SUCCEEDS on the same input), this is the same
+    completed divergence argument as before, and it is still what forces the length
+    hypothesis into the FC statement. -/
 private theorem specreq_L53_spec_fail_of_empty (serialized : Slice Std.U8)
     (h : serialized.val.length = 0) :
     hacspec_ml_kem.serialize.deserialize_then_decompress_v serialized 4#usize
-      = .fail .assertionFailure := by
-  obtain ⟨z, hz, hzv⟩ : ∃ z : Std.Usize,
-      ((32#usize : Std.Usize) * (4#usize : Std.Usize) : RustM Std.Usize) = .ok z
-        ∧ z.val = 128 := by
-    obtain ⟨z, hz, hv, _⟩ := Std.WP.spec_imp_exists (Std.UScalar.mul_bv_spec
-      (x := (32#usize : Std.Usize)) (y := (4#usize : Std.Usize)) (by scalar_tac))
-    exact ⟨z, hz, by rw [hv]; scalar_tac⟩
-  have hne : (0#usize : Std.Usize) ≠ z := by
-    intro hc; rw [← hc] at hzv; scalar_tac
+      = .fail .panic := by
+  have hne : ¬ (Aeneas.Std.Slice.len serialized = (128#usize : Std.Usize)) := by
+    intro hc
+    have hlen : serialized.val.length = 128 := by
+      have := congrArg Aeneas.Std.UScalar.val hc
+      rw [Aeneas.Std.Slice.len_val] at this; simpa using this
+    omega
   simp only [hacspec_ml_kem.serialize.deserialize_then_decompress_v,
-    hacspec_ml_kem.serialize.byte_decode_dyn]
-  simp [Aeneas.Std.massert, hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT,
-    specreq_L53_slice_len_zero serialized h, hz, hne]
+    hacspec_ml_kem.serialize.byte_decode_dyn,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from,
+    dif_neg hne, Aeneas.Std.bind_tc_ok, CoreModels.core.result.Result.unwrap]
+  rfl
 
 /-- Impl side at `d = 4` on a zero-length input: `chunks_exact 8` produces no
     chunk, so the loop returns `output` unchanged — the impl SUCCEEDS. -/
@@ -3147,9 +3188,12 @@ private theorem u16_add_ok (x y : Std.U16) (hb : x.val + y.val ≤ Std.U16.max) 
 private theorem u16_shl_one_ok (n : Std.Usize) (hn : n.val < 16) :
     ∃ z : Std.U16, ((1#u16 : Std.U16) <<< n : RustM Std.U16) = .ok z
       ∧ z.val = 2 ^ n.val := by
-  obtain ⟨z, hz, hv, _⟩ :=
-    Std.WP.spec_imp_exists (Std.UScalar.ShiftLeft_spec (ty0 := .U16) (1#u16) n
-      (Std.UScalar.size .U16) (by simpa using hn) rfl)
+  -- aeneas nightly-2026.08.24: now a `partialSpec`; the bounds moved out of the
+  -- arguments into the postcondition and the `panic` precondition.
+  obtain ⟨z, hz, hv, _, _⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Std.UScalar.ShiftLeft_spec (ty0 := .U16) (1#u16) n (Std.UScalar.size .U16) rfl)
+      (by intro e; cases e <;> simp_all) (by simp))
   refine ⟨z, hz, ?_⟩
   have h1 : ((1#u16 : Std.U16).val) = 1 := rfl
   have hsize : Std.UScalar.size .U16 = 65536 := by
@@ -3198,8 +3242,8 @@ theorem slice_len_eq_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
 
 theorem slice_len_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
     CoreModels.core.slice.Slice.len sl = .ok (384#usize : Std.Usize) := by
-  simp only [CoreModels.core.slice.Slice.len, slice_len_eq_384 sl h]
-  rfl
+  simp only [CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length, slice_len_eq_384 sl h]
 
 
 
@@ -3210,13 +3254,13 @@ theorem slice_len_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
     `bitSum` here. The residue never sees a bit-vector equality — `dec12` enters
     only at the apex, through `bitSum_sliceBit_eq_dec12`. -/
 
-private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.Usize)
+private theorem bvb_loop_fc {N Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.Usize)
     (hd : d.val ≤ 16)
     (hmul : j.val * d.val + d.val ≤ Std.Usize.max)
     (hbd : j.val * d.val + d.val ≤ Nd.val) :
     ⦃ ⌜ True ⌝ ⦄
     hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop
-      (Nd := Nd) { start := 0#usize, «end» := d } d a j 0#u16
+      (Nd := Nd) N { start := 0#usize, «end» := d } d a j 0#u16
     ⦃ ⇓ c => ⌜ c.val = bitSum (fun t => a.val[j.val * d.val + t]!) d.val ⌝ ⦄ := by
   have halen : a.val.length = Nd.val := a.property
   unfold
@@ -3225,7 +3269,7 @@ private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.
     (loop_range_spec_usize
       (fun (iter1, c1) =>
         hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-          (Nd := Nd) d a j iter1 c1)
+          (Nd := Nd) N d a j iter1 c1)
       (β := Std.U16) 0#u16 0#usize d
       (fun i c => .ok (c.val = bitSum (fun t => a.val[j.val * d.val + t]!) i.val))
       (by scalar_tac)
@@ -3256,7 +3300,7 @@ private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.
       -- machine-generated `call_mut_loop.body` (skill §4.1 pitfall).
       have hbody :
           hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-              (Nd := Nd) d a j ({ start := i, «end» := d } :
+              (Nd := Nd) N d a j ({ start := i, «end» := d } :
                 CoreModels.core.ops.range.Range Std.Usize) acc
             = (if a.val[q.val]! = true then do
                   let i4 ← (1#u16 : Std.U16) <<< i
@@ -3294,7 +3338,7 @@ private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.
                           CoreModels.core.ops.range.Range Std.Usize), c2)) ?_ ?_
         · show
             hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-              (Nd := Nd) d a j ({ start := i, «end» := d } :
+              (Nd := Nd) N d a j ({ start := i, «end» := d } :
                 CoreModels.core.ops.range.Range Std.Usize) acc = _
           rw [hbody]; simp only [hb, if_true]
           rw [hw]; simp only [Aeneas.Std.bind_tc_ok]
@@ -3311,7 +3355,7 @@ private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.
                           CoreModels.core.ops.range.Range Std.Usize), acc)) ?_ ?_
         · show
             hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-              (Nd := Nd) d a j ({ start := i, «end» := d } :
+              (Nd := Nd) N d a j ({ start := i, «end» := d } :
                 CoreModels.core.ops.range.Range Std.Usize) acc = _
           rw [hbody]; simp only [hbf, Bool.false_eq_true, if_false]
         · refine ⟨hlt, rfl, hs, (holds_ok _).mpr ?_⟩
@@ -3322,7 +3366,7 @@ private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.
       refine triple_of_ok_fc (v := .done acc) ?_ ?_
       · show
           hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-            (Nd := Nd) d a j ({ start := i, «end» := d } :
+            (Nd := Nd) N d a j ({ start := i, «end» := d } :
               CoreModels.core.ops.range.Range Std.Usize) acc = _
         unfold
           hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
@@ -3370,7 +3414,7 @@ private theorem bvb_closure_eq {N Nd : Std.Usize} (a : Std.Array Bool Nd)
   show (do
       let coefficient ←
         hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop
-          (Nd := Nd) { start := 0#usize, «end» := d } d a ⟨BitVec.ofNat _ k⟩ 0#u16
+          (Nd := Nd) N { start := 0#usize, «end» := d } d a ⟨BitVec.ofNat _ k⟩ 0#u16
       RustM.ok (coefficient, ((d, a) : Std.Usize × Std.Array Bool Nd))) = _
   rw [hz]; simp only [Aeneas.Std.bind_tc_ok, hzeq]; rfl
 
@@ -3406,9 +3450,10 @@ private theorem bvb_256_12_get (bv : Std.Array Bool 3072#usize) :
             256#usize 3072#usize)
           ((12#usize : Std.Usize), bv) := by
     unfold hacspec_ml_kem.serialize.bitvector_to_bounded_ints
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro k hk
@@ -3551,8 +3596,9 @@ private theorem byte_decode_dyn_12_eq (b : Slice Std.U8) (hb : b.val.length = 38
   have e2 : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : RustM Std.Usize)
       = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   unfold hacspec_ml_kem.serialize.byte_decode_dyn
-  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-    le_refl, if_true, Aeneas.Std.bind_tc_ok, hlen, e2]
+  -- (the `massert` prelude this `simp only` discharged is gone from the
+  -- hax v0.4.0-rc.1 spec extraction; `unfold` now lands directly on the
+  -- `match d.val` dispatch that the `show` below selects from)
   -- select the `d = 12` branch of the `match d.val with` dispatch
   show (do
       let r ←
@@ -3691,8 +3737,9 @@ theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 384#usize
   have haeq : a = (⟨b.val, by rw [hb]; scalar_tac⟩ : Std.Array Std.U8 384#usize) :=
     Subtype.ext hab
   unfold hacspec_ml_kem.serialize.byte_decode_dyn
-  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-    le_refl, if_true, Aeneas.Std.bind_tc_ok, hlen, e2]
+  -- (the `massert` prelude this `simp only` discharged is gone from the
+  -- hax v0.4.0-rc.1 spec extraction; `unfold` now lands directly on the
+  -- `match d.val` dispatch that the `show` below selects from)
   show (do
       let r ←
         CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
@@ -3828,15 +3875,12 @@ private theorem spec_deser_pk_eq (K : Std.Usize) (public_key : Slice Std.U8)
       public_key
       (fun k => (Spec.t_as_ntt_from_public_key_pure public_key K).val[k]!)
       (fun k hk => vector_decode_12_closure_eq K public_key h_pk k hk)
+  -- hax v0.4.0-rc.1 dropped the `len encoded` / `t_as_ntt_encoded_size` / `massert` prelude
+  -- from both spec functions, so `hlen_eq`, `hacspec_bpre` and `htot_eq` no longer take part:
+  -- what is left is the `createi` step alone.
   unfold hacspec_ml_kem.serialize.deserialize_ring_elements_reduced
     hacspec_ml_kem.serialize.vector_decode_12
-  rw [slice_len_gen public_key]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [hacspec_bpre]
-  simp only [Aeneas.Std.bind_tc_ok]
-  rw [htot_eq]
-  simp only [Aeneas.Std.bind_tc_ok, hlen_eq, Aeneas.Std.massert, eq_self_iff_true, if_true,
-    hacspec_ml_kem.parameters.createi, hfn]
+  simp only [hacspec_ml_kem.parameters.createi, hfn]
   -- the two `List.range K` maps agree pointwise
   congr 1
   apply Subtype.ext
@@ -3879,7 +3923,7 @@ private theorem deser_pk_loop_fc (K : Std.Usize) (public_key : Slice Std.U8)
     (h_out_len : deserialized_pk.length = K.val) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop
-      (vectortraitsOperationsInst := portable_ops_inst)
+      (vectortraitsOperationsInst := portable_ops_inst) K
       { iter := { cs := 384#usize, elements := public_key }, count := 0#usize } deserialized_pk
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (pkInv public_key K K.val p)).holds ⌝ ⦄ := by
   have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
@@ -3923,7 +3967,7 @@ private theorem deser_pk_loop_fc (K : Std.Usize) (public_key : Slice Std.U8)
       (v := .cont ({ iter := { cs := 384#usize, elements := drop }, count := cnt' },
                    Aeneas.Std.Slice.set acc cnt te1)) ?_ ?_
     · show libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
-        portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
+        K portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
       unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
             (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
@@ -3980,7 +4024,7 @@ private theorem deser_pk_loop_fc (K : Std.Usize) (public_key : Slice Std.U8)
     have hrest0 : rest.length = 0 := by rw [hrest, hkK]; simp
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
-        portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
+        K portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
       unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
             (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
@@ -4242,9 +4286,12 @@ private theorem u8_shr_ok (x : Std.U8) (s : Std.I32) (k : Nat)
   have hk : Std.IScalar.toNat s = k := by
     show s.val.toNat = k
     rw [hsv]; exact Int.toNat_natCast k
-  obtain ⟨z, hz, _hzv, hzbv⟩ :=
-    Std.WP.spec_imp_exists
-      (Std.UScalar.ShiftRight_IScalar_spec (ty0 := .U8) x s h0 (by rw [hsv]; simpa using h8))
+  -- aeneas nightly-2026.08.24: now a `partialSpec`; the bounds moved out of the
+  -- arguments into the postcondition and the `panic` precondition.
+  obtain ⟨z, hz, _hzv, hzbv, _⟩ :=
+    Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
+      (Std.UScalar.ShiftRight_IScalar_spec (ty0 := .U8) x s)
+      (by intro e; cases e <;> simp_all <;> omega) (by simp))
   rw [hz]
   congr 1
   refine uscalar_eq_of_bv ?_
@@ -4640,9 +4687,10 @@ private theorem bytes_to_bits_get_32 (a : Std.Array Std.U8 32#usize) :
           (hacspec_ml_kem.serialize.bytes_to_bits.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
             32#usize 256#usize) a := by
     unfold hacspec_ml_kem.serialize.bytes_to_bits
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro m hm
@@ -4682,9 +4730,10 @@ private theorem bvb_256_1_get (bv : Std.Array Bool 256#usize) :
             256#usize 256#usize)
           ((1#usize : Std.Usize), bv) := by
     unfold hacspec_ml_kem.serialize.bitvector_to_bounded_ints
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro k hk
@@ -4723,6 +4772,9 @@ private theorem byte_decode_generic_1_get (a : Std.Array Std.U8 32#usize) :
   · intro k hk
     rw [harrget k hk, hbvget k hk]
 
+-- The spec chain elaborates deeper terms under the hax v0.4.0-rc.1 slice/array models
+-- (the `massert` prelude used to break the `do` block into shallower pieces).
+set_option maxRecDepth 4000 in
 private theorem byte_decode_1_get (a : Std.Array Std.U8 32#usize) :
     ∃ arr : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize,
       hacspec_ml_kem.serialize.byte_decode (D32 := 32#usize) 256#usize a 1#usize = .ok arr
@@ -4747,8 +4799,8 @@ private theorem byte_decode_1_get (a : Std.Array Std.U8 32#usize) :
       rw [Aeneas.Std.Slice.len_val]
       show a.val.length = ((32#usize : Std.Usize)).val
       rw [halen]; scalar_tac
-    simp only [CoreModels.core.slice.Slice.len, this]
-    rfl
+    simp only [CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length, this]
   have hfn := libcrux_iot_ml_kem.Util.CreateI.from_fn_pure_eq
       (T := hacspec_ml_kem.parameters.FieldElement)
       (256#usize : Std.Usize)
@@ -4886,6 +4938,9 @@ private theorem lift_fe_of_toNat (lane : Std.I16) (n : Nat) (hn : n < 3329)
   rw [lift_fe_of_nat lane n (by rw [i16_val_of_toNat lane hlt, h]),
     Nat.mod_eq_of_lt hn]
 
+-- The spec chain elaborates deeper terms under the hax v0.4.0-rc.1 slice/array models
+-- (the `massert` prelude used to break the `do` block into shallower pieces).
+set_option maxRecDepth 4000 in
 /-- **The apex, spec side**: `byte_decode 256 · 1` followed by `Decompress_1`
     reproduces `lift_poly p` whenever `p`'s lanes hold `1665 ·` the message bit. -/
 private theorem message_spec_eq
@@ -6587,9 +6642,10 @@ private theorem bvfb_256_1_msg_get
             (256#usize : Std.Usize) (256#usize : Std.Usize))
           (p_raw, (1#usize : Std.Usize)) := by
     unfold hacspec_ml_kem.serialize.bitvector_from_bounded_ints
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro m hm
@@ -6764,9 +6820,10 @@ private theorem bits_to_bytes_32_get (bv : Std.Array Bool 256#usize) :
           (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
             (32#usize : Std.Usize) (256#usize : Std.Usize)) bv := by
     unfold hacspec_ml_kem.serialize.bits_to_bytes
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro n hn
@@ -7681,9 +7738,10 @@ private theorem bytes_to_bits_gen {N Nb : Std.Usize} (a : Std.Array Std.U8 N)
           (hacspec_ml_kem.serialize.bytes_to_bits.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
             N Nb) a := by
     unfold hacspec_ml_kem.serialize.bytes_to_bits
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro m hm
@@ -7723,9 +7781,10 @@ private theorem bvb_256_gen (d : Std.Usize) {Nd : Std.Usize} (bv : Std.Array Boo
             256#usize Nd)
           (d, bv) := by
     unfold hacspec_ml_kem.serialize.bitvector_to_bounded_ints
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro k hk
@@ -7864,8 +7923,9 @@ private theorem byte_decode_dyn_45_eq (b : Slice Std.U8) (dv : Std.Usize)
         (by scalar_tac) (by rw [h4]; norm_num) (by scalar_tac) (by scalar_tac)
     refine ⟨arr, ?_, harrget⟩
     unfold hacspec_ml_kem.serialize.byte_decode_dyn
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, if_true, Aeneas.Std.bind_tc_ok, slice_len_of b 128#usize hb128, e2]
+    -- (the `massert` prelude this `simp only` discharged is gone from the
+    -- hax v0.4.0-rc.1 spec extraction; `unfold` now lands directly on the
+    -- `match d.val` dispatch that the `show` below selects from)
     show (do
         let r ←
           CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
@@ -7896,8 +7956,9 @@ private theorem byte_decode_dyn_45_eq (b : Slice Std.U8) (dv : Std.Usize)
         (by scalar_tac) (by rw [h5]; norm_num) (by scalar_tac) (by scalar_tac)
     refine ⟨arr, ?_, harrget⟩
     unfold hacspec_ml_kem.serialize.byte_decode_dyn
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, if_true, Aeneas.Std.bind_tc_ok, slice_len_of b 160#usize hb160, e2]
+    -- (the `massert` prelude this `simp only` discharged is gone from the
+    -- hax v0.4.0-rc.1 spec extraction; `unfold` now lands directly on the
+    -- `match d.val` dispatch that the `show` below selects from)
     show (do
         let r ←
           CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
@@ -9320,9 +9381,10 @@ private theorem bvfb_get_gen
           (hacspec_ml_kem.serialize.bitvector_from_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
             (256#usize : Std.Usize) Nd) (p_raw, d) := by
     unfold hacspec_ml_kem.serialize.bitvector_from_bounded_ints
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro m hm
@@ -9351,9 +9413,10 @@ private theorem bits_to_bytes_get_gen (N N8 : Std.Usize) (hN8 : N8.val = N.val *
           (hacspec_ml_kem.serialize.bits_to_bytes.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
             N N8) bv := by
     unfold hacspec_ml_kem.serialize.bits_to_bytes
-    rw [hmul]
-    simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert,
-      hacspec_ml_kem.parameters.createi, if_true, Aeneas.Std.bind_tc_ok]
+    -- hax v0.4.0-rc.1 no longer emits the `let i ← N * 8#usize; massert (N8 = i)` prelude
+    -- (ALL 74 spec-side `massert`s are gone from the extraction), so the length check and
+    -- its `hmul` witness are no longer part of this equation.
+    simp only [hacspec_ml_kem.parameters.createi]
   rw [key, hfn]
   refine ⟨_, rfl, ?_⟩
   intro n hn
@@ -9437,13 +9500,11 @@ theorem byte_encode_into_45_eq
     have hlen_enc : (Aeneas.Std.Array.to_slice enc).val.length = 32 * dv.val := by
       show enc.val.length = _
       have := enc.property; rw [show enc.val.length = D32.val from by simpa using this, hD32]
-    have h1 : Aeneas.Std.Slice.len out = Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice enc) := by
-      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-      rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val]
-      show out.val.length = (Aeneas.Std.Array.to_slice enc).val.length
-      rw [h_len, hlen_enc]
-    unfold CoreModels.core.slice.Slice.copy_from_slice
-    rw [h1, if_pos rfl]
+    -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`
+    -- (a `mapM clone` over the source); the `Util.SliceSpecs` bridge collapses it for a
+    -- `Copy` instance whose `clone` is the identity, and needs the raw length equality.
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+      _ out (Aeneas.Std.Array.to_slice enc) (by rw [h_len, hlen_enc]) (by intro x; rfl)
   rcases hdv with h4 | h5
   · have hdveq : dv = 4#usize := Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac)
     subst hdveq
@@ -9455,19 +9516,9 @@ theorem byte_encode_into_45_eq
       simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
         Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
         show ((4#usize : Std.Usize).val) = 4 from rfl, henc]
-      rw [if_pos (show ((4#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [show CoreModels.core.slice.Slice.len out = .ok (128#usize : Std.Usize) from by
-        show RustM.ok (Aeneas.Std.Slice.len out) = _
-        congr 1
-        refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-        rw [Aeneas.Std.Slice.len_val]
-        show out.val.length = _
-        rw [h_len]; scalar_tac]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [usize_mul_lit (32#usize : Std.Usize) (4#usize : Std.Usize) (128#usize : Std.Usize)
-        (by scalar_tac) (by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok, eq_self_iff_true, if_true, henc, Aeneas.Std.lift]
+      -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
+      --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
+      --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (128#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
@@ -9486,19 +9537,9 @@ theorem byte_encode_into_45_eq
       simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
         Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
         show ((5#usize : Std.Usize).val) = 5 from rfl, henc]
-      rw [if_pos (show ((5#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [show CoreModels.core.slice.Slice.len out = .ok (160#usize : Std.Usize) from by
-        show RustM.ok (Aeneas.Std.Slice.len out) = _
-        congr 1
-        refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-        rw [Aeneas.Std.Slice.len_val]
-        show out.val.length = _
-        rw [h_len]; scalar_tac]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [usize_mul_lit (32#usize : Std.Usize) (5#usize : Std.Usize) (160#usize : Std.Usize)
-        (by scalar_tac) (by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok, eq_self_iff_true, if_true, henc, Aeneas.Std.lift]
+      -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
+      --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
+      --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (160#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
@@ -10763,8 +10804,9 @@ private theorem byte_decode_dyn_1011_eq (b : Slice Std.U8) (du : Std.Usize)
         (by scalar_tac) (by rw [h10]; norm_num) (by scalar_tac) (by scalar_tac)
     refine ⟨arr, ?_, harrget⟩
     unfold hacspec_ml_kem.serialize.byte_decode_dyn
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, if_true, Aeneas.Std.bind_tc_ok, slice_len_of b 320#usize hb320, e2]
+    -- (the `massert` prelude this `simp only` discharged is gone from the
+    -- hax v0.4.0-rc.1 spec extraction; `unfold` now lands directly on the
+    -- `match d.val` dispatch that the `show` below selects from)
     show (do
         let r ←
           CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
@@ -10795,8 +10837,9 @@ private theorem byte_decode_dyn_1011_eq (b : Slice Std.U8) (du : Std.Usize)
         (by scalar_tac) (by rw [h11]; norm_num) (by scalar_tac) (by scalar_tac)
     refine ⟨arr, ?_, harrget⟩
     unfold hacspec_ml_kem.serialize.byte_decode_dyn
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, if_true, Aeneas.Std.bind_tc_ok, slice_len_of b 352#usize hb352, e2]
+    -- (the `massert` prelude this `simp only` discharged is gone from the
+    -- hax v0.4.0-rc.1 spec extraction; `unfold` now lands directly on the
+    -- `match d.val` dispatch that the `show` below selects from)
     show (do
         let r ←
           CoreModels.core.SharedAArray.Insts.CoreConvertTryFromSharedASliceTryFromSliceError.try_from
@@ -11847,17 +11890,21 @@ private theorem Le_loop_10_fc
     (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
       ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
     (serialized : Slice Std.U8) (h_len : serialized.val.length = 320)
-    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    -- hax v0.4.0-rc.1 gave the extracted loop a leading explicit `BLOCK_LEN` that is
+    -- DEAD in its body; quantified here so the spec matches the real call sites.
+    (BLOCK_LEN : Std.Usize) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop
-      (vectortraitsOperationsInst := portable_ops_inst)
+      (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN
       { start := 0#usize, «end» := 16#usize } re serialized scratch
     ⦃ ⇓ p => ⌜ (cInv re 10 320 16#usize p).holds ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop
   refine libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
     (fun (iter1, serialized1, scratch1) =>
       libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
-        (vectortraitsOperationsInst := portable_ops_inst) re iter1 serialized1 scratch1)
+        (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re iter1 serialized1
+          scratch1)
     (serialized, scratch) 0#usize 16#usize (cInv re 10 320) (by scalar_tac) ?_ ?_
   · show (pure _ : RustM Prop).holds
     simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
@@ -11913,7 +11960,7 @@ private theorem Le_loop_10_fc
         (v := .cont (({ start := s, «end» := 16#usize }
                 : CoreModels.core.ops.range.Range Std.Usize), (wb sres, sc2))) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) re
+          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -11973,7 +12020,7 @@ private theorem Le_loop_10_fc
       refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
         (v := .done acc) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) re
+          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -12015,7 +12062,7 @@ private theorem Le_impl_10_fc (BLOCK_LEN : Std.Usize)
   rw [hlen]
   simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
   rw [vectors_in_ring_element_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  exact Le_loop_10_fc re hbnd serialized h_len scratch
+  exact Le_loop_10_fc re hbnd serialized h_len scratch _
 
 
 set_option maxHeartbeats 4000000 in
@@ -12030,17 +12077,21 @@ private theorem Le_loop_11_fc
     (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
       ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
     (serialized : Slice Std.U8) (h_len : serialized.val.length = 352)
-    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
+    -- hax v0.4.0-rc.1 gave the extracted loop a leading explicit `BLOCK_LEN` that is
+    -- DEAD in its body; quantified here so the spec matches the real call sites.
+    (BLOCK_LEN : Std.Usize) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop
-      (vectortraitsOperationsInst := portable_ops_inst)
+      (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN
       { start := 0#usize, «end» := 16#usize } re serialized scratch
     ⦃ ⇓ p => ⌜ (cInv re 11 352 16#usize p).holds ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop
   refine libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
     (fun (iter1, serialized1, scratch1) =>
       libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
-        (vectortraitsOperationsInst := portable_ops_inst) re iter1 serialized1 scratch1)
+        (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re iter1 serialized1
+          scratch1)
     (serialized, scratch) 0#usize 16#usize (cInv re 11 352) (by scalar_tac) ?_ ?_
   · show (pure _ : RustM Prop).holds
     simp only [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp]
@@ -12096,7 +12147,7 @@ private theorem Le_loop_11_fc
         (v := .cont (({ start := s, «end» := 16#usize }
                 : CoreModels.core.ops.range.Range Std.Usize), (wb sres, sc2))) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) re
+          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -12157,7 +12208,7 @@ private theorem Le_loop_11_fc
       refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
         (v := .done acc) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) re
+          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -12199,7 +12250,7 @@ private theorem Le_impl_11_fc (BLOCK_LEN : Std.Usize)
   rw [hlen]
   simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
   rw [vectors_in_ring_element_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  exact Le_loop_11_fc re hbnd serialized h_len scratch
+  exact Le_loop_11_fc re hbnd serialized h_len scratch _
 
 /-! ### SPEC side. `byte_encode_gen_eq` is already generic in `d ∈ [4, 12]`, so the only
     new statement is the `byte_encode_into` slice wrapper at the two new widths — the
@@ -12225,14 +12276,11 @@ private theorem byte_encode_into_1011_eq
     have hlen_enc : (Aeneas.Std.Array.to_slice enc).val.length = 32 * du.val := by
       show enc.val.length = _
       have := enc.property; rw [show enc.val.length = D32.val from by simpa using this, hD32]
-    have h1 : Aeneas.Std.Slice.len out
-        = Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice enc) := by
-      refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-      rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val]
-      show out.val.length = (Aeneas.Std.Array.to_slice enc).val.length
-      rw [h_len, hlen_enc]
-    unfold CoreModels.core.slice.Slice.copy_from_slice
-    rw [h1, if_pos rfl]
+    -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`
+    -- (a `mapM clone` over the source); the `Util.SliceSpecs` bridge collapses it for a
+    -- `Copy` instance whose `clone` is the identity, and needs the raw length equality.
+    exact libcrux_iot_ml_kem.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+      _ out (Aeneas.Std.Array.to_slice enc) (by rw [h_len, hlen_enc]) (by intro x; rfl)
   rcases hdu with h10 | h11
   · have hdueq : du = 10#usize := Aeneas.Std.UScalar.eq_of_val_eq (by scalar_tac)
     subst hdueq
@@ -12244,19 +12292,9 @@ private theorem byte_encode_into_1011_eq
       simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
         Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
         show ((10#usize : Std.Usize).val) = 10 from rfl, henc]
-      rw [if_pos (show ((10#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [show CoreModels.core.slice.Slice.len out = .ok (320#usize : Std.Usize) from by
-        show RustM.ok (Aeneas.Std.Slice.len out) = _
-        congr 1
-        refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-        rw [Aeneas.Std.Slice.len_val]
-        show out.val.length = _
-        rw [h_len]; scalar_tac]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [usize_mul_lit (32#usize : Std.Usize) (10#usize : Std.Usize) (320#usize : Std.Usize)
-        (by scalar_tac) (by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok, eq_self_iff_true, if_true, henc, Aeneas.Std.lift]
+      -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
+      --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
+      --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (320#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
@@ -12275,19 +12313,9 @@ private theorem byte_encode_into_1011_eq
       simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
         Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
         show ((11#usize : Std.Usize).val) = 11 from rfl, henc]
-      rw [if_pos (show ((11#usize : Std.Usize) ≤ (12#usize : Std.Usize)) from by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [show CoreModels.core.slice.Slice.len out = .ok (352#usize : Std.Usize) from by
-        show RustM.ok (Aeneas.Std.Slice.len out) = _
-        congr 1
-        refine Aeneas.Std.UScalar.eq_of_val_eq ?_
-        rw [Aeneas.Std.Slice.len_val]
-        show out.val.length = _
-        rw [h_len]; scalar_tac]
-      simp only [Aeneas.Std.bind_tc_ok]
-      rw [usize_mul_lit (32#usize : Std.Usize) (11#usize : Std.Usize) (352#usize : Std.Usize)
-        (by scalar_tac) (by scalar_tac)]
-      simp only [Aeneas.Std.bind_tc_ok, eq_self_iff_true, if_true, henc, Aeneas.Std.lift]
+      -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
+      --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
+      --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (352#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
