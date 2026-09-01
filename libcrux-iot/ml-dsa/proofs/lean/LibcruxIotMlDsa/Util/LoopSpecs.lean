@@ -79,34 +79,25 @@ theorem array_from_fn_eq_unfold5
     (h4 : inst.call_mut f4 4#usize = .ok (v4, f5)) :
     rust_primitives.slice.array_from_fn 5#usize inst f0 =
       .ok (Std.Array.make 5#usize [v0, v1, v2, v3, v4]) := by
-  have h_fold :
-      List.foldlM
-        (fun (s : List T × F) (i : Nat) => do
-          let __discr ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-          match __discr with
-          | (v, f') => RustM.ok (s.1 ++ [v], f'))
-        ([], f0) (List.range (5#usize).val)
-      = .ok ([v0, v1, v2, v3, v4], f5) := by
-    show List.foldlM _ ([], f0) (List.range 5) = _
-    rw [show (List.range 5) = [0, 1, 2, 3, 4] from by decide]
-    simp only [List.foldlM_cons, List.foldlM_nil,
+  -- CoreModels v0.3.12 implements `array_from_fn` as a structural recursion
+  -- (`array_from_fn_go`) plus a length-guarded `if`, where it used to be a
+  -- `List.foldlM`; the characterization below is phrased over the new shape.
+  have h_go :
+      rust_primitives.slice.array_from_fn_go inst f0 (5#usize).val
+        = .ok ([v0, v1, v2, v3, v4], f5) := by
+    show rust_primitives.slice.array_from_fn_go inst f0 5 = _
+    simp only [rust_primitives.slice.array_from_fn_go,
                bv_ofNat_eq_usize_lit_0, bv_ofNat_eq_usize_lit_1,
                bv_ofNat_eq_usize_lit_2, bv_ofNat_eq_usize_lit_3,
                bv_ofNat_eq_usize_lit_4, h0, h1, h2, h3, h4, bind_tc_ok]
-    rfl
+    -- `array_from_fn_go` accumulates with `++`, so the list arrives as
+    -- `[] ++ [v0] ++ .. ++ [v4]`.
+    simp
   unfold rust_primitives.slice.array_from_fn
-  split
-  · rename_i e heq_match
-    rw [h_fold] at heq_match
-    exact absurd heq_match (by simp)
-  · rename_i heq_match
-    rw [h_fold] at heq_match
-    exact absurd heq_match (by simp)
-  · rename_i result heq_match
-    rw [h_fold] at heq_match
-    have hres : result = ([v0, v1, v2, v3, v4], f5) := (RustM.ok.inj heq_match).symm
-    subst hres
-    rfl
+  rw [h_go]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp : ([v0, v1, v2, v3, v4] : List T).length = (5#usize).val)]
+  rfl
 
 /-! ## `Usize` iterator-next spec
 
@@ -143,7 +134,11 @@ theorem IteratorRange_next_spec_usize (i e : Std.Usize) {Q}
           CoreModels.core.Usize.Insts.CoreIterRangeStep { start := i, «end» := e }
         = .ok (CoreModels.core.option.Option.Some i,
                { start := ⟨i.bv + 1#System.Platform.numBits⟩, «end» := e }) := by
+      -- `iter.range.IteratorRange.next` is only an `abbrev` for
+      -- `CoreModels.core.IteratorRange.next` as of CoreModels v0.3.12, so
+      -- unfolding the alias alone leaves the body untouched.
       unfold CoreModels.core.iter.range.IteratorRange.next
+             CoreModels.core.IteratorRange.next
       simp only [                 CoreModels.core.Usize.Insts.CoreCmpPartialOrdUsize,
                  CoreModels.core.mkUPartialOrd,
                                   CoreModels.core.Usize.Insts.CoreCloneClone.clone,
@@ -173,7 +168,11 @@ theorem IteratorRange_next_spec_usize (i e : Std.Usize) {Q}
         CoreModels.core.iter.range.IteratorRange.next
           CoreModels.core.Usize.Insts.CoreIterRangeStep { start := i, «end» := e }
         = .ok (CoreModels.core.option.Option.None, { start := i, «end» := e }) := by
+      -- `iter.range.IteratorRange.next` is only an `abbrev` for
+      -- `CoreModels.core.IteratorRange.next` as of CoreModels v0.3.12, so
+      -- unfolding the alias alone leaves the body untouched.
       unfold CoreModels.core.iter.range.IteratorRange.next
+             CoreModels.core.IteratorRange.next
       simp only [                 CoreModels.core.Usize.Insts.CoreCmpPartialOrdUsize,
                  CoreModels.core.mkUPartialOrd]
       have hcmp : compare i.val e.val ≠ Ordering.lt := by
@@ -316,7 +315,11 @@ theorem IteratorRange_next_spec_i32 (i e : Std.I32)
                  (Std.UScalar.hcast Std.IScalarTy.I32
                    (Std.UScalar.cast Std.UScalarTy.U32 1#usize)),
                «end» := e }) := by
+      -- `iter.range.IteratorRange.next` is only an `abbrev` for
+      -- `CoreModels.core.IteratorRange.next` as of CoreModels v0.3.12, so
+      -- unfolding the alias alone leaves the body untouched.
       unfold CoreModels.core.iter.range.IteratorRange.next
+             CoreModels.core.IteratorRange.next
       simp [CoreModels.core.I32.Insts.CoreCmpPartialOrdI32,
             CoreModels.core.mkIPartialOrd,
             CoreModels.core.I32.Insts.CoreCloneClone.clone,
@@ -331,7 +334,11 @@ theorem IteratorRange_next_spec_i32 (i e : Std.I32)
     have h_eq : CoreModels.core.iter.range.IteratorRange.next
         CoreModels.core.I32.Insts.CoreIterRangeStep { start := i, «end» := e }
       = .ok (CoreModels.core.option.Option.None, { start := i, «end» := e }) := by
+      -- `iter.range.IteratorRange.next` is only an `abbrev` for
+      -- `CoreModels.core.IteratorRange.next` as of CoreModels v0.3.12, so
+      -- unfolding the alias alone leaves the body untouched.
       unfold CoreModels.core.iter.range.IteratorRange.next
+             CoreModels.core.IteratorRange.next
       simp only [CoreModels.core.I32.Insts.CoreCmpPartialOrdI32,
                  CoreModels.core.mkIPartialOrd]
       have hcmp : compare i.val e.val ≠ Ordering.lt := Int.compare_ne_lt.mpr hge

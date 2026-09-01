@@ -38,31 +38,32 @@ set_option linter.unusedSectionVars false
 
 /-! ## (1) `createi` machinery — port of ml-kem `Util/CreateI.lean`. -/
 
-/-- Per-element foldlM evaluation for pure closures (private aux). -/
-private theorem createi_foldlM_pure_aux
+/-- Per-index evaluation of `array_from_fn_go` for pure closures: the closure state is
+    invariant and the list produced for `n` indices is `(List.range n).map f`.
+
+    CoreModels v0.3.12 builds the array by structural recursion over the index count plus a
+    length-guarded `if`, rather than by folding `List.range`, so the previous
+    `createi_foldlM_pure_aux` characterization (and the `split` over the fold's three
+    outcomes) is replaced by this. Same shape as ml-kem's
+    `Util/CreateI.array_from_fn_go_pure`. -/
+private theorem array_from_fn_go_pure
     {T F : Type}
     (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (f : Nat → T)
-    (l : List Nat) (acc : List T)
-    (hpure : ∀ k ∈ l,
+    (n : Nat)
+    (hpure : ∀ k : Nat, k < n →
       inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c)) :
-    l.foldlM
-      (fun (s : List T × F) (i : Nat) => do
-        let (v, f') ← inst.call_mut s.2 ⟨BitVec.ofNat _ i⟩
-        RustM.ok (s.1 ++ [v], f'))
-      (acc, c) = .ok (acc ++ l.map f, c) := by
-  induction l generalizing acc with
-  | nil =>
-      simp only [List.foldlM_nil, List.map_nil, List.append_nil]
-      rfl
-  | cons h t ih =>
-      have hh : inst.call_mut c ⟨BitVec.ofNat _ h⟩ = .ok (f h, c) :=
-        hpure h List.mem_cons_self
-      have ht : ∀ k ∈ t, inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
-        fun k hk => hpure k (List.mem_cons_of_mem _ hk)
-      have hih := ih (acc ++ [f h]) ht
-      simp only [List.foldlM_cons, hh, bind_tc_ok, List.map_cons]
-      rw [hih]
-      simp [List.append_assoc]
+    rust_primitives.slice.array_from_fn_go inst c n
+      = .ok ((List.range n).map f, c) := by
+  induction n with
+  | zero =>
+      simp [rust_primitives.slice.array_from_fn_go]
+  | succ n ih =>
+      have ht : ∀ k : Nat, k < n →
+          inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) :=
+        fun k hk => hpure k (Nat.lt_succ_of_lt hk)
+      simp only [rust_primitives.slice.array_from_fn_go, ih ht, bind_tc_ok,
+        hpure n (Nat.lt_succ_self n), List.range_succ, List.map_append, List.map_cons,
+        List.map_nil]
 
 /-- Lean-level equation for `hacspec_ml_dsa.createi` over pure closures. Verbatim
     port of ml-kem's `createi_pure_eq` (bodies identical: `core.array.from_fn`). -/
@@ -74,24 +75,10 @@ theorem createi_pure_eq
     hacspec_ml_dsa.createi N inst c =
       .ok ⟨(List.range N.val).map f,
            by simp [List.length_map, List.length_range]⟩ := by
-  have hf : ∀ k ∈ List.range N.val,
-      inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c) := by
-    intro k hk; exact hpure k (List.mem_range.mp hk)
-  have h_fold :=
-    createi_foldlM_pure_aux inst c f (List.range N.val) [] hf
-  simp only [List.nil_append] at h_fold
   unfold hacspec_ml_dsa.createi core.array.from_fn rust_primitives.slice.array_from_fn
-  split
-  · rename_i e heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i heq
-    rw [h_fold] at heq; exact absurd heq (by simp)
-  · rename_i result heq
-    rw [h_fold] at heq
-    have hres : result = ((List.range N.val).map f, c) :=
-      (RustM.ok.inj heq).symm
-    subst hres
-    rfl
+  rw [array_from_fn_go_pure inst c f N.val hpure]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp : ((List.range N.val).map f).length = N.val)]
 
 /-! ## (2) lift + canon — the `Array I32 256` ↔ `SpecPoly` bridge. -/
 
@@ -264,7 +251,10 @@ theorem mod_q_eq (x : Std.I64) :
   simp only [Aeneas.Std.bind_tc_ok]
   have hnz : i.val ≠ 0 := by rw [hival]; decide
   obtain ⟨i1, hi1_eq, hi1_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.rem_spec x hnz)
+    -- aeneas nightly-2026.08.24 added the `INT_MIN % -1` no-overflow side condition;
+    -- `i.val = 8380417`, so it is immediate.
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.IScalar.rem_spec x hnz (by simp [hival]))
   rw [show (x % i : RustM Std.I64) = .ok i1 from hi1_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hival] at hi1_val
@@ -652,6 +642,9 @@ theorem lift_poly_res_canonical
   rw [lift_poly_res_getElem re i hi]
   exact canonI32_canonical _
 
+-- Elaborates deeper terms under the hax v0.4.0-rc.1 slice/array models than the default
+-- 512 frames allow.
+set_option maxRecDepth 4000 in
 /-- **`poly_add` hacspec corollary (plain).** From the impl-FC functional post
     (`lift_poly r = Pure.poly_add …`), the extracted `poly_add` on the canonical
     re-encodings returns `lift_poly_res r`. -/
@@ -669,6 +662,9 @@ theorem poly_add_hacspec_eq
   rw [hr'_lift, lift_res_lift_poly_res self, lift_res_lift_poly_res rhs, ← h_impl,
       lift_res_lift_poly_res r]
 
+-- Elaborates deeper terms under the hax v0.4.0-rc.1 slice/array models than the default
+-- 512 frames allow.
+set_option maxRecDepth 4000 in
 /-- **`poly_sub` hacspec corollary (plain).** -/
 theorem poly_sub_hacspec_eq
     (self rhs r : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
@@ -684,6 +680,9 @@ theorem poly_sub_hacspec_eq
   rw [hr'_lift, lift_res_lift_poly_res self, lift_res_lift_poly_res rhs, ← h_impl,
       lift_res_lift_poly_res r]
 
+-- Elaborates deeper terms under the hax v0.4.0-rc.1 slice/array models than the default
+-- 512 frames allow.
+set_option maxRecDepth 4000 in
 /-- **`poly_pointwise_mul` hacspec corollary (plain).** -/
 theorem poly_pointwise_mul_hacspec_eq
     (lhs rhs r : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement

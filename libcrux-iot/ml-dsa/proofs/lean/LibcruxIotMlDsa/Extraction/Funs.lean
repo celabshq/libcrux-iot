@@ -1232,10 +1232,6 @@ def simd.portable.arithmetic.compute_hint_loop.body
   match o with
   | core.option.Option.None => ok (done (a, one_hints_count))
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      simd.portable.arithmetic.compute_hint.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      one_hints_count
     let i1 ← Array.index_usize low.values i
     let i2 ← libcrux_secrets.traits.Declassify.Blanket.declassify i1
     let i3 ← Array.index_usize high.values i

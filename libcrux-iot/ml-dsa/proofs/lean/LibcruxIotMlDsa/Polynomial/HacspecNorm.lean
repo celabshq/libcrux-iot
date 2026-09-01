@@ -87,7 +87,10 @@ theorem coeff_norm_bridge (a : Std.I32) :
   -- `i2 = wa % qI64` (tmod, value `wa.val.tmod 8380417`, `|·| < Q`).
   have hqnz : qI64.val ≠ 0 := by rw [hq_val]; decide
   obtain ⟨i2, hi2_eq, hi2_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.rem_spec wa hqnz)
+    -- aeneas nightly-2026.08.24 added the `INT_MIN % -1` no-overflow side condition;
+    -- the divisor here is `Q = 8380417`, so it is immediate.
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.IScalar.rem_spec wa hqnz (by simp [hq_val]))
   rw [show (wa % qI64 : RustM Std.I64) = .ok i2 from hi2_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hq_val] at hi2_val
@@ -109,7 +112,10 @@ theorem coeff_norm_bridge (a : Std.I32) :
   rw [hq_val] at hi4_val
   -- `i6 = i4 % qI64`, value `(i2.val + Q).tmod Q = m ∈ [0, Q)` (since `i2.val + Q > 0`).
   obtain ⟨i6, hi6_eq, hi6_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.rem_spec i4 hqnz)
+    -- aeneas nightly-2026.08.24 added the `INT_MIN % -1` no-overflow side condition;
+    -- the divisor here is `Q = 8380417`, so it is immediate.
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.IScalar.rem_spec i4 hqnz (by simp [hq_val]))
   rw [show (i4 % qI64 : RustM Std.I64) = .ok i6 from hi6_eq]
   simp only [Aeneas.Std.bind_tc_ok]
   rw [hq_val, hi4_val] at hi6_val

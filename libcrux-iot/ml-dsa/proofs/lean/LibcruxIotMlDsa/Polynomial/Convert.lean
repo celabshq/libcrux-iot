@@ -491,10 +491,7 @@ theorem from_i32_array_fc
   rw [show 8 * (k / 8) + k % 8 = k from by omega]
 
 /--
-info: 'libcrux_iot_ml_dsa.Polynomial.Convert.from_i32_array_fc' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- Util.SliceSpecs.Slice.subslice_le_eq]
+info: 'libcrux_iot_ml_dsa.Polynomial.Convert.from_i32_array_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 #print axioms from_i32_array_fc
@@ -638,8 +635,12 @@ private theorem arr_index_mut (result : Arr256) (i1 i3 : Std.Usize)
   -- a defeq-but-distinct `match` aux-def that `rfl` rejects).
   unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
          CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut
-  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-             rust_primitives.slice.slice_slice, hns_eq, bind_tc_ok]
+  -- hax v0.4.0-rc.1 routes the *mutable* borrow through `get_unchecked_mut` ->
+  -- `rust_primitives.slice.slice_slice_mut` (whose first component is `Slice.subslice`),
+  -- not through the shared `.index` -> `slice_slice`.
+  simp only [CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
+             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+             rust_primitives.slice.slice_slice_mut, hns_eq, bind_tc_ok]
   refine ⟨ns, _, rfl, ?_, ?_⟩
   · rw [hns_val, h_ts_val]
   · intro s' hs'_len
@@ -664,12 +665,14 @@ private theorem to_coefficient_array_eq (value : SU) (out : Slice Std.I32)
   rw [show Aeneas.Std.lift (Aeneas.Std.Array.to_slice value.values)
         = .ok (Aeneas.Std.Array.to_slice value.values) from rfl]
   simp only [Aeneas.Std.bind_tc_ok]
-  unfold CoreModels.core.slice.Slice.copy_from_slice
-  rw [if_pos (by
-        apply Std.UScalar.eq_of_val_eq
-        rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val,
-            Aeneas.Std.Array.length_to_slice]
-        show out.val.length = 8; rw [hout])]
+  -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`
+  -- (a `mapM clone` over the source); `Util.SliceSpecs` has the bridge that collapses it
+  -- for a `Copy` instance whose `clone` is the identity.
+  exact libcrux_iot_ml_dsa.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+    _ out (Aeneas.Std.Array.to_slice value.values)
+    (by show out.val.length = value.values.val.length
+        rw [hout, value.values.property]; rfl)
+    (by intro x; rfl)
 
 /-- The body — defined as the extracted `to_i32_array_loop.body` at the instance,
     so the top-level FC needs no body bridge. The `to_body_{some,none}` lemmas
@@ -885,11 +888,7 @@ theorem to_i32_array_fc (self : PRE) :
   · intro j hj; exact absurd hj (Nat.not_lt_zero j)
 
 /--
-info: 'libcrux_iot_ml_dsa.Polynomial.Convert.to_i32_array_fc' depends on axioms: [propext,
- Classical.choice,
- Quot.sound,
- Util.SliceSpecs.Array.update_subslice_le_eq,
- Util.SliceSpecs.Slice.subslice_le_eq]
+info: 'libcrux_iot_ml_dsa.Polynomial.Convert.to_i32_array_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
 #print axioms to_i32_array_fc

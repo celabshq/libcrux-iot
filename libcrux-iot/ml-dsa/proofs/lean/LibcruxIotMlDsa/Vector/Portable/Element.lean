@@ -540,15 +540,14 @@ theorem to_coefficient_array_spec
     rw [show Aeneas.Std.lift (Aeneas.Std.Array.to_slice value.values)
           = .ok (Aeneas.Std.Array.to_slice value.values) from rfl]
     simp only [Aeneas.Std.bind_tc_ok]
-    unfold CoreModels.core.slice.Slice.copy_from_slice
-    have h1 : Aeneas.Std.Slice.len out
-        = Aeneas.Std.Slice.len (Aeneas.Std.Array.to_slice value.values) := by
-      apply Std.UScalar.eq_of_val_eq
-      rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val,
-          Aeneas.Std.Array.length_to_slice]
-      show out.val.length = (8 : Nat)
-      rw [hout]
-    rw [if_pos h1]
+    -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`
+    -- (a `mapM clone` over the source); `Util.SliceSpecs` has the bridge that collapses it
+    -- for a `Copy` instance whose `clone` is the identity.
+    exact libcrux_iot_ml_dsa.Util.SliceSpecs.core_models_slice_Slice_copy_from_slice_eq
+      _ out (Aeneas.Std.Array.to_slice value.values)
+      (by show out.val.length = value.values.val.length
+          rw [hout, value.values.property]; rfl)
+      (by intro x; rfl)
   refine triple_of_ok (v := Aeneas.Std.Array.to_slice value.values) h_ok ?_
   intro j hj
   show ((Aeneas.Std.Array.to_slice value.values).val[j]!).val = _
@@ -598,7 +597,7 @@ theorem from_coefficient_array_spec
     have hs1_len8 : s1.val.length = 8 := by rw [hs1_len]; rfl
     obtain ⟨s2, hs2_eq, hs2_val⟩ :=
       triple_exists_ok
-        (core_models_slice_Slice_copy_from_slice_spec core.I32.Insts.CoreMarkerCopy sp s1
+        (core_models_slice_Slice_copy_from_slice_spec sp s1
           (by rw [hsp_len8, hs1_len8]))
     rw [hs2_eq]
     simp only [Aeneas.Std.bind_tc_ok]

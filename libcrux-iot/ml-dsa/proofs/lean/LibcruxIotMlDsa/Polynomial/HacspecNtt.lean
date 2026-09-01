@@ -321,7 +321,10 @@ private theorem i64_rem_Q (a : Std.I64) (q : Std.I64) (hq : q.val = 8380417) :
       ∧ -8380417 < s.val ∧ s.val < 8380417 := by
   have hqnz : q.val ≠ (0 : Int) := by rw [hq]; decide
   obtain ⟨s, hs_eq, hs_val⟩ :=
-    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.rem_spec a hqnz)
+    -- aeneas nightly-2026.08.24 added the `INT_MIN % -1` no-overflow side condition;
+    -- the divisor here is `Q = 8380417`, so it is immediate.
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.IScalar.rem_spec a hqnz (by simp [hq]))
   refine ⟨s, hs_eq, ?_, ?_, ?_⟩
   · rw [hs_val, hq]
     show ((a.val.tmod (8380417 : Int) : Int) : Zq) = ((a.val : Int) : Zq)
