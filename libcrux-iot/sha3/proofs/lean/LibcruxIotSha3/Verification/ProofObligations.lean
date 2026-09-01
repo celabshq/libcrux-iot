@@ -53,6 +53,7 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
 -/
 import LibcruxIotSha3.Extraction
 import LibcruxIotSha3.Sponge.Shake
+import LibcruxIotSha3.Composition.SliceEq
 
 open CoreModels Aeneas Aeneas.Std Std.Do
 
@@ -191,6 +192,20 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
+/-- **Full functional correctness, straight out of the Rust annotation.**
+
+    `sha256_ema`'s `#[ensures]` now names the hacspec directly:
+
+      future(digest).declassify_ref() == &hacspec_sha3::sha3_256(payload.declassify_ref())[..]
+
+    so the generated `post` is no longer just a length claim -- it says the digest
+    IS the FIPS-202 SHA3-256 of the payload. Every conjunct of
+    `Sponge.sha256_ema_spec` is now consumed, where previously only the length
+    was.
+
+    The last step of the generated `post` is `core::cmp::PartialEq for [T]`,
+    which CoreModels implements as a loop; `Composition.slice_eq_spec` is the
+    closed form for it. -/
 theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
     libcrux_iot_sha3.sha256_ema.spec digest payload := by
   intro hpre
@@ -206,10 +221,8 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_256_DIGEST_SIZE] using hv
-    -- the generated post is now `digest_future.len() == SHA3_256_DIGEST_SIZE`,
-    -- which is one of the conjuncts the theorem already proves.
-    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
-    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+    -- all four conjuncts of the theorem's post are used below
+    obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
         (Sponge.sha256_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
@@ -219,10 +232,48 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
       show v.val.length = _
       rw [hv_len]
       simp [libcrux_iot_sha3.SHA3_256_DIGEST_SIZE]
-    simp only [libcrux_iot_sha3.sha256_ema.post,
-      CoreModels.core.slice.Slice.len,
-      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
+    -- `declassify_ref` on a shared slice is the identity (Assumptions/FunsExternal)
+    have hdecl : ∀ s : Slice Std.U8,
+        libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+          libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar s = .ok s :=
+      fun _ => rfl
+    -- `spec_out[..]` is just `spec_out` viewed as a slice
+    have hidx :
+        (CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
+          (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+            (CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+              Std.U8))
+          spec_out ()) = .ok (Aeneas.Std.Array.to_slice spec_out) := by
+      simp [CoreModels.core.Array.Insts.CoreOpsIndexIndex.index,
+        CoreModels.core.array.Array.as_slice,
+        CoreModels.rust_primitives.slice.array_as_slice,
+        CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index,
+        CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
+    -- the digest agrees with the hacspec output byte for byte, hence as lists
+    have hso : spec_out.val.length = 32 := by simp
+    have hvals : v.val = (Aeneas.Std.Array.to_slice spec_out).val := by
+      rw [Aeneas.Std.Array.val_to_slice]
+      apply List.ext_getElem (by rw [hv_len, hso])
+      intro k h1 _h2
+      have h1' : k < 32 := by rw [hv_len] at h1; exact h1
+      have hk := hv_bytes k h1'
+      rwa [List.getElem!_eq_getElem?_getD, List.getElem!_eq_getElem?_getD,
+        List.getElem?_eq_getElem h1,
+        List.getElem?_eq_getElem (show k < spec_out.val.length by rw [hso]; exact h1')] at hk
+    -- ... so the extracted slice comparison returns `true`
+    obtain ⟨r, hr_eq, hr_iff⟩ := triple_exists_ok
+      (Composition.slice_eq_spec CoreModels.core.U8.Insts.CoreCmpPartialEqU8
+        Composition.lawful_partialEq_u8 v (Aeneas.Std.Array.to_slice spec_out))
+    have hr_true : r = true := hr_iff.mpr hvals
+    have hpost : libcrux_iot_sha3.sha256_ema.post digest payload v = .ok true := by
+      simp only [libcrux_iot_sha3.sha256_ema.post,
+        CoreModels.core.slice.Slice.len,
+        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+      rw [if_pos hlen_usize, hdecl v, Aeneas.Std.bind_tc_ok, hdecl payload,
+        Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok, hidx,
+        Aeneas.Std.bind_tc_ok, hr_eq, hr_true]
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 

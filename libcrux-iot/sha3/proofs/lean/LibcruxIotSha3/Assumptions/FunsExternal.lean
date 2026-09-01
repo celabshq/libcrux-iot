@@ -35,5 +35,17 @@ def U32.Insts.Libcrux_secretsIntCastOps.as_u64 (x : U32) : RustM U64 :=
 def U64.Insts.Libcrux_secretsIntCastOps.as_u32 (x : U64) : RustM U32 :=
   ok (UScalar.cast .U32 x)
 
+/-! EXPERIMENT: `declassify_ref` on a shared SLICE, needed once a spec names the
+    hacspec (which takes `&[u8]`, not `&[U8]`). No-op identity, mirroring
+    ml-dsa's `SharedAT` variant. -/
+
+@[reducible] def traits.Scalar (_Self : Type) : Type := PUnit
+@[reducible] def U8.Insts.Libcrux_secretsTraitsScalar : traits.Scalar Std.U8 :=
+  PUnit.unit
+
+def SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+    {T : Type} (_inst : traits.Scalar T) (a : Aeneas.Std.Slice T) :
+    Aeneas.Std.RustM (Aeneas.Std.Slice T) := ok a
+
 end libcrux_secrets
 end

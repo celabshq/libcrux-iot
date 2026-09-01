@@ -19,6 +19,18 @@ bench = false # so libtest doesn't eat the arguments to criterion
 libcrux-secrets.workspace = true
 libcrux-traits.workspace = true
 hax-lib.workspace = true
+# The machine-extracted FIPS-202 hacspec. A NORMAL (not dev-) dependency
+# because `sha256_ema`'s `#[ensures]` names `hacspec_sha3::sha3_256` directly,
+# so it must be in scope for the hax build; `cargo test` sees it too.
+#
+# 24115c32 is 718a6011 -- the commit `proofs/lean/lakefile.toml` pins for the
+# `HacspecSha3` Lean package -- plus ONE commit that only pins hax-lib in
+# `specs/sha3/Cargo.toml`. Nothing under `specs/sha3/proofs/lean` differs
+# between the two, so the Rust side and the Lean side still check the same spec
+# content. That extra commit is required here: without it cargo resolves two
+# different hax-libs and the extraction breaks (see the note in
+# proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean).
+hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "24115c3296614c849501e150f53b260f566cc186" }
 
 # XXX: Unfortunately, it's not possible to use certain hax attributes
 # with `cfg_attr`, which means we can't have hax-lib as a `cfg(hax)`
@@ -46,11 +58,6 @@ criterion = "0.5.1"
 hex = "0.4.3"
 rand = "0.8.5"
 pretty_env_logger = "0.5.0"
-# Pinned to the SAME repo and commit as the Hacspec* Lean package in
-# proofs/lean/lakefile.toml, so the Rust cross-spec tests and the Lean proofs
-# check against one single spec revision. These used to disagree: this was
-# cryspen/libcrux@a4cfb1eb while the lakefile was celabshq/libcrux@718a6011.
-hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "718a601178c06afa6b4b10d143819da38df8770f" }
 proptest = "1.2.0"
 libcrux-kats = { workspace = true, features = ["sha3"] }
 

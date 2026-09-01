@@ -61,6 +61,11 @@
 // absent), so the gate was always true and both attributes always applied.
 
 use libcrux_secrets::{Classify, U8};
+// Only the `#[ensures]` on `sha256_ema` uses this, and hax-lib's attribute
+// macros are identity macros when `hax` is off, so gate it to avoid an
+// unused-import warning in normal builds.
+#[cfg(hax)]
+use libcrux_secrets::DeclassifyRef as _;
 
 mod keccak;
 mod lane;
@@ -232,10 +237,10 @@ pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_256_DIGEST_SIZE`] bytes long
 #[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE))]
-// The Lean theorem `Sponge.sha256_ema_spec` proves the digest is exactly
-// SHA3_256_DIGEST_SIZE bytes and matches the hacspec; the length half of that
-// post is expressible here, so state it and let hax generate it.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE))]
+// EXPERIMENT: name the hacspec directly in the post, not just its length.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
+    && future(digest).declassify_ref()
+        == &hacspec_sha3::sha3_256(payload.declassify_ref())[..]))]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
