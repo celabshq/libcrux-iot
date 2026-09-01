@@ -64,6 +64,17 @@ pub(crate) fn ntt_layer_3_step(vec: &mut PortableVector, zeta: i16) {
 // `i != j` and |zeta| <= 1664; both are expressible here. (The coefficient
 // magnitude bounds they need are not -- see the note in
 // proofs/lean/LibcruxIotMlKem/Verification/ProofObligations.lean.)
+// `ntt_step` above could additionally state the two coefficient bounds its Lean
+// proof needs -- `vec.elements[i] >= -9984 && vec.elements[i] <= 9984` and the
+// same at `j` -- and that extracts cleanly (verified: the generated `pre` picks
+// them up via `Array.index_usize`), even though `vec.elements` is secret-typed.
+// It is not stated yet only because the Lean-side decode then has to resolve
+// those `Array.index_usize` steps; see
+// proofs/lean/LibcruxIotMlKem/Verification/ProofObligations.lean.
+//
+// `inv_ntt_step` is different: its proof needs the bound for ALL 16 lanes, which
+// requires `hax_lib::forall`, and aeneas cannot translate a quantifier closure in
+// a `requires` (internal error at interp/Interp.ml:609). That one is blocked.
 #[hax_lib::requires(i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664)]
 #[inline(always)]
 pub(crate) fn inv_ntt_step(vec: &mut PortableVector, zeta: i16, i: usize, j: usize) {

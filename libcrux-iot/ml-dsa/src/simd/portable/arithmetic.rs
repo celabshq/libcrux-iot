@@ -306,6 +306,23 @@ pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
 }
 
 #[inline(always)]
+// The coefficient bound this function's Lean proof needs is a `forall` over the
+// eight lanes. It IS expressible --
+//   #[cfg(hax)] use hax_lib::ToProp;
+//   #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888).to_prop()
+//     & hax_lib::forall(|i: usize| hax_lib::implies(i < 8,
+//         simd_unit.values[i] >= -FIELD_MODULUS && simd_unit.values[i] < FIELD_MODULUS)))]
+// -- and rustc and charon both accept it, but AENEAS then fails:
+//   [Error] Internal error, please file an issue
+//   Could not translate the body of function
+//     '..::requires::{impl Fn<(usize,), hax_lib::prop::Prop> for ..::requires::closure<'_0>}::call'
+//   Compiler source: interp/Interp.ml, line 609
+// i.e. aeneas cannot translate a quantifier closure in a `requires`. Left out
+// until that is fixed upstream; the bound stays an explicit hypothesis in
+// proofs/lean/LibcruxIotMlDsa/Verification/ProofObligations.lean. Same for
+// `use_hint` below. NOTE that non-quantified bounds on secret-typed values DO
+// work (see `decompose_element`'s Lean-side note), so this is specifically the
+// quantifier that is blocked.
 #[hax_lib::requires(gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)]
 pub fn decompose(
     gamma2: Gamma2,

@@ -1187,7 +1187,7 @@ def vector.portable.ntt.ntt_step.spec
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::inv_ntt_step::pre]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 67:0-67:81 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 78:0-78:81 -/
 @[reducible]
 def vector.portable.ntt.inv_ntt_step.pre
   (vec : vector.portable.vector_type.PortableVector) (zeta : Std.I16)
@@ -1216,7 +1216,7 @@ def vector.portable.ntt.inv_ntt_step.spec
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials_fill_cache::pre]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 142:0-142:46 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 153:0-153:46 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_binomials_fill_cache.pre
   (a : vector.portable.vector_type.PortableVector)
@@ -1231,7 +1231,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials_fill_cache.pre
   else ok false
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials_fill_cache::post]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 143:0-143:55 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 154:0-154:55 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_binomials_fill_cache.post
   (a : vector.portable.vector_type.PortableVector)
@@ -1263,7 +1263,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials_fill_cache.spec
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials_use_cache::pre]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 175:0-175:46 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 186:0-186:46 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_binomials_use_cache.pre
   (a : vector.portable.vector_type.PortableVector)
@@ -1277,7 +1277,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials_use_cache.pre
   else ok false
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials_use_cache::post]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 176:0-176:55 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 187:0-187:55 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_binomials_use_cache.post
   (a : vector.portable.vector_type.PortableVector)
@@ -1307,7 +1307,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials_use_cache.spec
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials::pre]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 204:0-204:46 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 215:0-215:46 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_binomials.pre
   (a : vector.portable.vector_type.PortableVector)
@@ -1321,7 +1321,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials.pre
   else ok false
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials::post]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 205:0-205:55 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 216:0-216:55 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_binomials.post
   (a : vector.portable.vector_type.PortableVector)
@@ -1348,7 +1348,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials.spec
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply::pre]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 235:0-235:37 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 246:0-246:37 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply.pre
   (lhs : vector.portable.vector_type.PortableVector)
@@ -1360,7 +1360,7 @@ def vector.portable.ntt.accumulating_ntt_multiply.pre
   ok (i >= 16#usize)
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply::post]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 236:0-236:55 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 247:0-247:55 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply.post
   (lhs : vector.portable.vector_type.PortableVector)
@@ -1390,7 +1390,7 @@ def vector.portable.ntt.accumulating_ntt_multiply.spec
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_fill_cache::pre]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 261:0-261:37 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 272:0-272:37 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_fill_cache.pre
   (lhs : vector.portable.vector_type.PortableVector)
@@ -1403,7 +1403,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_fill_cache.pre
   ok (i >= 16#usize)
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_fill_cache::post]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 262:0-262:55 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 273:0-273:55 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_fill_cache.post
   (lhs : vector.portable.vector_type.PortableVector)
@@ -1435,7 +1435,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_fill_cache.spec
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_use_cache::pre]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 288:0-288:37 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 299:0-299:37 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_use_cache.pre
   (lhs : vector.portable.vector_type.PortableVector)
@@ -1447,7 +1447,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_use_cache.pre
   ok (i >= 16#usize)
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_use_cache::post]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 289:0-289:55 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 300:0-300:55 -/
 @[reducible]
 def vector.portable.ntt.accumulating_ntt_multiply_use_cache.post
   (lhs : vector.portable.vector_type.PortableVector)

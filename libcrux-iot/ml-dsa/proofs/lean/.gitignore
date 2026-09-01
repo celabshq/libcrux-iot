@@ -1,3 +1,4 @@
 .lake
 *.llbc*
 *External_Template.lean
+aeneas-error.log
