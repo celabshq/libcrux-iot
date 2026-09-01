@@ -134,16 +134,37 @@ def simd.portable.arithmetic.decompose_element.pre
       else ok false
     else ok false
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_element::post]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 237:0-241:64 -/
+@[reducible]
+def simd.portable.arithmetic.decompose_element.post
+  (gamma2 : Std.I32) (r : Std.I32) (out : (Std.I32 × Std.I32)) :
+  RustM Bool
+  := do
+  let (i, i1) := out
+  let i2 ← lift (IScalar.cast .I64 r)
+  let i3 ← hacspec_ml_dsa.arithmetic.mod_q i2
+  let (_, i4) ← hacspec_ml_dsa.arithmetic.decompose i3 gamma2
+  if i = i4
+  then
+    let i5 ← lift (IScalar.cast .I64 r)
+    let i6 ← hacspec_ml_dsa.arithmetic.mod_q i5
+    let (i7, _) ← hacspec_ml_dsa.arithmetic.decompose i6 gamma2
+    ok (i1 = i7)
+  else ok false
+
 def simd.portable.arithmetic.decompose_element.spec (gamma2 : Std.I32)
   (r : Std.I32) : Prop :=
   (simd.portable.arithmetic.decompose_element.pre gamma2 r).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.decompose_element gamma2 r
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res =>
+  ⌜ (simd.portable.arithmetic.decompose_element.post gamma2 r res).holds ⌝
+  ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 270:0-272:33 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 287:0-289:33 -/
 @[reducible]
 def simd.portable.arithmetic.use_one_hint.pre
   (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) : RustM Bool := do
@@ -181,7 +202,7 @@ def simd.portable.arithmetic.use_one_hint.spec (gamma2 : Std.I32) (r : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 371:0-372:41 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 416:0-417:41 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -207,7 +228,7 @@ def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 385:0-387:37 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 430:0-432:37 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)

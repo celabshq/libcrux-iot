@@ -46,6 +46,53 @@ about, e.g. `import LibcruxIotMlDsa.Extraction`. -/
   bounding them in a `#[requires]` turned out to be fine, because the annotation
   is erased in non-hax builds.
 
+  ## What the trusted reference actually is
+
+  CORRECTION to an earlier claim of mine, which said ML-DSA's theorems are stated
+  against a hand-written Lean spec "not against the extracted hacspec at all".
+  That is wrong. `Spec/HacspecBridge.lean` exists precisely to close that gap --
+  its own header says "so the extracted spec, not the hand spec, is the trusted
+  reference" -- and there are six impl-to-extracted-hacspec results:
+
+      poly_add_hacspec_fc / poly_sub_hacspec_fc / poly_pointwise_mul_hacspec_fc
+      ntt_hacspec_fc / intt_hacspec_fc / infinity_norm_exceeds_hacspec_fc
+
+  covering `hacspec_ml_dsa.{polynomial.poly_*, ntt.*, arithmetic.coeff_norm}`.
+  Each composes an impl FC (impl = hand spec, through `lift_poly`) with a bridge
+  (hand spec = extracted spec).
+
+  What is genuinely NOT bridged is the ROUNDING layer -- and not because the
+  hacspec lacks it: `specs/ml-dsa/src/arithmetic.rs` has `mod_q`, `mod_pm`,
+  `power2round`, `decompose`, `high_bits`, `low_bits`, `make_hint`, `use_hint`,
+  `coeff_norm`, and `Spec/Rounding.lean` describes itself as a "faithful
+  translation" of exactly that file. The bridge for it simply had not been built.
+  `decompose_element` below now starts it.
+
+  ## Naming the hacspec from Rust: where it works and where it does not
+
+  At the SCALAR layer it just works, and `decompose_element` now does it: both
+  sides are plain `i32`, so the `#[ensures]` names
+  `hacspec_ml_dsa::arithmetic::decompose` directly and the generated `post` is
+  full functional correctness. This needed the hacspec's `arithmetic` module and
+  its nine functions to become `pub` (libcrux@24115c32 + follow-up), plus the
+  spec crate's hax-lib pinned to libcrux-iot's rev so charon does not emit a
+  second `hax_lib_1`.
+
+  At the POLY layer it does not, yet, and the obstacle is not the lifting
+  function -- that now exists in Rust too, as
+  `simd::portable::arithmetic::lift_poly_res`, the counterpart of
+  `Spec.HacspecBridge.lift_poly_res` (it regathers the 32x8 SIMD layout into a
+  flat `[i32; 256]` and canonicalises with the hacspec's own `mod_q`). The
+  obstacle is GENERICITY: `PolynomialRingElement::{add,subtract}` and the NTT
+  entry points are generic over `SIMDUnit: Operations`, the lift needs concrete
+  lane access (`values`, `pub(super)`), and the trait's own `to_coefficient_array`
+  is an out-param function so it cannot appear in an `ensures` expression.
+  Attaching it needs either a monomorphic wrapper on the impl side or a pure lane
+  accessor on the trait. Note also that a generic function's generated `.spec` is
+  itself generic over the instance, while the FC theorems hold only for
+  `portable_ops_inst`, so even then the discharge would have to be stated at the
+  instantiated spec.
+
   ## The original diagnosis (retained, because it is what drove the change)
 
   Not one of the six can be proved from its existing theorem, and the reason is
@@ -91,6 +138,7 @@ about, e.g. `import LibcruxIotMlDsa.Extraction`. -/
 -/
 import LibcruxIotMlDsa.Extraction
 import LibcruxIotMlDsa.Vector.Portable.Rounding
+import LibcruxIotMlDsa.Spec.HacspecBridge
 
 open CoreModels Aeneas Aeneas.Std Std.Do
 
@@ -331,13 +379,52 @@ private theorem coefficients_are_hints_lanes
     Here the generated `pre` delivers exactly the theorems' `hg`; what has to be
     supplied on the side is the input-range information the Rust omits. -/
 
-/-- Discharged OUTRIGHT. The `#[requires]` now states the `[-q, q)` range for
-    `r` as well as pinning `gamma2`, so both hypotheses of
-    `decompose_element_spec` come out of the generated `pre`.
+/-- **Full functional correctness against the extracted hacspec.**
 
-    hax duplicates the range block under each `gamma2` disjunct, and each copy is
-    definitionally `lane_in_field r`, so `lane_in_field_true` decodes it. -/
-theorem decompose_element_spec_proof (gamma2 r : Std.I32) :
+    `decompose_element`'s `#[ensures]` now names the machine-extracted FIPS-204
+    spec directly:
+
+      out.0 == hacspec_ml_dsa::arithmetic::decompose(mod_q(r as i64), gamma2).1
+      && out.1 == hacspec_ml_dsa::arithmetic::decompose(mod_q(r as i64), gamma2).0
+
+    so the generated `post` is no longer `True` -- it says the impl computes
+    FIPS-204 Decompose. No lifting function is needed at this layer: both sides
+    are plain `i32`, exactly as sha3's two sides were both `[u8; N]`. (The
+    conjuncts are crossed because the impl returns `(low, high)` while the spec
+    returns `(r1, r0)`, and `r` is canonicalised with the hacspec's own `mod_q`
+    because `decompose` is specified for `r` in `[0, Q)`.)
+
+    `hbridge` is the ONE thing still missing, and it is a pure-arithmetic fact
+    about two functions that are literally the same algorithm:
+
+      Spec.Rounding.decompose        (Int,   `Spec/Rounding.lean`)
+      hacspec_ml_dsa.arithmetic.decompose  (I32 with checked ops, extracted)
+
+    Both compute `rPlus = canonical r`, `alpha = 2*gamma2`, `r0 = modPm rPlus
+    alpha`, then either `(0, r0-1)` or `((rPlus-r0)/alpha, r0)`. What has to be
+    supplied is the checked-arithmetic plumbing: that each of the six operations
+    stays in range (so the extraction returns `.ok`) and that Aeneas's truncated
+    `%`/`/` agree with Lean's `emod`/`ediv` on non-negative arguments. The
+    already-proved `Spec.HacspecBridge.mod_q_eq` is the companion for the `mod_q`
+    step and shows the exact idiom (`IScalar.rem_spec`,
+    `IScalar.cast_inBounds_spec`, `IScalar.add_spec` via `spec_of_partialSpec`).
+
+    Stated as a hypothesis rather than hidden behind a `sorry`, in the same style
+    as the coefficient bounds were before the annotations absorbed them. -/
+theorem decompose_element_spec_proof (gamma2 r : Std.I32)
+    (hbridge : ∀ rc g : Std.I32, 0 ≤ rc.val → rc.val < 8380417 →
+        (g = 95232#i32 ∨ g = 261888#i32) →
+        ∃ r1 r0 : Std.I32,
+          hacspec_ml_dsa.arithmetic.decompose rc g = .ok (r1, r0)
+            ∧ r1.val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val g.val).1
+            ∧ r0.val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val g.val).2)
+    -- the spec only depends on the residue class, so canonicalising is harmless
+    (hcanon : ∀ (x : Std.I32) (rc : Std.I32) (g : Std.I32),
+        ((rc.val : Int) : libcrux_iot_ml_dsa.Spec.Parameters.Zq)
+          = ((x.val : Int) : libcrux_iot_ml_dsa.Spec.Parameters.Zq) →
+        0 ≤ rc.val → rc.val < 8380417 →
+        libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val g.val
+          = libcrux_iot_ml_dsa.Spec.Rounding.decompose x.val g.val) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_element.spec gamma2 r := by
   intro hpre
   have hok := eq_ok_true_of_holds_map hpre
@@ -356,8 +443,47 @@ theorem decompose_element_spec_proof (gamma2 r : Std.I32) :
         exact ⟨Or.inr (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using h5),
           (lane_in_field_true hr).1, (lane_in_field_true hr).2⟩
       · exfalso; rw [if_neg h5] at hok; simp at hok
-  exact triple_true_of_triple
-    (Vector.Portable.Rounding.decompose_element_spec gamma2 r key.1 key.2.1 key.2.2)
+  -- the impl result, and its agreement with the HAND spec
+  obtain ⟨p, hp_eq, hp_lo, hp_hi⟩ :=
+    triple_exists_ok
+      (Vector.Portable.Rounding.decompose_element_spec gamma2 r key.1 key.2.1 key.2.2)
+  obtain ⟨plo, phi⟩ := p
+  dsimp only at hp_lo hp_hi
+  refine triple_of_ok hp_eq ?_
+  -- the `r as i64` cast is in range
+  have hcb : Aeneas.Std.IScalar.min .I64 ≤ r.val ∧ r.val ≤ Aeneas.Std.IScalar.max .I64 := by
+    simp only [Aeneas.Std.IScalar.min_IScalarTy_I64_eq,
+      Aeneas.Std.IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.max,
+      Aeneas.Std.I64.numBits, Aeneas.Std.IScalarTy.I64_numBits_eq]
+    omega
+  obtain ⟨c, hc_eq, hc_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I64 r hcb)
+  -- `mod_q` gives the canonical residue (already proved upstream)
+  obtain ⟨rc, hrc_eq, hrc_zq, hrc_lo, hrc_hi⟩ :=
+    libcrux_iot_ml_dsa.Spec.HacspecBridge.mod_q_eq c
+  have hrc_hi' : rc.val < 8380417 := by
+    have : (libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) = 8380417 := by
+      norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
+    omega
+  -- ... so the hacspec `decompose` agrees with the hand spec on it
+  obtain ⟨r1, r0, hd_eq, hr1_val, hr0_val⟩ := hbridge rc gamma2 hrc_lo hrc_hi' key.1
+  have hsame : libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val gamma2.val
+      = libcrux_iot_ml_dsa.Spec.Rounding.decompose r.val gamma2.val := by
+    refine hcanon r rc gamma2 ?_ hrc_lo hrc_hi'
+    rw [hrc_zq, hc_val]
+  rw [hsame] at hr1_val hr0_val
+  -- assemble the generated post
+  have hlo : plo = r0 := by
+    apply Aeneas.Std.IScalar.eq_of_val_eq; rw [hp_lo, hr0_val]
+  have hhi : phi = r1 := by
+    apply Aeneas.Std.IScalar.eq_of_val_eq; rw [hp_hi, hr1_val]
+  have hpost : libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_element.post
+      gamma2 r (plo, phi) = .ok true := by
+    simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_element.post, hc_eq,
+      Aeneas.Std.bind_tc_ok, hrc_eq, hd_eq]
+    simp [hlo, hhi]
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 /-- Discharged OUTRIGHT: the `#[requires]` now states the `[-q, q)` range for `r`
     and `hint in {0, 1}` as well as pinning `gamma2`, so every hypothesis of

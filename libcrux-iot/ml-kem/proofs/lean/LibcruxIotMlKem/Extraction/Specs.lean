@@ -25,6 +25,19 @@ noncomputable section
 namespace libcrux_iot_ml_kem
 
 
+/-- [libcrux_iot_ml_kem::polynomial::zeta::pre]:
+    Source: 'ml-kem/src/polynomial.rs', lines 21:0-21:29 -/
+@[reducible]
+def polynomial.zeta.pre (i : Std.Usize) : RustM Bool := do
+  ok (i < 128#usize)
+
+def polynomial.zeta.spec (i : Std.Usize) : Prop :=
+  (polynomial.zeta.pre i).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  polynomial.zeta i
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+
+
 /-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1::pre]:
     Source: 'ml-kem/src/ntt.rs', lines 7:0-7:35 -/
 @[reducible]
@@ -1040,6 +1053,68 @@ def
   ⦃ ⌜ True ⌝ ⦄
   serialize.deserialize_then_decompress_ring_element_v K V_COMPRESSION_FACTOR
   vectortraitsOperationsInst serialized output
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::reducing_from_i32_array::pre]:
+    Source: 'ml-kem/src/polynomial.rs', lines 54:4-54:56 -/
+@[reducible]
+def polynomial.PolynomialRingElement.reducing_from_i32_array.pre
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (a : Slice Std.I32) (out : polynomial.PolynomialRingElement Vector) :
+  RustM Bool
+  := do
+  let i ← polynomial.VECTORS_IN_RING_ELEMENT
+  let i1 ← i * 16#usize
+  let i2 ← core.slice.Slice.len a
+  ok (i1 <= i2)
+
+def
+  polynomial.PolynomialRingElement.reducing_from_i32_array.spec {Vector : Type}
+                                                               (vectortraitsOperationsInst
+                                                               :
+                                                               vector.traits.Operations
+                                                               Vector)
+  (a : Slice Std.I32) (out : polynomial.PolynomialRingElement Vector) : Prop :=
+  (polynomial.PolynomialRingElement.reducing_from_i32_array.pre
+  vectortraitsOperationsInst a out).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  polynomial.PolynomialRingElement.reducing_from_i32_array
+  vectortraitsOperationsInst a out
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+
+
+/-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply::pre]:
+    Source: 'ml-kem/src/polynomial.rs', lines 123:4-123:66 -/
+@[reducible]
+def polynomial.PolynomialRingElement.accumulating_ntt_multiply.pre
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (self_ : polynomial.PolynomialRingElement Vector)
+  (rhs : polynomial.PolynomialRingElement Vector)
+  (accumulator : Array Std.I32 256#usize) :
+  RustM Bool
+  := do
+  let s ← lift (Array.to_slice accumulator)
+  let i ← core.slice.Slice.len s
+  let i1 ← polynomial.VECTORS_IN_RING_ELEMENT
+  let i2 ← 16#usize * i1
+  ok (i >= i2)
+
+def
+  polynomial.PolynomialRingElement.accumulating_ntt_multiply.spec {Vector :
+                                                                 Type}
+                                                                 (vectortraitsOperationsInst
+                                                                 :
+                                                                 vector.traits.Operations
+                                                                 Vector)
+  (self : polynomial.PolynomialRingElement Vector)
+  (rhs : polynomial.PolynomialRingElement Vector)
+  (accumulator : Array Std.I32 256#usize) : Prop :=
+  (polynomial.PolynomialRingElement.accumulating_ntt_multiply.pre
+  vectortraitsOperationsInst self rhs accumulator).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  polynomial.PolynomialRingElement.accumulating_ntt_multiply
+  vectortraitsOperationsInst self rhs accumulator
   ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 

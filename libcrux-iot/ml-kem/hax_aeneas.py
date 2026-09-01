@@ -26,8 +26,30 @@ AENEAS_VERSION = "f8a0eb8"
 # dropped from `Funs.lean`.
 START_FROM = [
     "crate::vector::*",
+    "crate::polynomial::*",
     "crate::ntt::*",
     "crate::invert_ntt::*",
+    # NOTE on globs vs enumerated roots. The hax lean backend emits
+    # `<fn>.pre`/`.post`/`.spec` ONLY for items covered by a GLOB root. While
+    # these were enumerated one by one, the 8 `#[hax_lib::requires]` /
+    # `#[ensures]` in matrix.rs produced NO generated specs at all -- silently,
+    # nothing in the hax or aeneas output. Confirmed by globbing
+    # `crate::polynomial::*` above, which immediately produced `polynomial.zeta`'s
+    # missing spec.
+    #
+    # `crate::matrix::*` WAS tried and has to stay enumerated: the glob generates
+    # specs for the whole module, and three of them do not compile.
+    #   1. `matrix.entry.spec` -- its own parameter is named `matrix`, shadowing
+    #      the module, so the generated body's `matrix.entry.pre ...` resolves to
+    #      a field projection on the slice:
+    #        Invalid field `entry`: ... does not contain `Subtype.entry`
+    #   2. `matrix.compute_vector_u.spec` -- the `.post` is applied WITH the
+    #      `Hasher` instance but the function itself is called WITHOUT it:
+    #        Application type mismatch ... Specs.lean:585:55
+    #   3. `matrix.sample_matrix_{entry,A}.spec` -- these are OPAQUE (signature
+    #      only), so their generated specs reference bodies that were never
+    #      extracted: Unknown identifier `matrix.sample_matrix_A`.
+    # All three are aeneas-side spec-generation bugs, independent of this project.
     "crate::matrix::entry",
     "crate::matrix::compute_As_plus_e",
     "crate::matrix::compute_message",

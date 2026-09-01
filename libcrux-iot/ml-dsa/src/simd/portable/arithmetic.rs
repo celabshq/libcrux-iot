@@ -222,6 +222,23 @@ pub(super) fn compute_hint(
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && r >= -FIELD_MODULUS
     && r < FIELD_MODULUS)]
+// Full functional correctness against the machine-extracted FIPS-204 hacspec,
+// named directly. No lifting function is needed here: both sides are plain
+// `i32`, exactly like sha3's `[u8; N]` digests.
+//
+// Two wrinkles, both forced by the existing Lean theorem
+// (`Vector.Portable.Rounding.decompose_element_spec`):
+//  - the impl returns `(low, high)` while the spec returns `(r1, r0) =
+//    (high, low)`, so the conjuncts are CROSSED (`out.0` vs `.1`, `out.1` vs `.0`);
+//  - the hacspec's `decompose` is specified for a canonical `r` in `[0, Q)`
+//    (`#[requires(r >= 0 && r < Q && ...)]`) while `r` here is a signed
+//    representative in `[-q, q)`, so it is canonicalised with the hacspec's own
+//    `mod_q` first -- which is what `Spec.Rounding.decompose` does internally too.
+#[hax_lib::ensures(|out|
+    out.0 == hacspec_ml_dsa::arithmetic::decompose(
+        hacspec_ml_dsa::arithmetic::mod_q(r as i64), gamma2).1
+    && out.1 == hacspec_ml_dsa::arithmetic::decompose(
+        hacspec_ml_dsa::arithmetic::mod_q(r as i64), gamma2).0)]
 fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
 
     // Convert the signed representative to the standard unsigned one.
@@ -304,6 +321,34 @@ pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
 
         _ => unreachable!(),
     }
+}
+
+// Spec-only impl->spec LIFT, the Rust counterpart of `Spec.HacspecBridge.lift_poly_res`.
+//
+// The Lean proofs relate the impl to the extracted hacspec through lifting
+// functions that exist ONLY in Lean: `lift_poly_res` regathers the 32x8 SIMD
+// layout into a flat `[i32; 256]` and canonicalises each lane into `[0, Q)`.
+// This is that function in Rust, so an `#[ensures]` can name it. The
+// canonicalisation reuses the hacspec's own `mod_q`, which is exactly what the
+// Lean side does (`canonI32 . lift_poly`).
+//
+// CAVEAT, and it is why nothing is annotated with this yet: the poly-layer
+// functions it would serve -- `PolynomialRingElement::{add,subtract}` and the NTT
+// entry points -- are generic over `SIMDUnit: Operations`, while this lift needs
+// concrete lane access (`values[..]`, only `pub(super)`), and the trait's own
+// accessor `to_coefficient_array` is an out-param function so it cannot appear in
+// an `ensures` expression. Attaching this therefore needs either a monomorphic
+// wrapper on the impl side or a pure lane accessor on the `Operations` trait.
+// Extracted and kept here because it is the reusable half, and because the
+// scalar layer (`decompose_element` below) shows the pattern end to end without
+// needing any lift at all.
+#[cfg(hax)]
+pub(crate) fn lift_poly_res(
+    re: &crate::polynomial::PolynomialRingElement<Coefficients>,
+) -> [i32; 256] {
+    core::array::from_fn(|i| {
+        hacspec_ml_dsa::arithmetic::mod_q(re.simd_units[i / 8].values[i % 8].declassify() as i64)
+    })
 }
 
 // Spec-only lane predicates.

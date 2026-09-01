@@ -17,6 +17,16 @@ bench = false # so libtest doesn't eat the arguments to criterion
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# The machine-extracted FIPS-204 hacspec. A NORMAL dependency because
+# `decompose_element`'s `#[ensures]` names `hacspec_ml_dsa::arithmetic::decompose`
+# directly, so it must be in scope for the hax build.
+#
+# d8f55146 is the commit that makes that layer `pub` and pins the spec crate's
+# hax-lib to libcrux-iot's rev. It descends from 718a6011, the commit
+# `proofs/lean/lakefile.toml` pins for the `HacspecMlDsa` Lean package, and
+# nothing under `specs/ml-dsa/proofs/lean` differs between them -- so the Rust
+# side and the Lean side still check the same spec content.
+hacspec_ml_dsa = { git = "https://github.com/celabshq/libcrux.git", rev = "d8f55146a76d5a429ca84e35e263c31003231689" }
 libcrux-iot-sha3 = { path = "../sha3", features = ["unbuffered-xof"] }
 libcrux-macros.workspace = true
 hax-lib.workspace = true

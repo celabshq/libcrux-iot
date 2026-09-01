@@ -80,4 +80,10 @@ structure simd.portable.vector_type.Coefficients where
 @[reducible]
 def simd.portable.arithmetic.compute_hint.closure := Std.Usize
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::lift_poly_res::closure]
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 349:25-351:5 -/
+@[reducible]
+def simd.portable.arithmetic.lift_poly_res.closure :=
+  polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients
+
 end libcrux_iot_ml_dsa
