@@ -71,7 +71,8 @@ theorem core_models_Array_Insts_index_mut_RangeUsize_spec
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ N.val) :
     ⦃ ⌜ True ⌝ ⦄
     CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T) arr r
+      (CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut
+        (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice T)) arr r
     ⦃ ⇓ p => ⌜ p.1.val = arr.val.slice r.start.val r.end.val ∧
                 p.1.val.length = r.end.val - r.start.val ∧
                 ∀ s' : Slice T, s'.val.length = r.end.val - r.start.val →
@@ -86,9 +87,13 @@ theorem core_models_Array_Insts_index_mut_RangeUsize_spec
   have h1' : r.end.val ≤ (Std.Array.to_slice arr).val.length := by rw [h_len_to_slice]; exact h1
   obtain ⟨ns, hns_eq, hns_val⟩ :=
     Slice.subslice_le_eq (Std.Array.to_slice arr) ⟨r.start, r.end⟩ h0 h1'
-  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-             CoreModels.rust_primitives.slice.slice_slice, hns_eq]
+  -- CoreModels v0.3.12: `Slice.Insts.CoreOpsIndexIndexMut` is an
+  -- `ops.index.IndexMut` record now, so the read goes through its `IndexInst`.
+  simp only [CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut,
+             CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
+             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
+             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+             CoreModels.rust_primitives.slice.slice_slice_mut, hns_eq]
   simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok,
              Std.Do.SPred.pure, Std.Do.SPred.entails]
   intro _
@@ -289,11 +294,6 @@ theorem keccak.absorb_final_spec
         show 0 < len.val; omega
       have h_im_le : ((0#usize : Std.Usize).val) ≤ len.val := by show 0 ≤ len.val; omega
       have h_im_bnd : len.val ≤ (200#usize : Std.Usize).val := by show len.val ≤ 200; omega
-      have h_wrap_eq_im :
-          CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut
-            (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-          = CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8 := rfl
-      rw [h_wrap_eq_im]
       obtain ⟨p_im, h_pim_eq, h_pim_val, h_pim_len, h_pim_back⟩ :=
         triple_exists_ok_af
           (core_models_Array_Insts_index_mut_RangeUsize_spec
@@ -331,7 +331,7 @@ theorem keccak.absorb_final_spec
       obtain ⟨w, hw_eq, hw_val⟩ :=
         triple_exists_ok_af
           (core_models_slice_Slice_copy_from_slice_spec
-            CoreModels.core.U8.Insts.CoreMarkerCopy s_im q h_p_q_len)
+            s_im q h_p_q_len)
       rw [hw_eq]; simp only [bind_tc_ok]
       -- Conclude write_back w = buf1.
       have h_w_val_len : w.val.length = len.val - (0#usize : Std.Usize).val := by
@@ -399,12 +399,6 @@ theorem keccak.absorb_final_spec
             let i2 ← Std.Array.index_usize buffer2 i1
             let i3 ← Std.lift (i2 ||| 128#u8)
             Std.Array.update buffer2 i1 i3) = .ok buf3
-    -- Use the unwrapped form of the IndexMut instance.
-    have h_wrap_eq_im :
-        CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut
-          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-        = CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8 := rfl
-    rw [h_wrap_eq_im]
     -- Build the unfolded prefix result.
     have h_im_le : ((0#usize : Std.Usize).val) ≤ len.val := by show 0 ≤ len.val; omega
     have h_im_bnd : len.val ≤ (200#usize : Std.Usize).val := by show len.val ≤ 200; omega
@@ -448,7 +442,7 @@ theorem keccak.absorb_final_spec
     obtain ⟨w, hw_eq, hw_val⟩ :=
       triple_exists_ok_af
         (core_models_slice_Slice_copy_from_slice_spec
-          CoreModels.core.U8.Insts.CoreMarkerCopy s_im q h_p_q_len)
+          s_im q h_p_q_len)
     rw [hw_eq]; simp only [bind_tc_ok]
     have h_w_val_len : w.val.length = len.val - (0#usize : Std.Usize).val := by
       rw [hw_val, hq_len]

@@ -3629,10 +3629,6 @@ def keccak.KeccakXofState.absorb_full_loop.body
   match o with
   | core.option.Option.None => ok (done ks)
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (keccak.KeccakXofState.absorb_full.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      RATE) (_buf_len, _buf_len)
     let i1 ← i * RATE
     let i2 ← input_consumed + i1
     let ks1 ← state.KeccakState.load_block RATE ks inputs i2
@@ -3907,10 +3903,6 @@ def state.KeccakState.store_loop.body
   match o with
   | core.option.Option.None => ok (done out)
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (state.KeccakState.store.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      RATE) (out, _out_len)
     let i1 ← i / 5#usize
     let i2 ← i % 5#usize
     let lu ← state.KeccakState.get_lane self i1 i2
@@ -4076,10 +4068,6 @@ def keccak._squeeze_loop.body
   match o with
   | core.option.Option.None => ok (done (ks, out, offset))
   | core.option.Option.Some _ =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (keccak._squeeze.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool RATE)
-      (out, out_len, offset)
     let ks1 ← keccak.keccakf1600 ks
     let i ← offset + RATE
     let (s, index_mut_back) ←
@@ -4239,10 +4227,6 @@ def state.store_block_2u32_loop.body
   match o with
   | core.option.Option.None => ok (done out)
   | core.option.Option.Some i =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (state.store_block_2u32.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-      RATE) (out, _out_len)
     let i1 ← i / 5#usize
     let i2 ← i % 5#usize
     let lu ← state.KeccakState.get_lane s i1 i2
@@ -4454,10 +4438,6 @@ def keccak.keccak_loop0.body
   match o with
   | core.option.Option.None => ok (done s)
   | core.option.Option.Some _ =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (keccak.keccak.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool RATE
-      DELIM) start
     let s1 ← keccak.absorb_block RATE s data start
     let start1 ← start + RATE
     ok (cont (iter1, s1, start1))
@@ -4492,10 +4472,6 @@ def keccak.keccak_loop1.body
   match o with
   | core.option.Option.None => ok (done (out, s, offset))
   | core.option.Option.Some _ =>
-    hax_lib._internal_loop_invariant (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-      (keccak.keccak.closure_1.Insts.CoreOpsFunctionFnOnceTupleUsizeBool RATE
-      DELIM) (out, outlen, offset)
     let (s1, index_mut_back) ←
       core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
         (core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice

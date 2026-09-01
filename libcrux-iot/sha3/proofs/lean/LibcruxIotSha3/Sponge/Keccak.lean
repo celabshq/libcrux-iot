@@ -110,7 +110,7 @@ theorem keccak_loop0_zero_terminates
     (h_RATE_mod : RATE.val % 8 = 0)
     (h_RATE_bnd : RATE.val ≤ 200) :
     ∃ r : state.KeccakState,
-      keccak.keccak_loop0 RATE { start := 0#usize, «end» := 0#usize } data s 0#usize = .ok r
+      keccak.keccak_loop0 RATE DELIM { start := 0#usize, «end» := 0#usize } data s 0#usize = .ok r
       ∧ r.i.val = 0
       ∧ Foundation.lift r = Foundation.lift s := by
   have h_n_RATE : (0#usize : Std.Usize).val * RATE.val ≤ data.val.length := by
@@ -119,7 +119,7 @@ theorem keccak_loop0_zero_terminates
     show 0 * RATE.val ≤ Std.Usize.max; omega
   obtain ⟨r, h_r_eq, h_r_i, h_fold⟩ :=
     triple_exists_ok_kk
-      (keccak.keccak_loop0_spec RATE s data 0#usize h_i h_RATE_mod h_RATE_bnd h_n_RATE h_off)
+      (keccak.keccak_loop0_spec RATE DELIM s data 0#usize h_i h_RATE_mod h_RATE_bnd h_n_RATE h_off)
   refine ⟨r, h_r_eq, h_r_i, ?_⟩
   -- `absorb_fold s data RATE 0 = .ok (lift s)` then equals `.ok (lift r)`.
   have h_zero_val : ((0#usize : Std.Usize).val : Nat) = 0 := rfl
@@ -242,7 +242,7 @@ theorem keccak.keccak_keccak_spec_blocks_zero
     rw [h_n_us_val]; exact h_n_rate_max
   obtain ⟨s1, h_s1_eq, h_s1_i, h_s1_fold⟩ :=
     triple_exists_ok_kk
-      (keccak.keccak_loop0_spec RATE s0 data n_us h_s0_i h_RATE_mod h_RATE_le_200
+      (keccak.keccak_loop0_spec RATE DELIM s0 data n_us h_s0_i h_RATE_mod h_RATE_le_200
         h_keccak_loop0_pre_n_RATE h_keccak_loop0_pre_off)
   -- Step 12: absorb_final RATE DELIM s1 data (i_us - rem_us) rem_us.
   -- i_us - rem_us = data.length - rem_nat = n_nat * RATE.
@@ -574,7 +574,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
     rw [h_n_us_val]; exact h_n_rate_max
   obtain ⟨s1, h_s1_eq, h_s1_i, h_s1_fold⟩ :=
     triple_exists_ok_kk
-      (keccak.keccak_loop0_spec RATE s0 data n_us h_s0_i h_RATE_mod h_RATE_le_200
+      (keccak.keccak_loop0_spec RATE DELIM s0 data n_us h_s0_i h_RATE_mod h_RATE_le_200
         h_keccak_loop0_pre_n_RATE h_keccak_loop0_pre_off)
   -- Step 12: i3_us = i_us - rem_us.
   have h_rem_le_i : rem_us.val ≤ i_us.val := by

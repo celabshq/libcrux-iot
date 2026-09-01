@@ -265,29 +265,23 @@ theorem state.KeccakState.load_block_spec
   have h_RATE_le : RATE.val ≤ (Std.Slice.len blocks).val := by
     rw [Std.Slice.len_val]; exact h_blk_len
   have h_mod := rate_mod_8_eq_ok RATE h_RATE_mod
-  have h_zero := lane_zero_eq_ok
   obtain ⟨i2, h_div_eq, h_i2_val⟩ := rate_div_8_ok RATE
-  -- Bounds for loop0.
-  have h_loop0_le : (0#usize : Std.Usize).val ≤ i2.val := by
+  -- Bounds for the (single, fused) load loop.
+  have h_loop_le : (0#usize : Std.Usize).val ≤ i2.val := by
     show 0 ≤ i2.val; omega
-  have h_loop0_bnd : i2.val ≤ 25 := by rw [h_i2_val]; exact h_RATE_div_le
-  have h_loop0_off : start.val + 8 * i2.val ≤ Std.Usize.max := by
+  have h_loop_bnd : i2.val ≤ 25 := by rw [h_i2_val]; exact h_RATE_div_le
+  have h_loop_off : start.val + 8 * i2.val ≤ Std.Usize.max := by
     rw [h_i2_val]; omega
-  have h_loop0_blk : start.val + 8 * i2.val ≤ blocks.val.length := by
+  have h_loop_blk : start.val + 8 * i2.val ≤ blocks.val.length := by
     rw [h_i2_val]; omega
-  let state_flat : Std.Array lane.Lane2U32 25#usize :=
-    Std.Array.repeat 25#usize (⟨[0#u32, 0#u32], by decide⟩ : lane.Lane2U32)
-  obtain ⟨state_flat1, h_loop0_eq, h_state_flat1⟩ :=
+  -- One loop now: the impl interleaves and XORs in a single pass, so there is
+  -- no `state_flat` scratch array to thread between two specs.
+  obtain ⟨r_final, h_loop_eq, h_post⟩ :=
     triple_exists_ok_bytes
-      (state.load_block_2u32_loop0_spec
-        ⟨0#usize, i2⟩ blocks start state_flat
-        h_loop0_le h_loop0_bnd h_loop0_off h_loop0_blk (by rfl))
-  obtain ⟨r_final, h_loop1_eq, h_post⟩ :=
-    triple_exists_ok_bytes
-      (state.load_block_2u32_loop1_spec
-        ⟨0#usize, i2⟩ state_flat1 s h_loop0_le h_loop0_bnd rfl)
-  obtain ⟨h_r_i, h_post2⟩ := h_post
-  obtain ⟨h_lanes, h_unchanged⟩ := h_post2
+      (state.load_block_2u32_loop_spec
+        ⟨0#usize, i2⟩ blocks start s
+        h_loop_le h_loop_bnd h_loop_off h_loop_blk (by rfl))
+  obtain ⟨h_r_i, h_lanes, h_unchanged⟩ := h_post
   -- Build the per-cell BV post. Under the new spec layout, spec index `k`
   -- maps to impl index `transpose_perm k = 5*(k%5) + k/5` (where the
   -- impl's loop0 stored byte block `k`).
@@ -341,27 +335,17 @@ theorem state.KeccakState.load_block_spec
       -- impl idx b, the touching iteration is transpose⁻¹(b) = k.
       have h_k_lt_i2 : k < i2.val := by rw [h_i2_val]; exact h_k_lt
       have h_lane := h_lanes k h_k_lt_i2 hk_25
-      -- h_lane gives: lift_lane_bv r.st[5*(k%5)+k/5] = loop1_lane_at s state_flat1 k.
-      -- i.e., lift_lane_bv r.st[b] = ... (since b = transpose(k))
+      -- h_lane gives: lift_lane_bv r.st[5*(k%5)+k/5] = load_lane_at s blocks start k
       rw [h_lane]
-      unfold loop1_lane_at
+      unfold load_lane_at
       rw [← lift_lane_bv_xor]
       -- The s.st side: lift_lane_bv (s.st[transpose_perm k][0]) (...[1])
       -- = lift_lane_bv (s.st[5*(k%5)+k/5][0]) (...[1])
       -- We need this to match (lift s)[k] -- which is what we already showed.
       apply congrArg ((lift_lane_bv (s.st.val[5 * (k % 5) + k / 5]!.val[0]!.bv)
                                     (s.st.val[5 * (k % 5) + k / 5]!.val[1]!.bv)) ^^^ ·)
-      -- h_sf gives: state_flat1[k] = (interleave_bv ...).
-      have h_sf := h_state_flat1 k h_k_lt_i2 hk_25
-      have h_sf1 : (state_flat1.val[k]!).val[0]!.bv =
-          (interleave_bv ((Lane2U32_from_4byte_LE_pairs blocks start k).val[0]!).bv
-                         ((Lane2U32_from_4byte_LE_pairs blocks start k).val[1]!).bv).1 := by
-        have := h_sf; exact (Prod.mk.injEq .. |>.mp this).1
-      have h_sf2 : (state_flat1.val[k]!).val[1]!.bv =
-          (interleave_bv ((Lane2U32_from_4byte_LE_pairs blocks start k).val[0]!).bv
-                         ((Lane2U32_from_4byte_LE_pairs blocks start k).val[1]!).bv).2 := by
-        have := h_sf; exact (Prod.mk.injEq .. |>.mp this).2
-      rw [h_sf1, h_sf2]
+      -- `load_lane_at` is already stated on the interleave, so the old
+      -- `state_flat1[k] = interleave_bv ..` step has nothing left to do.
       have h_ib := interleave_bv_lift_eq
         ((Lane2U32_from_4byte_LE_pairs blocks start k).val[0]!).bv
         ((Lane2U32_from_4byte_LE_pairs blocks start k).val[1]!).bv
@@ -389,10 +373,8 @@ theorem state.KeccakState.load_block_spec
   unfold massert
   rw [if_pos (by rfl)]
   simp only [bind_tc_ok]
-  rw [h_zero]; simp only [bind_tc_ok]
   rw [h_div_eq]; simp only [bind_tc_ok]
-  rw [h_loop0_eq]; simp only [bind_tc_ok]
-  exact h_loop1_eq
+  exact h_loop_eq
 
 /-- `state.KeccakState.store_block RATE s out` terminates with `.ok`,
     and the output slice's length is preserved. Preconditions match
@@ -428,7 +410,9 @@ theorem state.KeccakState.store_block_spec
     rw [h_div_val]; omega
   obtain ⟨r, h_r_eq, h_r_len, h_r_bytes⟩ :=
     triple_exists_ok_bytes
-      (state.store_block_2u32_loop_spec ⟨0#usize, i_div⟩ s out
+      -- `RATE` and the (unused) `_out_len` are extra parameters of the loop as
+      -- of the 0.4 extraction; the loop's behaviour is unchanged.
+      (state.store_block_2u32_loop_spec RATE ⟨0#usize, i_div⟩ s out i_div
         h_loop_le h_loop_bnd h_loop_off h_loop_blk (by rfl))
   -- The loop's strong post gives `r.val[b]! = store_block_byte_at s b`
   -- for `b < 8 * i_div.val = 8 * (RATE.val / 8) = RATE.val` (when RATE.val%8=0).

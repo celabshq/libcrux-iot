@@ -323,26 +323,34 @@ theorem core_models_slice_Slice_copy_from_slice_eq
   · rename_i heq
     rw [hmap] at heq; exact absurd heq (by simp)
 
-/-- `copy_from_slice dst src` succeeds with the source slice `src` whenever both
-    slices have the same length **and the element `clone` is effect-free**.
+/-- `copy_from_slice dst src` succeeds with the source slice `src`, for `U8`
+    slices of equal length.
 
-    The `clone` hypothesis is not incidental. CoreModels routes
+    Why this is stated at `U8` and not generically: CoreModels routes
     `copy_from_slice` through `rust_primitives.slice.slice_clone_from_slice`,
     which clones every element -- "Cloned, so `clone`'s effects are observable
     and cannot be skipped" -- where the model this development previously used
-    returned `src` outright. Concluding `r = src` therefore genuinely depends on
-    the instance's `clone` being the identity, so it is stated rather than
-    assumed: every call site here is at `U8.Insts.CoreMarkerCopy`, whose `clone`
-    is literally `ok self`, and discharges it by `simp`. -/
+    returned `src` outright. So `r = src` holds only when the element `clone` is
+    effect-free. The general statement above
+    (`core_models_slice_Slice_copy_from_slice_eq`) keeps that as an explicit
+    `hclone` hypothesis; this `@[spec]` form fixes the instance to
+    `U8.Insts.CoreMarkerCopy`, whose `clone` is literally `ok self`, and
+    discharges it once by `rfl`.
+
+    The specialization is deliberate: as an `@[spec]`, a `clone` hypothesis
+    would become a side goal at every `mvcgen` site that steps over a
+    `copy_from_slice`, and those sites have no way to close it. `U8` is the only
+    element type this crate copies. For another one, use the general `_eq` and
+    supply the proof. -/
 @[spec]
 theorem core_models_slice_Slice_copy_from_slice_spec
-    {T : Type} (cpy : CoreModels.core.marker.Copy T) (dst src : Slice T)
-    (h : dst.val.length = src.val.length)
-    (hclone : ∀ x : T, cpy.cloneCloneInst.clone x = .ok x) :
+    (dst src : Slice Std.U8)
+    (h : dst.val.length = src.val.length) :
     ⦃ ⌜ True ⌝ ⦄
-    CoreModels.core.slice.Slice.copy_from_slice cpy dst src
+    CoreModels.core.slice.Slice.copy_from_slice
+      CoreModels.core.U8.Insts.CoreMarkerCopy dst src
     ⦃ ⇓ r => ⌜ r = src ⌝ ⦄ := by
-  rw [core_models_slice_Slice_copy_from_slice_eq cpy dst src h hclone]
+  rw [core_models_slice_Slice_copy_from_slice_eq _ dst src h (by intro x; rfl)]
   simp [Triple, WP.wp, PredTrans.apply]
 
 /-! ### `CoreModels.core.Array.Insts.CoreConvertTryFromShared0SliceTryFromSliceError.try_from`
