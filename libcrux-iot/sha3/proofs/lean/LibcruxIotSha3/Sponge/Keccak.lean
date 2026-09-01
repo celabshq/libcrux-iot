@@ -620,7 +620,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
     have : blocks_nat * RATE.val ≤ out.val.length := by omega
     omega
   have h_blocks_us_ge_1 : 1 ≤ blocks_us.val := by rw [h_blocks_us_val]; exact h_blocks_pos
-  have h_loop1_call := keccak.keccak_loop1_invariant RATE blocks_us s2 out1 RATE h_s2_i h_RATE_mod
+  have h_loop1_call := keccak.keccak_loop1_invariant RATE DELIM blocks_us s2 out1 outlen_us RATE h_s2_i h_RATE_mod
     h_RATE_le_200 (by show 1 ≤ RATE.val; exact h_RATE_ge_1) h_blocks_us_ge_1
     h_loop1_offset h_loop1_offset_max
   obtain ⟨r_loop1, h_loop1_eq, h_loop1_post⟩ := triple_exists_ok_kk h_loop1_call

@@ -195,35 +195,57 @@ theorem state.KeccakState.store_block_full_spec
   have h_impl_eq :
       state.KeccakState.store_block_full RATE s out = .ok r_arr := by
     unfold state.KeccakState.store_block_full state.store_block_full_2u32
-    -- Body: do
-    --   let (s1, back) ← lift (Array.to_slice_mut out)
+    -- Body (0.4): the mutable slice is taken as `&mut out[..]` -- `index_mut` at
+    -- `RangeFull` -- where 0.3.7 used `Array.to_slice_mut`:
+    --   let (s1, index_mut_back) ← index_mut (Slice..IndexMut (RangeFull..)) out ()
     --   let s2 ← state.store_block_2u32 RATE s s1
-    --   ok (back s2)
-    show (do
-        let (s1, back) ← Std.lift (α := Slice Std.U8 × (Slice Std.U8 → _))
-                                  (Std.Array.to_slice_mut out)
-        let s2 ← state.store_block_2u32 RATE s s1
-        RustM.ok (back s2)) = .ok r_arr
-    unfold Std.lift
-    -- `lift (to_slice_mut out)` reduces to `.ok (to_slice out, from_slice out)`.
-    show (do
-        let (s1, back) ← (RustM.ok (Std.Array.to_slice_mut out) :
-                            RustM (Slice Std.U8 × (Slice Std.U8 → _)))
-        let s2 ← state.store_block_2u32 RATE s s1
-        RustM.ok (back s2)) = .ok r_arr
-    simp only [bind_tc_ok]
-    -- Now: `let (s1, back) := Array.to_slice_mut out` destructures.
-    show (do
-        let s2 ← state.store_block_2u32 RATE s (Std.Array.to_slice out)
-        RustM.ok (Std.Array.from_slice out s2)) = .ok r_arr
+    --   ok (index_mut_back s2)
+    -- `RangeFull`'s `get_unchecked_mut` is `ok (slice, id)`, so the read is the
+    -- whole slice and the write-back is an `update_subslice` over the full range.
+    unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
     -- `state.store_block_2u32` unfolds to `state.KeccakState.store_block`.
     have h_inner_unfold :
         state.store_block_2u32 RATE s (Std.Array.to_slice out) = .ok s_inner := by
       have := h_s_inner_eq
       unfold state.KeccakState.store_block at this
       exact this
-    rw [h_inner_unfold]; simp only [bind_tc_ok]
-    rw [hr_def]
+    -- Write-back bridge: `&mut out[..]` replaces the whole array, which is what
+    -- `from_slice` does -- the form `Array.to_slice_mut` used to hand over
+    -- directly. `update_subslice` over the full range agrees with it.
+    have h_len_us : (Std.Slice.len (Std.Array.to_slice out)).val = 200 := by
+      rw [Std.Slice.len_val]; exact h_to_slice_len
+    have h_out200 : out.val.length = 200 := out.property
+    have h_us : Std.Array.update_subslice out
+                  (HaxToRange.toRange (I := CoreModels.core.ops.range.RangeFull) ()
+                    (Std.Slice.len (Std.Array.to_slice out))) s_inner
+                = .ok r_arr := by
+      show Std.Array.update_subslice out
+             ⟨0#usize, Std.Slice.len (Std.Array.to_slice out)⟩ s_inner = _
+      unfold Std.Array.update_subslice
+      rw [dif_pos (by
+        refine ⟨by scalar_tac, ?_, ?_⟩
+        · show (Std.Slice.len (Std.Array.to_slice out)).val ≤ out.length
+          rw [h_len_us]
+          show 200 ≤ out.val.length
+          rw [h_out200]
+        · rw [h_s_inner_len_200, h_len_us]
+          rfl)]
+      apply congrArg
+      apply Subtype.ext
+      rw [hr_val_eq]
+      -- `setSlice!` at offset 0 with a full-length replacement is the replacement.
+      have hlen : s_inner.val.length = out.val.length := by
+        rw [h_s_inner_len_200, h_out200]
+      show out.val.setSlice! (0#usize : Std.Usize).val s_inner.val = s_inner.val
+      rw [show ((0#usize : Std.Usize).val) = 0 from rfl]
+      simp [List.setSlice!, hlen]
+    -- `simp` rather than `rw`: the `let (s1, index_mut_back) := (..)` destructure
+    -- sits between the goal and the inner call, and `simp` rewrites underneath it.
+    simp [CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut,
+      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
+      CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice,
+      CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+      h_inner_unfold, h_us]
   apply triple_of_ok_sb (v := r_arr) h_impl_eq ⟨hr_len, hr_bytes⟩
 
 /-! ### Helper Triple: Array index by `Range Usize`.

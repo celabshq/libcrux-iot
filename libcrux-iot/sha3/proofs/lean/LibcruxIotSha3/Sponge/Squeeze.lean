@@ -195,10 +195,13 @@ theorem core_models_Slice_Insts_index_mut_RangeFromUsize_spec
   obtain ⟨ns, hns_eq, hns_val⟩ :=
     Slice.subslice_le_eq s ⟨r.start, s.len⟩ (by simpa [Std.Slice.len_val] using h)
       (by simp [Std.Slice.len_val])
+  -- CoreModels v0.3.12 supplies this instance: `index_mut` delegates to the
+  -- `SliceIndex`'s `get_unchecked_mut`, which for `RangeFrom<usize>` is
+  -- `slice_slice_mut slice self.start len`.
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-  simp only [CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-             CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.index,
-             CoreModels.rust_primitives.slice.slice_slice,
+  simp only [CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut,
+             CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+             CoreModels.rust_primitives.slice.slice_slice_mut,
              CoreModels.rust_primitives.slice.slice_length, bind_tc_ok, hns_eq]
   simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok, hns_eq,
              Std.Do.SPred.pure, Std.Do.SPred.entails]
@@ -211,8 +214,9 @@ theorem core_models_Slice_Insts_index_mut_RangeFromUsize_spec
     obtain ⟨nu, hnu_eq, hnu_val⟩ :=
       Slice.update_subslice_le_eq s ⟨r.start, s.len⟩ s' (by simpa [Std.Slice.len_val] using h)
         (by simp [Std.Slice.len_val]) (by rw [hs']; simp [Std.Slice.len_val])
+    -- CoreModels v0.3.12's `slice_slice_mut` write-back is directly
+    -- `setSlice!`, so the simp above closes this outright.
     simp only [HaxToRange.toRange, hnu_eq]
-    exact hnu_val
 
 /-! ### Theorem 3: `keccak.keccak_loop1_invariant`.
 
@@ -232,8 +236,9 @@ def squeeze_fold (s_init : state.KeccakState) (k : Nat) :
 
 @[spec]
 theorem keccak.keccak_loop1_invariant
-    (RATE : Std.Usize) (blocks : Std.Usize) (s : state.KeccakState)
-    (out : Slice Std.U8) (offset : Std.Usize)
+    (RATE : Std.Usize) (DELIM : Std.U8) (blocks : Std.Usize)
+    (s : state.KeccakState)
+    (out : Slice Std.U8) (outlen : Std.Usize) (offset : Std.Usize)
     (h_i : s.i.val = 0)
     (h_RATE_mod : RATE.val % 8 = 0)
     (h_RATE_bnd : RATE.val ≤ 200)
@@ -242,7 +247,7 @@ theorem keccak.keccak_loop1_invariant
     (h_offset : offset.val + (blocks.val - 1) * RATE.val ≤ out.val.length)
     (h_offset_max : offset.val + (blocks.val - 1) * RATE.val ≤ Std.Usize.max) :
     ⦃ ⌜ True ⌝ ⦄
-    keccak.keccak_loop1 RATE { start := 1#usize, «end» := blocks } out s offset
+    keccak.keccak_loop1 RATE DELIM { start := 1#usize, «end» := blocks } out outlen s offset
     ⦃ ⇓ r => ⌜
         let (out_final, s_final, offset_final) := r
         out_final.val.length = out.val.length
@@ -259,7 +264,7 @@ theorem keccak.keccak_loop1_invariant
   apply Std.Do.Triple.of_entails_right _
     (loop_range_spec_usize
       (fun (iter1, out1, s1, offset1) =>
-        keccak.keccak_loop1.body RATE iter1 out1 s1 offset1)
+        keccak.keccak_loop1.body RATE DELIM outlen iter1 out1 s1 offset1)
       (out, s, offset) 1#usize blocks
       (fun k acc => pure (
           acc.1.val.length = out.val.length
@@ -306,7 +311,7 @@ theorem keccak.keccak_loop1_invariant
     obtain ⟨h_acc_len, h_acc_i, h_acc_offset, h_fold_acc, h_acc_bytes, h_acc_prefix⟩ :=
       of_pure_prop_holds hinv
     obtain ⟨out_acc, s_acc, offset_acc⟩ := acc
-    -- Body: keccak.keccak_loop1.body RATE { start := k, end := blocks } out_acc s_acc offset_acc.
+    -- Body: keccak.keccak_loop1.body RATE DELIM outlen { start := k, end := blocks } out_acc s_acc offset_acc.
     unfold keccak.keccak_loop1.body
     apply Std.Do.Triple.bind _ _
       (IteratorRange_next_spec_usize k blocks
