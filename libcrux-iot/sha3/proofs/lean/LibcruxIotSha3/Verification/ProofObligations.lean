@@ -137,25 +137,126 @@ private theorem triple_exists_ok {α : Type} {x : RustM α} {P : α → Prop}
   | .div =>
       exfalso; have h' := h; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h'
 
+/-! ## Shared machinery for the functional-correctness posts
+
+    All six generated posts end the same way: declassify, call the hacspec, take
+    `[..]` of its array output, and compare slices. These five lemmas are that
+    shape, factored out. -/
+
+/-- `declassify_ref` on a shared slice is the identity (Assumptions/FunsExternal). -/
+private theorem decl_ref_eq (s : Slice Std.U8) :
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar s = .ok s := rfl
+
+/-- `arr[..]` is `arr` viewed as a slice. -/
+private theorem range_full_index_eq {N : Std.Usize} (arr : Std.Array Std.U8 N) :
+    (CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
+      (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+        (CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+          Std.U8))
+      arr ()) = .ok (Aeneas.Std.Array.to_slice arr) := by
+  simp [CoreModels.core.Array.Insts.CoreOpsIndexIndex.index,
+    CoreModels.core.array.Array.as_slice,
+    CoreModels.rust_primitives.slice.array_as_slice,
+    CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index,
+    CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
+
+/-- Elementwise agreement over a common length gives list equality. The theorems
+    state their posts elementwise because the digest is a `Slice` while the
+    hacspec output is an `Array`, so the two are not the same Lean type. -/
+private theorem val_eq_of_bytes {N : Nat} {v : Slice Std.U8} {M : Std.Usize}
+    {spec_out : Std.Array Std.U8 M}
+    (hv_len : v.val.length = N) (hso : spec_out.val.length = N)
+    (hbytes : ∀ k : Nat, k < N → v.val[k]! = spec_out.val[k]!) :
+    v.val = (Aeneas.Std.Array.to_slice spec_out).val := by
+  rw [Aeneas.Std.Array.val_to_slice]
+  apply List.ext_getElem (by rw [hv_len, hso])
+  intro k h1 _h2
+  have h1' : k < N := by rw [hv_len] at h1; exact h1
+  have hk := hbytes k h1'
+  rwa [List.getElem!_eq_getElem?_getD, List.getElem!_eq_getElem?_getD,
+    List.getElem?_eq_getElem h1,
+    List.getElem?_eq_getElem (show k < spec_out.val.length by rw [hso]; exact h1')] at hk
+
+/-- The `shake` variant: both sides are arrays of the same length `M`, so the
+    length side conditions come from the types. -/
+private theorem to_slice_val_eq_of_bytes {M : Std.Usize}
+    {v spec_out : Std.Array Std.U8 M}
+    (hbytes : ∀ k : Nat, k < M.val → v.val[k]! = spec_out.val[k]!) :
+    (Aeneas.Std.Array.to_slice v).val = (Aeneas.Std.Array.to_slice spec_out).val := by
+  rw [Aeneas.Std.Array.val_to_slice, Aeneas.Std.Array.val_to_slice]
+  have hv : v.val.length = M.val := by simp
+  have hs : spec_out.val.length = M.val := by simp
+  apply List.ext_getElem (by rw [hv, hs])
+  intro k h1 _h2
+  have h1' : k < M.val := by rw [hv] at h1; exact h1
+  have hk := hbytes k h1'
+  rwa [List.getElem!_eq_getElem?_getD, List.getElem!_eq_getElem?_getD,
+    List.getElem?_eq_getElem h1,
+    List.getElem?_eq_getElem (show k < spec_out.val.length by rw [hs]; exact h1')] at hk
+
+/-- The slice comparison that ends every one of these posts returns `true`.
+    `Composition.slice_eq_spec` is the closed form for
+    `core::cmp::PartialEq for [T]`, which CoreModels implements as a loop. -/
+private theorem slice_eq_true {a b : Slice Std.U8} (h : a.val = b.val) :
+    CoreModels.core.Slice.Insts.CoreCmpPartialEqSlice.eq
+      CoreModels.core.U8.Insts.CoreCmpPartialEqU8 a b = .ok true := by
+  obtain ⟨r, hr_eq, hr_iff⟩ := triple_exists_ok
+    (Composition.slice_eq_spec CoreModels.core.U8.Insts.CoreCmpPartialEqU8
+      Composition.lawful_partialEq_u8 a b)
+  rw [hr_eq, hr_iff.mpr h]
+
 /-! ## SHAKE128 / SHAKE256
 
-    The generated `pre` bounds `BYTES` by `u32::MAX`; the correctness theorems do
-    not need it, so it is introduced and dropped. -/
+    Discharged OUTRIGHT with the full functional-correctness post. The generated
+    `pre` bounds `BYTES` by `u32::MAX`; the correctness theorems do not need it,
+    so it is introduced and dropped.
+
+    NOTE these two need a driver fix-up: aeneas binds `BYTES` IMPLICITLY in
+    `<fn>.post` but applies it EXPLICITLY in `<fn>.spec`, so the emitted Lean does
+    not typecheck as generated. See the pass in `hax_aeneas.py`. -/
 
 theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     libcrux_iot_sha3.shake128.spec BYTES data := by
   intro _
-  exact triple_true_of_triple (Sponge.shake128_spec BYTES data)
+  obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
+    triple_exists_ok (Sponge.shake128_spec BYTES data)
+  refine triple_of_ok hv_eq ?_
+  have hpost : libcrux_iot_sha3.shake128.post BYTES data v = .ok true := by
+    simp only [libcrux_iot_sha3.shake128.post]
+    rw [range_full_index_eq v, Aeneas.Std.bind_tc_ok,
+      decl_ref_eq (Aeneas.Std.Array.to_slice v), Aeneas.Std.bind_tc_ok,
+      decl_ref_eq data, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+      range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
+    exact slice_eq_true (to_slice_val_eq_of_bytes hv_bytes)
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 theorem shake256_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     libcrux_iot_sha3.shake256.spec BYTES data := by
   intro _
-  exact triple_true_of_triple (Sponge.shake256_spec BYTES data)
+  obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
+    triple_exists_ok (Sponge.shake256_spec BYTES data)
+  refine triple_of_ok hv_eq ?_
+  have hpost : libcrux_iot_sha3.shake256.post BYTES data v = .ok true := by
+    simp only [libcrux_iot_sha3.shake256.post]
+    rw [range_full_index_eq v, Aeneas.Std.bind_tc_ok,
+      decl_ref_eq (Aeneas.Std.Array.to_slice v), Aeneas.Std.bind_tc_ok,
+      decl_ref_eq data, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+      range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
+    exact slice_eq_true (to_slice_val_eq_of_bytes hv_bytes)
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 /-! ## SHA3-224/256/384/512 (EMA)
 
-    Here the generated `pre` is `payload.len() <= u32::MAX && digest.len() == SIZE`
-    and the correctness theorems want exactly those two facts as hypotheses. -/
+    Discharged OUTRIGHT with the full functional-correctness post. The generated
+    `pre` is `payload.len() <= u32::MAX && digest.len() == SIZE`, and the
+    correctness theorems want exactly those two facts as hypotheses.
+
+    Each `#[ensures]` names the corresponding hacspec directly, so the generated
+    `post` says the digest IS the FIPS-202 digest of the payload rather than
+    merely that it has the right length. -/
 
 theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
     libcrux_iot_sha3.sha224_ema.spec digest payload := by
@@ -172,10 +273,8 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_224_DIGEST_SIZE] using hv
-    -- the generated post is now `digest_future.len() == SHA3_224_DIGEST_SIZE`,
-    -- which is one of the conjuncts the theorem already proves.
-    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
-    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+    -- all four conjuncts of the theorem's post are used below
+    obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
         (Sponge.sha224_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
@@ -185,27 +284,19 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
       show v.val.length = _
       rw [hv_len]
       simp [libcrux_iot_sha3.SHA3_224_DIGEST_SIZE]
-    simp only [libcrux_iot_sha3.sha224_ema.post,
-      CoreModels.core.slice.Slice.len,
-      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
+    have hpost : libcrux_iot_sha3.sha224_ema.post digest payload v = .ok true := by
+      simp only [libcrux_iot_sha3.sha224_ema.post,
+        CoreModels.core.slice.Slice.len,
+        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
+      exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
-/-- **Full functional correctness, straight out of the Rust annotation.**
-
-    `sha256_ema`'s `#[ensures]` now names the hacspec directly:
-
-      future(digest).declassify_ref() == &hacspec_sha3::sha3_256(payload.declassify_ref())[..]
-
-    so the generated `post` is no longer just a length claim -- it says the digest
-    IS the FIPS-202 SHA3-256 of the payload. Every conjunct of
-    `Sponge.sha256_ema_spec` is now consumed, where previously only the length
-    was.
-
-    The last step of the generated `post` is `core::cmp::PartialEq for [T]`,
-    which CoreModels implements as a loop; `Composition.slice_eq_spec` is the
-    closed form for it. -/
 theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
     libcrux_iot_sha3.sha256_ema.spec digest payload := by
   intro hpre
@@ -232,46 +323,14 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
       show v.val.length = _
       rw [hv_len]
       simp [libcrux_iot_sha3.SHA3_256_DIGEST_SIZE]
-    -- `declassify_ref` on a shared slice is the identity (Assumptions/FunsExternal)
-    have hdecl : ∀ s : Slice Std.U8,
-        libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
-          libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar s = .ok s :=
-      fun _ => rfl
-    -- `spec_out[..]` is just `spec_out` viewed as a slice
-    have hidx :
-        (CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
-          (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
-            (CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-              Std.U8))
-          spec_out ()) = .ok (Aeneas.Std.Array.to_slice spec_out) := by
-      simp [CoreModels.core.Array.Insts.CoreOpsIndexIndex.index,
-        CoreModels.core.array.Array.as_slice,
-        CoreModels.rust_primitives.slice.array_as_slice,
-        CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index,
-        CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
-    -- the digest agrees with the hacspec output byte for byte, hence as lists
-    have hso : spec_out.val.length = 32 := by simp
-    have hvals : v.val = (Aeneas.Std.Array.to_slice spec_out).val := by
-      rw [Aeneas.Std.Array.val_to_slice]
-      apply List.ext_getElem (by rw [hv_len, hso])
-      intro k h1 _h2
-      have h1' : k < 32 := by rw [hv_len] at h1; exact h1
-      have hk := hv_bytes k h1'
-      rwa [List.getElem!_eq_getElem?_getD, List.getElem!_eq_getElem?_getD,
-        List.getElem?_eq_getElem h1,
-        List.getElem?_eq_getElem (show k < spec_out.val.length by rw [hso]; exact h1')] at hk
-    -- ... so the extracted slice comparison returns `true`
-    obtain ⟨r, hr_eq, hr_iff⟩ := triple_exists_ok
-      (Composition.slice_eq_spec CoreModels.core.U8.Insts.CoreCmpPartialEqU8
-        Composition.lawful_partialEq_u8 v (Aeneas.Std.Array.to_slice spec_out))
-    have hr_true : r = true := hr_iff.mpr hvals
     have hpost : libcrux_iot_sha3.sha256_ema.post digest payload v = .ok true := by
       simp only [libcrux_iot_sha3.sha256_ema.post,
         CoreModels.core.slice.Slice.len,
         CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-      rw [if_pos hlen_usize, hdecl v, Aeneas.Std.bind_tc_ok, hdecl payload,
-        Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok, hidx,
-        Aeneas.Std.bind_tc_ok, hr_eq, hr_true]
+      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
+      exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
     rw [hpost]
     exact holds_map_ok_of_bool rfl
   · rw [if_neg hcond] at hpre
@@ -292,10 +351,8 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_384_DIGEST_SIZE] using hv
-    -- the generated post is now `digest_future.len() == SHA3_384_DIGEST_SIZE`,
-    -- which is one of the conjuncts the theorem already proves.
-    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
-    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+    -- all four conjuncts of the theorem's post are used below
+    obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
         (Sponge.sha384_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
@@ -305,10 +362,16 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
       show v.val.length = _
       rw [hv_len]
       simp [libcrux_iot_sha3.SHA3_384_DIGEST_SIZE]
-    simp only [libcrux_iot_sha3.sha384_ema.post,
-      CoreModels.core.slice.Slice.len,
-      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
+    have hpost : libcrux_iot_sha3.sha384_ema.post digest payload v = .ok true := by
+      simp only [libcrux_iot_sha3.sha384_ema.post,
+        CoreModels.core.slice.Slice.len,
+        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
+      exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
@@ -327,10 +390,8 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_512_DIGEST_SIZE] using hv
-    -- the generated post is now `digest_future.len() == SHA3_512_DIGEST_SIZE`,
-    -- which is one of the conjuncts the theorem already proves.
-    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
-    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+    -- all four conjuncts of the theorem's post are used below
+    obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
         (Sponge.sha512_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
@@ -340,10 +401,16 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
       show v.val.length = _
       rw [hv_len]
       simp [libcrux_iot_sha3.SHA3_512_DIGEST_SIZE]
-    simp only [libcrux_iot_sha3.sha512_ema.post,
-      CoreModels.core.slice.Slice.len,
-      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
+    have hpost : libcrux_iot_sha3.sha512_ema.post digest payload v = .ok true := by
+      simp only [libcrux_iot_sha3.sha512_ema.post,
+        CoreModels.core.slice.Slice.len,
+        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
+      exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 

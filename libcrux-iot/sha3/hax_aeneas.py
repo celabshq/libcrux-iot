@@ -184,6 +184,26 @@ if _specs.exists():
                   f"declaration order, delete this pass.", file=sys.stderr)
             sys.exit(1)
         _s = _s.replace(_old, _new)
+
+    # Second aeneas bug in the same file: for a function whose only use of a
+    # const generic is in the TYPE of an argument (`out : [U8; BYTES]`), the
+    # generated `<fn>.post` binds that generic IMPLICITLY --
+    #     def shake128.post {BYTES : Usize} (data : Slice U8) (out : Array U8 BYTES)
+    # -- but `<fn>.spec` applies it EXPLICITLY:
+    #     (shake128.post BYTES data res).holds
+    # so the emitted Lean does not typecheck:
+    #     Application type mismatch ... Specs.lean:332:30
+    # Make the binder explicit to match the call site.
+    for _fn in ("shake128", "shake256"):
+        _old = f"def {_fn}.post\n  {{BYTES : Std.Usize}}"
+        _new = f"def {_fn}.post\n  (BYTES : Std.Usize)"
+        if _s.count(_old) != 1:
+            print(f"error: expected exactly one implicit-BYTES `{_fn}.post` binder in "
+                  f"Specs.lean, found {_s.count(_old)}. If aeneas now binds it "
+                  f"explicitly, delete this pass.", file=sys.stderr)
+            sys.exit(1)
+        _s = _s.replace(_old, _new)
+
     _specs.write_text(_s)
 
 # The lean backend emits per-function Specs.lean + ProofObligations.lean from the

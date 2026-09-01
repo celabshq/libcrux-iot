@@ -203,7 +203,12 @@ pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
 // The Lean theorem `Sponge.sha224_ema_spec` proves the digest is exactly
 // SHA3_224_DIGEST_SIZE bytes and matches the hacspec; the length half of that
 // post is expressible here, so state it and let hax generate it.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_224_DIGEST_SIZE))]
+// Names the hacspec directly, so the generated post is full functional
+// correctness rather than a length claim. See `sha256_ema` and the note in
+// proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_224_DIGEST_SIZE
+    && future(digest).declassify_ref()
+        == &hacspec_sha3::sha3_224(payload.declassify_ref())[..]))]
 pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -277,7 +282,12 @@ pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
 // The Lean theorem `Sponge.sha384_ema_spec` proves the digest is exactly
 // SHA3_384_DIGEST_SIZE bytes and matches the hacspec; the length half of that
 // post is expressible here, so state it and let hax generate it.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_384_DIGEST_SIZE))]
+// Names the hacspec directly, so the generated post is full functional
+// correctness rather than a length claim. See `sha256_ema` and the note in
+// proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_384_DIGEST_SIZE
+    && future(digest).declassify_ref()
+        == &hacspec_sha3::sha3_384(payload.declassify_ref())[..]))]
 pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -314,7 +324,12 @@ pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
 // The Lean theorem `Sponge.sha512_ema_spec` proves the digest is exactly
 // SHA3_512_DIGEST_SIZE bytes and matches the hacspec; the length half of that
 // post is expressible here, so state it and let hax generate it.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_512_DIGEST_SIZE))]
+// Names the hacspec directly, so the generated post is full functional
+// correctness rather than a length claim. See `sha256_ema` and the note in
+// proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_512_DIGEST_SIZE
+    && future(digest).declassify_ref()
+        == &hacspec_sha3::sha3_512(payload.declassify_ref())[..]))]
 pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -329,6 +344,11 @@ pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
 /// Preconditions:
 /// - `BYTES` is at most `u32::MAX as usize`
 #[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
+// `out` is an array here, so take `&out[..]` and declassify the SLICE: that
+// reuses the `&[T]` `DeclassifyRef` instance already modelled in
+// Assumptions/FunsExternal.lean rather than needing the `&[T; N]` one too.
+#[cfg_attr(hax, hax_lib::ensures(|out| (&out[..]).declassify_ref()
+    == &hacspec_sha3::shake128::<BYTES>(data.declassify_ref())[..]))]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 
@@ -358,6 +378,11 @@ pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
 /// Preconditions:
 /// - `BYTES` is at most `u32::MAX as usize`
 #[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
+// `out` is an array here, so take `&out[..]` and declassify the SLICE: that
+// reuses the `&[T]` `DeclassifyRef` instance already modelled in
+// Assumptions/FunsExternal.lean rather than needing the `&[T; N]` one too.
+#[cfg_attr(hax, hax_lib::ensures(|out| (&out[..]).declassify_ref()
+    == &hacspec_sha3::shake256::<BYTES>(data.declassify_ref())[..]))]
 pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 

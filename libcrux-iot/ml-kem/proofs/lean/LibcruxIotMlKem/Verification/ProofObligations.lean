@@ -15,21 +15,72 @@ about, e.g. `import LibcruxIotMlKem.Extraction`. -/
 
   ## Where the annotations are -- and where the verification is
 
-  All 38 generated specs sit in `vector.portable.*`: the SIMD vector primitives
-  (`ntt_step`, `serialize_*`/`deserialize_*`, `compress*`, `rej_sample`,
-  `accumulating_ntt_multiply*`, …). NONE of them is one of this development's
-  top-level results: the four L7 matrix apexes (`compute_As_plus_e_fc`,
-  `compute_vector_u_fc`, `compute_ring_element_v_fc`, `compute_message_fc`) and the
-  `ind_cpa` lane theorems are proved about `matrix.*` / `ind_cpa.*` / `serialize.*`
-  Rust functions, and those carry no `requires`/`ensures` at all, so hax generates
-  nothing for them.
+  All 88 generated spec definitions sit in `vector.portable.*`, `serialize.*`,
+  `ntt.*` and `invert_ntt.*`. NONE of them is one of this development's top-level
+  results: the four L7 matrix apexes (`compute_As_plus_e_fc`,
+  `compute_vector_u_fc`, `compute_ring_element_v_fc`, `compute_message_fc`) and
+  the `ind_cpa` lane theorems are proved about `matrix.*` / `ind_cpa.*` Rust
+  functions.
 
-  That is the first thing this exercise established, and it is worth stating
-  plainly: the feature produces specs exactly where annotations exist, and in
-  libcrux-iot the annotations are on the inner helpers rather than on the verified
-  top-level API. (SHA-3 is the exception -- its six public entry points ARE
-  annotated, and `LibcruxIotSha3`'s corresponding file discharges all six
-  outright.)
+  CORRECTION to an earlier version of this note, which claimed those functions
+  "carry no `requires`/`ensures` at all, so hax generates nothing for them".
+  That is wrong. They ARE annotated, and hax generates nothing anyway:
+
+      module        annotations   generated spec defs
+      serialize          26              26
+      ntt                 5               5
+      matrix              8               0
+      ind_cpa            29               0
+      polynomial          1               0
+
+  38 annotations produce no `pre`/`post`/`spec`, silently -- no warning in the
+  hax or aeneas output. It is not the signatures: `ntt.ntt_at_layer_1` takes
+  `&mut PolynomialRingElement<Vector>` and IS covered, while
+  `polynomial::zeta(i: usize) -> i16` with `#[requires(i < 128)]` -- about as
+  simple as a function gets -- is NOT. The split is by module, and the cause is
+  not established here. This is the smallest repro to report upstream.
+
+  So for the ml-kem top-level API there is currently nothing to discharge, and
+  strengthening the annotations would not change that until the gap above is
+  fixed.
+
+  ## Why naming the hacspec (as sha3 now does) does not carry over
+
+  `LibcruxIotSha3` states full functional correctness straight from the Rust:
+
+      future(digest).declassify_ref() == &hacspec_sha3::sha3_256(payload.declassify_ref())[..]
+
+  That works because both sides are `[u8; N]` -- the impl and the spec share a
+  representation, so Rust `==` says exactly what the theorem says.
+
+  Here they do not. `compute_ring_element_v_fc`'s post is
+
+      hacspec_ml_kem.matrix.compute_ring_element_v
+          (lift_t_as_ntt_from_public_key public_key K) (lift_vec_slice r_as_ntt K)
+          (lift_poly error_2) (lift_poly message)
+        = .ok (lift_poly p.2.1)
+
+  and every `lift_*` is a LEAN-ONLY definition (`Spec/Lift.lean`). `lift_poly`
+  regathers the 16x16 SIMD layout into a flat `[FieldElement; 256]` and
+  canonicalises each lane through `ZMod 3329` (`feOfZMod . i16_to_spec_fe_plain`).
+  There is no Rust function to name, so no `#[ensures]` can state this.
+
+  A bounded path exists if it is ever wanted. The per-element half of the lift
+  ALREADY exists in Rust: `hacspec_ml_kem::parameters::FieldElement::from_i16`,
+  whose own doc comment says it is "used by the impl->spec lift functions ... to
+  bridge the trait-layer `i16` representation to the spec-layer `FieldElement`
+  form". So one would (a) write a `#[cfg(hax)]` Rust `lift_poly` over it, (b)
+  prove the extracted Rust `lift_poly` equals the Lean `lift_poly` above -- one
+  bridge lemma per lift -- and only then (c) name the hacspec in an `#[ensures]`.
+  Step (b) is the real cost, and it buys nothing until the missing-spec gap is
+  fixed, since (a) and (c) currently generate nothing.
+
+  ML-DSA is further away still: its top-level rounding theorems are stated
+  against a HAND-WRITTEN Lean spec (`Spec/Rounding.lean`, "faithful translation
+  of specs/ml-dsa/src/arithmetic.rs"), not against the extracted hacspec at all.
+  Only three polynomial-level theorems (`poly_add`/`poly_sub`/
+  `poly_pointwise_mul`) face `hacspec_ml_dsa.*`, and those too go through a
+  Lean-only `lift_poly_res`.
 
   ## The second finding: the annotations were weaker than the proofs' domains
 
