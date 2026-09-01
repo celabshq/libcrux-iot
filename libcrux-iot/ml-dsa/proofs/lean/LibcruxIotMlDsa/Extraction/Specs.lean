@@ -61,11 +61,13 @@ def simd.portable.arithmetic.shift_left_then_reduce.spec (SHIFT_BY : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 165:0-165:40 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 165:0-165:75 -/
 @[reducible]
 def simd.portable.arithmetic.compute_one_hint.pre
   (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) : RustM Bool := do
-  ok (gamma2 != core.num.I32.MIN)
+  if gamma2 = constants.GAMMA2_V95_232
+  then ok true
+  else ok (gamma2 = constants.GAMMA2_V261_888)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint::post]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 166:0-166:47 -/
@@ -90,7 +92,7 @@ def simd.portable.arithmetic.compute_one_hint.spec (low : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 176:0-176:40 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 176:0-176:75 -/
 @[reducible]
 def simd.portable.arithmetic.compute_hint.pre
   (low : simd.portable.vector_type.Coefficients)
@@ -98,7 +100,9 @@ def simd.portable.arithmetic.compute_hint.pre
   (hint : simd.portable.vector_type.Coefficients) :
   RustM Bool
   := do
-  ok (gamma2 != core.num.I32.MIN)
+  if gamma2 = constants.GAMMA2_V95_232
+  then ok true
+  else ok (gamma2 = constants.GAMMA2_V261_888)
 
 def simd.portable.arithmetic.compute_hint.spec
   (low : simd.portable.vector_type.Coefficients)
@@ -128,13 +132,34 @@ def simd.portable.arithmetic.decompose_element.spec (gamma2 : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 269:0-269:75 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 269:0-271:33 -/
 @[reducible]
 def simd.portable.arithmetic.use_one_hint.pre
   (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) : RustM Bool := do
   if gamma2 = constants.GAMMA2_V95_232
-  then ok true
-  else ok (gamma2 = constants.GAMMA2_V261_888)
+  then
+    let i ← -. simd.traits.FIELD_MODULUS
+    if r >= i
+    then
+      if r < simd.traits.FIELD_MODULUS
+      then if hint = 0#i32
+           then ok true
+           else ok (hint = 1#i32)
+      else ok false
+    else ok false
+  else
+    if gamma2 = constants.GAMMA2_V261_888
+    then
+      let i ← -. simd.traits.FIELD_MODULUS
+      if r >= i
+      then
+        if r < simd.traits.FIELD_MODULUS
+        then if hint = 0#i32
+             then ok true
+             else ok (hint = 1#i32)
+        else ok false
+      else ok false
+    else ok false
 
 def simd.portable.arithmetic.use_one_hint.spec (gamma2 : Std.I32) (r : Std.I32)
   (hint : Std.I32) : Prop :=
@@ -145,7 +170,7 @@ def simd.portable.arithmetic.use_one_hint.spec (gamma2 : Std.I32) (r : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 307:0-307:75 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 309:0-309:75 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -168,7 +193,7 @@ def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 320:0-320:75 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 322:0-322:75 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)

@@ -17,7 +17,19 @@ about, e.g. `import LibcruxIotMlDsa.Extraction`. -/
   the polynomial API, so those eight are what got generated. Six of them have a
   hand-written correctness theorem in `Vector/Portable/Rounding.lean`.
 
-  ## The finding: NONE of the eight is dischargeable as generated
+  ## The original finding, and what was done about it
+
+  As first generated, NOT ONE of the eight was dischargeable. The annotations have
+  since been STRENGTHENED to match the domains the Lean proofs actually verify, so
+  `compute_one_hint`, `compute_hint` and `use_one_hint` now discharge OUTRIGHT --
+  every hypothesis of their theorems comes out of the generated `pre`. The
+  remaining three (`decompose_element`, `decompose`, `use_hint`) still need
+  hypotheses supplied on the side, because what they are missing is a bound on
+  SECRET-typed coefficients (`libcrux_secrets::I32`), and for the two vector
+  versions a `forall` over the eight lanes -- neither of which is expressible in a
+  `#[requires]` the way the scalar bounds were. Those three are the open items.
+
+  ## The original diagnosis (retained, because it is what drove the change)
 
   Not one of the six can be proved from its existing theorem, and the reason is
   worth stating precisely, because it is a real mismatch between the Rust
@@ -146,22 +158,68 @@ theorem decompose_element_spec_proof (gamma2 r : Std.I32)
   exact triple_true_of_triple
     (Vector.Portable.Rounding.decompose_element_spec gamma2 r hg hlo hhi)
 
-theorem use_one_hint_spec_proof (gamma2 r hint : Std.I32)
-    -- supplied because `#[requires]` does not state them:
-    (hlo : -(8380417 : Int) ≤ r.val) (hhi : r.val < (8380417 : Int))
-    (hh : hint.val = 0 ∨ hint.val = 1) :
+/-- Discharged OUTRIGHT: the `#[requires]` now states the `[-q, q)` range for `r`
+    and `hint in {0, 1}` as well as pinning `gamma2`, so every hypothesis of
+    `use_one_hint_spec` comes out of the generated `pre`.
+
+    The decode is longhand because hax compiles `(a || b) && c && d && (e || f)`
+    into nested `if`s with the `c && d` block DUPLICATED under each disjunct, and
+    the `-FIELD_MODULUS` bound arrives as a CHECKED negation
+    (`-. FIELD_MODULUS`, a `RustM I32`) that has to be resolved first. -/
+theorem use_one_hint_spec_proof (gamma2 r hint : Std.I32) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.use_one_hint.spec gamma2 r hint := by
   intro hpre
+  have hFM : (libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS).val = 8380417 := by
+    simp [libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS]
+  have hneg : (-. libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS : RustM Std.I32)
+      = .ok (-8380417)#i32 := by
+    simp [libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS]
+    first | rfl | decide
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_one_hint.pre, hneg,
+    Aeneas.Std.bind_tc_ok] at hpre
+  have key : (-(8380417 : Int) ≤ r.val ∧ r.val < 8380417)
+      ∧ (hint.val = 0 ∨ hint.val = 1) := by
+    by_cases h2 : r ≥ (-8380417)#i32
+    · by_cases h3 : r < libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS
+      · refine ⟨⟨by scalar_tac, by scalar_tac⟩, ?_⟩
+        by_cases h4 : hint = 0#i32
+        · exact Or.inl (by scalar_tac)
+        · exact Or.inr (by
+            by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
+            · rw [if_pos h1, if_pos h2, if_pos h3, if_neg h4] at hpre
+              have := of_decide_eq_true (bool_of_holds_map_ok hpre); scalar_tac
+            · by_cases h5 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V261_888
+              · rw [if_neg h1, if_pos h5, if_pos h2, if_pos h3, if_neg h4] at hpre
+                have := of_decide_eq_true (bool_of_holds_map_ok hpre); scalar_tac
+              · rw [if_neg h1, if_neg h5] at hpre
+                exact absurd (bool_of_holds_map_ok hpre) (by simp))
+      · exfalso
+        by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
+        · rw [if_pos h1, if_pos h2, if_neg h3] at hpre
+          exact absurd (bool_of_holds_map_ok hpre) (by simp)
+        · by_cases h5 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V261_888
+          · rw [if_neg h1, if_pos h5, if_pos h2, if_neg h3] at hpre
+            exact absurd (bool_of_holds_map_ok hpre) (by simp)
+          · rw [if_neg h1, if_neg h5] at hpre
+            exact absurd (bool_of_holds_map_ok hpre) (by simp)
+    · exfalso
+      by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
+      · rw [if_pos h1, if_neg h2] at hpre
+        exact absurd (bool_of_holds_map_ok hpre) (by simp)
+      · by_cases h5 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V261_888
+        · rw [if_neg h1, if_pos h5, if_neg h2] at hpre
+          exact absurd (bool_of_holds_map_ok hpre) (by simp)
+        · rw [if_neg h1, if_neg h5] at hpre
+          exact absurd (bool_of_holds_map_ok hpre) (by simp)
   have hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32 := by
     by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
     · exact Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1)
-    · simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_one_hint.pre,
-        if_neg h1] at hpre
-      exact Or.inr (by
-        simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using
-          of_decide_eq_true (bool_of_holds_map_ok hpre))
+    · by_cases h5 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V261_888
+      · exact Or.inr (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using h5)
+      · rw [if_neg h1, if_neg h5] at hpre
+        exact absurd (bool_of_holds_map_ok hpre) (by simp)
   exact triple_true_of_triple
-    (Vector.Portable.Rounding.use_one_hint_spec gamma2 r hint hg hlo hhi hh)
+    (Vector.Portable.Rounding.use_one_hint_spec gamma2 r hint hg key.1.1 key.1.2 key.2)
 
 theorem decompose_spec_proof (gamma2 : Std.I32)
     (simd_unit low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
@@ -210,27 +268,42 @@ theorem use_hint_spec_proof (gamma2 : Std.I32)
     Here the generated `pre` is too weak to yield the theorems' `hg` at all, so
     `hg` itself is what has to be supplied. -/
 
+/-- Discharged OUTRIGHT: the `#[requires]` now pins `gamma2` to the two FIPS-204
+    values, which is exactly the theorem's `hg`. -/
 theorem compute_hint_spec_proof
     (low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
     (gamma2 : Std.I32)
-    (hint : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
-    -- supplied because `#[requires]` only says `gamma2 != i32::MIN`:
-    (hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32) :
+    (hint : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.compute_hint.spec
       low high gamma2 hint := by
-  intro _
+  intro hpre
+  have hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32 := by
+    by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
+    · exact Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1)
+    · simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.compute_hint.pre,
+        if_neg h1] at hpre
+      exact Or.inr (by
+        simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using
+          of_decide_eq_true (bool_of_holds_map_ok hpre))
   exact triple_true_of_triple
     (Vector.Portable.Rounding.compute_hint_spec low high gamma2 hint hg)
 
-/-- The one ML-DSA function with an `#[ensures]`, so the generated `post` is a real
-    property (`0 <= out <= 1`) rather than `⌜True⌝` -- and it is delivered by the
-    existing theorem, which proves `r.val ∈ {0, 1}`. -/
-theorem compute_one_hint_spec_proof (low high gamma2 : Std.I32)
-    -- supplied because `#[requires]` only says `gamma2 != i32::MIN`:
-    (hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32) :
+/-- Discharged OUTRIGHT, and the most informative case: the one ML-DSA function
+    with an `#[ensures]`, so the generated `post` is a real property
+    (`0 <= out <= 1`) rather than `True` -- delivered by the existing theorem,
+    which proves `r.val in {0, 1}`. The `#[requires]` now pins `gamma2`. -/
+theorem compute_one_hint_spec_proof (low high gamma2 : Std.I32) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.compute_one_hint.spec
       low high gamma2 := by
-  intro _
+  intro hpre
+  have hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32 := by
+    by_cases h1 : gamma2 = libcrux_iot_ml_dsa.constants.GAMMA2_V95_232
+    · exact Or.inl (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V95_232] using h1)
+    · simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.compute_one_hint.pre,
+        if_neg h1] at hpre
+      exact Or.inr (by
+        simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using
+          of_decide_eq_true (bool_of_holds_map_ok hpre))
   obtain ⟨v, hv_eq, -, hv_01⟩ :=
     triple_exists_ok (Vector.Portable.Rounding.compute_one_hint_spec low high gamma2 hg)
   refine triple_of_ok hv_eq ?_

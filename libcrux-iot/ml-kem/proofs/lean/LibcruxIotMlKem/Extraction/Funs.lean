@@ -5006,7 +5006,7 @@ def vector.portable.compress.decompress_ciphertext_coefficient
     { start := 0#usize, «end» := vector.traits.FIELD_ELEMENTS_IN_VECTOR } a
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::ntt_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 7:0-15:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 11:0-19:1 -/
 def vector.portable.ntt.ntt_step
   (vec : vector.portable.vector_type.PortableVector) (zeta : Std.I16)
   (i : Std.Usize) (j : Std.Usize) :
@@ -5023,7 +5023,7 @@ def vector.portable.ntt.ntt_step
   ok { elements := a1 }
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::ntt_layer_1_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 18:0-33:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 22:0-37:1 -/
 def vector.portable.ntt.ntt_layer_1_step
   (vec : vector.portable.vector_type.PortableVector) (zeta0 : Std.I16)
   (zeta1 : Std.I16) (zeta2 : Std.I16) (zeta3 : Std.I16) :
@@ -5039,7 +5039,7 @@ def vector.portable.ntt.ntt_layer_1_step
   vector.portable.ntt.ntt_step vec7 zeta3 13#usize 15#usize
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::ntt_layer_2_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 36:0-45:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 40:0-49:1 -/
 def vector.portable.ntt.ntt_layer_2_step
   (vec : vector.portable.vector_type.PortableVector) (zeta0 : Std.I16)
   (zeta1 : Std.I16) :
@@ -5055,7 +5055,7 @@ def vector.portable.ntt.ntt_layer_2_step
   vector.portable.ntt.ntt_step vec7 zeta1 11#usize 15#usize
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::ntt_layer_3_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 48:0-57:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 52:0-61:1 -/
 def vector.portable.ntt.ntt_layer_3_step
   (vec : vector.portable.vector_type.PortableVector) (zeta : Std.I16) :
   RustM vector.portable.vector_type.PortableVector
@@ -5070,7 +5070,7 @@ def vector.portable.ntt.ntt_layer_3_step
   vector.portable.ntt.ntt_step vec7 zeta 7#usize 15#usize
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::inv_ntt_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 61:0-70:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 69:0-78:1 -/
 def vector.portable.ntt.inv_ntt_step
   (vec : vector.portable.vector_type.PortableVector) (zeta : Std.I16)
   (i : Std.Usize) (j : Std.Usize) :
@@ -5089,7 +5089,7 @@ def vector.portable.ntt.inv_ntt_step
   ok { elements := a1 }
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::inv_ntt_layer_1_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 73:0-88:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 81:0-96:1 -/
 def vector.portable.ntt.inv_ntt_layer_1_step
   (vec : vector.portable.vector_type.PortableVector) (zeta0 : Std.I16)
   (zeta1 : Std.I16) (zeta2 : Std.I16) (zeta3 : Std.I16) :
@@ -5105,7 +5105,7 @@ def vector.portable.ntt.inv_ntt_layer_1_step
   vector.portable.ntt.inv_ntt_step vec7 zeta3 13#usize 15#usize
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::inv_ntt_layer_2_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 91:0-100:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 99:0-108:1 -/
 def vector.portable.ntt.inv_ntt_layer_2_step
   (vec : vector.portable.vector_type.PortableVector) (zeta0 : Std.I16)
   (zeta1 : Std.I16) :
@@ -5121,7 +5121,7 @@ def vector.portable.ntt.inv_ntt_layer_2_step
   vector.portable.ntt.inv_ntt_step vec7 zeta1 11#usize 15#usize
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::inv_ntt_layer_3_step]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 103:0-112:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 111:0-120:1 -/
 def vector.portable.ntt.inv_ntt_layer_3_step
   (vec : vector.portable.vector_type.PortableVector) (zeta : Std.I16) :
   RustM vector.portable.vector_type.PortableVector
@@ -5136,7 +5136,7 @@ def vector.portable.ntt.inv_ntt_layer_3_step
   vector.portable.ntt.inv_ntt_step vec7 zeta 7#usize 15#usize
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials_fill_cache]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 137:0-165:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 145:0-173:1 -/
 def vector.portable.ntt.accumulating_ntt_multiply_binomials_fill_cache
   (a : vector.portable.vector_type.PortableVector)
   (b : vector.portable.vector_type.PortableVector) (zeta : Std.I16)
@@ -5177,7 +5177,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials_fill_cache
   ok (out2, { elements := a1 })
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials_use_cache]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 170:0-194:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 178:0-202:1 -/
 def vector.portable.ntt.accumulating_ntt_multiply_binomials_use_cache
   (a : vector.portable.vector_type.PortableVector)
   (b : vector.portable.vector_type.PortableVector) (i : Std.Usize)
@@ -5213,7 +5213,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials_use_cache
   Slice.update out1 i15 i14
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_binomials]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 199:0-225:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 207:0-233:1 -/
 def vector.portable.ntt.accumulating_ntt_multiply_binomials
   (a : vector.portable.vector_type.PortableVector)
   (b : vector.portable.vector_type.PortableVector) (zeta : Std.I16)
@@ -5251,7 +5251,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_binomials
   Slice.update out1 i15 i14
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 230:0-251:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 238:0-259:1 -/
 def vector.portable.ntt.accumulating_ntt_multiply
   (lhs : vector.portable.vector_type.PortableVector)
   (rhs : vector.portable.vector_type.PortableVector) (out : Slice Std.I32)
@@ -5295,7 +5295,7 @@ def vector.portable.ntt.accumulating_ntt_multiply
     out7
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_fill_cache]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 256:0-278:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 264:0-286:1 -/
 def vector.portable.ntt.accumulating_ntt_multiply_fill_cache
   (lhs : vector.portable.vector_type.PortableVector)
   (rhs : vector.portable.vector_type.PortableVector) (out : Slice Std.I32)
@@ -5340,7 +5340,7 @@ def vector.portable.ntt.accumulating_ntt_multiply_fill_cache
     7#usize out7 cache7
 
 /-- [libcrux_iot_ml_kem::vector::portable::ntt::accumulating_ntt_multiply_use_cache]:
-    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 283:0-297:1 -/
+    Source: 'ml-kem/src/vector/portable/ntt.rs', lines 291:0-305:1 -/
 def vector.portable.ntt.accumulating_ntt_multiply_use_cache
   (lhs : vector.portable.vector_type.PortableVector)
   (rhs : vector.portable.vector_type.PortableVector) (out : Slice Std.I32)

@@ -41,36 +41,49 @@ attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
 
 /-! ## Prerequisite — Aeneas Std byte/slice `@[spec]` lemmas. -/
 
-/-! ### AENEAS-SUBSLICE-STRICT — axiomatized `≤`-specs for sub-slicing.
+/-! ### `≤`-specs for sub-slicing (formerly AENEAS-SUBSLICE-STRICT).
 
-Aeneas's `Slice.subslice` / `Slice.update_subslice` currently require **strict**
-`start < end` and `fail` on empty ranges (`start = end`), whereas Rust's
-`&xs[i..i]` is a valid empty slice. Until aeneas is fixed to allow `start = end`,
-we axiomatize the intended `≤` behaviour (existential-equation form, so no
-`Slice` length-invariant proof term is needed) and build the CoreModels
-slice-index specs on top. **Delete these and revert to the real
-`Slice.subslice_spec` / `Slice.update_subslice_spec` once aeneas supports empty
-subslices.** -/
+Rust's `&xs[i..i]` is a valid empty slice. Aeneas used to require **strict**
+`start < end` in `Slice.subslice` / `Slice.update_subslice` and `fail` on empty
+ranges, so these three results had to be *axiomatized* under the tag
+`AENEAS-SUBSLICE-STRICT`.
 
-axiom Slice.subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
+As of aeneas nightly-2026.08.24 all three definitions guard on `start ≤ end`,
+so the intended `≤` behaviour is now a consequence of the definitions and the
+axioms are **discharged** — the statements are kept verbatim (existential-equation
+form, so no `Slice` length-invariant proof term is needed at the use sites) and
+everything downstream is unchanged. -/
+
+theorem Slice.subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
     (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize)
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length) :
     ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.subslice s r = .ok ns ∧
-      ns.val = s.val.slice r.start.val r.end.val
+      ns.val = s.val.slice r.start.val r.end.val := by
+  unfold Aeneas.Std.Slice.subslice
+  rw [if_pos (show r.start.val ≤ r.end.val ∧ r.end.val ≤ s.length from ⟨h0, h1⟩)]
+  exact ⟨_, rfl, rfl⟩
 
-axiom Slice.update_subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
+theorem Slice.update_subslice_le_eq {α : Type} (s : Aeneas.Std.Slice α)
     (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize) (ss : Aeneas.Std.Slice α)
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ s.val.length)
     (h2 : ss.val.length = r.end.val - r.start.val) :
     ∃ ns : Aeneas.Std.Slice α, Aeneas.Std.Slice.update_subslice s r ss = .ok ns ∧
-      ns.val = s.val.setSlice! r.start.val ss.val
+      ns.val = s.val.setSlice! r.start.val ss.val := by
+  unfold Aeneas.Std.Slice.update_subslice
+  rw [dif_pos (show r.start.val ≤ r.end.val ∧ r.end.val ≤ s.length ∧
+        ss.val.length = r.end.val - r.start.val from ⟨h0, h1, h2⟩)]
+  exact ⟨_, rfl, rfl⟩
 
-axiom Array.update_subslice_le_eq {α : Type} {n : Aeneas.Std.Usize} (a : Aeneas.Std.Array α n)
+theorem Array.update_subslice_le_eq {α : Type} {n : Aeneas.Std.Usize} (a : Aeneas.Std.Array α n)
     (r : Aeneas.Std.core.ops.range.Range Aeneas.Std.Usize) (ss : Aeneas.Std.Slice α)
     (h0 : r.start.val ≤ r.end.val) (h1 : r.end.val ≤ a.val.length)
     (h2 : ss.val.length = r.end.val - r.start.val) :
     ∃ na : Aeneas.Std.Array α n, Aeneas.Std.Array.update_subslice a r ss = .ok na ∧
-      na.val = a.val.setSlice! r.start.val ss.val
+      na.val = a.val.setSlice! r.start.val ss.val := by
+  unfold Aeneas.Std.Array.update_subslice
+  rw [dif_pos (show r.start.val ≤ r.end.val ∧ r.end.val ≤ a.length ∧
+        ss.val.length = r.end.val - r.start.val from ⟨h0, h1, h2⟩)]
+  exact ⟨_, rfl, rfl⟩
 
 /-! ### Bounded array `index_usize` / `update` (existential form).
 

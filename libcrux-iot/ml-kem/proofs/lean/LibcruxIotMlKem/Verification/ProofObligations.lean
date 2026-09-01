@@ -41,12 +41,18 @@ about, e.g. `import LibcruxIotMlKem.Extraction`. -/
   3*3328`). The magnitude bounds are the whole substance of the Kyber
   bounds-tracking argument, and the Rust says nothing about them.
 
-  So the generated obligation is STRICTLY STRONGER than what was proved, and no
-  post-weakening closes the gap. Discharging it outright would need either a
-  genuinely more general panic-freedom argument or a strengthening of the
-  `#[requires]` to state the magnitude bounds. That is a decision about the Rust
-  annotations, not about the proofs, so it is surfaced rather than hidden behind a
-  `sorry`.
+  So the generated obligation was STRICTLY STRONGER than what was proved, and no
+  post-weakening closes that. The annotation has since been strengthened to
+  `i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664`, which closes two
+  of the four gaps: `i != j` and the zeta bound now come out of the generated
+  `pre`.
+
+  The coefficient magnitude bounds remain open, and deliberately so: `vec.elements`
+  holds SECRET-typed `libcrux_secrets::I16` values, and a `#[requires]` comparing
+  them would have to declassify inside a specification. Stating those bounds is
+  therefore a design question about the secret-integer API, not a one-line
+  annotation change, so they are still supplied as explicit arguments below and
+  flagged rather than hidden behind a `sorry`.
 
   ## What this file proves
 
@@ -97,48 +103,72 @@ private theorem bool_of_holds_map_ok {b : Bool}
 
 /-! ## The NTT butterfly steps
 
-    Generated `pre`: `i < 16 && j < 16`. The theorems additionally need `i != j`,
-    the zeta bound and the coefficient magnitude bounds -- all supplied here. -/
+    Generated `pre`: `i < 16 && j < 16 && i != j && |zeta| <= 1664`, all of which
+    the theorems need and all of which are now decoded from it. Only the
+    coefficient magnitude bounds are still supplied by hand. -/
 
 theorem ntt_step_spec_proof
     (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (zeta : Std.I16) (i j : Std.Usize)
-    -- supplied because `#[requires]` does not state them:
-    (h_ne : i.val ≠ j.val)
-    (h_zeta : zeta.val.natAbs ≤ 1664)
+    -- still supplied: the coefficient magnitude bounds, which the `#[requires]`
+    -- cannot state (see the note above)
     (h_a : (vec.elements.val[i.val]!).val.natAbs ≤ 3 * 3328)
     (h_b : (vec.elements.val[j.val]!).val.natAbs ≤ 3 * 3328) :
     libcrux_iot_ml_kem.vector.portable.ntt.ntt_step.spec vec zeta i j := by
   intro hpre
-  obtain ⟨h_i, h_j⟩ : i.val < 16 ∧ j.val < 16 := by
-    simp only [libcrux_iot_ml_kem.vector.portable.ntt.ntt_step.pre] at hpre
+  simp only [libcrux_iot_ml_kem.vector.portable.ntt.ntt_step.pre] at hpre
+  -- the strengthened `#[requires]` now yields `i < 16`, `j < 16`, `i != j` and the
+  -- zeta bound; only the coefficient magnitude bounds remain to be supplied.
+  have key : i.val < 16 ∧ j.val < 16 ∧ i.val ≠ j.val ∧ zeta.val.natAbs ≤ 1664 := by
     by_cases h1 : i < (16#usize : Std.Usize)
-    · rw [if_pos h1] at hpre
-      exact ⟨by scalar_tac, by
-        have := of_decide_eq_true (bool_of_holds_map_ok hpre); scalar_tac⟩
+    · by_cases h2 : j < (16#usize : Std.Usize)
+      · by_cases h3 : i != j
+        · by_cases h4 : zeta ≥ (-1664)#i16
+          · rw [if_pos h1, if_pos h2, if_pos h3, if_pos h4] at hpre
+            have h5 := of_decide_eq_true (bool_of_holds_map_ok hpre)
+            refine ⟨by scalar_tac, by scalar_tac, ?_, by scalar_tac⟩
+            have : i ≠ j := by simpa using h3
+            intro hc; exact this (Aeneas.Std.UScalar.eq_of_val_eq hc)
+          · rw [if_pos h1, if_pos h2, if_pos h3, if_neg h4] at hpre
+            exact absurd (bool_of_holds_map_ok hpre) (by simp)
+        · rw [if_pos h1, if_pos h2, if_neg h3] at hpre
+          exact absurd (bool_of_holds_map_ok hpre) (by simp)
+      · rw [if_pos h1, if_neg h2] at hpre
+        exact absurd (bool_of_holds_map_ok hpre) (by simp)
     · rw [if_neg h1] at hpre
       exact absurd (bool_of_holds_map_ok hpre) (by simp)
   exact triple_true_of_triple
-    (Vector.Portable.Ntt.ntt_step_spec vec zeta i j h_i h_j h_ne h_zeta h_a h_b)
+    (Vector.Portable.Ntt.ntt_step_spec vec zeta i j key.1 key.2.1 key.2.2.1 key.2.2.2 h_a h_b)
 
 theorem inv_ntt_step_spec_proof
     (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
     (zeta : Std.I16) (i j : Std.Usize)
-    -- supplied because `#[requires]` does not state them:
-    (h_ne : i.val ≠ j.val)
-    (h_zeta : zeta.val.natAbs ≤ 1664)
+    -- still supplied: the coefficient magnitude bounds
     (hbnd : ∀ k : Nat, k < 16 → (vec.elements.val[k]!).val.natAbs ≤ 4 * 3328) :
     libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_step.spec vec zeta i j := by
   intro hpre
-  obtain ⟨h_i, h_j⟩ : i.val < 16 ∧ j.val < 16 := by
-    simp only [libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_step.pre] at hpre
+  simp only [libcrux_iot_ml_kem.vector.portable.ntt.inv_ntt_step.pre] at hpre
+  -- the strengthened `#[requires]` now yields `i < 16`, `j < 16`, `i != j` and the
+  -- zeta bound; only the coefficient magnitude bounds remain to be supplied.
+  have key : i.val < 16 ∧ j.val < 16 ∧ i.val ≠ j.val ∧ zeta.val.natAbs ≤ 1664 := by
     by_cases h1 : i < (16#usize : Std.Usize)
-    · rw [if_pos h1] at hpre
-      exact ⟨by scalar_tac, by
-        have := of_decide_eq_true (bool_of_holds_map_ok hpre); scalar_tac⟩
+    · by_cases h2 : j < (16#usize : Std.Usize)
+      · by_cases h3 : i != j
+        · by_cases h4 : zeta ≥ (-1664)#i16
+          · rw [if_pos h1, if_pos h2, if_pos h3, if_pos h4] at hpre
+            have h5 := of_decide_eq_true (bool_of_holds_map_ok hpre)
+            refine ⟨by scalar_tac, by scalar_tac, ?_, by scalar_tac⟩
+            have : i ≠ j := by simpa using h3
+            intro hc; exact this (Aeneas.Std.UScalar.eq_of_val_eq hc)
+          · rw [if_pos h1, if_pos h2, if_pos h3, if_neg h4] at hpre
+            exact absurd (bool_of_holds_map_ok hpre) (by simp)
+        · rw [if_pos h1, if_pos h2, if_neg h3] at hpre
+          exact absurd (bool_of_holds_map_ok hpre) (by simp)
+      · rw [if_pos h1, if_neg h2] at hpre
+        exact absurd (bool_of_holds_map_ok hpre) (by simp)
     · rw [if_neg h1] at hpre
       exact absurd (bool_of_holds_map_ok hpre) (by simp)
   exact triple_true_of_triple
-    (Vector.Portable.Ntt.inv_ntt_step_spec vec zeta i j h_i h_j h_ne h_zeta hbnd)
+    (Vector.Portable.Ntt.inv_ntt_step_spec vec zeta i j key.1 key.2.1 key.2.2.1 key.2.2.2 hbnd)
 
 end libcrux_iot_ml_kem.Verification

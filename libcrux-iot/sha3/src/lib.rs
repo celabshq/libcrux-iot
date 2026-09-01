@@ -195,6 +195,10 @@ pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_224_DIGEST_SIZE`] bytes long
 #[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_224_DIGEST_SIZE))]
+// The Lean theorem `Sponge.sha224_ema_spec` proves the digest is exactly
+// SHA3_224_DIGEST_SIZE bytes and matches the hacspec; the length half of that
+// post is expressible here, so state it and let hax generate it.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_224_DIGEST_SIZE))]
 pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -228,6 +232,10 @@ pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_256_DIGEST_SIZE`] bytes long
 #[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE))]
+// The Lean theorem `Sponge.sha256_ema_spec` proves the digest is exactly
+// SHA3_256_DIGEST_SIZE bytes and matches the hacspec; the length half of that
+// post is expressible here, so state it and let hax generate it.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE))]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -261,6 +269,10 @@ pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_384_DIGEST_SIZE`] bytes long
 #[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_384_DIGEST_SIZE))]
+// The Lean theorem `Sponge.sha384_ema_spec` proves the digest is exactly
+// SHA3_384_DIGEST_SIZE bytes and matches the hacspec; the length half of that
+// post is expressible here, so state it and let hax generate it.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_384_DIGEST_SIZE))]
 pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -294,6 +306,10 @@ pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_512_DIGEST_SIZE`] bytes long
 #[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_512_DIGEST_SIZE))]
+// The Lean theorem `Sponge.sha512_ema_spec` proves the digest is exactly
+// SHA3_512_DIGEST_SIZE bytes and matches the hacspec; the length half of that
+// post is expressible here, so state it and let hax generate it.
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_512_DIGEST_SIZE))]
 pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);

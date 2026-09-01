@@ -162,7 +162,7 @@ pub(super) fn shift_left_then_reduce<const SHIFT_BY: i32>(simd_unit: &mut Coeffi
 }
 
 #[inline(always)]
-#[hax_lib::requires(gamma2 != i32::MIN)]
+#[hax_lib::requires(gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)]
 #[hax_lib::ensures(|out| out >= 0 && out <= 1)]
 fn compute_one_hint(low: i32, high: i32, gamma2: i32) -> i32 {
     if (low > gamma2) || (low < -gamma2) || (low == -gamma2 && high != 0) {
@@ -173,7 +173,7 @@ fn compute_one_hint(low: i32, high: i32, gamma2: i32) -> i32 {
 }
 
 #[inline(always)]
-#[hax_lib::requires(gamma2 != i32::MIN)]
+#[hax_lib::requires(gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)]
 pub(super) fn compute_hint(
     low: &Coefficients,
     high: &Coefficients,
@@ -266,7 +266,9 @@ fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
 }
 
 #[inline(always)]
-#[hax_lib::requires(gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)]
+#[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
+    && r >= -FIELD_MODULUS && r < FIELD_MODULUS
+    && (hint == 0 || hint == 1))]
 pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
     let (r0, r1) = decompose_element(gamma2, r.classify());
 

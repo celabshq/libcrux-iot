@@ -23,12 +23,17 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
 
   ## What is actually being proved
 
-  For the six top-level entry points the generated `post` is `⌜True⌝` (they carry
-  `requires` but no `ensures`), so `<fn>.spec` says exactly: **under the
-  Rust-annotated precondition, the function neither panics nor diverges**. That is
-  strictly weaker than the functional-correctness Triples in `Sponge/Shake.lean`,
-  which pin the output against the hacspec, so each obligation follows from the
-  corresponding theorem by post-weakening (`triple_true_of_triple`).
+  The two SHAKE entry points carry `requires` but no `ensures`, so their generated
+  `post` is `⌜True⌝` and `<fn>.spec` says exactly: **under the Rust-annotated
+  precondition, the function neither panics nor diverges**. That follows from the
+  functional-correctness Triple by post-weakening (`triple_true_of_triple`).
+
+  The four `*_ema` entry points now also carry
+  `#[ensures(|_| future(digest).len() == SHA3_<n>_DIGEST_SIZE)]`, added so the
+  generated spec says something closer to what the Lean theorems actually prove.
+  Their `post` is therefore a REAL property, and it is one of the conjuncts
+  `Sponge.sha<n>_ema_spec` already establishes, so those four are discharged by
+  producing the post rather than by weakening it.
 
   The content is therefore not in the weakening -- it is in the PRECONDITION
   MATCH. The four `*_ema` theorems carry hand-written hypotheses
@@ -104,6 +109,33 @@ private theorem payload_len_le {payload : Slice Std.U8}
   rw [Aeneas.Std.Slice.len_val, hmax] at hv
   exact hv
 
+/-- Converse of `bool_of_holds_map_ok`: build a generated `post`'s `.holds` from
+    the plain boolean fact. -/
+private theorem holds_map_ok_of_bool {b : Bool} (h : b = true) :
+    RustM.holds ((fun a => a = true) <$> (RustM.ok b : RustM Bool)) := by
+  have hmap : ((fun a => a = true) <$> (RustM.ok b : RustM Bool))
+      = RustM.ok (b = true) := rfl
+  rw [hmap]
+  simpa [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] using h
+
+/-- Triple from an `ok` equation plus the post fact. -/
+private theorem triple_of_ok {α : Type} {x : RustM α} {v : α} {P : α → Prop}
+    (hx : x = .ok v) (hp : P v) :
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄ := by
+  subst hx; simp [Std.Do.Triple, WP.wp, PredTrans.apply, hp]
+
+/-- Triple to existential (stated with `x` a variable so the `match` substitutes). -/
+private theorem triple_exists_ok {α : Type} {x : RustM α} {P : α → Prop}
+    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) : ∃ v, x = .ok v ∧ P v := by
+  match hx : x with
+  | .ok v =>
+      refine ⟨v, rfl, ?_⟩
+      have h' := h; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h'; exact h'
+  | .fail e =>
+      exfalso; have h' := h; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h'
+  | .div =>
+      exfalso; have h' := h; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h'
+
 /-! ## SHAKE128 / SHAKE256
 
     The generated `pre` bounds `BYTES` by `u32::MAX`; the correctness theorems do
@@ -139,8 +171,23 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_224_DIGEST_SIZE] using hv
-    exact triple_true_of_triple
-      (Sponge.sha224_ema_spec digest payload (payload_len_le hcond) hlen)
+    -- the generated post is now `digest_future.len() == SHA3_224_DIGEST_SIZE`,
+    -- which is one of the conjuncts the theorem already proves.
+    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
+    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+      triple_exists_ok
+        (Sponge.sha224_ema_spec digest payload (payload_len_le hcond) hlen)
+    refine triple_of_ok hv_eq ?_
+    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_224_DIGEST_SIZE := by
+      apply Aeneas.Std.UScalar.eq_of_val_eq
+      rw [Aeneas.Std.Slice.len_val]
+      show v.val.length = _
+      rw [hv_len]
+      simp [libcrux_iot_sha3.SHA3_224_DIGEST_SIZE]
+    simp only [libcrux_iot_sha3.sha224_ema.post,
+      CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
@@ -159,8 +206,23 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_256_DIGEST_SIZE] using hv
-    exact triple_true_of_triple
-      (Sponge.sha256_ema_spec digest payload (payload_len_le hcond) hlen)
+    -- the generated post is now `digest_future.len() == SHA3_256_DIGEST_SIZE`,
+    -- which is one of the conjuncts the theorem already proves.
+    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
+    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+      triple_exists_ok
+        (Sponge.sha256_ema_spec digest payload (payload_len_le hcond) hlen)
+    refine triple_of_ok hv_eq ?_
+    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_256_DIGEST_SIZE := by
+      apply Aeneas.Std.UScalar.eq_of_val_eq
+      rw [Aeneas.Std.Slice.len_val]
+      show v.val.length = _
+      rw [hv_len]
+      simp [libcrux_iot_sha3.SHA3_256_DIGEST_SIZE]
+    simp only [libcrux_iot_sha3.sha256_ema.post,
+      CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
@@ -179,8 +241,23 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_384_DIGEST_SIZE] using hv
-    exact triple_true_of_triple
-      (Sponge.sha384_ema_spec digest payload (payload_len_le hcond) hlen)
+    -- the generated post is now `digest_future.len() == SHA3_384_DIGEST_SIZE`,
+    -- which is one of the conjuncts the theorem already proves.
+    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
+    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+      triple_exists_ok
+        (Sponge.sha384_ema_spec digest payload (payload_len_le hcond) hlen)
+    refine triple_of_ok hv_eq ?_
+    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_384_DIGEST_SIZE := by
+      apply Aeneas.Std.UScalar.eq_of_val_eq
+      rw [Aeneas.Std.Slice.len_val]
+      show v.val.length = _
+      rw [hv_len]
+      simp [libcrux_iot_sha3.SHA3_384_DIGEST_SIZE]
+    simp only [libcrux_iot_sha3.sha384_ema.post,
+      CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
@@ -199,8 +276,23 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
       have hv := congrArg Aeneas.Std.UScalar.val hd
       rw [Aeneas.Std.Slice.len_val] at hv
       simpa [libcrux_iot_sha3.SHA3_512_DIGEST_SIZE] using hv
-    exact triple_true_of_triple
-      (Sponge.sha512_ema_spec digest payload (payload_len_le hcond) hlen)
+    -- the generated post is now `digest_future.len() == SHA3_512_DIGEST_SIZE`,
+    -- which is one of the conjuncts the theorem already proves.
+    -- post: exists spec_out, spec = ok spec_out /\ len = N /\ bytes agree
+    obtain ⟨v, hv_eq, -, -, hv_len, -⟩ :=
+      triple_exists_ok
+        (Sponge.sha512_ema_spec digest payload (payload_len_le hcond) hlen)
+    refine triple_of_ok hv_eq ?_
+    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_512_DIGEST_SIZE := by
+      apply Aeneas.Std.UScalar.eq_of_val_eq
+      rw [Aeneas.Std.Slice.len_val]
+      show v.val.length = _
+      rw [hv_len]
+      simp [libcrux_iot_sha3.SHA3_512_DIGEST_SIZE]
+    simp only [libcrux_iot_sha3.sha512_ema.post,
+      CoreModels.core.slice.Slice.len,
+      CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
+    exact holds_map_ok_of_bool (decide_eq_true hlen_usize)
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 

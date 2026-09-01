@@ -2,7 +2,11 @@ use super::arithmetic::*;
 use super::vector_type::*;
 use libcrux_secrets::*;
 
-#[hax_lib::requires(i < 16 && j < 16)]
+// The Lean theorems `Vector.Portable.Ntt.{ntt_step,inv_ntt_step}_spec` also need
+// `i != j` and |zeta| <= 1664; both are expressible here. (The coefficient
+// magnitude bounds they need are not -- see the note in
+// proofs/lean/LibcruxIotMlKem/Verification/ProofObligations.lean.)
+#[hax_lib::requires(i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664)]
 #[inline(always)]
 pub(crate) fn ntt_step(vec: &mut PortableVector, zeta: i16, i: usize, j: usize) {
     let t = montgomery_multiply_fe_by_fer(vec.elements[j], zeta.classify());
@@ -56,7 +60,11 @@ pub(crate) fn ntt_layer_3_step(vec: &mut PortableVector, zeta: i16) {
     ntt_step(vec, zeta, 7, 15);
 }
 
-#[hax_lib::requires(i < 16 && j < 16)]
+// The Lean theorems `Vector.Portable.Ntt.{ntt_step,inv_ntt_step}_spec` also need
+// `i != j` and |zeta| <= 1664; both are expressible here. (The coefficient
+// magnitude bounds they need are not -- see the note in
+// proofs/lean/LibcruxIotMlKem/Verification/ProofObligations.lean.)
+#[hax_lib::requires(i < 16 && j < 16 && i != j && zeta >= -1664 && zeta <= 1664)]
 #[inline(always)]
 pub(crate) fn inv_ntt_step(vec: &mut PortableVector, zeta: i16, i: usize, j: usize) {
     let a_minus_b = vec.elements[j].wrapping_sub(vec.elements[i]);
