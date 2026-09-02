@@ -139,6 +139,7 @@ about, e.g. `import LibcruxIotMlDsa.Extraction`. -/
 import LibcruxIotMlDsa.Extraction
 import LibcruxIotMlDsa.Vector.Portable.Rounding
 import LibcruxIotMlDsa.Spec.HacspecBridge
+import LibcruxIotMlDsa.Spec.RoundingBridge
 
 open CoreModels Aeneas Aeneas.Std Std.Do
 
@@ -394,37 +395,17 @@ private theorem coefficients_are_hints_lanes
     returns `(r1, r0)`, and `r` is canonicalised with the hacspec's own `mod_q`
     because `decompose` is specified for `r` in `[0, Q)`.)
 
-    `hbridge` is the ONE thing still missing, and it is a pure-arithmetic fact
-    about two functions that are literally the same algorithm:
+    Both halves of the spec-side reasoning are now PROVED, in the new
+    `Spec/RoundingBridge.lean`:
 
-      Spec.Rounding.decompose        (Int,   `Spec/Rounding.lean`)
-      hacspec_ml_dsa.arithmetic.decompose  (I32 with checked ops, extracted)
+      RoundingBridge.decompose_eq         -- extracted hacspec `decompose`
+                                          -- = hand spec `Spec.Rounding.decompose`
+      RoundingBridge.decompose_canonical  -- the hand spec only reads `r` through
+                                          -- its canonical residue
 
-    Both compute `rPlus = canonical r`, `alpha = 2*gamma2`, `r0 = modPm rPlus
-    alpha`, then either `(0, r0-1)` or `((rPlus-r0)/alpha, r0)`. What has to be
-    supplied is the checked-arithmetic plumbing: that each of the six operations
-    stays in range (so the extraction returns `.ok`) and that Aeneas's truncated
-    `%`/`/` agree with Lean's `emod`/`ediv` on non-negative arguments. The
-    already-proved `Spec.HacspecBridge.mod_q_eq` is the companion for the `mod_q`
-    step and shows the exact idiom (`IScalar.rem_spec`,
-    `IScalar.cast_inBounds_spec`, `IScalar.add_spec` via `spec_of_partialSpec`).
-
-    Stated as a hypothesis rather than hidden behind a `sorry`, in the same style
-    as the coefficient bounds were before the annotations absorbed them. -/
-theorem decompose_element_spec_proof (gamma2 r : Std.I32)
-    (hbridge : ∀ rc g : Std.I32, 0 ≤ rc.val → rc.val < 8380417 →
-        (g = 95232#i32 ∨ g = 261888#i32) →
-        ∃ r1 r0 : Std.I32,
-          hacspec_ml_dsa.arithmetic.decompose rc g = .ok (r1, r0)
-            ∧ r1.val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val g.val).1
-            ∧ r0.val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val g.val).2)
-    -- the spec only depends on the residue class, so canonicalising is harmless
-    (hcanon : ∀ (x : Std.I32) (rc : Std.I32) (g : Std.I32),
-        ((rc.val : Int) : libcrux_iot_ml_dsa.Spec.Parameters.Zq)
-          = ((x.val : Int) : libcrux_iot_ml_dsa.Spec.Parameters.Zq) →
-        0 ≤ rc.val → rc.val < 8380417 →
-        libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val g.val
-          = libcrux_iot_ml_dsa.Spec.Rounding.decompose x.val g.val) :
+    together with the already-proved `Spec.HacspecBridge.mod_q_eq` for the
+    canonicalisation step. So this discharges with no side hypotheses at all. -/
+theorem decompose_element_spec_proof (gamma2 r : Std.I32) :
     libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_element.spec gamma2 r := by
   intro hpre
   have hok := eq_ok_true_of_holds_map hpre
@@ -466,10 +447,11 @@ theorem decompose_element_spec_proof (gamma2 r : Std.I32)
       norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
     omega
   -- ... so the hacspec `decompose` agrees with the hand spec on it
-  obtain ⟨r1, r0, hd_eq, hr1_val, hr0_val⟩ := hbridge rc gamma2 hrc_lo hrc_hi' key.1
+  obtain ⟨r1, r0, hd_eq, hr1_val, hr0_val⟩ :=
+    libcrux_iot_ml_dsa.Spec.RoundingBridge.decompose_eq rc gamma2 hrc_lo hrc_hi' key.1
   have hsame : libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val gamma2.val
       = libcrux_iot_ml_dsa.Spec.Rounding.decompose r.val gamma2.val := by
-    refine hcanon r rc gamma2 ?_ hrc_lo hrc_hi'
+    refine libcrux_iot_ml_dsa.Spec.RoundingBridge.decompose_canonical r rc gamma2 ?_ hrc_lo hrc_hi'
     rw [hrc_zq, hc_val]
   rw [hsame] at hr1_val hr0_val
   -- assemble the generated post
