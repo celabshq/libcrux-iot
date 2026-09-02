@@ -81,7 +81,7 @@ structure simd.portable.vector_type.Coefficients where
 def simd.portable.arithmetic.compute_hint.closure := Std.Usize
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::lift_poly_res::closure]
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 358:25-360:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 364:25-366:5 -/
 @[reducible]
 def simd.portable.arithmetic.lift_poly_res.closure :=
   polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients

@@ -296,6 +296,12 @@ fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && r >= -FIELD_MODULUS && r < FIELD_MODULUS
     && (hint == 0 || hint == 1))]
+// Full functional correctness against the extracted FIPS-204 hacspec. Same
+// pattern as `decompose_element` / `power2round_element`: plain `i32` on both
+// sides, `r` canonicalised with the hacspec's own `mod_q`. Here the hint is a
+// `bool` on the spec side, so it is compared rather than passed through.
+#[hax_lib::ensures(|out| out == hacspec_ml_dsa::arithmetic::use_hint(
+    hint == 1, hacspec_ml_dsa::arithmetic::mod_q(r as i64), gamma2))]
 pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
     let (r0, r1) = decompose_element(gamma2, r.classify());
 

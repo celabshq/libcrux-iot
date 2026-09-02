@@ -582,8 +582,48 @@ theorem use_one_hint_spec_proof (gamma2 r hint : Std.I32) :
       · exact Or.inr (by simpa [libcrux_iot_ml_dsa.constants.GAMMA2_V261_888] using h5)
       · rw [if_neg h1, if_neg h5] at hpre
         exact absurd (bool_of_holds_map_ok hpre) (by simp)
-  exact triple_true_of_triple
-    (Vector.Portable.Rounding.use_one_hint_spec gamma2 r hint hg key.1.1 key.1.2 key.2)
+  -- the impl result, and its agreement with the HAND spec
+  obtain ⟨z, hz_eq, hz_val⟩ :=
+    triple_exists_ok
+      (Vector.Portable.Rounding.use_one_hint_spec gamma2 r hint hg key.1.1 key.1.2 key.2)
+  refine triple_of_ok hz_eq ?_
+  -- the `r as i64` cast, then `mod_q` for the canonical residue
+  have hcb : Aeneas.Std.IScalar.min .I64 ≤ r.val ∧ r.val ≤ Aeneas.Std.IScalar.max .I64 := by
+    simp only [Aeneas.Std.IScalar.min_IScalarTy_I64_eq,
+      Aeneas.Std.IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.max,
+      Aeneas.Std.I64.numBits, Aeneas.Std.IScalarTy.I64_numBits_eq]
+    have := key.1.1; have := key.1.2; omega
+  obtain ⟨c, hc_eq, hc_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I64 r hcb)
+  obtain ⟨rc, hrc_eq, hrc_zq, hrc_lo, hrc_hi⟩ :=
+    libcrux_iot_ml_dsa.Spec.HacspecBridge.mod_q_eq c
+  have hrc_hi' : rc.val < 8380417 := by
+    have : (libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) = 8380417 := by
+      norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
+    omega
+  -- the extracted hacspec `use_hint` agrees with the hand spec on it
+  obtain ⟨w, hw_eq, hw_val⟩ :=
+    libcrux_iot_ml_dsa.Spec.RoundingBridge.use_hint_eq (decide (hint = 1#i32)) rc gamma2 hrc_lo hrc_hi' hg
+  have hsame : libcrux_iot_ml_dsa.Spec.Rounding.useHint (decide (hint = 1#i32)) rc.val gamma2.val
+      = libcrux_iot_ml_dsa.Spec.Rounding.useHint (decide (hint = 1#i32)) r.val gamma2.val := by
+    refine libcrux_iot_ml_dsa.Spec.RoundingBridge.useHint_canonical _ r rc gamma2 ?_ hrc_lo hrc_hi'
+    rw [hrc_zq, hc_val]
+  rw [hsame] at hw_val
+  -- the two Bool spellings of "the hint is set" agree
+  have hbool : (decide (hint = 1#i32)) = ((hint.val == 1) : Bool) := by
+    by_cases h : hint.val = 1
+    · rw [decide_eq_true (Aeneas.Std.IScalar.eq_of_val_eq (by rw [h]; decide))]
+      simp [h]
+    · rw [decide_eq_false (fun hc => h (by rw [hc]; decide))]
+      simp [h]
+  rw [hbool] at hw_val
+  have hzw : z = w := by
+    apply Aeneas.Std.IScalar.eq_of_val_eq; rw [hz_val, hw_val]
+  have hpost : libcrux_iot_ml_dsa.simd.portable.arithmetic.use_one_hint.post gamma2 r hint z = .ok true := by
+    simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_one_hint.post, hc_eq, Aeneas.Std.bind_tc_ok, hrc_eq, hw_eq]
+    simp [hzw]
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 /-- Discharged OUTRIGHT. The `#[requires]` now carries the per-lane
     `[-q, q)` bound via `coefficients_in_field`, so `decompose_spec`'s `hbound`

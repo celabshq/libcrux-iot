@@ -386,6 +386,229 @@ theorem power2round_eq (rc : Std.I32)
     rw [hr0_val]
     norm_num [Rounding.Dbits]
 
+/-! ## `use_hint`
+
+    A step beyond `decompose`/`power2round`: the result depends on `decompose`'s
+    `r1`, so the bridge first needs a BOUND on that (for overflow-freedom of the
+    `r1 +- 1`), and the `((r1 - 1) % m + m) % m` cannot be handled by a pointwise
+    `tmod = emod` rewrite -- the intermediate genuinely differs (`-1` vs `m - 1`)
+    and the two only agree after the second reduction. -/
+
+/-- `decompose`'s high part is small: `0 <= r1 <= 44` for both FIPS-204 `gamma2`.
+    Enough for every `+- 1` below to be overflow-free. -/
+private theorem decompose_fst_bnd (rc gamma2 : Int)
+    (hlo : 0 ≤ rc) (hhi : rc < 8380417) (hg : gamma2 = 95232 ∨ gamma2 = 261888) :
+    0 ≤ (Rounding.decompose rc gamma2).1 ∧ (Rounding.decompose rc gamma2).1 ≤ 44 := by
+  have halpha_pos : 0 < 2 * gamma2 := by rcases hg with h | h <;> rw [h] <;> decide
+  have hQi : (Rounding.Qi) = 8380417 := by norm_num [Rounding.Qi, Q]
+  simp only [Rounding.decompose, hQi]
+  rw [show rc % (8380417 : Int) = rc from Int.emod_eq_of_lt hlo (by omega)]
+  rw [if_neg (show ¬ (rc < 0) from by omega)]
+  have hr0 := modPm_of_nonneg rc (2 * gamma2) hlo halpha_pos
+  have h1 : 0 ≤ rc % (2 * gamma2) := Int.emod_nonneg _ (by omega)
+  have h2 : rc % (2 * gamma2) < 2 * gamma2 := Int.emod_lt_of_pos _ halpha_pos
+  have hd_lo : 0 ≤ rc - modPm rc (2 * gamma2) := by
+    rw [hr0]
+    have h3 : rc % (2 * gamma2) ≤ rc := by
+      have h4 := Int.emod_add_mul_ediv rc (2 * gamma2)
+      have h5 : 0 ≤ (2 * gamma2) * (rc / (2 * gamma2)) :=
+        mul_nonneg (by omega) (Int.ediv_nonneg hlo (by omega))
+      omega
+    split <;> omega
+  have hd_hi : rc - modPm rc (2 * gamma2) ≤ 8380416 + gamma2 := by
+    rw [hr0]; split <;> omega
+  split
+  · simp
+  · refine ⟨Int.ediv_nonneg hd_lo (by omega), ?_⟩
+    have hmono : (rc - modPm rc (2 * gamma2)) / (2 * gamma2)
+        ≤ (8380416 + gamma2) / (2 * gamma2) := Int.ediv_le_ediv halpha_pos hd_hi
+    rcases hg with h | h <;> rw [h] at hmono ⊢ <;>
+      exact le_trans hmono (by decide)
+
+/-- **`use_hint` bridge.** On a canonical `r` in `[0, Q)` the extracted
+    `use_hint` succeeds and computes the hand spec's `useHint`. -/
+theorem use_hint_eq (b : Bool) (rc gamma2 : Std.I32)
+    (hlo : 0 ≤ rc.val) (hhi : rc.val < 8380417)
+    (hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32) :
+    ∃ z : Std.I32, hacspec_ml_dsa.arithmetic.use_hint b rc gamma2 = .ok z
+      ∧ z.val = Rounding.useHint b rc.val gamma2.val := by
+  have hgval : gamma2.val = 95232 ∨ gamma2.val = 261888 := by
+    rcases hg with h | h <;> subst h <;> [left; right] <;> decide
+  have hQi : (Rounding.Qi) = 8380417 := by norm_num [Rounding.Qi, Q]
+  unfold hacspec_ml_dsa.arithmetic.use_hint
+  -- i = Q - 1
+  obtain ⟨i, hi_eq, hi_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.WP.spec_of_partialSpec
+        (@Std.IScalar.sub_spec _ hacspec_ml_dsa.parameters.Q (1#i32 : Std.I32))
+        (fun e => by
+          cases e <;>
+            (try simp only [hQval, Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
+              Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
+              Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+            first | exact not_false | omega)
+        (by simp))
+  rw [hi_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hQval, v1] at hi_val
+  -- i1 = 2 * gamma2
+  obtain ⟨i1, hi1_eq, hi1_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.IScalar.mul_spec (x := (2#i32 : Std.I32)) (y := gamma2)
+        (by simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq, Aeneas.Std.I32.min,
+              Aeneas.Std.I32.numBits, Aeneas.Std.IScalarTy.I32_numBits_eq]
+            show (-2147483648 : Int) ≤ (2 : Int) * gamma2.val
+            rcases hgval with h | h <;> rw [h] <;> decide)
+        (by simp only [Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.max,
+              Aeneas.Std.I32.numBits, Aeneas.Std.IScalarTy.I32_numBits_eq]
+            show (2 : Int) * gamma2.val ≤ 2147483647
+            rcases hgval with h | h <;> rw [h] <;> decide))
+  rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  have hi1 : i1.val = 2 * gamma2.val := by
+    rw [hi1_val]; show (2 : Int) * gamma2.val = _; ring
+  have hi1_pos : 0 < i1.val := by rw [hi1]; rcases hgval with h | h <;> rw [h] <;> decide
+  -- m = (Q - 1) / (2 * gamma2)
+  obtain ⟨m, hm_eq, hm_val⟩ :=
+    Aeneas.Std.IScalar.div_spec (x := i) (y := i1) (by omega)
+      (by simp only [not_and]; intro _; omega)
+  rw [hm_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  have hm : m.val = 8380416 / (2 * gamma2.val) := by
+    rw [hm_val, hi_val, hi1]
+    exact Int.tdiv_eq_ediv_of_nonneg (by decide)
+  have hm_pos : 0 < m.val := by
+    rw [hm]; rcases hgval with h | h <;> rw [h] <;> decide
+  have hm_bnd : m.val ≤ 44 := by
+    rw [hm]; rcases hgval with h | h <;> rw [h] <;> decide
+  have hm_lo : 16 ≤ m.val := by
+    rw [hm]; rcases hgval with h | h <;> rw [h] <;> decide
+  have hm_ne : m.val ≠ 0 := by omega
+  have hm_ne1 : m.val ≠ -1 := by omega
+  -- the spec's `m` is the same number
+  have hspec_m : (Rounding.Qi - 1) / (2 * gamma2.val) = m.val := by
+    rw [hQi, hm]; norm_num
+  -- decompose, via the bridge
+  obtain ⟨r1, r0, hd_eq, hr1_val, hr0_val⟩ := decompose_eq rc gamma2 hlo hhi hg
+  rw [hd_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  obtain ⟨hr1_lo, hr1_hi⟩ := decompose_fst_bnd rc.val gamma2.val hlo hhi hgval
+  rw [← hr1_val] at hr1_lo hr1_hi
+  -- spec side
+  simp only [Rounding.useHint]
+  rw [hspec_m, ← hr1_val, ← hr0_val]
+  -- NOTE the extracted side still carries `let (r1, r0) := (r1, r0)`, which
+  -- REBINDS `r1`/`r0` as fresh locals shadowing these ones. No `rw`/`simp only`
+  -- mentioning the outer names can fire inside it, and neither `dsimp only` nor
+  -- `simp only []` reduces it. Plain `simp`, given every equation at once, does.
+  cases b with
+  | false =>
+      exact ⟨r1, rfl, by rw [if_neg (by simp), if_neg (by simp)]⟩
+  | true =>
+      by_cases hpos : (0 : Int) < r0.val
+      · -- hint set, r0 > 0: (r1 + 1) % m
+        have hsc : r0 > (0#i32 : Std.I32) := by
+          simp only [gt_iff_lt, Aeneas.Std.IScalar.lt_equiv, v0]; omega
+        obtain ⟨z1, hz1_eq, hz1_val⟩ :=
+          Aeneas.Std.WP.spec_imp_exists
+            (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ r1 (1#i32 : Std.I32))
+              (fun e => by
+          cases e <;>
+            (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
+              Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
+              Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+            first | exact not_false | omega)
+              (by simp))
+        rw [v1] at hz1_val
+        obtain ⟨z, hz_eq, hz_val⟩ :=
+          Aeneas.Std.WP.spec_imp_exists
+            (Aeneas.Std.IScalar.rem_spec (y := m) z1 hm_ne
+              (by simp only [not_and]; intro _; exact hm_ne1))
+        refine ⟨z, by simp [hsc, hz1_eq, hz_eq] <;> omega, ?_⟩
+        rw [if_pos (show (true = true) ∧ r0.val > 0 from ⟨rfl, hpos⟩)]
+        rw [hz_val, hz1_val]
+        exact Int.tmod_eq_emod_of_nonneg (by omega)
+      · -- hint set, r0 <= 0: ((r1 - 1) % m + m) % m
+        have hsc : ¬ (r0 > (0#i32 : Std.I32)) := by
+          intro h
+          simp only [gt_iff_lt, Aeneas.Std.IScalar.lt_equiv, v0] at h
+          omega
+        have hsc2 : r0 ≤ (0#i32 : Std.I32) := by
+          simp only [Aeneas.Std.IScalar.le_equiv, v0]; omega
+        obtain ⟨y1, hy1_eq, hy1_val⟩ :=
+          Aeneas.Std.WP.spec_imp_exists
+            (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ r1 (1#i32 : Std.I32))
+              (fun e => by
+          cases e <;>
+            (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
+              Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
+              Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+            first | exact not_false | omega)
+              (by simp))
+        rw [v1] at hy1_val
+        obtain ⟨y2, hy2_eq, hy2_val⟩ :=
+          Aeneas.Std.WP.spec_imp_exists
+            (Aeneas.Std.IScalar.rem_spec (y := m) y1 hm_ne
+              (by simp only [not_and]; intro _; exact hm_ne1))
+        -- `y2 = (r1 - 1) tmod m`, hence `|y2| < m`
+        have hy2_bnd : -m.val < y2.val ∧ y2.val < m.val := by
+          have hb : (Int.tmod y1.val m.val).natAbs = (y1.val).natAbs % (m.val).natAbs :=
+            Int.natAbs_tmod y1.val m.val
+          have hlt : (Int.tmod y1.val m.val).natAbs < (m.val).natAbs := by
+            rw [hb]; exact Nat.mod_lt _ (by omega)
+          rw [hy2_val]; omega
+        obtain ⟨y3, hy3_eq, hy3_val⟩ :=
+          Aeneas.Std.WP.spec_imp_exists
+            (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ y2 m)
+              (fun e => by
+                cases e <;>
+                  (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
+              Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
+              Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+                  first | exact not_false | omega)
+              (by simp))
+        obtain ⟨z, hz_eq, hz_val⟩ :=
+          Aeneas.Std.WP.spec_imp_exists
+            (Aeneas.Std.IScalar.rem_spec (y := m) y3 hm_ne
+              (by simp only [not_and]; intro _; exact hm_ne1))
+        have hle : r0.val ≤ 0 := by omega
+        refine ⟨z, by simp [hpos, hle, hy1_eq, hy2_eq, hy3_eq, hz_eq], ?_⟩
+        rw [if_neg (show ¬ ((true = true) ∧ r0.val > 0) from by
+              rintro ⟨-, h⟩; omega),
+          if_pos (show (true = true) ∧ r0.val ≤ 0 from ⟨rfl, by omega⟩)]
+        -- both sides reduce to `(r1 - 1) emod m`
+        have hspec : ((r1.val - 1) % m.val + m.val) % m.val = (r1.val - 1) % m.val := by
+          rw [Int.add_emod_right, Int.emod_emod_of_dvd _ dvd_rfl]
+        rw [hspec, hz_val, hy3_val, hy2_val, hy1_val]
+        by_cases hz0 : 0 ≤ r1.val - 1
+        · -- non-negative: the two semantics agree throughout
+          rw [Int.tmod_eq_emod_of_nonneg hz0]
+          have hlt : (r1.val - 1) % m.val < m.val := Int.emod_lt_of_pos _ hm_pos
+          have hge : 0 ≤ (r1.val - 1) % m.val := Int.emod_nonneg _ (by omega)
+          rw [Int.tmod_eq_emod_of_nonneg (by omega), Int.add_emod_right,
+            Int.emod_emod_of_dvd _ dvd_rfl]
+        · -- r1 = 0, so `r1 - 1 = -1`. This is the one step where a pointwise
+          -- `tmod = emod` rewrite is WRONG: truncated gives `-1`, Euclidean
+          -- `m - 1`. They only agree after the second reduction.
+          have hr1z : r1.val = 0 := by omega
+          rw [hr1z]
+          have hneg1 : ((0 : Int) - 1) = -1 := by ring
+          -- truncated: `(-1) tmod m = -(1 tmod m) = -1`
+          have h1 : Int.tmod (0 - 1 : Int) m.val = -1 := by
+            rw [hneg1]
+            have hn : Int.tmod (-1 : Int) m.val = -(Int.tmod (1 : Int) m.val) := by
+              simp [Int.neg_tmod]
+            rw [hn, Int.tmod_eq_emod_of_nonneg (by omega),
+              Int.emod_eq_of_lt (by omega) (by omega)]
+          -- Euclidean: `(-1) emod m = m - 1`
+          have h2 : (-1 : Int) % m.val = m.val - 1 := by
+            rw [show (-1 : Int) = (m.val - 1) + m.val * (-1) by ring,
+              Int.add_mul_emod_self_left]
+            exact Int.emod_eq_of_lt (by omega) (by omega)
+          rw [h1, Int.tmod_eq_emod_of_nonneg (by omega),
+            show (-1 + m.val : Int) = m.val - 1 by ring,
+            Int.emod_eq_of_lt (by omega) (by omega), hneg1, h2]
+
 /-! ## Canonicalisation
 
     `Rounding.decompose` only looks at `r` through `r % Qi`, so replacing `r` by
@@ -436,5 +659,13 @@ theorem power2round_canonical (x rc : Std.I32)
     rw [hQi]; exact Int.emod_eq_of_lt h0 (by omega)
   unfold Rounding.power2round
   rw [hrc, hx]
+
+/-- Same for `useHint`, which reads `r` only by calling `decompose`. -/
+theorem useHint_canonical (b : Bool) (x rc g : Std.I32)
+    (hcong : ((rc.val : Int) : Zq) = ((x.val : Int) : Zq))
+    (h0 : 0 ≤ rc.val) (h1 : rc.val < 8380417) :
+    Rounding.useHint b rc.val g.val = Rounding.useHint b x.val g.val := by
+  unfold Rounding.useHint
+  rw [decompose_canonical x rc g hcong h0 h1]
 
 end libcrux_iot_ml_dsa.Spec.RoundingBridge
