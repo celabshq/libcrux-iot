@@ -140,6 +140,7 @@ import LibcruxIotMlDsa.Extraction
 import LibcruxIotMlDsa.Vector.Portable.Rounding
 import LibcruxIotMlDsa.Spec.HacspecBridge
 import LibcruxIotMlDsa.Spec.RoundingBridge
+import LibcruxIotMlDsa.Vector.Portable.Arithmetic
 
 open CoreModels Aeneas Aeneas.Std Std.Do
 
@@ -379,6 +380,60 @@ private theorem coefficients_are_hints_lanes
 
     Here the generated `pre` delivers exactly the theorems' `hg`; what has to be
     supplied on the side is the input-range information the Rust omits. -/
+
+/-- **`power2round_element`: full functional correctness against the extracted
+    hacspec.** Same shape as `decompose_element` below, and simpler -- the
+    hacspec's `power2round` has no `gamma2` and no `Q - 1` boundary branch.
+
+    The `#[requires]` also makes good on the `// XXX: ... should be a
+    precondition for hax instead` note that sat next to a commented-out
+    `debug_assert!` in `arithmetic.rs` (hax issue 1082). -/
+theorem power2round_element_spec_proof (t : Std.I32) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_element.spec t := by
+  intro hpre
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_element.pre] at hok
+  have hr : libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_in_field t = .ok true := hok
+  obtain ⟨hlo, hhi⟩ := lane_in_field_true hr
+  -- the impl result, and its agreement with the HAND spec
+  obtain ⟨p, hp_eq, hp_lo, hp_hi⟩ :=
+    triple_exists_ok
+      (Vector.Portable.Arithmetic.power2round_element_spec t
+        (by simp only [libcrux_iot_ml_dsa.Spec.Rounding.Qi]; norm_num [Spec.Parameters.Q]; omega)
+        (by simp only [libcrux_iot_ml_dsa.Spec.Rounding.Qi]; norm_num [Spec.Parameters.Q]; omega))
+  obtain ⟨plo, phi⟩ := p
+  dsimp only at hp_lo hp_hi
+  refine triple_of_ok hp_eq ?_
+  -- the `t as i64` cast, then `mod_q` for the canonical residue
+  have hcb : Aeneas.Std.IScalar.min .I64 ≤ t.val ∧ t.val ≤ Aeneas.Std.IScalar.max .I64 := by
+    simp only [Aeneas.Std.IScalar.min_IScalarTy_I64_eq,
+      Aeneas.Std.IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.max,
+      Aeneas.Std.I64.numBits, Aeneas.Std.IScalarTy.I64_numBits_eq]
+    omega
+  obtain ⟨c, hc_eq, hc_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I64 t hcb)
+  obtain ⟨rc, hrc_eq, hrc_zq, hrc_lo, hrc_hi⟩ :=
+    libcrux_iot_ml_dsa.Spec.HacspecBridge.mod_q_eq c
+  have hrc_hi' : rc.val < 8380417 := by
+    have : (libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) = 8380417 := by
+      norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
+    omega
+  -- the extracted hacspec agrees with the hand spec on it
+  obtain ⟨r1, r0, hd_eq, hr1_val, hr0_val⟩ := libcrux_iot_ml_dsa.Spec.RoundingBridge.power2round_eq rc hrc_lo hrc_hi'
+  have hsame : libcrux_iot_ml_dsa.Spec.Rounding.power2round rc.val
+      = libcrux_iot_ml_dsa.Spec.Rounding.power2round t.val := by
+    refine libcrux_iot_ml_dsa.Spec.RoundingBridge.power2round_canonical t rc ?_ hrc_lo hrc_hi'
+    rw [hrc_zq, hc_val]
+  rw [hsame] at hr1_val hr0_val
+  have hlo' : plo = r0 := by
+    apply Aeneas.Std.IScalar.eq_of_val_eq; rw [hp_lo, hr0_val]
+  have hhi' : phi = r1 := by
+    apply Aeneas.Std.IScalar.eq_of_val_eq; rw [hp_hi, hr1_val]
+  have hpost : libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_element.post t (plo, phi) = .ok true := by
+    simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_element.post, hc_eq, Aeneas.Std.bind_tc_ok, hrc_eq, hd_eq]
+    simp [hlo', hhi']
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 /-- **Full functional correctness against the extracted hacspec.**
 

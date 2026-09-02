@@ -77,13 +77,22 @@ pub(crate) fn montgomery_multiply(lhs: &mut Coefficients, rhs: &Coefficients) {
 // We assume the input t is in the signed representative range and convert it
 // to the standard unsigned range.
 #[inline(always)]
+// The range bound was a commented-out `debug_assert!` here with a note that it
+// "should be a precondition for hax instead" (hax issue 1082). It now is one --
+// stated with `>=` rather than the assert's `>`, to match
+// `Vector.Portable.Arithmetic.power2round_element_spec`.
+#[hax_lib::requires(t >= -FIELD_MODULUS && t < FIELD_MODULUS)]
+// Full functional correctness against the extracted FIPS-204 hacspec, named
+// directly -- no lifting function, both sides are plain `i32`. Conjuncts are
+// CROSSED (impl returns `(low, high)`, spec returns `(r1, r0)`) and `t` is
+// canonicalised with the hacspec's own `mod_q`, exactly as for
+// `decompose_element` above.
+#[hax_lib::ensures(|out|
+    out.0 == hacspec_ml_dsa::arithmetic::power2round(
+        hacspec_ml_dsa::arithmetic::mod_q(t as i64)).1
+    && out.1 == hacspec_ml_dsa::arithmetic::power2round(
+        hacspec_ml_dsa::arithmetic::mod_q(t as i64)).0)]
 fn power2round_element(t: I32) -> (I32, I32) {
-    // Hax issue: https://github.com/hacspec/hax/issues/1082
-    // XXX: Below debug assert violates the classification regime
-    // in Debug mode. It should be a precondition for hax
-    // instead.
-    // #[cfg(not(eurydice))]
-    // debug_assert!(t > -FIELD_MODULUS && t < FIELD_MODULUS);
 
     // Convert the signed representative to the standard unsigned one.
     let t = t.wrapping_add((t >> 31) & FIELD_MODULUS);

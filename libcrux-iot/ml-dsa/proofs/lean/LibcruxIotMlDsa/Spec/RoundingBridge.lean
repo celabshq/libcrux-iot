@@ -293,6 +293,99 @@ theorem decompose_eq (rc gamma2 : Std.I32)
     rw [hq_val, hd_val, halpha, hr0_val]
     exact Int.tdiv_eq_ediv_of_nonneg (by rw [hd_val, hr0_val] at hd_nonneg; exact hd_nonneg)
 
+/-! ## `power2round`
+
+    Simpler than `decompose`: no `gamma2`, and no `Q - 1` boundary branch. The
+    modulus is the constant `2^D = 8192`, which the extraction builds with a
+    shift. -/
+
+/-- **`power2round` bridge.** On a canonical `r` in `[0, Q)` the extracted
+    `power2round` succeeds and returns the hand spec's pair. -/
+theorem power2round_eq (rc : Std.I32)
+    (hlo : 0 ≤ rc.val) (hhi : rc.val < 8380417) :
+    ∃ r1 r0 : Std.I32,
+      hacspec_ml_dsa.arithmetic.power2round rc = .ok (r1, r0)
+        ∧ r1.val = (Rounding.power2round rc.val).1
+        ∧ r0.val = (Rounding.power2round rc.val).2 := by
+  unfold hacspec_ml_dsa.arithmetic.power2round
+  -- r_plus = rc % Q = rc, and the `< 0` guard is dead
+  obtain ⟨rp, hrp_eq, hrp_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.IScalar.rem_spec rc (by rw [hQval]; decide)
+        (by rw [hQval]; simp only [not_and]; intro _; decide))
+  rw [hrp_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hQval, Int.tmod_eq_emod_of_nonneg hlo] at hrp_val
+  have hrp : rp.val = rc.val := by
+    rw [hrp_val]; exact Int.emod_eq_of_lt hlo (by omega)
+  have hnn : ¬ (rp < (0#i32 : Std.I32)) := by
+    simp only [Aeneas.Std.IScalar.lt_equiv, v0]; omega
+  rw [show (if rp < (0#i32 : Std.I32) then rp + hacspec_ml_dsa.parameters.Q
+            else ok rp) = ok rp from by rw [if_neg hnn]]
+  simp only [Aeneas.Std.bind_tc_ok]
+  -- two_d = 1 <<< D = 8192, a closed term
+  rw [show ((1#i32 : Std.I32) <<< hacspec_ml_dsa.parameters.D : RustM Std.I32)
+        = ok (8192#i32 : Std.I32) from by
+      unfold hacspec_ml_dsa.parameters.D; first | rfl | decide]
+  simp only [Aeneas.Std.bind_tc_ok]
+  have htwod : ((8192#i32 : Std.I32)).val = 8192 := by decide
+  -- r0 = mod_pm r_plus two_d
+  obtain ⟨r0, hr0_eq, hr0_val⟩ :=
+    mod_pm_eq rp (8192#i32) (by rw [hrp]; exact hlo) (by rw [htwod]; decide)
+      (by rw [htwod]; decide)
+  rw [hr0_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hrp, htwod] at hr0_val
+  have hr0_bnd : -8192 ≤ r0.val ∧ r0.val ≤ 8192 := by
+    rw [hr0_val, modPm_of_nonneg rc.val 8192 hlo (by decide)]
+    have h1 : 0 ≤ rc.val % 8192 := Int.emod_nonneg _ (by decide)
+    have h2 : rc.val % 8192 < 8192 := Int.emod_lt_of_pos _ (by decide)
+    split <;> omega
+  -- i = r_plus - r0, non-negative (r0 is the centred representative)
+  obtain ⟨d, hd_eq, hd_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ rp r0)
+        (fun e => by
+          cases e <;>
+            (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
+              Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
+              Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+            first | exact not_false | omega)
+        (by simp))
+  rw [hd_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  rw [hrp] at hd_val
+  have hd_nonneg : 0 ≤ d.val := by
+    rw [hd_val, hr0_val, modPm_of_nonneg rc.val 8192 hlo (by decide)]
+    have h1 : 0 ≤ rc.val % 8192 := Int.emod_nonneg _ (by decide)
+    have h2 : rc.val % 8192 < 8192 := Int.emod_lt_of_pos _ (by decide)
+    have h3 : rc.val % 8192 ≤ rc.val := by
+      have h4 := Int.emod_add_mul_ediv rc.val (8192 : Int)
+      have h5 : 0 ≤ (8192 : Int) * (rc.val / 8192) :=
+        mul_nonneg (by decide) (Int.ediv_nonneg hlo (by decide))
+      omega
+    split <;> omega
+  -- r1 = i / two_d, and `tdiv = ediv` because `i >= 0`
+  obtain ⟨r1, hr1_eq, hr1_val⟩ :=
+    Aeneas.Std.IScalar.div_spec (x := d) (y := (8192#i32 : Std.I32)) (by decide)
+      (by simp only [not_and]; intro _; decide)
+  rw [hr1_eq]; simp only [Aeneas.Std.bind_tc_ok]
+  refine ⟨r1, r0, rfl, ?_, ?_⟩
+  · unfold Rounding.power2round
+    simp only [Rounding.Qi, Rounding.twoD]
+    have hQi : (Q : Int) = 8380417 := by norm_num [Q]
+    rw [show rc.val % (Q : Int) = rc.val from by
+      rw [hQi]; exact Int.emod_eq_of_lt hlo (by omega)]
+    rw [if_neg (show ¬ (rc.val < 0) from by omega)]
+    rw [hr1_val, hd_val, htwod, hr0_val]
+    exact Int.tdiv_eq_ediv_of_nonneg (by rw [hd_val, hr0_val] at hd_nonneg; exact hd_nonneg)
+  · unfold Rounding.power2round
+    simp only [Rounding.Qi, Rounding.twoD]
+    have hQi : (Q : Int) = 8380417 := by norm_num [Q]
+    rw [show rc.val % (Q : Int) = rc.val from by
+      rw [hQi]; exact Int.emod_eq_of_lt hlo (by omega)]
+    rw [if_neg (show ¬ (rc.val < 0) from by omega)]
+    rw [hr0_val]
+    norm_num [Rounding.Dbits]
+
 /-! ## Canonicalisation
 
     `Rounding.decompose` only looks at `r` through `r % Qi`, so replacing `r` by
@@ -320,6 +413,28 @@ theorem decompose_canonical (x rc g : Std.I32)
     rw [hQi]; exact Int.emod_eq_of_lt h0 (by omega)
   -- `decompose` only reads its first argument through that residue
   unfold Rounding.decompose
+  rw [hrc, hx]
+
+/-- Same for `power2round`, which opens with the same two lines. -/
+theorem power2round_canonical (x rc : Std.I32)
+    (hcong : ((rc.val : Int) : Zq) = ((x.val : Int) : Zq))
+    (h0 : 0 ≤ rc.val) (h1 : rc.val < 8380417) :
+    Rounding.power2round rc.val = Rounding.power2round x.val := by
+  have hQi : (Rounding.Qi) = 8380417 := by norm_num [Rounding.Qi, Q]
+  have hdvd : ((Q : Int)) ∣ (x.val - rc.val) := by
+    have hz : ((x.val - rc.val : Int) : Zq) = 0 := by
+      push_cast; rw [hcong]; ring
+    exact (ZMod.intCast_zmod_eq_zero_iff_dvd _ _).mp hz
+  have hQ : (Q : Int) = 8380417 := by norm_num [Q]
+  have hx : x.val % Rounding.Qi = rc.val := by
+    obtain ⟨k, hk⟩ := hdvd
+    rw [hQ] at hk
+    have hxk : x.val = rc.val + 8380417 * k := by omega
+    rw [hQi, hxk, Int.add_mul_emod_self_left]
+    exact Int.emod_eq_of_lt h0 (by omega)
+  have hrc : rc.val % Rounding.Qi = rc.val := by
+    rw [hQi]; exact Int.emod_eq_of_lt h0 (by omega)
+  unfold Rounding.power2round
   rw [hrc, hx]
 
 end libcrux_iot_ml_dsa.Spec.RoundingBridge
