@@ -16,6 +16,27 @@ Constants: `D = 13`, `2^D = 8192`; `gamma2 ∈ {95232 = (q-1)/88, 261888 = (q-1)
 `alpha = 2·gamma2`. Validated build-time in `Spec/Validation.lean` against the Rust
 test vectors (reconstruction invariants, output bounds, the `r⁺−r0 = q−1` boundary,
 and `use_hint false = high_bits`).
+
+## `%` here is EUCLIDEAN, the Rust's is TRUNCATED -- and that is fine
+
+Lean's `Int` `%` and `/` are Euclidean; Rust's are truncated. This transcription
+keeps the Rust's text verbatim anyway, because every reduction here is
+immediately canonicalised:
+
+    rPlus := r % Qi; if rPlus < 0 then rPlus + Qi    -- decompose, power2round
+    ((a % m) + m) % m                                -- modPm
+    ((r1 - 1) % m + m) % m                           -- useHint
+
+Under the truncated reading the guard (resp. the second reduction) lifts a
+negative remainder back into range; under the Euclidean reading the remainder is
+already in range, so the guard is DEAD CODE. Either way both land on the same
+canonical residue, so the two readings define the same function.
+
+That means the `if rPlus < 0` below looks redundant and MUST NOT be removed: it
+is what makes the two readings agree, and it is what the Rust actually does.
+`Spec/Validation.lean` pins this with `#guard`s against a truncated mirror of
+this file; `Spec/RoundingBridge.lean` proves the stronger statement against the
+machine-extracted hacspec.
 -/
 
 namespace libcrux_iot_ml_dsa.Spec.Rounding

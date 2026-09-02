@@ -149,4 +149,80 @@ CENTERED representatives (`|a| ≤ q/2`) the impl's raw `|a|` agrees with the FI
 #guard (List.range 256).all (fun i => zero_poly[i]! == (0 : Zq))
 #guard zero_poly.size = 256
 
+
+/-! ## Division semantics: the transcription is insensitive to which `%` you read
+
+  `Spec/Rounding.lean` transcribes `specs/ml-dsa/src/arithmetic.rs`, but Lean's
+  `Int` `%` and `/` are EUCLIDEAN while Rust's are TRUNCATED. The transcription is
+  faithful anyway, because every place the Rust reduces, it immediately
+  canonicalises:
+
+      rPlus = r % Q; if rPlus < 0 { rPlus += Q }     -- decompose, power2round
+      ((a % m) + m) % m                             -- mod_pm
+      ((r1 - 1) % m + m) % m                        -- use_hint
+
+  Under the truncated reading, the guard (resp. the second reduction) is what
+  lifts a negative remainder back into range. Under the Euclidean reading the
+  remainder is already in range and the guard is dead. Both land on the same
+  canonical residue, so the two readings define the SAME function -- which is
+  what the `#guard`s below pin down.
+
+  So do NOT "simplify away" the dead `if rPlus < 0` in `Spec/Rounding.lean`: it
+  is exactly what makes this hold, and it is what the Rust does.
+
+  This is a fidelity check on the TRANSCRIPTION. The stronger statement -- that
+  the transcription agrees with the machine-EXTRACTED hacspec, which carries
+  genuine Rust semantics -- is *proved* in `Spec/RoundingBridge.lean`
+  (`mod_pm_eq`, `decompose_eq`) over the canonical inputs that are the hacspec's
+  documented domain (`#[requires(r >= 0 && r < Q && ...)]`). -/
+
+section DivisionSemantics
+open libcrux_iot_ml_dsa.Spec.Rounding
+
+/-- `modPm`, same source text, read with Rust's truncated `%` / `/`. -/
+private def modPmT (a m : Int) : Int :=
+  let r := Int.tmod (Int.tmod a m + m) m
+  if r > Int.tdiv m 2 then r - m else r
+
+/-- `decompose`, same source text, read with Rust's truncated `%` / `/`. -/
+private def decomposeT (r gamma2 : Int) : Int × Int :=
+  let rPlus := Int.tmod r Qi
+  let rPlus := if rPlus < 0 then rPlus + Qi else rPlus
+  let alpha := 2 * gamma2
+  let r0 := modPmT rPlus alpha
+  if rPlus - r0 = Qi - 1 then (0, r0 - 1)
+  else (Int.tdiv (rPlus - r0) alpha, r0)
+
+/-- `useHint`, same source text, read with Rust's truncated `%` / `/`. -/
+private def useHintT (hint : Bool) (r gamma2 : Int) : Int :=
+  let m := Int.tdiv (Qi - 1) (2 * gamma2)
+  let p := decomposeT r gamma2
+  if hint = true ∧ p.2 > 0 then Int.tmod (p.1 + 1) m
+  else if hint = true ∧ p.2 ≤ 0 then Int.tmod (Int.tmod (p.1 - 1) m + m) m
+  else p.1
+
+/-- Negatives, zero, both `gamma2` boundaries and both sides of `±Q` -- the
+    places the two readings could differ if the guards were dropped. -/
+private def divSamples : List Int :=
+  [-12570625, -8380418, -8380417, -8380416, -4190208, -523777, -523776,
+   -261889, -261888, -190465, -190464, -95233, -95232, -95231, -2, -1, 0, 1, 2,
+   95231, 95232, 95233, 190463, 190464, 190465, 261887, 261888, 261889,
+   523775, 523776, 523777, 4190208, 8380415, 8380416, 8380417, 8380418,
+   12570625]
+  ++ ((List.range 64).map (fun i => (i : Int) * 130944 - 4190208))
+
+private def divGammas : List Int := [95232, 261888]
+
+#guard divSamples.all fun r =>
+  divGammas.all fun g => decomposeT r g == decompose r g
+
+#guard divSamples.all fun r =>
+  divGammas.all fun g =>
+    [true, false].all fun b => useHintT b r g == useHint b r g
+
+#guard divSamples.all fun a =>
+  divGammas.all fun g => modPmT a (2 * g) == modPm a (2 * g)
+
+end DivisionSemantics
+
 end libcrux_iot_ml_dsa.Spec.Validation
