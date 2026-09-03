@@ -9480,41 +9480,32 @@ theorem array_index_mut_range_ok_eq_fc
       ∧ s.val.length = r.end.val - r.start.val
       ∧ (∀ s' : Slice T, s'.val.length = r.end.val - r.start.val →
           (back s').val = a.val.setSlice! r.start.val s'.val) := by
-  -- New model: `Array.index_mut inst a i` unfolds to
-  --   `do let sub ← inst.index i a.to_slice
-  --       ok (sub, fun sub' => (a.update_subslice (HaxToRange.toRange i a.to_slice.len) sub').getD a)`,
-  -- where the SliceIndexMut instance is the identity on the `RangeUsize` `SliceIndex`,
-  -- so `inst.index i s = slice_slice s i.start i.end = Slice.subslice s ⟨i.start, i.end⟩`.
+  -- CoreModels v0.3.17 model (native): `Array.index_mut inst a i` is
+  -- `as_mut_slice` (= `to_slice_mut`, i.e. `(to_slice a, from_slice a)`) then
+  -- the slice instance's `index_mut` (`slice_slice_mut`: read `Slice.subslice`,
+  -- write-back `setSlice!`), the write-backs composed -- no
+  -- `update_subslice`/`HaxToRange` any more. Plain `simp`, not `simp only`: the
+  -- body destructures the `to_slice_mut` pair through a pattern-`let`, which
+  -- `simp only` cannot reduce; the same `simp` supplies the existentials and
+  -- discharges the write-back conjunct (`from_slice_val` and the `setSlice!`
+  -- length lemma are simp lemmas).
   have h_ts_val : (Aeneas.Std.Array.to_slice a).val = a.val := Aeneas.Std.Array.val_to_slice a
   have h1' : r.end.val ≤ (Aeneas.Std.Array.to_slice a).val.length := by rw [h_ts_val]; exact h1
   obtain ⟨ns, hns_eq, hns_val⟩ :=
     libcrux_iot_ml_kem.Util.SliceSpecs.Slice.subslice_le_eq
       (Aeneas.Std.Array.to_slice a) ⟨r.start, r.end⟩ h0 h1'
-  refine ⟨ns,
-    fun sub' => (match Aeneas.Std.Array.update_subslice a
-        (HaxToRange.toRange ({ start := r.start, «end» := r.end } :
-          CoreModels.core.ops.range.Range Std.Usize) (Aeneas.Std.Array.to_slice a).len) sub' with
-      | .ok x => x | _ => a), ?_, ?_, ?_, ?_⟩
-  · -- The index_mut equation. hax v0.4.0-rc.1 routes the *mutable* borrow through
-    -- `get_unchecked_mut` → `rust_primitives.slice.slice_slice_mut` (whose first component
-    -- is `Slice.subslice`), NOT through the shared `.index` → `slice_slice`. The write-back
-    -- half is unchanged: still `Array.update_subslice` under a `HaxToRange.toRange`.
-    unfold core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-           core.Slice.Insts.CoreOpsIndexIndexMut
-           core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-    simp only [core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-               rust_primitives.slice.slice_slice_mut, hns_eq, bind_tc_ok]
-    rfl
+  unfold core.Array.Insts.CoreOpsIndexIndexMut.index_mut
+  simp [CoreModels.core.array.Array.as_mut_slice,
+        CoreModels.rust_primitives.slice.array_as_mut_slice,
+        Aeneas.Std.Array.to_slice_mut,
+        core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
+        core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+        rust_primitives.slice.slice_slice_mut, hns_eq, bind_tc_ok]
+  refine ⟨?_, ?_⟩
   · -- Sub-slice val.
     rw [hns_val, h_ts_val]
   · -- Sub-slice length.
     rw [hns_val, h_ts_val]; simp only [List.slice_length]; omega
-  · -- Write-back via `Array.update_subslice`.
-    intro s' hs'_len
-    obtain ⟨na, hna_eq, hna_val⟩ :=
-      libcrux_iot_ml_kem.Util.SliceSpecs.Array.update_subslice_le_eq a ⟨r.start, r.end⟩ s' h0 h1 hs'_len
-    simp only [HaxToRange.toRange, hna_eq]
-    exact hna_val
 
 set_option maxHeartbeats 16000000 in
 /-- Per-iteration FC step lemma for

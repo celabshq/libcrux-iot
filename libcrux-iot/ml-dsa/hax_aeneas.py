@@ -29,8 +29,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-HAX_VERSION = "4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800"
-AENEAS_VERSION = "f8a0eb8"
+HAX_VERSION = "cbce2c3bfcf50e853d3115c45cd592004d7d092f"
+AENEAS_VERSION = "6852e64"
 
 # Charon translation roots. Anything not reachable from these is dropped from
 # `Funs.lean`. The NTT/arithmetic core lives in the portable SIMD module; the

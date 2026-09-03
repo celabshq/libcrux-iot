@@ -12,6 +12,9 @@ open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
+set_option linter.style.whitespace false
+set_option linter.style.setOption false
+set_option linter.style.longLine false
 
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
@@ -1572,11 +1575,11 @@ def vector.portable.sampling.rej_sample.pre
     Source: 'ml-kem/src/vector/portable/sampling.rs', lines 4:0-4:69 -/
 @[reducible]
 def vector.portable.sampling.rej_sample.post
-  (a : Slice Std.U8) (out : Slice Std.I16) (p : ((Slice Std.I16) × Std.Usize))
+  (a : Slice Std.U8) (out : Slice Std.I16) (p : (Std.Usize × (Slice Std.I16)))
   :
   RustM Bool
   := do
-  let (out_future, result) := p
+  let (result, out_future) := p
   if result <= 16#usize
   then let i ← core.slice.Slice.len out_future
        ok (i = 16#usize)
@@ -1588,7 +1591,7 @@ def vector.portable.sampling.rej_sample.spec (a : Slice Std.U8)
   ⦃ ⌜ True ⌝ ⦄
   vector.portable.sampling.rej_sample a out
   ⦃ ⇓ res =>
-  ⌜ (vector.portable.sampling.rej_sample.post a out (res.2, res.1)).holds ⌝ ⦄
+  ⌜ (vector.portable.sampling.rej_sample.post a out res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_kem::vector::portable::serialize::serialize_1::pre]:
@@ -2717,11 +2720,11 @@ def vector.portable.OperationsPortableVector.rej_sample.pre
     Source: 'ml-kem/src/vector/portable.rs', lines 268:4-268:64 -/
 @[reducible]
 def vector.portable.OperationsPortableVector.rej_sample.post
-  (a : Slice Std.U8) (out : Slice Std.I16) (p : ((Slice Std.I16) × Std.Usize))
+  (a : Slice Std.U8) (out : Slice Std.I16) (p : (Std.Usize × (Slice Std.I16)))
   :
   RustM Bool
   := do
-  let (out_future, result) := p
+  let (result, out_future) := p
   if result <= 16#usize
   then let i ← core.slice.Slice.len out_future
        ok (i = 16#usize)
@@ -2736,7 +2739,7 @@ def
   a out
   ⦃ ⇓ res =>
   ⌜
-  (vector.portable.OperationsPortableVector.rej_sample.post a out (res.2, res.1)).holds
+  (vector.portable.OperationsPortableVector.rej_sample.post a out res).holds
   ⌝ ⦄
 
 end libcrux_iot_ml_kem

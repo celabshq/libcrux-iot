@@ -41,19 +41,10 @@ def cmRangeUsizeToAeneas (r : ops.range.Range Aeneas.Std.Usize) :
 
 end CoreModels.core
 
--- `CoreIterTraitsIteratorIteratorSharedASlice` (the Iterator instance) is now
--- provided natively by CoreModels (hax-lean v0.2.0). `enumerate` is now modeled
--- as a generic `Iterator::enumerate` default method, so provide that instead of
--- the ChunksExact-specific one.
-namespace CoreModels.core.iter.traits.iterator
-
-/-- `Iterator::enumerate` default method: wrap `self` in an `Enumerate` at count 0. -/
-def Iterator.enumerate.default {Self Item : Type}
-    (_inst : Iterator Self Item) (self : Self) :
-    Aeneas.Std.RustM (CoreModels.core.iter.adapters.enumerate.Enumerate Self) :=
-  Aeneas.Std.RustM.ok { iter := self, count := 0#usize }
-
-end CoreModels.core.iter.traits.iterator
+-- The `Iterator.enumerate.default` model that used to live here is supplied by
+-- CoreModels natively as of hax-lean v0.3.17 (the iterator-provided-methods
+-- work, hax#2200), definitionally the same (`Enumerate.new self`); redeclaring
+-- it at the same name is an error.
 
 /-! ### `into_iter` for a SHARED FIXED-SIZE ARRAY — a CoreModels gap, delegated here.
 
@@ -64,11 +55,10 @@ end CoreModels.core.iter.traits.iterator
     and which is ordinary Rust — therefore hits an unmodelled external and the extraction
     fails to compile with `Unknown identifier core.SharedAArray.Insts.…into_iter`.
 
-    CHECKED UPSTREAM 2026-08-19, so this is not a guess: `SharedAArray` appears NOWHERE in
-    `hax-lib/proof-libs/lean/CoreModels/` on EITHER `cryspen/hax` `main` OR the
-    `core-models-regressions-fixes` branch (`6bc393f7`, 7 commits ahead, which rewrites 774
-    lines of `CoreModels/Core/Funs.lean` and still only carries `SharedASlice`). So the gap
-    is open upstream and a newer core-models does not close it.
+    CHECKED UPSTREAM 2026-08-19 and RE-CHECKED 2026-09-03 at hax-lean v0.3.17
+    (hax v0.4.0-rc.2): `SharedAArray` appears NOWHERE in CoreModels -- the
+    iterator-provided-methods work (hax#2200) added many adapters but still only
+    carries `SharedASlice`. The gap is open upstream.
 
     ACTION REQUIRED (KB): raise it against hax so the definition lands in CoreModels and this
     delegate can be deleted. Until then every project extracting a shared-array iteration

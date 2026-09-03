@@ -157,15 +157,10 @@ opaque simd.portable.sample.rejection_sample_less_than_eta_equals_4
     extraction, so these map to identity / the underlying scalar cast). -/
 noncomputable section
 
--- `enumerate` is a generic `Iterator::enumerate` default method in hax-lean
--- v0.2.0 (not a per-iterator instance); provide it (mirrors the ml-kem impl).
-namespace CoreModels.core.iter.traits.iterator
-/-- `Iterator::enumerate` default method: wrap `self` in an `Enumerate` at count 0. -/
-def Iterator.enumerate.default {Self Item : Type}
-    (_inst : Iterator Self Item) (self : Self) :
-    Aeneas.Std.RustM (CoreModels.core.iter.adapters.enumerate.Enumerate Self) :=
-  Aeneas.Std.RustM.ok { iter := self, count := 0#usize }
-end CoreModels.core.iter.traits.iterator
+-- The `Iterator.enumerate.default` model that used to live here is supplied by
+-- CoreModels natively as of hax-lean v0.3.17 (the iterator-provided-methods
+-- work, hax#2200), definitionally the same (`Enumerate.new self`); redeclaring
+-- it at the same name is an error.
 
 namespace libcrux_secrets.traits.Classify.Blanket
 def classify {T : Type} (a : T) : Aeneas.Std.RustM T := ok a

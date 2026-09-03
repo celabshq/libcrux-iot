@@ -19,8 +19,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-HAX_VERSION = "4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800"
-AENEAS_VERSION = "f8a0eb8"
+HAX_VERSION = "cbce2c3bfcf50e853d3115c45cd592004d7d092f"
+AENEAS_VERSION = "6852e64"
 
 # Charon translation roots. Anything not reachable from these is
 # dropped from `Funs.lean`.
@@ -240,33 +240,21 @@ content = _erase_loop_invariant_markers(content)
 
 funs_lean.write_text(content)
 
-# CODEGEN BUG (hax 4c9e2b7c): for a function taking `&mut` arguments and also
-# returning a value, the extracted function returns `(return value, future args)`
-# -- `rej_sample(a, &mut out) -> usize` becomes `RustM (Usize x Slice I16)` -- but
-# the `post` generated from its `#[ensures]` destructures the pair the OTHER way
-# round, so `<fn>.spec` fails to typecheck with
-#   "argument res has type Usize x Slice I16
-#    but is expected to have type Slice I16 x Usize".
-# The `post`'s logical content is right; only the pairing convention disagrees, so
-# it is fixed by applying the generated `post` to the swapped pair, leaving `post`
-# itself exactly as hax emitted it. Keyed on the two affected names (the
-# `serialize_*` posts in the same file are NOT affected -- their `&mut` argument is
-# the only result) and asserted, so when hax fixes the ordering upstream this pass
-# fails loudly rather than silently re-swapping a now-correct application.
+# The `&mut`-pair CODEGEN BUG this used to patch (rej_sample's `post`
+# destructuring `(future out, result)` while the function returns
+# `(result, future out)`) is FIXED as of hax v0.4.0-rc.2: `post` now takes
+# `(Usize x Slice I16)` in the function's own order and `spec` applies it to
+# `res` directly. Swapping now is itself the type error. Tripwire only:
 _specs = Path("proofs/lean/LibcruxIotMlKem/Extraction/Specs.lean")
 if _specs.exists():
     _s = _specs.read_text()
     for _fn in ("vector.portable.sampling.rej_sample",
                 "vector.portable.OperationsPortableVector.rej_sample"):
-        _old = f"{_fn}.post a out res)"
-        _new = f"{_fn}.post a out (res.2, res.1))"
-        if _s.count(_old) != 1:
-            print(f"error: expected exactly one un-swapped `{_fn}.post` application in "
-                  f"Specs.lean, found {_s.count(_old)}. If hax now emits the pair in "
-                  f"declaration order, delete this pass.", file=sys.stderr)
+        if f"{_fn}.post a out (res.2, res.1))" in _s:
+            print(f"error: `{_fn}.post` is applied to a swapped pair again in "
+                  f"Specs.lean -- the `&mut` pairing bug is back; restore the "
+                  f"swap pass this comment replaced.", file=sys.stderr)
             sys.exit(1)
-        _s = _s.replace(_old, _new)
-    _specs.write_text(_s)
 
 # The lean backend emits per-function Specs.lean + ProofObligations.lean from the
 # `#[hax_lib::requires]` / `#[ensures]` annotations.

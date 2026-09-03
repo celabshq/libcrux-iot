@@ -11,6 +11,9 @@ open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
+set_option linter.style.whitespace false
+set_option linter.style.setOption false
+set_option linter.style.longLine false
 
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
@@ -3293,18 +3296,18 @@ def ind_cpa.decrypt
 def matrix.entry
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
-  (matrix : Slice (polynomial.PolynomialRingElement Vector)) (i : Std.Usize)
+  (matrix1 : Slice (polynomial.PolynomialRingElement Vector)) (i : Std.Usize)
   (j : Std.Usize) :
   RustM (polynomial.PolynomialRingElement Vector)
   := do
-  let i1 ← core.slice.Slice.len matrix
+  let i1 ← core.slice.Slice.len matrix1
   let i2 ← K * K
   massert (i1 = i2)
   massert (i < K)
   massert (j < K)
   let i3 ← i * K
   let i4 ← i3 + j
-  Slice.index_usize matrix i4
+  Slice.index_usize matrix1 i4
 
 /-- [libcrux_iot_ml_kem::polynomial::{libcrux_iot_ml_kem::polynomial::PolynomialRingElement<Vector>}::accumulating_ntt_multiply_fill_cache]: loop body 0:
     Source: 'ml-kem/src/polynomial.rs', lines 145:8-156:9 -/
@@ -6627,10 +6630,12 @@ def vector.portable.serialize.deserialize_12
 /-- Trait implementation: [libcrux_iot_ml_kem::vector::portable::vector_type::{impl core::clone::Clone for libcrux_iot_ml_kem::vector::portable::vector_type::PortableVector}]
     Source: 'ml-kem/src/vector/portable/vector_type.rs', lines 8:9-8:14 -/
 @[reducible]
-def vector.portable.vector_type.PortableVector.Insts.CoreCloneClone :
+impl_def vector.portable.vector_type.PortableVector.Insts.CoreCloneClone :
   core.clone.Clone vector.portable.vector_type.PortableVector := {
   clone :=
     vector.portable.vector_type.PortableVector.Insts.CoreCloneClone.clone
+  clone_from := core.clone.Clone.clone_from.default
+    vector.portable.vector_type.PortableVector.Insts.CoreCloneClone
 }
 
 /-- Trait implementation: [libcrux_iot_ml_kem::vector::portable::vector_type::{impl core::marker::Copy for libcrux_iot_ml_kem::vector::portable::vector_type::PortableVector}]

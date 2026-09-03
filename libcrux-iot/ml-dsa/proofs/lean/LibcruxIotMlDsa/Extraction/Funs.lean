@@ -11,6 +11,9 @@ open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
+set_option linter.style.whitespace false
+set_option linter.style.setOption false
+set_option linter.style.longLine false
 
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
@@ -3198,9 +3201,11 @@ def simd.portable.ntt.ntt
 /-- Trait implementation: [libcrux_iot_ml_dsa::simd::portable::vector_type::{impl core::clone::Clone for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}]
     Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 10:9-10:14 -/
 @[reducible]
-def simd.portable.vector_type.Coefficients.Insts.CoreCloneClone :
+impl_def simd.portable.vector_type.Coefficients.Insts.CoreCloneClone :
   core.clone.Clone simd.portable.vector_type.Coefficients := {
   clone := simd.portable.vector_type.Coefficients.Insts.CoreCloneClone.clone
+  clone_from := core.clone.Clone.clone_from.default
+    simd.portable.vector_type.Coefficients.Insts.CoreCloneClone
 }
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::simd::portable::vector_type::{impl core::marker::Copy for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}]

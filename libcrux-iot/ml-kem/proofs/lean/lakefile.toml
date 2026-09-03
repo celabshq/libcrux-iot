@@ -9,19 +9,18 @@ globs = ["LibcruxIotMlKem", "LibcruxIotMlKem.+"]
 [[require]]
 name = "Hax"
 git = "https://github.com/cryspen/hax-lean"
-rev = "v0.3.12"
+rev = "v0.3.17"
 
 # The machine-extracted ML-KEM hacspec (crate `hacspec_ml_kem`, specs/ml-kem in
 # celabshq/libcrux); the proofs reference `hacspec_ml_kem.*`. Transitively brings
 # in HacspecSha3 (the spec references `hacspec_sha3.*`).
-# Pinned by COMMIT SHA, not by branch name: this is the tip of celabshq/libcrux
-# `proofs-update`, the commit that carries the hax v0.4.0-rc.1 spec migration.
-# (The earlier pin carried hax-lean v0.2.0, so lake resolved aeneas to the old
-# 52fd4383 and the build died inside hax-lean with
-# "Unknown identifier `Aeneas.Std.RustM`" -- hence the interim local path, now
-# no longer needed.)
+# Pinned by COMMIT SHA, not by branch name: ee9bfe56 is the specs/{ml-kem,ml-dsa}
+# hax v0.4.0-rc.2 bump (hax-lean v0.3.17), the same commit the Cargo side pins
+# where it names the hacspec crate. NOT YET PUSHED to celabshq/libcrux: until it
+# is, lake cannot fetch this rev on a fresh machine -- use the local-path form
+# (scratchpad lakepath.py) there, as this working tree does between commits.
 [[require]]
 name = "HacspecMlKem"
 git = "https://github.com/celabshq/libcrux"
-rev = "718a601178c06afa6b4b10d143819da38df8770f"
+rev = "ee9bfe56e4dfe532c52573425a5d4a187ed326ca"
 subDir = "specs/ml-kem/proofs/lean"

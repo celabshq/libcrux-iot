@@ -620,9 +620,12 @@ private theorem arr_index_mut (result : Arr256) (i1 i3 : Std.Usize)
       ∧ s.val = result.val.slice i1.val i3.val
       ∧ (∀ s' : Slice Std.I32, s'.val.length = 8 →
           (back s').val = result.val.setSlice! i1.val s'.val) := by
-  -- New model: `Array.index_mut inst a i` unfolds to `inst.index i a.to_slice`
-  -- plus a write-back via `Array.update_subslice`; the `RangeUsize` `SliceIndex`
-  -- reduces the `.index` to `Slice.subslice`.
+  -- CoreModels v0.3.17 model (native, no longer HacspecSha3's hand-written
+  -- one): `Array.index_mut inst a i` is `as_mut_slice` (= `to_slice_mut`,
+  -- i.e. `(to_slice a, from_slice a)`) then the slice instance's `index_mut`
+  -- (`slice_slice_mut`: read `Slice.subslice`, write-back `setSlice!`), the
+  -- write-backs composed. So `back s' = from_slice result ⟨(to_slice
+  -- result).val.setSlice! i1 s'.val, _⟩`.
   have h_ts_val : (Aeneas.Std.Array.to_slice result).val = result.val :=
     Aeneas.Std.Array.val_to_slice result
   have h1' : i3.val ≤ (Aeneas.Std.Array.to_slice result).val.length := by
@@ -632,24 +635,20 @@ private theorem arr_index_mut (result : Arr256) (i1 i3 : Std.Usize)
       (Aeneas.Std.Array.to_slice result) ⟨i1, i3⟩ h0 h1'
   -- Reduce `index_mut` to `.ok (ns, <model write-back closure>)`, then let the
   -- back closure be *inferred* from the model by `rfl` (hand-writing it produces
-  -- a defeq-but-distinct `match` aux-def that `rfl` rejects).
+  -- a defeq-but-distinct `match` aux-def that `rfl` rejects). Plain `simp`, not
+  -- `simp only`: the body destructures `(to_slice result, from_slice result)`
+  -- through a pattern-`let`, which `simp only` cannot reduce.
   unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-         CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut
-  -- hax v0.4.0-rc.1 routes the *mutable* borrow through `get_unchecked_mut` ->
-  -- `rust_primitives.slice.slice_slice_mut` (whose first component is `Slice.subslice`),
-  -- not through the shared `.index` -> `slice_slice`.
-  simp only [CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
-             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-             rust_primitives.slice.slice_slice_mut, hns_eq, bind_tc_ok]
-  refine ⟨ns, _, rfl, ?_, ?_⟩
-  · rw [hns_val, h_ts_val]
-  · intro s' hs'_len
-    obtain ⟨na, hna_eq, hna_val⟩ :=
-      libcrux_iot_ml_dsa.Util.SliceSpecs.Array.update_subslice_le_eq result ⟨i1, i3⟩ s' h0
-        (by rw [show result.val.length = 256 from result.property]; exact h1)
-        (by rw [hs'_len]; exact hwin.symm)
-    simp only [HaxToRange.toRange, hna_eq]
-    exact hna_val
+  simp [CoreModels.core.array.Array.as_mut_slice,
+        CoreModels.rust_primitives.slice.array_as_mut_slice,
+        Aeneas.Std.Array.to_slice_mut,
+        CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
+        CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+        rust_primitives.slice.slice_slice_mut, hns_eq, bind_tc_ok]
+  -- the same `simp` supplies the existentials and the write-back conjunct
+  -- (`from_slice_val` and the `setSlice!` length lemma are simp lemmas);
+  -- only the subslice-read equality is left.
+  rw [hns_val, h_ts_val]
 
 /-- `to_coefficient_array value out` (at the instance) reduces to the declassified
     `to_slice value.values` (when `out` has length 8). -/
