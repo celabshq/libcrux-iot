@@ -251,7 +251,7 @@ def simd.portable.arithmetic.use_one_hint.spec (gamma2 : Std.I32) (r : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 431:0-432:41 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 464:0-465:41 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -266,6 +266,21 @@ def simd.portable.arithmetic.decompose.pre
     then simd.portable.arithmetic.coefficients_in_field simd_unit
     else ok false
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::post]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 468:0-468:88 -/
+@[reducible]
+def simd.portable.arithmetic.decompose.post
+  (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
+  (low : simd.portable.vector_type.Coefficients)
+  (high : simd.portable.vector_type.Coefficients)
+  (p : (simd.portable.vector_type.Coefficients ×
+  simd.portable.vector_type.Coefficients)) :
+  RustM Bool
+  := do
+  let (low_future, high_future) := p
+  simd.portable.arithmetic.decompose_unit_ok gamma2 simd_unit low_future
+    high_future
+
 def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
   (simd_unit : simd.portable.vector_type.Coefficients)
   (low : simd.portable.vector_type.Coefficients)
@@ -273,11 +288,14 @@ def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
   (simd.portable.arithmetic.decompose.pre gamma2 simd_unit low high).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.decompose gamma2 simd_unit low high
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res =>
+  ⌜
+  (simd.portable.arithmetic.decompose.post gamma2 simd_unit low high res).holds
+  ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 445:0-447:37 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 481:0-483:37 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)

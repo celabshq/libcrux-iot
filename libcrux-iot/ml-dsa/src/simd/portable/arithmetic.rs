@@ -427,9 +427,45 @@ fn coefficients_are_hints(c: &Coefficients) -> bool {
         && lane_is_hint(c.values[7])
 }
 
+// Spec-only: one lane of `decompose` agrees with the extracted FIPS-204 hacspec.
+// Conjuncts are CROSSED and `r` is canonicalised with `mod_q`, exactly as in
+// `decompose_element`'s own `#[ensures]` above -- this is that post, per lane.
+#[cfg(hax)]
+fn decompose_lane_ok(gamma2: Gamma2, sv: FieldElement, lo: FieldElement, hi: FieldElement) -> bool {
+    let s = hacspec_ml_dsa::arithmetic::decompose(
+        hacspec_ml_dsa::arithmetic::mod_q(sv.declassify() as i64),
+        gamma2,
+    );
+    lo.declassify() == s.1 && hi.declassify() == s.0
+}
+
+// Unrolled over the eight lanes, NOT a `hax_lib::forall`. In an `#[ensures]` the
+// quantifier fails differently from the `#[requires]` case documented above --
+// the post becomes unprovable rather than silently vacuous -- but it is still
+// wrong, for the same reason: the closure body indexes before the guard.
+#[cfg(hax)]
+fn decompose_unit_ok(
+    gamma2: Gamma2,
+    u: &Coefficients,
+    low: &Coefficients,
+    high: &Coefficients,
+) -> bool {
+    decompose_lane_ok(gamma2, u.values[0], low.values[0], high.values[0])
+        && decompose_lane_ok(gamma2, u.values[1], low.values[1], high.values[1])
+        && decompose_lane_ok(gamma2, u.values[2], low.values[2], high.values[2])
+        && decompose_lane_ok(gamma2, u.values[3], low.values[3], high.values[3])
+        && decompose_lane_ok(gamma2, u.values[4], low.values[4], high.values[4])
+        && decompose_lane_ok(gamma2, u.values[5], low.values[5], high.values[5])
+        && decompose_lane_ok(gamma2, u.values[6], low.values[6], high.values[6])
+        && decompose_lane_ok(gamma2, u.values[7], low.values[7], high.values[7])
+}
+
 #[inline(always)]
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && coefficients_in_field(simd_unit))]
+// Full functional correctness at the SIMD-unit level: every lane of the
+// output pair is the FIPS-204 Decompose of the corresponding input lane.
+#[hax_lib::ensures(|_| decompose_unit_ok(gamma2, simd_unit, future(low), future(high)))]
 pub fn decompose(
     gamma2: Gamma2,
     simd_unit: &Coefficients,

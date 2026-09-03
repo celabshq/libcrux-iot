@@ -376,6 +376,126 @@ private theorem coefficients_are_hints_lanes
   · exact h7
   · exact absurd hj (by omega)
 
+/-! ### Lifting the scalar hacspec post to a whole SIMD unit
+
+    `decompose_element`'s `#[ensures]` is per-lane. `decompose`'s is the same
+    statement over all eight lanes, via the spec-only `decompose_unit_ok`. These
+    two lemmas BUILD that conjunction (the earlier `coefficients_in_field_lanes`
+    decodes one, in the other direction). -/
+
+/-- `declassify` is the identity (Assumptions/FunsExternal). -/
+private theorem decl_eq {T : Type} (a : T) : libcrux_secrets.traits.Declassify.Blanket.declassify a = .ok a := rfl
+
+/-- One lane of `decompose_unit_ok`, from the FC theorem's per-lane post. -/
+private theorem decompose_lane_ok_of (gamma2 sv lo hi : Std.I32)
+    (hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32)
+    (hb_lo : -(8380417 : Int) ≤ sv.val) (hb_hi : sv.val < (8380417 : Int))
+    (hlo_eq : lo.val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose sv.val gamma2.val).2)
+    (hhi_eq : hi.val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose sv.val gamma2.val).1) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_lane_ok gamma2 sv lo hi = .ok true := by
+  -- the `sv as i64` cast, then `mod_q` for the canonical residue
+  have hcb : Aeneas.Std.IScalar.min .I64 ≤ sv.val ∧ sv.val ≤ Aeneas.Std.IScalar.max .I64 := by
+    simp only [Aeneas.Std.IScalar.min_IScalarTy_I64_eq,
+      Aeneas.Std.IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.max,
+      Aeneas.Std.I64.numBits, Aeneas.Std.IScalarTy.I64_numBits_eq]
+    omega
+  obtain ⟨c, hc_eq, hc_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I64 sv hcb)
+  obtain ⟨rc, hrc_eq, hrc_zq, hrc_lo, hrc_hi⟩ :=
+    libcrux_iot_ml_dsa.Spec.HacspecBridge.mod_q_eq c
+  have hrc_hi' : rc.val < 8380417 := by
+    have : (libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) = 8380417 := by
+      norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
+    omega
+  obtain ⟨r1, r0, hd_eq, hr1_val, hr0_val⟩ := libcrux_iot_ml_dsa.Spec.RoundingBridge.decompose_eq rc gamma2 hrc_lo hrc_hi' hg
+  have hsame : libcrux_iot_ml_dsa.Spec.Rounding.decompose rc.val gamma2.val = libcrux_iot_ml_dsa.Spec.Rounding.decompose sv.val gamma2.val := by
+    refine libcrux_iot_ml_dsa.Spec.RoundingBridge.decompose_canonical sv rc gamma2 ?_ hrc_lo hrc_hi'
+    rw [hrc_zq, hc_val]
+  rw [hsame] at hr1_val hr0_val
+  have hlo' : lo = r0 := Aeneas.Std.IScalar.eq_of_val_eq (by rw [hlo_eq, hr0_val])
+  have hhi' : hi = r1 := Aeneas.Std.IScalar.eq_of_val_eq (by rw [hhi_eq, hr1_val])
+  -- one `simp`, because the `let (i4, i5) := s` rebinds and blocks `rw`
+  simp [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_lane_ok, decl_eq, hc_eq, hrc_eq, hd_eq, hlo', hhi']
+
+/-- All eight lanes, assembled into `decompose_unit_ok`. -/
+private theorem decompose_unit_ok_of (gamma2 : Std.I32) (u low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32)
+    (hbound : ∀ j : Nat, j < 8 →
+        -(8380417 : Int) ≤ (u.values.val[j]!).val
+          ∧ (u.values.val[j]!).val < (8380417 : Int))
+    (hlanes : ∀ j : Nat, j < 8 →
+        (low.values.val[j]!).val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose (u.values.val[j]!).val gamma2.val).2
+        ∧ (high.values.val[j]!).val = (libcrux_iot_ml_dsa.Spec.Rounding.decompose (u.values.val[j]!).val gamma2.val).1) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_unit_ok gamma2 u low high = .ok true := by
+  have hlen_u : u.values.val.length = 8 := u.values.property
+  have hlen_low : low.values.val.length = 8 := low.values.property
+  have hlen_high : high.values.val.length = 8 := high.values.property
+  have h0 := decompose_lane_ok_of gamma2 (u.values.val[0]!) (low.values.val[0]!)
+    (high.values.val[0]!) hg (hbound 0 (by omega)).1 (hbound 0 (by omega)).2
+    (hlanes 0 (by omega)).1 (hlanes 0 (by omega)).2
+  have h1 := decompose_lane_ok_of gamma2 (u.values.val[1]!) (low.values.val[1]!)
+    (high.values.val[1]!) hg (hbound 1 (by omega)).1 (hbound 1 (by omega)).2
+    (hlanes 1 (by omega)).1 (hlanes 1 (by omega)).2
+  have h2 := decompose_lane_ok_of gamma2 (u.values.val[2]!) (low.values.val[2]!)
+    (high.values.val[2]!) hg (hbound 2 (by omega)).1 (hbound 2 (by omega)).2
+    (hlanes 2 (by omega)).1 (hlanes 2 (by omega)).2
+  have h3 := decompose_lane_ok_of gamma2 (u.values.val[3]!) (low.values.val[3]!)
+    (high.values.val[3]!) hg (hbound 3 (by omega)).1 (hbound 3 (by omega)).2
+    (hlanes 3 (by omega)).1 (hlanes 3 (by omega)).2
+  have h4 := decompose_lane_ok_of gamma2 (u.values.val[4]!) (low.values.val[4]!)
+    (high.values.val[4]!) hg (hbound 4 (by omega)).1 (hbound 4 (by omega)).2
+    (hlanes 4 (by omega)).1 (hlanes 4 (by omega)).2
+  have h5 := decompose_lane_ok_of gamma2 (u.values.val[5]!) (low.values.val[5]!)
+    (high.values.val[5]!) hg (hbound 5 (by omega)).1 (hbound 5 (by omega)).2
+    (hlanes 5 (by omega)).1 (hlanes 5 (by omega)).2
+  have h6 := decompose_lane_ok_of gamma2 (u.values.val[6]!) (low.values.val[6]!)
+    (high.values.val[6]!) hg (hbound 6 (by omega)).1 (hbound 6 (by omega)).2
+    (hlanes 6 (by omega)).1 (hlanes 6 (by omega)).2
+  have h7 := decompose_lane_ok_of gamma2 (u.values.val[7]!) (low.values.val[7]!)
+    (high.values.val[7]!) hg (hbound 7 (by omega)).1 (hbound 7 (by omega)).2
+    (hlanes 7 (by omega)).1 (hlanes 7 (by omega)).2
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose_unit_ok,
+    array_index_ok u.values 0#usize (by simp [hlen_u]),
+    array_index_ok low.values 0#usize (by simp [hlen_low]),
+    array_index_ok high.values 0#usize (by simp [hlen_high]),
+    array_index_ok u.values 1#usize (by simp [hlen_u]),
+    array_index_ok low.values 1#usize (by simp [hlen_low]),
+    array_index_ok high.values 1#usize (by simp [hlen_high]),
+    array_index_ok u.values 2#usize (by simp [hlen_u]),
+    array_index_ok low.values 2#usize (by simp [hlen_low]),
+    array_index_ok high.values 2#usize (by simp [hlen_high]),
+    array_index_ok u.values 3#usize (by simp [hlen_u]),
+    array_index_ok low.values 3#usize (by simp [hlen_low]),
+    array_index_ok high.values 3#usize (by simp [hlen_high]),
+    array_index_ok u.values 4#usize (by simp [hlen_u]),
+    array_index_ok low.values 4#usize (by simp [hlen_low]),
+    array_index_ok high.values 4#usize (by simp [hlen_high]),
+    array_index_ok u.values 5#usize (by simp [hlen_u]),
+    array_index_ok low.values 5#usize (by simp [hlen_low]),
+    array_index_ok high.values 5#usize (by simp [hlen_high]),
+    array_index_ok u.values 6#usize (by simp [hlen_u]),
+    array_index_ok low.values 6#usize (by simp [hlen_low]),
+    array_index_ok high.values 6#usize (by simp [hlen_high]),
+    array_index_ok u.values 7#usize (by simp [hlen_u]),
+    array_index_ok low.values 7#usize (by simp [hlen_low]),
+    array_index_ok high.values 7#usize (by simp [hlen_high]),
+    h0,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    h7, Aeneas.Std.bind_tc_ok, reduceIte,
+    show ((0#usize : Std.Usize)).val = 0 from rfl,
+    show ((1#usize : Std.Usize)).val = 1 from rfl,
+    show ((2#usize : Std.Usize)).val = 2 from rfl,
+    show ((3#usize : Std.Usize)).val = 3 from rfl,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    show ((5#usize : Std.Usize)).val = 5 from rfl,
+    show ((6#usize : Std.Usize)).val = 6 from rfl,
+    show ((7#usize : Std.Usize)).val = 7 from rfl]
+
 /-! ## The `gamma2 ∈ {95232, 261888}` group
 
     Here the generated `pre` delivers exactly the theorems' `hg`; what has to be
@@ -649,8 +769,18 @@ theorem decompose_spec_proof (gamma2 : Std.I32)
         ∧ (simd_unit.values.val[j]!).val < (8380417 : Int) :=
     fun j hj => lane_in_field_true
       (coefficients_in_field_lanes simd_unit key.2 j hj)
-  exact triple_true_of_triple
-    (Vector.Portable.Rounding.decompose_spec gamma2 simd_unit low high key.1 hbound)
+  -- the impl result, and its per-lane agreement with the HAND spec
+  obtain ⟨p, hp_eq, hp⟩ :=
+    triple_exists_ok
+      (Vector.Portable.Rounding.decompose_spec gamma2 simd_unit low high key.1 hbound)
+  obtain ⟨plow, phigh⟩ := p
+  dsimp only at hp
+  refine triple_of_ok hp_eq ?_
+  have hpost : libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose.post gamma2 simd_unit low high (plow, phigh) = .ok true := by
+    simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.decompose.post]
+    exact decompose_unit_ok_of gamma2 simd_unit plow phigh key.1 hbound hp
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 /-- Discharged OUTRIGHT. `use_hint`'s `#[requires]` carries both missing pieces
     -- the per-lane `[-q, q)` bound and `hint[j] ∈ {0, 1}` -- via

@@ -1511,8 +1511,91 @@ def simd.portable.arithmetic.coefficients_are_hints
     else ok false
   else ok false
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_lane_ok]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 434:0-440:1 -/
+def simd.portable.arithmetic.decompose_lane_ok
+  (gamma2 : Std.I32) (sv : Std.I32) (lo : Std.I32) (hi : Std.I32) :
+  RustM Bool
+  := do
+  let i ← libcrux_secrets.traits.Declassify.Blanket.declassify sv
+  let i1 ← lift (IScalar.cast .I64 i)
+  let i2 ← hacspec_ml_dsa.arithmetic.mod_q i1
+  let s ← hacspec_ml_dsa.arithmetic.decompose i2 gamma2
+  let i3 ← libcrux_secrets.traits.Declassify.Blanket.declassify lo
+  let (i4, i5) := s
+  if i3 = i5
+  then
+    let i6 ← libcrux_secrets.traits.Declassify.Blanket.declassify hi
+    ok (i6 = i4)
+  else ok false
+
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_unit_ok]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 447:0-461:1 -/
+def simd.portable.arithmetic.decompose_unit_ok
+  (gamma2 : Std.I32) (u : simd.portable.vector_type.Coefficients)
+  (low : simd.portable.vector_type.Coefficients)
+  (high : simd.portable.vector_type.Coefficients) :
+  RustM Bool
+  := do
+  let i ← Array.index_usize u.values 0#usize
+  let i1 ← Array.index_usize low.values 0#usize
+  let i2 ← Array.index_usize high.values 0#usize
+  let b ← simd.portable.arithmetic.decompose_lane_ok gamma2 i i1 i2
+  if b
+  then
+    let i3 ← Array.index_usize u.values 1#usize
+    let i4 ← Array.index_usize low.values 1#usize
+    let i5 ← Array.index_usize high.values 1#usize
+    let b1 ← simd.portable.arithmetic.decompose_lane_ok gamma2 i3 i4 i5
+    if b1
+    then
+      let i6 ← Array.index_usize u.values 2#usize
+      let i7 ← Array.index_usize low.values 2#usize
+      let i8 ← Array.index_usize high.values 2#usize
+      let b2 ← simd.portable.arithmetic.decompose_lane_ok gamma2 i6 i7 i8
+      if b2
+      then
+        let i9 ← Array.index_usize u.values 3#usize
+        let i10 ← Array.index_usize low.values 3#usize
+        let i11 ← Array.index_usize high.values 3#usize
+        let b3 ← simd.portable.arithmetic.decompose_lane_ok gamma2 i9 i10 i11
+        if b3
+        then
+          let i12 ← Array.index_usize u.values 4#usize
+          let i13 ← Array.index_usize low.values 4#usize
+          let i14 ← Array.index_usize high.values 4#usize
+          let b4 ←
+            simd.portable.arithmetic.decompose_lane_ok gamma2 i12 i13 i14
+          if b4
+          then
+            let i15 ← Array.index_usize u.values 5#usize
+            let i16 ← Array.index_usize low.values 5#usize
+            let i17 ← Array.index_usize high.values 5#usize
+            let b5 ←
+              simd.portable.arithmetic.decompose_lane_ok gamma2 i15 i16 i17
+            if b5
+            then
+              let i18 ← Array.index_usize u.values 6#usize
+              let i19 ← Array.index_usize low.values 6#usize
+              let i20 ← Array.index_usize high.values 6#usize
+              let b6 ←
+                simd.portable.arithmetic.decompose_lane_ok gamma2 i18 i19 i20
+              if b6
+              then
+                let i21 ← Array.index_usize u.values 7#usize
+                let i22 ← Array.index_usize low.values 7#usize
+                let i23 ← Array.index_usize high.values 7#usize
+                simd.portable.arithmetic.decompose_lane_ok gamma2 i21 i22 i23
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 439:4-441:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 475:4-477:5
     Visibility: public -/
 @[rust_loop_body]
 def simd.portable.arithmetic.decompose_loop.body
@@ -1536,7 +1619,7 @@ def simd.portable.arithmetic.decompose_loop.body
     ok (cont (iter1, a1, { values := a2 }))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 439:4-441:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 475:4-477:5
     Visibility: public -/
 @[rust_loop]
 def simd.portable.arithmetic.decompose_loop
@@ -1551,7 +1634,7 @@ def simd.portable.arithmetic.decompose_loop
     (iter, a, high)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 433:0-442:1
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 469:0-478:1
     Visibility: public -/
 def simd.portable.arithmetic.decompose
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -1568,7 +1651,7 @@ def simd.portable.arithmetic.decompose
   ok ({ values := a }, high1)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 449:4-459:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 485:4-495:5
     Visibility: public -/
 @[rust_loop_body]
 def simd.portable.arithmetic.use_hint_loop.body
@@ -1593,7 +1676,7 @@ def simd.portable.arithmetic.use_hint_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 449:4-459:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 485:4-495:5
     Visibility: public -/
 @[rust_loop]
 def simd.portable.arithmetic.use_hint_loop
@@ -1608,7 +1691,7 @@ def simd.portable.arithmetic.use_hint_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 448:0-460:1
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 484:0-496:1
     Visibility: public -/
 def simd.portable.arithmetic.use_hint
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
