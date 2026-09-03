@@ -496,6 +496,146 @@ private theorem decompose_unit_ok_of (gamma2 : Std.I32) (u low high : libcrux_io
     show ((6#usize : Std.Usize)).val = 6 from rfl,
     show ((7#usize : Std.Usize)).val = 7 from rfl]
 
+/-! ### The same lift for `power2round`
+
+    Identical to the `decompose` pair above minus `gamma2`, and resting on
+    `RoundingBridge.power2round_eq` / `power2round_canonical`. -/
+
+/-- One lane of `power2round_unit_ok`, from the FC theorem's per-lane post. -/
+private theorem power2round_lane_ok_of (tv lo hi : Std.I32)
+    (hb_lo : -(8380417 : Int) ≤ tv.val) (hb_hi : tv.val < (8380417 : Int))
+    (hlo_eq : lo.val = (libcrux_iot_ml_dsa.Spec.Rounding.power2round tv.val).2)
+    (hhi_eq : hi.val = (libcrux_iot_ml_dsa.Spec.Rounding.power2round tv.val).1) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_lane_ok tv lo hi = .ok true := by
+  have hcb : Aeneas.Std.IScalar.min .I64 ≤ tv.val ∧ tv.val ≤ Aeneas.Std.IScalar.max .I64 := by
+    simp only [Aeneas.Std.IScalar.min_IScalarTy_I64_eq,
+      Aeneas.Std.IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.max,
+      Aeneas.Std.I64.numBits, Aeneas.Std.IScalarTy.I64_numBits_eq]
+    omega
+  obtain ⟨c, hc_eq, hc_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I64 tv hcb)
+  obtain ⟨rc, hrc_eq, hrc_zq, hrc_lo, hrc_hi⟩ :=
+    libcrux_iot_ml_dsa.Spec.HacspecBridge.mod_q_eq c
+  have hrc_hi' : rc.val < 8380417 := by
+    have : (libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) = 8380417 := by
+      norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
+    omega
+  obtain ⟨r1, r0, hd_eq, hr1_val, hr0_val⟩ := libcrux_iot_ml_dsa.Spec.RoundingBridge.power2round_eq rc hrc_lo hrc_hi'
+  have hsame : libcrux_iot_ml_dsa.Spec.Rounding.power2round rc.val = libcrux_iot_ml_dsa.Spec.Rounding.power2round tv.val := by
+    refine libcrux_iot_ml_dsa.Spec.RoundingBridge.power2round_canonical tv rc ?_ hrc_lo hrc_hi'
+    rw [hrc_zq, hc_val]
+  rw [hsame] at hr1_val hr0_val
+  have hlo' : lo = r0 := Aeneas.Std.IScalar.eq_of_val_eq (by rw [hlo_eq, hr0_val])
+  have hhi' : hi = r1 := Aeneas.Std.IScalar.eq_of_val_eq (by rw [hhi_eq, hr1_val])
+  simp [libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_lane_ok, decl_eq, hc_eq, hrc_eq, hd_eq, hlo', hhi']
+
+/-- All eight lanes, assembled into `power2round_unit_ok`. -/
+private theorem power2round_unit_ok_of (t low high : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (hbound : ∀ j : Nat, j < 8 →
+        -(8380417 : Int) ≤ (t.values.val[j]!).val
+          ∧ (t.values.val[j]!).val < (8380417 : Int))
+    (hlanes : ∀ j : Nat, j < 8 →
+        (low.values.val[j]!).val = (libcrux_iot_ml_dsa.Spec.Rounding.power2round (t.values.val[j]!).val).2
+        ∧ (high.values.val[j]!).val = (libcrux_iot_ml_dsa.Spec.Rounding.power2round (t.values.val[j]!).val).1) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_unit_ok t low high = .ok true := by
+  have hlen_t : t.values.val.length = 8 := t.values.property
+  have hlen_low : low.values.val.length = 8 := low.values.property
+  have hlen_high : high.values.val.length = 8 := high.values.property
+  have h0 := power2round_lane_ok_of (t.values.val[0]!) (low.values.val[0]!)
+    (high.values.val[0]!) (hbound 0 (by omega)).1 (hbound 0 (by omega)).2
+    (hlanes 0 (by omega)).1 (hlanes 0 (by omega)).2
+  have h1 := power2round_lane_ok_of (t.values.val[1]!) (low.values.val[1]!)
+    (high.values.val[1]!) (hbound 1 (by omega)).1 (hbound 1 (by omega)).2
+    (hlanes 1 (by omega)).1 (hlanes 1 (by omega)).2
+  have h2 := power2round_lane_ok_of (t.values.val[2]!) (low.values.val[2]!)
+    (high.values.val[2]!) (hbound 2 (by omega)).1 (hbound 2 (by omega)).2
+    (hlanes 2 (by omega)).1 (hlanes 2 (by omega)).2
+  have h3 := power2round_lane_ok_of (t.values.val[3]!) (low.values.val[3]!)
+    (high.values.val[3]!) (hbound 3 (by omega)).1 (hbound 3 (by omega)).2
+    (hlanes 3 (by omega)).1 (hlanes 3 (by omega)).2
+  have h4 := power2round_lane_ok_of (t.values.val[4]!) (low.values.val[4]!)
+    (high.values.val[4]!) (hbound 4 (by omega)).1 (hbound 4 (by omega)).2
+    (hlanes 4 (by omega)).1 (hlanes 4 (by omega)).2
+  have h5 := power2round_lane_ok_of (t.values.val[5]!) (low.values.val[5]!)
+    (high.values.val[5]!) (hbound 5 (by omega)).1 (hbound 5 (by omega)).2
+    (hlanes 5 (by omega)).1 (hlanes 5 (by omega)).2
+  have h6 := power2round_lane_ok_of (t.values.val[6]!) (low.values.val[6]!)
+    (high.values.val[6]!) (hbound 6 (by omega)).1 (hbound 6 (by omega)).2
+    (hlanes 6 (by omega)).1 (hlanes 6 (by omega)).2
+  have h7 := power2round_lane_ok_of (t.values.val[7]!) (low.values.val[7]!)
+    (high.values.val[7]!) (hbound 7 (by omega)).1 (hbound 7 (by omega)).2
+    (hlanes 7 (by omega)).1 (hlanes 7 (by omega)).2
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round_unit_ok,
+    array_index_ok t.values 0#usize (by simp [hlen_t]),
+    array_index_ok low.values 0#usize (by simp [hlen_low]),
+    array_index_ok high.values 0#usize (by simp [hlen_high]),
+    array_index_ok t.values 1#usize (by simp [hlen_t]),
+    array_index_ok low.values 1#usize (by simp [hlen_low]),
+    array_index_ok high.values 1#usize (by simp [hlen_high]),
+    array_index_ok t.values 2#usize (by simp [hlen_t]),
+    array_index_ok low.values 2#usize (by simp [hlen_low]),
+    array_index_ok high.values 2#usize (by simp [hlen_high]),
+    array_index_ok t.values 3#usize (by simp [hlen_t]),
+    array_index_ok low.values 3#usize (by simp [hlen_low]),
+    array_index_ok high.values 3#usize (by simp [hlen_high]),
+    array_index_ok t.values 4#usize (by simp [hlen_t]),
+    array_index_ok low.values 4#usize (by simp [hlen_low]),
+    array_index_ok high.values 4#usize (by simp [hlen_high]),
+    array_index_ok t.values 5#usize (by simp [hlen_t]),
+    array_index_ok low.values 5#usize (by simp [hlen_low]),
+    array_index_ok high.values 5#usize (by simp [hlen_high]),
+    array_index_ok t.values 6#usize (by simp [hlen_t]),
+    array_index_ok low.values 6#usize (by simp [hlen_low]),
+    array_index_ok high.values 6#usize (by simp [hlen_high]),
+    array_index_ok t.values 7#usize (by simp [hlen_t]),
+    array_index_ok low.values 7#usize (by simp [hlen_low]),
+    array_index_ok high.values 7#usize (by simp [hlen_high]),
+    h0,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    h7,
+ Aeneas.Std.bind_tc_ok, reduceIte,
+    show ((0#usize : Std.Usize)).val = 0 from rfl,
+    show ((1#usize : Std.Usize)).val = 1 from rfl,
+    show ((2#usize : Std.Usize)).val = 2 from rfl,
+    show ((3#usize : Std.Usize)).val = 3 from rfl,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    show ((5#usize : Std.Usize)).val = 5 from rfl,
+    show ((6#usize : Std.Usize)).val = 6 from rfl,
+    show ((7#usize : Std.Usize)).val = 7 from rfl]
+
+/-- **Full functional correctness at SIMD-unit level.** The `#[requires]` carries
+    the per-lane `[-q, q)` bound via `coefficients_in_field`, so
+    `power2round_spec`'s `hbound` comes out of the generated `pre`. -/
+theorem power2round_spec_proof (t0 t1 : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round.spec t0 t1 := by
+  intro hpre
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round.pre] at hok
+  have hcif : libcrux_iot_ml_dsa.simd.portable.arithmetic.coefficients_in_field t0 = .ok true := hok
+  have hbound : ∀ j : Nat, j < 8 →
+      -(8380417 : Int) ≤ (t0.values.val[j]!).val
+        ∧ (t0.values.val[j]!).val < (8380417 : Int) :=
+    fun j hj => lane_in_field_true (coefficients_in_field_lanes t0 hcif j hj)
+  have hQi : (libcrux_iot_ml_dsa.Spec.Rounding.Qi : Int) = 8380417 := by
+    norm_num [libcrux_iot_ml_dsa.Spec.Rounding.Qi, libcrux_iot_ml_dsa.Spec.Parameters.Q]
+  obtain ⟨p, hp_eq, hp⟩ :=
+    triple_exists_ok
+      (Vector.Portable.Arithmetic.power2round_spec t0 t1
+        (by rw [hQi]; exact hbound))
+  obtain ⟨plow, phigh⟩ := p
+  dsimp only at hp
+  refine triple_of_ok hp_eq ?_
+  have hpost : libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round.post t0 t1 (plow, phigh) = .ok true := by
+    simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.power2round.post]
+    exact power2round_unit_ok_of t0 plow phigh hbound hp
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
+
 /-! ## The `gamma2 ∈ {95232, 261888}` group
 
     Here the generated `pre` delivers exactly the theorems' `hg`; what has to be

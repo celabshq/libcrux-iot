@@ -76,12 +76,12 @@ structure simd.portable.vector_type.Coefficients where
   values : Array Std.I32 8#usize
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::closure]
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 199:33-199:64 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 231:33-231:64 -/
 @[reducible]
 def simd.portable.arithmetic.compute_hint.closure := Std.Usize
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::lift_poly_res::closure]
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 364:25-366:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 396:25-398:5 -/
 @[reducible]
 def simd.portable.arithmetic.lift_poly_res.closure :=
   polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients

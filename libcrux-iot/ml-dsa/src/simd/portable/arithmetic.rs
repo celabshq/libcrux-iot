@@ -111,7 +111,39 @@ fn power2round_element(t: I32) -> (I32, I32) {
     (t0, t1)
 }
 
+// Spec-only: one lane of `power2round` agrees with the extracted FIPS-204
+// hacspec. Same shape as `decompose_lane_ok` above, minus `gamma2`: crossed
+// conjuncts (the impl returns `(low, high)`, the spec `(r1, r0)`) and the input
+// canonicalised with the hacspec's own `mod_q`.
+#[cfg(hax)]
+fn power2round_lane_ok(tv: FieldElement, lo: FieldElement, hi: FieldElement) -> bool {
+    let s = hacspec_ml_dsa::arithmetic::power2round(hacspec_ml_dsa::arithmetic::mod_q(
+        tv.declassify() as i64,
+    ));
+    lo.declassify() == s.1 && hi.declassify() == s.0
+}
+
+// Unrolled over the eight lanes, not a `hax_lib::forall` -- see the note on
+// `decompose_unit_ok`.
+#[cfg(hax)]
+fn power2round_unit_ok(t: &Coefficients, low: &Coefficients, high: &Coefficients) -> bool {
+    power2round_lane_ok(t.values[0], low.values[0], high.values[0])
+        && power2round_lane_ok(t.values[1], low.values[1], high.values[1])
+        && power2round_lane_ok(t.values[2], low.values[2], high.values[2])
+        && power2round_lane_ok(t.values[3], low.values[3], high.values[3])
+        && power2round_lane_ok(t.values[4], low.values[4], high.values[4])
+        && power2round_lane_ok(t.values[5], low.values[5], high.values[5])
+        && power2round_lane_ok(t.values[6], low.values[6], high.values[6])
+        && power2round_lane_ok(t.values[7], low.values[7], high.values[7])
+}
+
 #[inline(always)]
+// `power2round_element`'s range bound, lifted to the whole unit; this is what
+// `Vector.Portable.Arithmetic.power2round_spec` assumes.
+#[hax_lib::requires(coefficients_in_field(t0))]
+// Full functional correctness at the SIMD-unit level. Note `t0` is read AND
+// written: the bare `t0` here is the input value, `future(t0)` the output.
+#[hax_lib::ensures(|_| power2round_unit_ok(t0, future(t0), future(t1)))]
 pub(super) fn power2round(t0: &mut Coefficients, t1: &mut Coefficients) {
     for i in 0..t0.values.len() {
         (t0.values[i], t1.values[i]) = power2round_element(t0.values[i]);

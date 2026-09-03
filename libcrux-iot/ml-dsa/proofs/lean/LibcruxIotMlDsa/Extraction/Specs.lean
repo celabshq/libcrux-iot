@@ -75,8 +75,41 @@ def simd.portable.arithmetic.power2round_element.spec (t : Std.I32) : Prop :=
   ⌜ (simd.portable.arithmetic.power2round_element.post t res).holds ⌝ ⦄
 
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round::pre]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 143:0-143:47 -/
+@[reducible]
+def simd.portable.arithmetic.power2round.pre
+  (t0 : simd.portable.vector_type.Coefficients)
+  (t1 : simd.portable.vector_type.Coefficients) :
+  RustM Bool
+  := do
+  simd.portable.arithmetic.coefficients_in_field t0
+
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round::post]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 146:0-146:72 -/
+@[reducible]
+def simd.portable.arithmetic.power2round.post
+  (t0 : simd.portable.vector_type.Coefficients)
+  (t1 : simd.portable.vector_type.Coefficients)
+  (p : (simd.portable.vector_type.Coefficients ×
+  simd.portable.vector_type.Coefficients)) :
+  RustM Bool
+  := do
+  let (t0_future, t1_future) := p
+  simd.portable.arithmetic.power2round_unit_ok t0 t0_future t1_future
+
+def simd.portable.arithmetic.power2round.spec
+  (t0 : simd.portable.vector_type.Coefficients)
+  (t1 : simd.portable.vector_type.Coefficients) : Prop :=
+  (simd.portable.arithmetic.power2round.pre t0 t1).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  simd.portable.arithmetic.power2round t0 t1
+  ⦃ ⇓ res =>
+  ⌜ (simd.portable.arithmetic.power2round.post t0 t1 res).holds ⌝ ⦄
+
+
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::shift_left_then_reduce::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 166:0-166:52 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 198:0-198:52 -/
 @[reducible]
 def simd.portable.arithmetic.shift_left_then_reduce.pre
   (SHIFT_BY : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients) :
@@ -96,7 +129,7 @@ def simd.portable.arithmetic.shift_left_then_reduce.spec (SHIFT_BY : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 174:0-174:75 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 206:0-206:75 -/
 @[reducible]
 def simd.portable.arithmetic.compute_one_hint.pre
   (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) : RustM Bool := do
@@ -105,7 +138,7 @@ def simd.portable.arithmetic.compute_one_hint.pre
   else ok (gamma2 = constants.GAMMA2_V261_888)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 175:0-175:47 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 207:0-207:47 -/
 @[reducible]
 def simd.portable.arithmetic.compute_one_hint.post
   (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) (out : Std.I32) :
@@ -127,7 +160,7 @@ def simd.portable.arithmetic.compute_one_hint.spec (low : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 185:0-185:75 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 217:0-217:75 -/
 @[reducible]
 def simd.portable.arithmetic.compute_hint.pre
   (low : simd.portable.vector_type.Coefficients)
@@ -150,7 +183,7 @@ def simd.portable.arithmetic.compute_hint.spec
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_element::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 231:0-233:26 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 263:0-265:26 -/
 @[reducible]
 def simd.portable.arithmetic.decompose_element.pre
   (gamma2 : Std.I32) (r : Std.I32) : RustM Bool := do
@@ -170,7 +203,7 @@ def simd.portable.arithmetic.decompose_element.pre
     else ok false
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_element::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 246:0-250:64 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 278:0-282:64 -/
 @[reducible]
 def simd.portable.arithmetic.decompose_element.post
   (gamma2 : Std.I32) (r : Std.I32) (out : (Std.I32 × Std.I32)) :
@@ -199,7 +232,7 @@ def simd.portable.arithmetic.decompose_element.spec (gamma2 : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 296:0-298:33 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 328:0-330:33 -/
 @[reducible]
 def simd.portable.arithmetic.use_one_hint.pre
   (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) : RustM Bool := do
@@ -229,7 +262,7 @@ def simd.portable.arithmetic.use_one_hint.pre
     else ok false
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 303:0-304:69 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 335:0-336:69 -/
 @[reducible]
 def simd.portable.arithmetic.use_one_hint.post
   (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) (out : Std.I32) :
@@ -251,7 +284,7 @@ def simd.portable.arithmetic.use_one_hint.spec (gamma2 : Std.I32) (r : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 464:0-465:41 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 496:0-497:41 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -267,7 +300,7 @@ def simd.portable.arithmetic.decompose.pre
     else ok false
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 468:0-468:88 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 500:0-500:88 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.post
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -295,7 +328,7 @@ def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 481:0-483:37 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 513:0-515:37 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
