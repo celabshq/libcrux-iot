@@ -93,6 +93,60 @@ about, e.g. `import LibcruxIotMlDsa.Extraction`. -/
   `portable_ops_inst`, so even then the discharge would have to be stated at the
   instantiated spec.
 
+  ## Rounding branch: where it stands, and why the last two are not "more of the same"
+
+  Four of the seven rounding-branch FC-theorem apexes now state full functional
+  correctness against the machine-EXTRACTED hacspec, out of the Rust
+  annotations, at both the scalar and the SIMD-unit layer:
+
+      decompose      power2round      use_hint      use_one_hint
+
+  covering FIPS-204 Decompose (Alg 36), Power2Round (Alg 35) and UseHint
+  (Alg 40). The supporting bridges are in `Spec/RoundingBridge.lean`; the
+  per-lane-to-unit lifts are below.
+
+  The remaining three are each blocked for a DIFFERENT structural reason, and
+  none is a repeat of the four above. Written down so the next attempt does not
+  start from the wrong assumption (this note replaces an earlier guess of mine
+  that `make_hint` would be mechanical -- it is not):
+
+  1. `compute_one_hint` / `compute_hint` -- THERE IS NO HACSPEC COUNTERPART AT
+     THIS SIGNATURE. The impl takes an ALREADY-DECOMPOSED pair,
+     `compute_one_hint(low, high, gamma2)`, and the hand spec matches it with
+     `Spec.Rounding.computeHint`. The hacspec instead has
+     `make_hint(z, r, gamma2)`, which takes the UNDECOMPOSED inputs and calls
+     `decompose`/`high_bits` itself. `Spec/Rounding.lean` says so at
+     `computeHint`'s definition: "the FIPS `makeHint (z, r)` connection is a
+     higher-level property (the callers supply `low`/`high` so that they agree)".
+
+     So an `#[ensures]` here cannot name the hacspec: the only Rust function of
+     the right shape does not exist. Two ways forward, both DECISIONS rather
+     than exercises:
+       (a) add a decomposed-pair `compute_hint` to `specs/ml-dsa` and bridge to
+           it -- a spec-crate design change; or
+       (b) prove the higher-level property (`computeHint low high = makeHint z r`
+           when `(low, high) = decompose r` and the caller's `z`), which can only
+           be stated where the caller's relationship holds, i.e. ABOVE
+           `compute_one_hint`, not at it.
+
+  2. `infinity_norm_exceeds` (SIMD-unit) -- its FC theorem
+     (`Vector.Portable.Arithmetic.infinity_norm_exceeds_unit_spec`) has no spec
+     FUNCTION in its post at all, hand-written or extracted: it is the
+     mathematical statement `r = decide (∃ j < 8, bound ≤ |values[j]|)`. A
+     hacspec-facing annotation is possible -- the hacspec's `coeff_norm` is the
+     centred absolute value -- but it needs a THIRD kind of bridge
+     (`coeff_norm a` vs `|a|`), an 8-way DISJUNCTION rather than a conjunction,
+     and a different `#[requires]` helper, since its precondition is
+     `|values[j]| <= 2^30` and not `coefficients_in_field`'s `[-q, q)`.
+
+  3. The polynomial / NTT layer (`ntt.*`,
+     `PolynomialRingElement.{add, subtract, from_i32_array, to_i32_array, zero,
+     infinity_norm_exceeds}`) is blocked on GENERICITY, unchanged: those
+     functions are generic over `SIMDUnit: Operations`, the lift needs concrete
+     lane access, and a generic function's generated `.spec` quantifies over the
+     instance while the FC theorems hold only for `portable_ops_inst`. See the
+     note at `lift_poly_res` in `arithmetic.rs`.
+
   ## The original diagnosis (retained, because it is what drove the change)
 
   Not one of the six can be proved from its existing theorem, and the reason is
