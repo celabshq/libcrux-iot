@@ -11,6 +11,9 @@ open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
+set_option linter.style.whitespace false
+set_option linter.style.setOption false
+set_option linter.style.longLine false
 
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
@@ -32,21 +35,21 @@ def keccak.KeccakXofState.zero_block
 
 /-- [libcrux_iot_sha3::lane::{libcrux_iot_sha3::lane::Lane2U32}::from_ints]:
     Source: 'sha3/src/lane.rs', lines 11:4-13:5 -/
-def _root_.libcrux_iot_sha3.lane.Lane2U32.from_ints
+def lane.Lane2U32.from_ints
   (value : Array Std.U32 2#usize) : RustM lane.Lane2U32 := do
   ok value
 
 /-- [libcrux_iot_sha3::lane::{libcrux_iot_sha3::lane::Lane2U32}::zero]:
     Source: 'sha3/src/lane.rs', lines 16:4-18:5 -/
-def _root_.libcrux_iot_sha3.lane.Lane2U32.zero : RustM lane.Lane2U32 := do
+def lane.Lane2U32.zero : RustM lane.Lane2U32 := do
   let a := Array.repeat 2#usize 0#u32
   let a1 ← libcrux_secrets.traits.Classify.Blanket.classify a
-  _root_.libcrux_iot_sha3.lane.Lane2U32.from_ints a1
+  lane.Lane2U32.from_ints a1
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::new]:
     Source: 'sha3/src/state.rs', lines 19:4-26:5 -/
 def state.KeccakState.new : RustM state.KeccakState := do
-  let lu ← _root_.libcrux_iot_sha3.lane.Lane2U32.zero
+  let lu ← lane.Lane2U32.zero
   let a := Array.repeat 25#usize lu
   let a1 := Array.repeat 5#usize lu
   let a2 := Array.repeat 5#usize lu
@@ -64,12 +67,12 @@ def keccak.KeccakXofState.new
     Source: 'sha3/src/state.rs', lines 48:4-50:5 -/
 def state.KeccakState.set_lane
   (self : state.KeccakState) (i : Std.Usize) (j : Std.Usize)
-  (lane : lane.Lane2U32) :
+  (lane1 : lane.Lane2U32) :
   RustM state.KeccakState
   := do
   let i1 ← 5#usize * j
   let i2 ← i1 + i
-  let a ← Array.update self.st i2 lane
+  let a ← Array.update self.st i2 lane1
   ok { self with st := a }
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::get_lane]:
@@ -85,23 +88,23 @@ def state.KeccakState.get_lane
 /-- [libcrux_iot_sha3::lane::{impl core::convert::From<[u32; 2usize]> for libcrux_iot_sha3::lane::Lane2U32}::from]:
     Source: 'sha3/src/lane.rs', lines 94:4-96:5
     Visibility: public -/
-def _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreConvertFromArrayU322.from
+def lane.Lane2U32.Insts.CoreConvertFromArrayU322.from
   (value : Array Std.U32 2#usize) : RustM lane.Lane2U32 := do
   ok value
 
 /-- [libcrux_iot_sha3::lane::{impl core::ops::index::Index<usize, u32> for libcrux_iot_sha3::lane::Lane2U32}::index]:
     Source: 'sha3/src/lane.rs', lines 87:4-89:5
     Visibility: public -/
-def _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index
+def lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index
   (self : lane.Lane2U32) (index : Std.Usize) : RustM Std.U32 := do
   Array.index_usize self index
 
 /-- [libcrux_iot_sha3::lane::{libcrux_iot_sha3::lane::Lane2U32}::interleave]:
     Source: 'sha3/src/lane.rs', lines 23:4-40:5 -/
-def _root_.libcrux_iot_sha3.lane.Lane2U32.interleave (self : lane.Lane2U32) : RustM lane.Lane2U32 := do
-  let i ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index self 0#usize
+def lane.Lane2U32.interleave (self : lane.Lane2U32) : RustM lane.Lane2U32 := do
+  let i ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index self 0#usize
   let i1 ← libcrux_secrets.U32.Insts.Libcrux_secretsIntCastOps.as_u64 i
-  let i2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index self 1#usize
+  let i2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index self 1#usize
   let i3 ← libcrux_secrets.U32.Insts.Libcrux_secretsIntCastOps.as_u64 i2
   let i4 ← i3 <<< 32#i32
   let lane_u64 ← lift (i1 ||| i4)
@@ -142,7 +145,7 @@ def _root_.libcrux_iot_sha3.lane.Lane2U32.interleave (self : lane.Lane2U32) : Ru
     libcrux_secrets.U64.Insts.Libcrux_secretsIntCastOps.as_u32 even_bits5
   let i27 ←
     libcrux_secrets.U64.Insts.Libcrux_secretsIntCastOps.as_u32 odd_bits5
-  _root_.libcrux_iot_sha3.lane.Lane2U32.from_ints (Array.make 2#usize [ i26, i27 ])
+  lane.Lane2U32.from_ints (Array.make 2#usize [ i26, i27 ])
 
 /-- [libcrux_iot_sha3::state::load_block_2u32]: loop body 0:
     Source: 'sha3/src/state.rs', lines 132:4-144:5 -/
@@ -186,20 +189,21 @@ def state.load_block_2u32_loop.body
         r1
     let b ← core.num.U32.from_le_bytes a2
     let lu ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreConvertFromArrayU322.from
+      lane.Lane2U32.Insts.CoreConvertFromArrayU322.from
         (Array.make 2#usize [ a1, b ])
-    let lane ← _root_.libcrux_iot_sha3.lane.Lane2U32.interleave lu
+    let lane1 ← lane.Lane2U32.interleave lu
     let i4 ← i / 5#usize
     let i5 ← i % 5#usize
     let got ← state.KeccakState.get_lane keccak_state i4 i5
-    let i6 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index got 0#usize
-    let i7 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lane 0#usize
+    let i6 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index got 0#usize
+    let i7 ←
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lane1 0#usize
     let i8 ← lift (i6 ^^^ i7)
-    let i9 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index got 1#usize
+    let i9 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index got 1#usize
     let i10 ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lane 1#usize
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lane1 1#usize
     let i11 ← lift (i9 ^^^ i10)
-    let lu1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.from_ints (Array.make 2#usize [ i8, i11 ])
+    let lu1 ← lane.Lane2U32.from_ints (Array.make 2#usize [ i8, i11 ])
     let keccak_state1 ← state.KeccakState.set_lane keccak_state i4 i5 lu1
     ok (cont (iter1, keccak_state1))
 
@@ -249,7 +253,6 @@ def state.KeccakState.set_with_zeta
   := do
   let i1 ← 5#usize * j
   let i2 ← i1 + i
-  let _ ← Array.index_usize self.st i2
   let (lu, index_mut_back) ← Array.index_mut_usize self.st i2
   let a ← Array.update lu zeta v
   let a1 := index_mut_back a
@@ -265,7 +268,7 @@ def state.KeccakState.get_with_zeta
   let i1 ← 5#usize * j
   let i2 ← i1 + i
   let lu ← Array.index_usize self.st i2
-  _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu zeta
+  lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu zeta
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y4_zeta1]:
     Source: 'sha3/src/keccak.rs', lines 2514:0-2545:1 -/
@@ -273,23 +276,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 20#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -323,23 +326,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 21#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -373,23 +376,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 7#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -423,23 +426,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 8#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -473,23 +476,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 0#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -523,23 +526,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -584,23 +587,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 1#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 30#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -634,23 +637,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 2#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 23#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -740,23 +743,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y0_zeta1
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 21#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -830,23 +833,23 @@ def keccak.keccakf1600_round3_pi_rho_chi_y0_zeta0
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 22#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -893,81 +896,71 @@ def keccak.keccakf1600_round3_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
   let c_x4_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let lu1 ← Array.index_usize s.c 1#usize
   let c_x1_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let lu2 ← Array.index_usize s.c 3#usize
   let c_x3_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let lu3 ← Array.index_usize s.c 0#usize
   let c_x0_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let lu4 ← Array.index_usize s.c 2#usize
   let c_x2_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let c_x4_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let i ← core.num.U32.rotate_left c_x1_zeta1 1#u32
   let d_x0_zeta0 ← lift (c_x4_zeta0 ^^^ i)
-  let _ ← Array.index_usize s.d 0#usize
   let (lu5, index_mut_back) ← Array.index_mut_usize s.d 0#usize
   let a ← Array.update lu5 0#usize d_x0_zeta0
   let d_x2_zeta1 ← lift (c_x1_zeta1 ^^^ c_x3_zeta0)
   let a1 := index_mut_back a
-  let _ ← Array.index_usize a1 2#usize
   let (lu6, index_mut_back1) ← Array.index_mut_usize a1 2#usize
   let a2 ← Array.update lu6 1#usize d_x2_zeta1
   let i1 ← core.num.U32.rotate_left c_x0_zeta1 1#u32
   let d_x4_zeta0 ← lift (c_x3_zeta0 ^^^ i1)
   let a3 := index_mut_back1 a2
-  let _ ← Array.index_usize a3 4#usize
   let (lu7, index_mut_back2) ← Array.index_mut_usize a3 4#usize
   let a4 ← Array.update lu7 0#usize d_x4_zeta0
   let d_x1_zeta1 ← lift (c_x0_zeta1 ^^^ c_x2_zeta0)
   let a5 := index_mut_back2 a4
-  let _ ← Array.index_usize a5 1#usize
   let (lu8, index_mut_back3) ← Array.index_mut_usize a5 1#usize
   let a6 ← Array.update lu8 1#usize d_x1_zeta1
   let i2 ← core.num.U32.rotate_left c_x4_zeta1 1#u32
   let d_x3_zeta0 ← lift (c_x2_zeta0 ^^^ i2)
   let a7 := index_mut_back3 a6
-  let _ ← Array.index_usize a7 3#usize
   let (lu9, index_mut_back4) ← Array.index_mut_usize a7 3#usize
   let a8 ← Array.update lu9 0#usize d_x3_zeta0
   let c_x1_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let c_x3_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let c_x2_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let c_x0_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let d_x0_zeta1 ← lift (c_x4_zeta1 ^^^ c_x1_zeta0)
   let a9 := index_mut_back4 a8
-  let _ ← Array.index_usize a9 0#usize
   let (lu10, index_mut_back5) ← Array.index_mut_usize a9 0#usize
   let a10 ← Array.update lu10 1#usize d_x0_zeta1
   let i3 ← core.num.U32.rotate_left c_x3_zeta1 1#u32
   let d_x2_zeta0 ← lift (c_x1_zeta0 ^^^ i3)
   let a11 := index_mut_back5 a10
-  let _ ← Array.index_usize a11 2#usize
   let (lu11, index_mut_back6) ← Array.index_mut_usize a11 2#usize
   let a12 ← Array.update lu11 0#usize d_x2_zeta0
   let d_x4_zeta1 ← lift (c_x3_zeta1 ^^^ c_x0_zeta0)
   let a13 := index_mut_back6 a12
-  let _ ← Array.index_usize a13 4#usize
   let (lu12, index_mut_back7) ← Array.index_mut_usize a13 4#usize
   let a14 ← Array.update lu12 1#usize d_x4_zeta1
   let i4 ← core.num.U32.rotate_left c_x2_zeta1 1#u32
   let d_x1_zeta0 ← lift (c_x0_zeta0 ^^^ i4)
   let a15 := index_mut_back7 a14
-  let _ ← Array.index_usize a15 1#usize
   let (lu13, index_mut_back8) ← Array.index_mut_usize a15 1#usize
   let a16 ← Array.update lu13 0#usize d_x1_zeta0
   let d_x3_zeta1 ← lift (c_x2_zeta1 ^^^ c_x4_zeta0)
   let a17 := index_mut_back8 a16
-  let _ ← Array.index_usize a17 3#usize
   let (lu14, index_mut_back9) ← Array.index_mut_usize a17 3#usize
   let a18 ← Array.update lu14 1#usize d_x3_zeta1
   let a19 := index_mut_back9 a18
@@ -980,7 +973,6 @@ def state.KeccakState.set_lane_value
   :
   RustM state.KeccakState
   := do
-  let _ ← Array.index_usize self.c i
   let (lu, index_mut_back) ← Array.index_mut_usize self.c i
   let a ← Array.update lu j value
   let a1 := index_mut_back a
@@ -1158,23 +1150,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 20#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1208,23 +1200,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 21#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1258,23 +1250,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 7#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1308,23 +1300,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 8#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1358,23 +1350,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 0#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1408,23 +1400,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1469,23 +1461,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 1#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 30#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1519,23 +1511,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 2#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 23#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1571,23 +1563,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y0_zeta1
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 21#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1628,23 +1620,23 @@ def keccak.keccakf1600_round2_pi_rho_chi_y0_zeta0
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 22#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1691,81 +1683,71 @@ def keccak.keccakf1600_round2_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
   let c_x4_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let lu1 ← Array.index_usize s.c 1#usize
   let c_x1_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let lu2 ← Array.index_usize s.c 3#usize
   let c_x3_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let lu3 ← Array.index_usize s.c 0#usize
   let c_x0_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let lu4 ← Array.index_usize s.c 2#usize
   let c_x2_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let c_x4_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let i ← core.num.U32.rotate_left c_x1_zeta1 1#u32
   let d_x0_zeta0 ← lift (c_x4_zeta0 ^^^ i)
-  let _ ← Array.index_usize s.d 0#usize
   let (lu5, index_mut_back) ← Array.index_mut_usize s.d 0#usize
   let a ← Array.update lu5 0#usize d_x0_zeta0
   let d_x2_zeta1 ← lift (c_x1_zeta1 ^^^ c_x3_zeta0)
   let a1 := index_mut_back a
-  let _ ← Array.index_usize a1 2#usize
   let (lu6, index_mut_back1) ← Array.index_mut_usize a1 2#usize
   let a2 ← Array.update lu6 1#usize d_x2_zeta1
   let i1 ← core.num.U32.rotate_left c_x0_zeta1 1#u32
   let d_x4_zeta0 ← lift (c_x3_zeta0 ^^^ i1)
   let a3 := index_mut_back1 a2
-  let _ ← Array.index_usize a3 4#usize
   let (lu7, index_mut_back2) ← Array.index_mut_usize a3 4#usize
   let a4 ← Array.update lu7 0#usize d_x4_zeta0
   let d_x1_zeta1 ← lift (c_x0_zeta1 ^^^ c_x2_zeta0)
   let a5 := index_mut_back2 a4
-  let _ ← Array.index_usize a5 1#usize
   let (lu8, index_mut_back3) ← Array.index_mut_usize a5 1#usize
   let a6 ← Array.update lu8 1#usize d_x1_zeta1
   let i2 ← core.num.U32.rotate_left c_x4_zeta1 1#u32
   let d_x3_zeta0 ← lift (c_x2_zeta0 ^^^ i2)
   let a7 := index_mut_back3 a6
-  let _ ← Array.index_usize a7 3#usize
   let (lu9, index_mut_back4) ← Array.index_mut_usize a7 3#usize
   let a8 ← Array.update lu9 0#usize d_x3_zeta0
   let c_x1_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let c_x3_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let c_x2_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let c_x0_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let d_x0_zeta1 ← lift (c_x4_zeta1 ^^^ c_x1_zeta0)
   let a9 := index_mut_back4 a8
-  let _ ← Array.index_usize a9 0#usize
   let (lu10, index_mut_back5) ← Array.index_mut_usize a9 0#usize
   let a10 ← Array.update lu10 1#usize d_x0_zeta1
   let i3 ← core.num.U32.rotate_left c_x3_zeta1 1#u32
   let d_x2_zeta0 ← lift (c_x1_zeta0 ^^^ i3)
   let a11 := index_mut_back5 a10
-  let _ ← Array.index_usize a11 2#usize
   let (lu11, index_mut_back6) ← Array.index_mut_usize a11 2#usize
   let a12 ← Array.update lu11 0#usize d_x2_zeta0
   let d_x4_zeta1 ← lift (c_x3_zeta1 ^^^ c_x0_zeta0)
   let a13 := index_mut_back6 a12
-  let _ ← Array.index_usize a13 4#usize
   let (lu12, index_mut_back7) ← Array.index_mut_usize a13 4#usize
   let a14 ← Array.update lu12 1#usize d_x4_zeta1
   let i4 ← core.num.U32.rotate_left c_x2_zeta1 1#u32
   let d_x1_zeta0 ← lift (c_x0_zeta0 ^^^ i4)
   let a15 := index_mut_back7 a14
-  let _ ← Array.index_usize a15 1#usize
   let (lu13, index_mut_back8) ← Array.index_mut_usize a15 1#usize
   let a16 ← Array.update lu13 0#usize d_x1_zeta0
   let d_x3_zeta1 ← lift (c_x2_zeta1 ^^^ c_x4_zeta0)
   let a17 := index_mut_back8 a16
-  let _ ← Array.index_usize a17 3#usize
   let (lu14, index_mut_back9) ← Array.index_mut_usize a17 3#usize
   let a18 ← Array.update lu14 1#usize d_x3_zeta1
   let a19 := index_mut_back9 a18
@@ -1943,23 +1925,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 20#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -1993,23 +1975,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 21#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2043,23 +2025,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 7#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2093,23 +2075,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 8#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2143,23 +2125,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 0#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2193,23 +2175,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2254,23 +2236,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 1#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 30#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2304,23 +2286,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 2#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 23#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2356,23 +2338,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y0_zeta1
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 21#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2413,23 +2395,23 @@ def keccak.keccakf1600_round1_pi_rho_chi_y0_zeta0
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 22#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2476,81 +2458,71 @@ def keccak.keccakf1600_round1_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
   let c_x4_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let lu1 ← Array.index_usize s.c 1#usize
   let c_x1_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let lu2 ← Array.index_usize s.c 3#usize
   let c_x3_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let lu3 ← Array.index_usize s.c 0#usize
   let c_x0_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let lu4 ← Array.index_usize s.c 2#usize
   let c_x2_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let c_x4_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let i ← core.num.U32.rotate_left c_x1_zeta1 1#u32
   let d_x0_zeta0 ← lift (c_x4_zeta0 ^^^ i)
-  let _ ← Array.index_usize s.d 0#usize
   let (lu5, index_mut_back) ← Array.index_mut_usize s.d 0#usize
   let a ← Array.update lu5 0#usize d_x0_zeta0
   let d_x2_zeta1 ← lift (c_x1_zeta1 ^^^ c_x3_zeta0)
   let a1 := index_mut_back a
-  let _ ← Array.index_usize a1 2#usize
   let (lu6, index_mut_back1) ← Array.index_mut_usize a1 2#usize
   let a2 ← Array.update lu6 1#usize d_x2_zeta1
   let i1 ← core.num.U32.rotate_left c_x0_zeta1 1#u32
   let d_x4_zeta0 ← lift (c_x3_zeta0 ^^^ i1)
   let a3 := index_mut_back1 a2
-  let _ ← Array.index_usize a3 4#usize
   let (lu7, index_mut_back2) ← Array.index_mut_usize a3 4#usize
   let a4 ← Array.update lu7 0#usize d_x4_zeta0
   let d_x1_zeta1 ← lift (c_x0_zeta1 ^^^ c_x2_zeta0)
   let a5 := index_mut_back2 a4
-  let _ ← Array.index_usize a5 1#usize
   let (lu8, index_mut_back3) ← Array.index_mut_usize a5 1#usize
   let a6 ← Array.update lu8 1#usize d_x1_zeta1
   let i2 ← core.num.U32.rotate_left c_x4_zeta1 1#u32
   let d_x3_zeta0 ← lift (c_x2_zeta0 ^^^ i2)
   let a7 := index_mut_back3 a6
-  let _ ← Array.index_usize a7 3#usize
   let (lu9, index_mut_back4) ← Array.index_mut_usize a7 3#usize
   let a8 ← Array.update lu9 0#usize d_x3_zeta0
   let c_x1_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let c_x3_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let c_x2_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let c_x0_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let d_x0_zeta1 ← lift (c_x4_zeta1 ^^^ c_x1_zeta0)
   let a9 := index_mut_back4 a8
-  let _ ← Array.index_usize a9 0#usize
   let (lu10, index_mut_back5) ← Array.index_mut_usize a9 0#usize
   let a10 ← Array.update lu10 1#usize d_x0_zeta1
   let i3 ← core.num.U32.rotate_left c_x3_zeta1 1#u32
   let d_x2_zeta0 ← lift (c_x1_zeta0 ^^^ i3)
   let a11 := index_mut_back5 a10
-  let _ ← Array.index_usize a11 2#usize
   let (lu11, index_mut_back6) ← Array.index_mut_usize a11 2#usize
   let a12 ← Array.update lu11 0#usize d_x2_zeta0
   let d_x4_zeta1 ← lift (c_x3_zeta1 ^^^ c_x0_zeta0)
   let a13 := index_mut_back6 a12
-  let _ ← Array.index_usize a13 4#usize
   let (lu12, index_mut_back7) ← Array.index_mut_usize a13 4#usize
   let a14 ← Array.update lu12 1#usize d_x4_zeta1
   let i4 ← core.num.U32.rotate_left c_x2_zeta1 1#u32
   let d_x1_zeta0 ← lift (c_x0_zeta0 ^^^ i4)
   let a15 := index_mut_back7 a14
-  let _ ← Array.index_usize a15 1#usize
   let (lu13, index_mut_back8) ← Array.index_mut_usize a15 1#usize
   let a16 ← Array.update lu13 0#usize d_x1_zeta0
   let d_x3_zeta1 ← lift (c_x2_zeta1 ^^^ c_x4_zeta0)
   let a17 := index_mut_back8 a16
-  let _ ← Array.index_usize a17 3#usize
   let (lu14, index_mut_back9) ← Array.index_mut_usize a17 3#usize
   let a18 ← Array.update lu14 1#usize d_x3_zeta1
   let a19 := index_mut_back9 a18
@@ -2728,23 +2700,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 20#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2778,23 +2750,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 4#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx3 ← core.num.U32.rotate_left i 21#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx4 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx0 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2828,23 +2800,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 7#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2878,23 +2850,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx1 ← core.num.U32.rotate_left i 18#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx2 ← core.num.U32.rotate_left i1 5#u32
   let a2 ← state.KeccakState.get_with_zeta s 3#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx3 ← core.num.U32.rotate_left i2 8#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2928,23 +2900,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 0#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -2978,23 +2950,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx4 ← core.num.U32.rotate_left i 9#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx0 ← core.num.U32.rotate_left i1 1#u32
   let a2 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 2#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx1 ← core.num.U32.rotate_left i2 3#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -3039,23 +3011,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 1#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 30#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -3089,23 +3061,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx2 ← core.num.U32.rotate_left i 2#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx3 ← core.num.U32.rotate_left i1 23#u32
   let a2 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 1#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx4 ← core.num.U32.rotate_left i2 31#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -3141,23 +3113,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y0_zeta1
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 1#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 0#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 0#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 1#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 21#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -3198,23 +3170,23 @@ def keccak.keccakf1600_round0_pi_rho_chi_y0_zeta0
   := do
   let a0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
   let lu ← Array.index_usize s.d 0#usize
-  let d0 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+  let d0 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let a1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 0#usize
   let lu1 ← Array.index_usize s.d 1#usize
-  let d1 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+  let d1 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let i ← lift (a0 ^^^ d0)
   let bx0 ← core.num.U32.rotate_left i 0#u32
   let i1 ← lift (a1 ^^^ d1)
   let bx1 ← core.num.U32.rotate_left i1 22#u32
   let a2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 1#usize
   let lu2 ← Array.index_usize s.d 2#usize
-  let d2 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+  let d2 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let a3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 1#usize
   let lu3 ← Array.index_usize s.d 3#usize
-  let d3 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+  let d3 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let a4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 0#usize
   let lu4 ← Array.index_usize s.d 4#usize
-  let d4 ← _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+  let d4 ← lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let i2 ← lift (a2 ^^^ d2)
   let bx2 ← core.num.U32.rotate_left i2 22#u32
   let i3 ← lift (a3 ^^^ d3)
@@ -3261,81 +3233,71 @@ def keccak.keccakf1600_round0_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
   let c_x4_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 0#usize
   let lu1 ← Array.index_usize s.c 1#usize
   let c_x1_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 1#usize
   let lu2 ← Array.index_usize s.c 3#usize
   let c_x3_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 0#usize
   let lu3 ← Array.index_usize s.c 0#usize
   let c_x0_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 1#usize
   let lu4 ← Array.index_usize s.c 2#usize
   let c_x2_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 0#usize
   let c_x4_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu 1#usize
   let i ← core.num.U32.rotate_left c_x1_zeta1 1#u32
   let d_x0_zeta0 ← lift (c_x4_zeta0 ^^^ i)
-  let _ ← Array.index_usize s.d 0#usize
   let (lu5, index_mut_back) ← Array.index_mut_usize s.d 0#usize
   let a ← Array.update lu5 0#usize d_x0_zeta0
   let d_x2_zeta1 ← lift (c_x1_zeta1 ^^^ c_x3_zeta0)
   let a1 := index_mut_back a
-  let _ ← Array.index_usize a1 2#usize
   let (lu6, index_mut_back1) ← Array.index_mut_usize a1 2#usize
   let a2 ← Array.update lu6 1#usize d_x2_zeta1
   let i1 ← core.num.U32.rotate_left c_x0_zeta1 1#u32
   let d_x4_zeta0 ← lift (c_x3_zeta0 ^^^ i1)
   let a3 := index_mut_back1 a2
-  let _ ← Array.index_usize a3 4#usize
   let (lu7, index_mut_back2) ← Array.index_mut_usize a3 4#usize
   let a4 ← Array.update lu7 0#usize d_x4_zeta0
   let d_x1_zeta1 ← lift (c_x0_zeta1 ^^^ c_x2_zeta0)
   let a5 := index_mut_back2 a4
-  let _ ← Array.index_usize a5 1#usize
   let (lu8, index_mut_back3) ← Array.index_mut_usize a5 1#usize
   let a6 ← Array.update lu8 1#usize d_x1_zeta1
   let i2 ← core.num.U32.rotate_left c_x4_zeta1 1#u32
   let d_x3_zeta0 ← lift (c_x2_zeta0 ^^^ i2)
   let a7 := index_mut_back3 a6
-  let _ ← Array.index_usize a7 3#usize
   let (lu9, index_mut_back4) ← Array.index_mut_usize a7 3#usize
   let a8 ← Array.update lu9 0#usize d_x3_zeta0
   let c_x1_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu1 0#usize
   let c_x3_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu2 1#usize
   let c_x2_zeta1 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu4 1#usize
   let c_x0_zeta0 ←
-    _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
+    lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu3 0#usize
   let d_x0_zeta1 ← lift (c_x4_zeta1 ^^^ c_x1_zeta0)
   let a9 := index_mut_back4 a8
-  let _ ← Array.index_usize a9 0#usize
   let (lu10, index_mut_back5) ← Array.index_mut_usize a9 0#usize
   let a10 ← Array.update lu10 1#usize d_x0_zeta1
   let i3 ← core.num.U32.rotate_left c_x3_zeta1 1#u32
   let d_x2_zeta0 ← lift (c_x1_zeta0 ^^^ i3)
   let a11 := index_mut_back5 a10
-  let _ ← Array.index_usize a11 2#usize
   let (lu11, index_mut_back6) ← Array.index_mut_usize a11 2#usize
   let a12 ← Array.update lu11 0#usize d_x2_zeta0
   let d_x4_zeta1 ← lift (c_x3_zeta1 ^^^ c_x0_zeta0)
   let a13 := index_mut_back6 a12
-  let _ ← Array.index_usize a13 4#usize
   let (lu12, index_mut_back7) ← Array.index_mut_usize a13 4#usize
   let a14 ← Array.update lu12 1#usize d_x4_zeta1
   let i4 ← core.num.U32.rotate_left c_x2_zeta1 1#u32
   let d_x1_zeta0 ← lift (c_x0_zeta0 ^^^ i4)
   let a15 := index_mut_back7 a14
-  let _ ← Array.index_usize a15 1#usize
   let (lu13, index_mut_back8) ← Array.index_mut_usize a15 1#usize
   let a16 ← Array.update lu13 0#usize d_x1_zeta0
   let d_x3_zeta1 ← lift (c_x2_zeta1 ^^^ c_x4_zeta0)
   let a17 := index_mut_back8 a16
-  let _ ← Array.index_usize a17 3#usize
   let (lu14, index_mut_back9) ← Array.index_mut_usize a17 3#usize
   let a18 ← Array.update lu14 1#usize d_x3_zeta1
   let a19 := index_mut_back9 a18
@@ -3814,7 +3776,7 @@ def state.KeccakState.store.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
 
 /-- [libcrux_iot_sha3::lane::{libcrux_iot_sha3::lane::Lane2U32}::deinterleave]:
     Source: 'sha3/src/lane.rs', lines 43:4-78:5 -/
-def _root_.libcrux_iot_sha3.lane.Lane2U32.deinterleave
+def lane.Lane2U32.deinterleave
   (self : lane.Lane2U32) : RustM lane.Lane2U32 := do
   let even_bits ← Array.index_usize self 0#usize
   let odd_bits ← Array.index_usize self 1#usize
@@ -3906,7 +3868,7 @@ def state.KeccakState.store_loop.body
     let i1 ← i / 5#usize
     let i2 ← i % 5#usize
     let lu ← state.KeccakState.get_lane self i1 i2
-    let keccak_lane ← _root_.libcrux_iot_sha3.lane.Lane2U32.deinterleave lu
+    let keccak_lane ← lane.Lane2U32.deinterleave lu
     let i3 ← i * 8#usize
     let i4 ← i3 + 4#usize
     let (s, index_mut_back) ←
@@ -3914,7 +3876,7 @@ def state.KeccakState.store_loop.body
         (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
         Std.U8) out { start := i3, «end» := i4 }
     let i5 ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
     let a ← core.num.U32.to_le_bytes i5
     let s1 ← lift (Array.to_slice a)
     let s2 ←
@@ -3927,7 +3889,7 @@ def state.KeccakState.store_loop.body
         (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
         Std.U8) out1 { start := i6, «end» := i7 }
     let i8 ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 1#usize
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 1#usize
     let a1 ← core.num.U32.to_le_bytes i8
     let s4 ← lift (Array.to_slice a1)
     let s5 ←
@@ -3965,7 +3927,7 @@ def state.KeccakState.store
     let i ← num_full_blocks / 5#usize
     let i1 ← num_full_blocks % 5#usize
     let lu ← state.KeccakState.get_lane self i i1
-    let keccak_lane ← _root_.libcrux_iot_sha3.lane.Lane2U32.deinterleave lu
+    let keccak_lane ← lane.Lane2U32.deinterleave lu
     let last_half_block_len ← last_block_len - 4#usize
     let i2 ← num_full_blocks * 8#usize
     let i3 ← i2 + 4#usize
@@ -3974,7 +3936,7 @@ def state.KeccakState.store
         (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
         Std.U8) out1 { start := i2, «end» := i3 }
     let i4 ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
     let a ← core.num.U32.to_le_bytes i4
     let s1 ← lift (Array.to_slice a)
     let s2 ←
@@ -3987,7 +3949,7 @@ def state.KeccakState.store
         (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
         Std.U8) out2 { start := i5, «end» := i6 }
     let i7 ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 1#usize
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 1#usize
     let a1 ← core.num.U32.to_le_bytes i7
     let s4 ←
       core.Array.Insts.CoreOpsIndexIndex.index
@@ -4003,7 +3965,7 @@ def state.KeccakState.store
       let i ← num_full_blocks / 5#usize
       let i1 ← num_full_blocks % 5#usize
       let lu ← state.KeccakState.get_lane self i i1
-      let keccak_lane ← _root_.libcrux_iot_sha3.lane.Lane2U32.deinterleave lu
+      let keccak_lane ← lane.Lane2U32.deinterleave lu
       let i2 ← num_full_blocks * 8#usize
       let i3 ← i2 + last_block_len
       let (s, index_mut_back) ←
@@ -4011,7 +3973,7 @@ def state.KeccakState.store
           (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
           Std.U8) out1 { start := i2, «end» := i3 }
       let i4 ←
-        _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
+        lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
       let a ← core.num.U32.to_le_bytes i4
       let s1 ←
         core.Array.Insts.CoreOpsIndexIndex.index
@@ -4230,7 +4192,7 @@ def state.store_block_2u32_loop.body
     let i1 ← i / 5#usize
     let i2 ← i % 5#usize
     let lu ← state.KeccakState.get_lane s i1 i2
-    let keccak_lane ← _root_.libcrux_iot_sha3.lane.Lane2U32.deinterleave lu
+    let keccak_lane ← lane.Lane2U32.deinterleave lu
     let i3 ← 8#usize * i
     let i4 ← i3 + 4#usize
     let (s1, index_mut_back) ←
@@ -4238,7 +4200,7 @@ def state.store_block_2u32_loop.body
         (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
         Std.U8) out { start := i3, «end» := i4 }
     let i5 ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 0#usize
     let a ← core.num.U32.to_le_bytes i5
     let s2 ← lift (Array.to_slice a)
     let s3 ←
@@ -4251,7 +4213,7 @@ def state.store_block_2u32_loop.body
         (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
         Std.U8) out1 { start := i6, «end» := i7 }
     let i8 ←
-      _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 1#usize
+      lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index keccak_lane 1#usize
     let a1 ← core.num.U32.to_le_bytes i8
     let s5 ← lift (Array.to_slice a1)
     let s6 ←
@@ -4537,38 +4499,41 @@ def keccak.keccak
 /-- [libcrux_iot_sha3::lane::{impl core::clone::Clone for libcrux_iot_sha3::lane::Lane2U32}::clone]:
     Source: 'sha3/src/lane.rs', lines 6:9-6:14
     Visibility: public -/
-def _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreCloneClone.clone
+def lane.Lane2U32.Insts.CoreCloneClone.clone
   (self : lane.Lane2U32) : RustM lane.Lane2U32 := do
   ok self
 
 /-- Trait implementation: [libcrux_iot_sha3::lane::{impl core::clone::Clone for libcrux_iot_sha3::lane::Lane2U32}]
     Source: 'sha3/src/lane.rs', lines 6:9-6:14 -/
 @[reducible]
-def _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreCloneClone : core.clone.Clone lane.Lane2U32 := {
-  clone := _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreCloneClone.clone
+impl_def lane.Lane2U32.Insts.CoreCloneClone : core.clone.Clone lane.Lane2U32
+  := {
+  clone := lane.Lane2U32.Insts.CoreCloneClone.clone
+  clone_from := core.clone.Clone.clone_from.default
+    lane.Lane2U32.Insts.CoreCloneClone
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::lane::{impl core::marker::Copy for libcrux_iot_sha3::lane::Lane2U32}]
     Source: 'sha3/src/lane.rs', lines 6:16-6:20 -/
 @[reducible]
-def _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreMarkerCopy : core.marker.Copy lane.Lane2U32 := {
-  cloneCloneInst := _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreCloneClone
+def lane.Lane2U32.Insts.CoreMarkerCopy : core.marker.Copy lane.Lane2U32 := {
+  cloneCloneInst := lane.Lane2U32.Insts.CoreCloneClone
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::lane::{impl core::ops::index::Index<usize, u32> for libcrux_iot_sha3::lane::Lane2U32}]
     Source: 'sha3/src/lane.rs', lines 82:0-90:1 -/
 @[reducible]
-def _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32 : core.ops.index.Index
+def lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32 : core.ops.index.Index
   lane.Lane2U32 Std.Usize Std.U32 := {
-  index := _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index
+  index := lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::lane::{impl core::convert::From<[u32; 2usize]> for libcrux_iot_sha3::lane::Lane2U32}]
     Source: 'sha3/src/lane.rs', lines 92:0-97:1 -/
 @[reducible]
-def _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreConvertFromArrayU322 : core.convert.From
+def lane.Lane2U32.Insts.CoreConvertFromArrayU322 : core.convert.From
   lane.Lane2U32 (Array Std.U32 2#usize) := {
-  «from» := _root_.libcrux_iot_sha3.lane.Lane2U32.Insts.CoreConvertFromArrayU322.from
+  «from» := lane.Lane2U32.Insts.CoreConvertFromArrayU322.from
 }
 
 /-- [libcrux_iot_sha3::SHA3_224_DIGEST_SIZE]
@@ -4601,8 +4566,10 @@ def Algorithm.Insts.CoreCloneClone.clone
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::clone::Clone for libcrux_iot_sha3::Algorithm}]
     Source: 'sha3/src/lib.rs', lines 89:39-89:44 -/
 @[reducible]
-def Algorithm.Insts.CoreCloneClone : core.clone.Clone Algorithm := {
+impl_def Algorithm.Insts.CoreCloneClone : core.clone.Clone Algorithm := {
   clone := Algorithm.Insts.CoreCloneClone.clone
+  clone_from := core.clone.Clone.clone_from.default
+    Algorithm.Insts.CoreCloneClone
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::marker::Copy for libcrux_iot_sha3::Algorithm}]
@@ -4631,11 +4598,10 @@ def Algorithm.Insts.CoreCmpPartialEqAlgorithm.eq
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::cmp::PartialEq<libcrux_iot_sha3::Algorithm> for libcrux_iot_sha3::Algorithm}]
     Source: 'sha3/src/lib.rs', lines 89:46-89:55 -/
 @[reducible]
-impl_def Algorithm.Insts.CoreCmpPartialEqAlgorithm : core.cmp.PartialEq Algorithm
-  Algorithm := {
+impl_def Algorithm.Insts.CoreCmpPartialEqAlgorithm : core.cmp.PartialEq
+  Algorithm Algorithm := {
   eq := Algorithm.Insts.CoreCmpPartialEqAlgorithm.eq
-  ne := core.cmp.PartialEq.ne.default
-    Algorithm.Insts.CoreCmpPartialEqAlgorithm
+  ne := core.cmp.PartialEq.ne.default Algorithm.Insts.CoreCmpPartialEqAlgorithm
 }
 
 /-- [libcrux_iot_sha3::{impl core::convert::From<u32> for libcrux_iot_sha3::Algorithm}::from]:
@@ -5024,9 +4990,11 @@ def state.KeccakState.Insts.CoreCloneClone.clone
 /-- Trait implementation: [libcrux_iot_sha3::state::{impl core::clone::Clone for libcrux_iot_sha3::state::KeccakState}]
     Source: 'sha3/src/state.rs', lines 7:9-7:14 -/
 @[reducible]
-def state.KeccakState.Insts.CoreCloneClone : core.clone.Clone state.KeccakState
-  := {
+impl_def state.KeccakState.Insts.CoreCloneClone : core.clone.Clone
+  state.KeccakState := {
   clone := state.KeccakState.Insts.CoreCloneClone.clone
+  clone_from := core.clone.Clone.clone_from.default
+    state.KeccakState.Insts.CoreCloneClone
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::state::{impl core::marker::Copy for libcrux_iot_sha3::state::KeccakState}]

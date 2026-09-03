@@ -17,7 +17,7 @@ libcrux-secrets = { version = "0.0.5" }
 libcrux-macros = { version = "0.0.3" }
 libcrux-traits = { version = "0.0.7" }
 
-hax-lib = { version = "0.4.0-rc.1" }
+hax-lib = { version = "0.4.0-rc.2" }
 
 
 [workspace.lints.rust]
@@ -29,9 +29,9 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 [patch.crates-io]
-# cargo-hax v0.4.0-rc.1 rejects hax-lib < 0.4 ("too old for this cargo-hax").
+# cargo-hax v0.4.0-rc.2 rejects hax-lib < 0.4 ("too old for this cargo-hax").
 # This replaces the stale jonas/fstar-wrapping patch (last touched 2026-01-20).
-hax-lib = { git = "https://github.com/cryspen/hax", rev = "4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800" }
+hax-lib = { git = "https://github.com/cryspen/hax", rev = "cbce2c3bfcf50e853d3115c45cd592004d7d092f" }
 # patch until libcrux-secrets 0.0.6 is released
 libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "c4253d211a605f4a284c595fc6ca28ae18dd07ba" }
 

@@ -12,6 +12,9 @@ open Std.Do
 set_option linter.dupNamespace false
 set_option linter.hashCommand false
 set_option linter.unusedVariables false
+set_option linter.style.whitespace false
+set_option linter.style.setOption false
+set_option linter.style.longLine false
 
 /- You can set the `maxHeartbeats` value with the `-max-heartbeats` CLI option -/
 set_option maxHeartbeats 1000000
@@ -302,7 +305,7 @@ def shake128.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
     Source: 'sha3/src/lib.rs', lines 350:0-351:69 -/
 @[reducible]
 def shake128.post
-  (BYTES : Std.Usize) (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
+  {BYTES : Std.Usize} (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
   RustM Bool
   := do
   let s ←
@@ -329,7 +332,7 @@ def shake128.spec (BYTES : Std.Usize) (data : Slice Std.U8) : Prop :=
   (shake128.pre BYTES data).holds →
   ⦃ ⌜ True ⌝ ⦄
   shake128 BYTES data
-  ⦃ ⇓ res => ⌜ (shake128.post BYTES data res).holds ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (shake128.post data res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::shake128_ema::pre]:
@@ -359,7 +362,7 @@ def shake256.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
     Source: 'sha3/src/lib.rs', lines 384:0-385:69 -/
 @[reducible]
 def shake256.post
-  (BYTES : Std.Usize) (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
+  {BYTES : Std.Usize} (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
   RustM Bool
   := do
   let s ←
@@ -386,7 +389,7 @@ def shake256.spec (BYTES : Std.Usize) (data : Slice Std.U8) : Prop :=
   (shake256.pre BYTES data).holds →
   ⦃ ⌜ True ⌝ ⦄
   shake256 BYTES data
-  ⦃ ⇓ res => ⌜ (shake256.post BYTES data res).holds ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (shake256.post data res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::shake256_ema::pre]:
@@ -865,10 +868,10 @@ def keccak.KeccakXofState.absorb_full.pre
 @[reducible]
 def keccak.KeccakXofState.absorb_full.post
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
-  (inputs : Slice Std.U8) (p : ((keccak.KeccakXofState RATE) × Std.Usize)) :
+  (inputs : Slice Std.U8) (p : (Std.Usize × (keccak.KeccakXofState RATE))) :
   RustM Bool
   := do
-  let (self__future, remainder) := p
+  let (remainder, self__future) := p
   if remainder < RATE
   then
     let i ← core.slice.Slice.len inputs
@@ -894,7 +897,7 @@ def keccak.KeccakXofState.absorb_full.spec {RATE : Std.Usize}
   ⦃ ⌜ True ⌝ ⦄
   keccak.KeccakXofState.absorb_full self inputs
   ⦃ ⇓ res =>
-  ⌜ (keccak.KeccakXofState.absorb_full.post self inputs (res.2, res.1)).holds ⌝ ⦄
+  ⌜ (keccak.KeccakXofState.absorb_full.post self inputs res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::fill_buffer::pre]:
@@ -921,10 +924,10 @@ def keccak.KeccakXofState.fill_buffer.pre
 @[reducible]
 def keccak.KeccakXofState.fill_buffer.post
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
-  (inputs : Slice Std.U8) (p : ((keccak.KeccakXofState RATE) × Std.Usize)) :
+  (inputs : Slice Std.U8) (p : (Std.Usize × (keccak.KeccakXofState RATE))) :
   RustM hax_lib.prop.Prop
   := do
-  let (self__future, res) := p
+  let (res, self__future) := p
   let p1 ← hax_lib.Bool.Insts.Hax_libPropToProp.to_prop (res <= RATE)
   let p2 ←
     hax_lib.Bool.Insts.Hax_libPropToProp.to_prop (self__future.buf_len <= RATE)
@@ -947,7 +950,7 @@ def keccak.KeccakXofState.fill_buffer.spec {RATE : Std.Usize}
   ⦃ ⌜ True ⌝ ⦄
   keccak.KeccakXofState.fill_buffer self inputs
   ⦃ ⇓ res =>
-  ⌜ (keccak.KeccakXofState.fill_buffer.post self inputs (res.2, res.1)).holds ⌝ ⦄
+  ⌜ (keccak.KeccakXofState.fill_buffer.post self inputs res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::absorb_final::pre]:
@@ -1264,7 +1267,7 @@ def state.KeccakState.get_lane.spec (self : state.KeccakState) (i : Std.Usize)
 @[reducible]
 def state.KeccakState.set_lane.pre
   (self_ : state.KeccakState) (i : Std.Usize) (j : Std.Usize)
-  (lane : lane.Lane2U32) :
+  (lane1 : lane.Lane2U32) :
   RustM Bool
   := do
   if i < 5#usize
@@ -1272,10 +1275,10 @@ def state.KeccakState.set_lane.pre
   else ok false
 
 def state.KeccakState.set_lane.spec (self : state.KeccakState) (i : Std.Usize)
-  (j : Std.Usize) (lane : lane.Lane2U32) : Prop :=
-  (state.KeccakState.set_lane.pre self i j lane).holds →
+  (j : Std.Usize) (lane1 : lane.Lane2U32) : Prop :=
+  (state.KeccakState.set_lane.pre self i j lane1).holds →
   ⦃ ⌜ True ⌝ ⦄
-  state.KeccakState.set_lane self i j lane
+  state.KeccakState.set_lane self i j lane1
   ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 

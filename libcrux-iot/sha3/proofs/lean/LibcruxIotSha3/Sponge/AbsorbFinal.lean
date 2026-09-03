@@ -77,35 +77,36 @@ theorem core_models_Array_Insts_index_mut_RangeUsize_spec
                 p.1.val.length = r.end.val - r.start.val ∧
                 ∀ s' : Slice T, s'.val.length = r.end.val - r.start.val →
                   (p.2 s').val = arr.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
-  -- The new `Array.Insts.CoreOpsIndexIndexMut.index_mut` reads via `subslice`
-  -- (on `to_slice arr`) and writes back via `Array.update_subslice arr`, so use
-  -- the ≤-axioms directly (see SliceSpecs) rather than the old
-  -- `to_slice_mut + Slice.index_mut` routing.
+  -- CoreModels v0.3.17 supplies this instance natively (it used to be
+  -- hand-written in HacspecSha3's FunsExternal): the body is
+  --   let (s, back_a) ← array.Array.as_mut_slice arr   -- ok (to_slice_mut arr)
+  --   let (t, back_s) ← inst.index_mut s r             -- slice_slice_mut
+  --   ok (t, back_a ∘ back_s)
+  -- so the read is `subslice` on `to_slice arr` and the write-back is
+  -- `from_slice arr ∘ setSlice!` -- no `update_subslice`/`HaxToRange` any more.
   unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
   have h_len_to_slice : (Std.Array.to_slice arr).val.length = N.val := by
     rw [Std.Array.val_to_slice]; exact arr.property
   have h1' : r.end.val ≤ (Std.Array.to_slice arr).val.length := by rw [h_len_to_slice]; exact h1
   obtain ⟨ns, hns_eq, hns_val⟩ :=
     Slice.subslice_le_eq (Std.Array.to_slice arr) ⟨r.start, r.end⟩ h0 h1'
-  -- CoreModels v0.3.12: `Slice.Insts.CoreOpsIndexIndexMut` is an
-  -- `ops.index.IndexMut` record now, so the read goes through its `IndexInst`.
-  simp only [CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut,
-             CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
-             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-             CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-             CoreModels.rust_primitives.slice.slice_slice_mut, hns_eq]
-  simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok,
-             Std.Do.SPred.pure, Std.Do.SPred.entails]
-  intro _
-  refine ⟨?_, ?_, ?_⟩
-  · rw [hns_val, Std.Array.val_to_slice]
-  · rw [hns_val, Std.Array.val_to_slice]; simp only [List.slice_length]
-    have := arr.property; omega
-  · intro s' hs'
-    obtain ⟨na, hna_eq, hna_val⟩ :=
-      Array.update_subslice_le_eq arr ⟨r.start, r.end⟩ s' h0 (Std.Array.val_to_slice arr ▸ h1') hs'
-    simp only [HaxToRange.toRange, hna_eq]
-    exact hna_val
+  -- plain `simp` in ONE call: the body destructures `(to_slice arr, from_slice
+  -- arr)` through a pattern-`let`, which `simp only` cannot reduce.
+  simp [CoreModels.core.array.Array.as_mut_slice,
+        CoreModels.rust_primitives.slice.array_as_mut_slice,
+        Std.Array.to_slice_mut,
+        CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
+        CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+        CoreModels.rust_primitives.slice.slice_slice_mut, hns_eq,
+        Triple, WP.wp, PredTrans.apply, bind_tc_ok,
+        Std.Do.SPred.pure, Std.Do.SPred.entails]
+  -- the same `simp` also discharges the write-back conjunct (`from_slice_val`
+  -- and the `setSlice!` length lemma are simp lemmas); the read equality and
+  -- its length remain.
+  rw [hns_val, Std.Array.val_to_slice]
+  refine ⟨rfl, ?_⟩
+  simp only [List.slice_length]
+  have := arr.property; omega
 
 /-! ### `padded_buf` — the shared 4-step buffer value.
 

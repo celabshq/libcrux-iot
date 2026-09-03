@@ -6,8 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-HAX_VERSION = "4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800"
-AENEAS_VERSION = "f8a0eb8"
+HAX_VERSION = "cbce2c3bfcf50e853d3115c45cd592004d7d092f"
+AENEAS_VERSION = "6852e64"
 
 
 def check_version(cmd: list[str], name: str, expected: str) -> None:
@@ -52,7 +52,11 @@ content = funs_lean.read_text()
 # Funs.lean, so (unlike the old `aeneas-lean` backend) there is no `import
 # Missing` line to inject here anymore.
 
-# Wrong signature of `core_models.fmt.rt.Argument.new_display`
+# Wrong signature of `core_models.fmt.rt.Argument.new_display` (formerly
+# emitted around a panicking `unreachable!`-style branch). FIXED as of hax
+# v0.4.0-rc.2: that branch now extracts directly as `fail panic`, with no
+# malformed formatting call to comment out. This `.replace()` is a no-op
+# against current output (kept, harmless, as a tripwire against older hax).
 panic_block = (
     "    let a ←\n"
     "      core.fmt.rt.Argument.new_display core.Usize.Insts.CoreFmtDisplay i\n"
@@ -67,14 +71,21 @@ panic_block = (
 )
 content = content.replace(panic_block, "/-\n" + panic_block + "\n-/\n    fail panic", 1)
 
-# `state::load_block_2u32` binds a local named `lane` (state.rs: `let lane =
-# Lane2U32::from(...).interleave()`), which shadows the `lane` sub-namespace, so
-# every later `lane.Lane2U32.…` is parsed as a field projection on that local
-# ("Invalid field `Lane2U32`: … does not contain `Subtype.Lane2U32`"). Force
-# top-level resolution, as the specs/ml-kem driver does for `matrix`.
-content = content.replace(
-    "lane.Lane2U32.", "_root_.libcrux_iot_sha3.lane.Lane2U32."
-)
+# `state::load_block_2u32` used to bind a local named `lane` (state.rs: `let
+# lane = Lane2U32::from(...).interleave()`), shadowing the `lane` sub-namespace
+# so that every later `lane.Lane2U32.…` parsed as a field projection on that
+# local. FIXED as of hax v0.4.0-rc.2: charon now renames the shadowing local to
+# `lane1`, so the blanket `_root_.` rewrite this replaced is obsolete -- and
+# actively harmful: it also rewrote the NEW (rc.2) `clone_from :=
+# core.clone.Clone.clone_from.default <SELF>` self-reference inside the
+# `Lane2U32` `impl_def`, whose forward-declaration only resolves the unprefixed
+# name form, giving "Unknown constant
+# `libcrux_iot_sha3.lane.Lane2U32.Insts.CoreCloneClone`". Tripwire only:
+if "\n  let lane ←" in content or "\n  let lane =" in content:
+    print("error: Funs.lean binds a local named `lane` again -- the charon "
+          "namespace-shadowing rename is gone; restore the `_root_.` rewrite "
+          "this comment replaced.", file=sys.stderr)
+    sys.exit(1)
 
 
 # aeneas omits fields that `CoreModels`'s `cmp` traits declare without defaults:
@@ -153,58 +164,43 @@ content = _erase_loop_invariant_markers(content)
 
 funs_lean.write_text(content)
 
-# CODEGEN BUG (hax 4c9e2b7c): for a method taking `&mut self` and returning a
-# value, the extracted function returns `(return value, future self)` -- e.g.
-# `absorb_full(&mut self, inputs) -> usize` becomes
-# `RustM (Usize x KeccakXofState RATE)` -- but the `post` generated from its
-# `#[ensures]` destructures the pair the OTHER way round
-# (`let (self__future, remainder) := p`, i.e. `(future self, return value)`).
-# The `post`'s logical content is right; only the pairing convention disagrees,
-# so `<fn>.spec` fails to typecheck with
-#   "argument res has type Usize x KeccakXofState RATE
-#    but is expected to have type KeccakXofState RATE x Usize".
+# Both aeneas bugs formerly patched here are FIXED as of hax v0.4.0-rc.2
+# (aeneas nightly-2026.09.03-6852e64). Kept as history, and as a tripwire if a
+# future bump regresses either:
 #
-# Fixed here by applying the generated `post` to the swapped pair, which leaves
-# `post` itself exactly as hax emitted it (so it still reads against the Rust
-# `ensures`). Keyed on the affected names and asserted, so that when hax fixes
-# the ordering upstream this pass fails loudly instead of silently re-swapping a
-# now-correct application.
+# 1. `&mut self` pairing (absorb_full/fill_buffer): aeneas used to destructure
+#    `post`'s pair as `(future self, return value)` while the function itself
+#    returns `(return value, future self)`, so `<fn>.spec` had to apply `post`
+#    to a swapped `(res.2, res.1)`. As of rc.2, `post` destructures the pair in
+#    the SAME order the function returns it (`let (remainder, self__future) :=
+#    p` for a `RustM (Usize x KeccakXofState RATE)`), and `<fn>.spec` applies
+#    `post` to `res` directly -- swapping now is not just unneeded but a type
+#    error (`res.2, res.1` has type `KeccakXofState x Usize`, the post's
+#    binder wants `Usize x KeccakXofState`).
+#
+# 2. Const-generic binder (shake128/shake256): aeneas used to bind `post`'s
+#    `BYTES` implicitly while `<fn>.spec` applied it explicitly
+#    (`shake128.post BYTES data res`). As of rc.2, `<fn>.spec` no longer
+#    applies it explicitly (`shake128.post data res`), so the implicit binder
+#    and the call site already agree; making the binder explicit now leaves
+#    `spec`'s two-argument call short by one (BYTES) and misassigned in type.
 _specs = Path("proofs/lean/LibcruxIotSha3/Extraction/Specs.lean")
 if _specs.exists():
     _s = _specs.read_text()
     for _fn in ("keccak.KeccakXofState.absorb_full",
                 "keccak.KeccakXofState.fill_buffer"):
-        # ASCII-only anchor on purpose: the surrounding Lean brackets are
-        # U+231C/U+231D/U+2984 and easy to get wrong in a source-level pass.
-        _old = f"{_fn}.post self inputs res)"
-        _new = f"{_fn}.post self inputs (res.2, res.1))"
-        if _s.count(_old) != 1:
-            print(f"error: expected exactly one un-swapped `{_fn}.post` application in "
-                  f"Specs.lean, found {_s.count(_old)}. If hax now emits the pair in "
-                  f"declaration order, delete this pass.", file=sys.stderr)
+        _bug = f"{_fn}.post self inputs (res.2, res.1))"
+        if _bug in _s:
+            print(f"error: `{_fn}.post` is applied to a swapped pair again in "
+                  f"Specs.lean -- the aeneas `&mut self` pairing bug is back; "
+                  f"restore the swap pass this comment replaced.", file=sys.stderr)
             sys.exit(1)
-        _s = _s.replace(_old, _new)
-
-    # Second aeneas bug in the same file: for a function whose only use of a
-    # const generic is in the TYPE of an argument (`out : [U8; BYTES]`), the
-    # generated `<fn>.post` binds that generic IMPLICITLY --
-    #     def shake128.post {BYTES : Usize} (data : Slice U8) (out : Array U8 BYTES)
-    # -- but `<fn>.spec` applies it EXPLICITLY:
-    #     (shake128.post BYTES data res).holds
-    # so the emitted Lean does not typecheck:
-    #     Application type mismatch ... Specs.lean:332:30
-    # Make the binder explicit to match the call site.
     for _fn in ("shake128", "shake256"):
-        _old = f"def {_fn}.post\n  {{BYTES : Std.Usize}}"
-        _new = f"def {_fn}.post\n  (BYTES : Std.Usize)"
-        if _s.count(_old) != 1:
-            print(f"error: expected exactly one implicit-BYTES `{_fn}.post` binder in "
-                  f"Specs.lean, found {_s.count(_old)}. If aeneas now binds it "
-                  f"explicitly, delete this pass.", file=sys.stderr)
+        if f"{_fn}.post BYTES data res" in _s:
+            print(f"error: `{_fn}.spec` applies `post` with an explicit `BYTES` "
+                  f"again -- the aeneas const-generic binder bug is back; restore "
+                  f"the explicit-binder pass this comment replaced.", file=sys.stderr)
             sys.exit(1)
-        _s = _s.replace(_old, _new)
-
-    _specs.write_text(_s)
 
 # The lean backend emits per-function Specs.lean + ProofObligations.lean from the
 # `#[hax_lib::requires]` / `#[ensures]` annotations.

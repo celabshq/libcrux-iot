@@ -212,9 +212,10 @@ private theorem slice_eq_true {a b : Slice Std.U8} (h : a.val = b.val) :
     `pre` bounds `BYTES` by `u32::MAX`; the correctness theorems do not need it,
     so it is introduced and dropped.
 
-    NOTE these two need a driver fix-up: aeneas binds `BYTES` IMPLICITLY in
-    `<fn>.post` but applies it EXPLICITLY in `<fn>.spec`, so the emitted Lean does
-    not typecheck as generated. See the pass in `hax_aeneas.py`. -/
+    As of hax v0.4.0-rc.2 the generated `post` binds `BYTES` implicitly AND
+    `spec` applies it implicitly, so the two agree as emitted (rc.1 needed a
+    driver fix-up here; `hax_aeneas.py` keeps a tripwire). `post` is therefore
+    applied as `post data v` below, `BYTES` inferred from `v`'s type. -/
 
 theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     libcrux_iot_sha3.shake128.spec BYTES data := by
@@ -222,7 +223,7 @@ theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
   obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
     triple_exists_ok (Sponge.shake128_spec BYTES data)
   refine triple_of_ok hv_eq ?_
-  have hpost : libcrux_iot_sha3.shake128.post BYTES data v = .ok true := by
+  have hpost : libcrux_iot_sha3.shake128.post data v = .ok true := by
     simp only [libcrux_iot_sha3.shake128.post]
     rw [range_full_index_eq v, Aeneas.Std.bind_tc_ok,
       decl_ref_eq (Aeneas.Std.Array.to_slice v), Aeneas.Std.bind_tc_ok,
@@ -238,7 +239,7 @@ theorem shake256_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
   obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
     triple_exists_ok (Sponge.shake256_spec BYTES data)
   refine triple_of_ok hv_eq ?_
-  have hpost : libcrux_iot_sha3.shake256.post BYTES data v = .ok true := by
+  have hpost : libcrux_iot_sha3.shake256.post data v = .ok true := by
     simp only [libcrux_iot_sha3.shake256.post]
     rw [range_full_index_eq v, Aeneas.Std.bind_tc_ok,
       decl_ref_eq (Aeneas.Std.Array.to_slice v), Aeneas.Std.bind_tc_ok,
