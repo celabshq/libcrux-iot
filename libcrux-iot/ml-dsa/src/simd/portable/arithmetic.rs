@@ -510,9 +510,49 @@ pub fn decompose(
 }
 
 #[inline(always)]
+// Spec-only: one lane of `use_hint` agrees with the extracted FIPS-204 hacspec.
+// The hint is a `bool` on the spec side, so it is compared rather than passed
+// through -- exactly as in `use_one_hint`'s own `#[ensures]` above.
+#[cfg(hax)]
+fn use_hint_lane_ok(
+    gamma2: Gamma2,
+    sv: FieldElement,
+    h: FieldElement,
+    out: FieldElement,
+) -> bool {
+    out.declassify()
+        == hacspec_ml_dsa::arithmetic::use_hint(
+            h.declassify() == 1,
+            hacspec_ml_dsa::arithmetic::mod_q(sv.declassify() as i64),
+            gamma2,
+        )
+}
+
+// Unrolled over the eight lanes, not a `hax_lib::forall` -- see the note on
+// `decompose_unit_ok`.
+#[cfg(hax)]
+fn use_hint_unit_ok(
+    gamma2: Gamma2,
+    u: &Coefficients,
+    h: &Coefficients,
+    out: &Coefficients,
+) -> bool {
+    use_hint_lane_ok(gamma2, u.values[0], h.values[0], out.values[0])
+        && use_hint_lane_ok(gamma2, u.values[1], h.values[1], out.values[1])
+        && use_hint_lane_ok(gamma2, u.values[2], h.values[2], out.values[2])
+        && use_hint_lane_ok(gamma2, u.values[3], h.values[3], out.values[3])
+        && use_hint_lane_ok(gamma2, u.values[4], h.values[4], out.values[4])
+        && use_hint_lane_ok(gamma2, u.values[5], h.values[5], out.values[5])
+        && use_hint_lane_ok(gamma2, u.values[6], h.values[6], out.values[6])
+        && use_hint_lane_ok(gamma2, u.values[7], h.values[7], out.values[7])
+}
+
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && coefficients_in_field(simd_unit)
     && coefficients_are_hints(hint))]
+// Full functional correctness at the SIMD-unit level. Like `power2round`, `hint`
+// is read AND written: the bare `hint` is the input, `future(hint)` the output.
+#[hax_lib::ensures(|_| use_hint_unit_ok(gamma2, simd_unit, hint, future(hint)))]
 pub fn use_hint(gamma2: Gamma2, simd_unit: &Coefficients, hint: &mut Coefficients) {
     for i in 0..hint.values.len() {
         // Declassifications: The hint values themselves are not

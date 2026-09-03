@@ -328,7 +328,7 @@ def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 513:0-515:37 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 550:0-552:37 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -350,12 +350,25 @@ def simd.portable.arithmetic.use_hint.pre
       else ok false
     else ok false
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::post]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 555:0-555:80 -/
+@[reducible]
+def simd.portable.arithmetic.use_hint.post
+  (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
+  (hint : simd.portable.vector_type.Coefficients)
+  (hint_future : simd.portable.vector_type.Coefficients) :
+  RustM Bool
+  := do
+  simd.portable.arithmetic.use_hint_unit_ok gamma2 simd_unit hint hint_future
+
 def simd.portable.arithmetic.use_hint.spec (gamma2 : Std.I32)
   (simd_unit : simd.portable.vector_type.Coefficients)
   (hint : simd.portable.vector_type.Coefficients) : Prop :=
   (simd.portable.arithmetic.use_hint.pre gamma2 simd_unit hint).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.use_hint gamma2 simd_unit hint
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res =>
+  ⌜ (simd.portable.arithmetic.use_hint.post gamma2 simd_unit hint res).holds
+  ⌝ ⦄
 
 end libcrux_iot_ml_dsa

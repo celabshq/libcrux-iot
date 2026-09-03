@@ -636,6 +636,130 @@ theorem power2round_spec_proof (t0 t1 : libcrux_iot_ml_dsa.simd.portable.vector_
   rw [hpost]
   exact holds_map_ok_of_bool rfl
 
+/-! ### The same lift for `use_hint`
+
+    Resting on `RoundingBridge.use_hint_eq` / `useHint_canonical`. -/
+
+/-- The two Bool spellings of "the hint is set" agree. The extraction writes
+    `decide (h = 1#i32)`; the FC theorems write `(h.val == 1)`. -/
+private theorem hint_bool_eq (h : Std.I32) :
+    (decide (h = 1#i32)) = ((h.val == 1) : Bool) := by
+  by_cases hh : h.val = 1
+  · rw [decide_eq_true (Aeneas.Std.IScalar.eq_of_val_eq (by rw [hh]; decide))]
+    simp [hh]
+  · rw [decide_eq_false (fun hc => hh (by rw [hc]; decide))]
+    simp [hh]
+
+/-- One lane of `use_hint_unit_ok`, from the FC theorem's per-lane post. -/
+private theorem use_hint_lane_ok_of (gamma2 sv h out : Std.I32)
+    (hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32)
+    (hb_lo : -(8380417 : Int) ≤ sv.val) (hb_hi : sv.val < (8380417 : Int))
+    (hout_eq : out.val = libcrux_iot_ml_dsa.Spec.Rounding.useHint ((h.val == 1) : Bool) sv.val gamma2.val) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint_lane_ok gamma2 sv h out = .ok true := by
+  have hcb : Aeneas.Std.IScalar.min .I64 ≤ sv.val ∧ sv.val ≤ Aeneas.Std.IScalar.max .I64 := by
+    simp only [Aeneas.Std.IScalar.min_IScalarTy_I64_eq,
+      Aeneas.Std.IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.min, Aeneas.Std.I64.max,
+      Aeneas.Std.I64.numBits, Aeneas.Std.IScalarTy.I64_numBits_eq]
+    omega
+  obtain ⟨c, hc_eq, hc_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.IScalar.cast_inBounds_spec .I64 sv hcb)
+  obtain ⟨rc, hrc_eq, hrc_zq, hrc_lo, hrc_hi⟩ :=
+    libcrux_iot_ml_dsa.Spec.HacspecBridge.mod_q_eq c
+  have hrc_hi' : rc.val < 8380417 := by
+    have : (libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) = 8380417 := by
+      norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
+    omega
+  obtain ⟨w, hw_eq, hw_val⟩ :=
+    libcrux_iot_ml_dsa.Spec.RoundingBridge.use_hint_eq (decide (h = 1#i32)) rc gamma2 hrc_lo hrc_hi' hg
+  have hsame : libcrux_iot_ml_dsa.Spec.Rounding.useHint (decide (h = 1#i32)) rc.val gamma2.val
+      = libcrux_iot_ml_dsa.Spec.Rounding.useHint (decide (h = 1#i32)) sv.val gamma2.val := by
+    refine libcrux_iot_ml_dsa.Spec.RoundingBridge.useHint_canonical _ sv rc gamma2 ?_ hrc_lo hrc_hi'
+    rw [hrc_zq, hc_val]
+  rw [hsame, hint_bool_eq] at hw_val
+  have hout' : out = w := Aeneas.Std.IScalar.eq_of_val_eq (by rw [hout_eq, hw_val])
+  simp [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint_lane_ok, decl_eq, hc_eq, hrc_eq, hw_eq, hout']
+
+/-- All eight lanes, assembled into `use_hint_unit_ok`. -/
+private theorem use_hint_unit_ok_of (gamma2 : Std.I32) (u h out : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (hg : gamma2 = 95232#i32 ∨ gamma2 = 261888#i32)
+    (hbound : ∀ j : Nat, j < 8 →
+        -(8380417 : Int) ≤ (u.values.val[j]!).val
+          ∧ (u.values.val[j]!).val < (8380417 : Int))
+    (hlanes : ∀ j : Nat, j < 8 →
+        (out.values.val[j]!).val = libcrux_iot_ml_dsa.Spec.Rounding.useHint
+          (((h.values.val[j]!).val == 1) : Bool)
+          (u.values.val[j]!).val gamma2.val) :
+    libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint_unit_ok gamma2 u h out = .ok true := by
+  have hlen_u : u.values.val.length = 8 := u.values.property
+  have hlen_h : h.values.val.length = 8 := h.values.property
+  have hlen_out : out.values.val.length = 8 := out.values.property
+  have g0 := use_hint_lane_ok_of gamma2 (u.values.val[0]!) (h.values.val[0]!)
+    (out.values.val[0]!) hg (hbound 0 (by omega)).1 (hbound 0 (by omega)).2
+    (hlanes 0 (by omega))
+  have g1 := use_hint_lane_ok_of gamma2 (u.values.val[1]!) (h.values.val[1]!)
+    (out.values.val[1]!) hg (hbound 1 (by omega)).1 (hbound 1 (by omega)).2
+    (hlanes 1 (by omega))
+  have g2 := use_hint_lane_ok_of gamma2 (u.values.val[2]!) (h.values.val[2]!)
+    (out.values.val[2]!) hg (hbound 2 (by omega)).1 (hbound 2 (by omega)).2
+    (hlanes 2 (by omega))
+  have g3 := use_hint_lane_ok_of gamma2 (u.values.val[3]!) (h.values.val[3]!)
+    (out.values.val[3]!) hg (hbound 3 (by omega)).1 (hbound 3 (by omega)).2
+    (hlanes 3 (by omega))
+  have g4 := use_hint_lane_ok_of gamma2 (u.values.val[4]!) (h.values.val[4]!)
+    (out.values.val[4]!) hg (hbound 4 (by omega)).1 (hbound 4 (by omega)).2
+    (hlanes 4 (by omega))
+  have g5 := use_hint_lane_ok_of gamma2 (u.values.val[5]!) (h.values.val[5]!)
+    (out.values.val[5]!) hg (hbound 5 (by omega)).1 (hbound 5 (by omega)).2
+    (hlanes 5 (by omega))
+  have g6 := use_hint_lane_ok_of gamma2 (u.values.val[6]!) (h.values.val[6]!)
+    (out.values.val[6]!) hg (hbound 6 (by omega)).1 (hbound 6 (by omega)).2
+    (hlanes 6 (by omega))
+  have g7 := use_hint_lane_ok_of gamma2 (u.values.val[7]!) (h.values.val[7]!)
+    (out.values.val[7]!) hg (hbound 7 (by omega)).1 (hbound 7 (by omega)).2
+    (hlanes 7 (by omega))
+  simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint_unit_ok,
+    array_index_ok u.values 0#usize (by simp [hlen_u]),
+    array_index_ok h.values 0#usize (by simp [hlen_h]),
+    array_index_ok out.values 0#usize (by simp [hlen_out]),
+    array_index_ok u.values 1#usize (by simp [hlen_u]),
+    array_index_ok h.values 1#usize (by simp [hlen_h]),
+    array_index_ok out.values 1#usize (by simp [hlen_out]),
+    array_index_ok u.values 2#usize (by simp [hlen_u]),
+    array_index_ok h.values 2#usize (by simp [hlen_h]),
+    array_index_ok out.values 2#usize (by simp [hlen_out]),
+    array_index_ok u.values 3#usize (by simp [hlen_u]),
+    array_index_ok h.values 3#usize (by simp [hlen_h]),
+    array_index_ok out.values 3#usize (by simp [hlen_out]),
+    array_index_ok u.values 4#usize (by simp [hlen_u]),
+    array_index_ok h.values 4#usize (by simp [hlen_h]),
+    array_index_ok out.values 4#usize (by simp [hlen_out]),
+    array_index_ok u.values 5#usize (by simp [hlen_u]),
+    array_index_ok h.values 5#usize (by simp [hlen_h]),
+    array_index_ok out.values 5#usize (by simp [hlen_out]),
+    array_index_ok u.values 6#usize (by simp [hlen_u]),
+    array_index_ok h.values 6#usize (by simp [hlen_h]),
+    array_index_ok out.values 6#usize (by simp [hlen_out]),
+    array_index_ok u.values 7#usize (by simp [hlen_u]),
+    array_index_ok h.values 7#usize (by simp [hlen_h]),
+    array_index_ok out.values 7#usize (by simp [hlen_out]),
+    g0,
+    g1,
+    g2,
+    g3,
+    g4,
+    g5,
+    g6,
+    g7,
+ Aeneas.Std.bind_tc_ok, reduceIte,
+    show ((0#usize : Std.Usize)).val = 0 from rfl,
+    show ((1#usize : Std.Usize)).val = 1 from rfl,
+    show ((2#usize : Std.Usize)).val = 2 from rfl,
+    show ((3#usize : Std.Usize)).val = 3 from rfl,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    show ((5#usize : Std.Usize)).val = 5 from rfl,
+    show ((6#usize : Std.Usize)).val = 6 from rfl,
+    show ((7#usize : Std.Usize)).val = 7 from rfl]
+
 /-! ## The `gamma2 ∈ {95232, 261888}` group
 
     Here the generated `pre` delivers exactly the theorems' `hg`; what has to be
@@ -953,8 +1077,16 @@ theorem use_hint_spec_proof (gamma2 : Std.I32)
       (hint.values.val[j]!).val = 0 ∨ (hint.values.val[j]!).val = 1 :=
     fun j hj => lane_is_hint_true
       (coefficients_are_hints_lanes hint key.2.2 j hj)
-  exact triple_true_of_triple
-    (Vector.Portable.Rounding.use_hint_spec gamma2 simd_unit hint key.1 hbound hhint)
+  -- the impl result, and its per-lane agreement with the HAND spec
+  obtain ⟨p, hp_eq, hp⟩ :=
+    triple_exists_ok
+      (Vector.Portable.Rounding.use_hint_spec gamma2 simd_unit hint key.1 hbound hhint)
+  refine triple_of_ok hp_eq ?_
+  have hpost : libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint.post gamma2 simd_unit hint p = .ok true := by
+    simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_hint.post]
+    exact use_hint_unit_ok_of gamma2 simd_unit hint p key.1 hbound hp
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 /-! ## The `gamma2 != i32::MIN` group
 
