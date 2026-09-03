@@ -370,34 +370,6 @@ pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
     }
 }
 
-// Spec-only impl->spec LIFT, the Rust counterpart of `Spec.HacspecBridge.lift_poly_res`.
-//
-// The Lean proofs relate the impl to the extracted hacspec through lifting
-// functions that exist ONLY in Lean: `lift_poly_res` regathers the 32x8 SIMD
-// layout into a flat `[i32; 256]` and canonicalises each lane into `[0, Q)`.
-// This is that function in Rust, so an `#[ensures]` can name it. The
-// canonicalisation reuses the hacspec's own `mod_q`, which is exactly what the
-// Lean side does (`canonI32 . lift_poly`).
-//
-// CAVEAT, and it is why nothing is annotated with this yet: the poly-layer
-// functions it would serve -- `PolynomialRingElement::{add,subtract}` and the NTT
-// entry points -- are generic over `SIMDUnit: Operations`, while this lift needs
-// concrete lane access (`values[..]`, only `pub(super)`), and the trait's own
-// accessor `to_coefficient_array` is an out-param function so it cannot appear in
-// an `ensures` expression. Attaching this therefore needs either a monomorphic
-// wrapper on the impl side or a pure lane accessor on the `Operations` trait.
-// Extracted and kept here because it is the reusable half, and because the
-// scalar layer (`decompose_element` below) shows the pattern end to end without
-// needing any lift at all.
-#[cfg(hax)]
-pub(crate) fn lift_poly_res(
-    re: &crate::polynomial::PolynomialRingElement<Coefficients>,
-) -> [i32; 256] {
-    core::array::from_fn(|i| {
-        hacspec_ml_dsa::arithmetic::mod_q(re.simd_units[i / 8].values[i % 8].declassify() as i64)
-    })
-}
-
 // Spec-only lane predicates.
 //
 // These exist because the natural phrasing of the bound,

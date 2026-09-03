@@ -24,6 +24,17 @@ pub(crate) trait Operations: Copy + Clone {
     fn from_coefficient_array(array: &[I32], out: &mut Self);
     fn to_coefficient_array(value: &Self, out: &mut [i32]);
 
+    /// Spec-only PURE lane read, `i < COEFFICIENTS_IN_SIMD_UNIT`.
+    ///
+    /// `to_coefficient_array` above cannot serve here: it writes through an
+    /// out-param, so it cannot appear in a `#[hax_lib::ensures]` EXPRESSION.
+    /// Without a pure accessor the impl->spec lift can only be written at a
+    /// concrete SIMD unit, which leaves the generic `PolynomialRingElement` API
+    /// -- the top-level layer -- unannotatable. `Coefficients` is the only
+    /// implementor of this trait, so this costs one method and one impl.
+    #[cfg(hax)]
+    fn lane(value: &Self, i: usize) -> i32;
+
     // Arithmetic
     fn add(lhs: &mut Self, rhs: &Self);
     fn subtract(lhs: &mut Self, rhs: &Self);

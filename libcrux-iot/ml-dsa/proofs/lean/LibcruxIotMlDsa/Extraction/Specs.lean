@@ -284,7 +284,7 @@ def simd.portable.arithmetic.use_one_hint.spec (gamma2 : Std.I32) (r : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 496:0-497:41 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 468:0-469:41 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -300,7 +300,7 @@ def simd.portable.arithmetic.decompose.pre
     else ok false
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 500:0-500:88 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 472:0-472:88 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.post
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -328,7 +328,7 @@ def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 550:0-552:37 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 522:0-524:37 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -351,7 +351,7 @@ def simd.portable.arithmetic.use_hint.pre
     else ok false
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 555:0-555:80 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 527:0-527:80 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.post
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -370,5 +370,22 @@ def simd.portable.arithmetic.use_hint.spec (gamma2 : Std.I32)
   ⦃ ⇓ res =>
   ⌜ (simd.portable.arithmetic.use_hint.post gamma2 simd_unit hint res).holds
   ⌝ ⦄
+
+
+/-- [libcrux_iot_ml_dsa::simd::portable::vector_type::lane::pre]:
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 24:0-24:51 -/
+@[reducible]
+def simd.portable.vector_type.lane.pre
+  (value : simd.portable.vector_type.Coefficients) (i : Std.Usize) :
+  RustM Bool
+  := do
+  ok (i < simd.traits.COEFFICIENTS_IN_SIMD_UNIT)
+
+def simd.portable.vector_type.lane.spec
+  (value : simd.portable.vector_type.Coefficients) (i : Std.Usize) : Prop :=
+  (simd.portable.vector_type.lane.pre value i).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  simd.portable.vector_type.lane value i
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 end libcrux_iot_ml_dsa

@@ -30,6 +30,11 @@ impl Operations for Coefficients {
         vector_type::to_coefficient_array(value, out)
     }
 
+    #[cfg(hax)]
+    fn lane(value: &Coefficients, i: usize) -> i32 {
+        vector_type::lane(value, i)
+    }
+
     fn add(lhs: &mut Coefficients, rhs: &Coefficients) {
         arithmetic::add(lhs, rhs)
     }
