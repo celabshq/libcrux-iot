@@ -391,4 +391,47 @@ def simd.portable.vector_type.lane.spec
   simd.portable.vector_type.lane value i
   ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
+
+/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::pre]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 118:16-118:35 -/
+@[reducible]
+def polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
+  (bound : Std.I32) :
+  RustM Bool
+  := do
+  polynomial.coefficients_centered simdtraitsOperationsInst self_
+
+/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::post]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 169:4-170:89 -/
+@[reducible]
+def polynomial.PolynomialRingElement.infinity_norm_exceeds.post
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
+  (bound : Std.I32) (result : Bool) :
+  RustM Bool
+  := do
+  let a ← polynomial.canon_raw simdtraitsOperationsInst self_
+  let i ← hacspec_ml_dsa.polynomial.poly_infinity_norm a
+  ok (result = (bound <= i))
+
+def
+  polynomial.PolynomialRingElement.infinity_norm_exceeds.spec {SIMDUnit : Type}
+                                                             (simdtraitsOperationsInst
+                                                             :
+                                                             simd.traits.Operations
+                                                             SIMDUnit)
+  (self : polynomial.PolynomialRingElement SIMDUnit) (bound : Std.I32)
+  : Prop :=
+  (polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
+  simdtraitsOperationsInst self bound).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  polynomial.PolynomialRingElement.infinity_norm_exceeds
+  simdtraitsOperationsInst self bound
+  ⦃ ⇓ res =>
+  ⌜
+  (polynomial.PolynomialRingElement.infinity_norm_exceeds.post
+  simdtraitsOperationsInst self bound res).holds ⌝ ⦄
+
 end libcrux_iot_ml_dsa

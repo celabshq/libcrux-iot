@@ -43,6 +43,18 @@ theorem ntt_hacspec_fc (re : PolynomialRingElement Coefficients)
 | `poly_sub_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.subtract` | `hacspec_ml_dsa.polynomial.poly_sub (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
 | `infinity_norm_exceeds_hacspec_fc` ([`Polynomial/HacspecNorm.lean`](Polynomial/HacspecNorm.lean)) | `…PolynomialRingElement.infinity_norm_exceeds` | `∃ n, hacspec_ml_dsa.polynomial.poly_infinity_norm (canon_raw self) = .ok n ∧ (r = decide (bound.val ≤ n.val))` (The spec does not have a direct equivalent to `infinity_norm_exceeds`. So the postcondition needs to establish equivalence using `poly_infinity_norm`.) |
 
+**Rust-annotation status.** `infinity_norm_exceeds` is the first of these whose
+statement lives in the Rust source itself:
+`#[hax_lib::requires(coefficients_centered(self))]` +
+`#[hax_lib::ensures(|result| result == (bound <= poly_infinity_norm(&canon_raw(self))))]`
+on the generic method (`src/polynomial.rs`). The generated
+`infinity_norm_exceeds.spec` is discharged at `portable_ops_inst` in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean)
+(`infinity_norm_exceeds_spec_proof`), resting on the lift-agreement lemma
+`HacspecNorm.canon_raw_ok` (extracted `polynomial.canon_raw` = proof-side
+`canon_raw`). The remaining nine top-level theorems still carry their
+statements only on the Lean side.
+
 
 Four impl ops have no non-trivial counterpart in the spec (it treats them as
 identity / a constant / a copy), so they are stated as direct value equations:

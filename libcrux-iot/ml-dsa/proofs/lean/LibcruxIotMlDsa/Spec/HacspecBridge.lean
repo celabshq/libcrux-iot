@@ -65,6 +65,22 @@ private theorem array_from_fn_go_pure
         hpure n (Nat.lt_succ_self n), List.range_succ, List.map_append, List.map_cons,
         List.map_nil]
 
+/-- Lean-level equation for `core.array.from_fn` over pure closures — the
+    general form of `createi_pure_eq` below, for callers that reach `from_fn`
+    directly (the impl's spec-only `polynomial.canon_raw` does). -/
+theorem from_fn_pure_eq
+    {T F : Type} (N : Std.Usize)
+    (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (f : Nat → T)
+    (hpure : ∀ k : Nat, k < N.val →
+      inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (f k, c)) :
+    core.array.from_fn N inst c =
+      .ok ⟨(List.range N.val).map f,
+           by simp [List.length_map, List.length_range]⟩ := by
+  unfold core.array.from_fn rust_primitives.slice.array_from_fn
+  rw [array_from_fn_go_pure inst c f N.val hpure]
+  simp only [bind_tc_ok]
+  rw [dif_pos (by simp : ((List.range N.val).map f).length = N.val)]
+
 /-- Lean-level equation for `hacspec_ml_dsa.createi` over pure closures. Verbatim
     port of ml-kem's `createi_pure_eq` (bodies identical: `core.array.from_fn`). -/
 theorem createi_pure_eq
@@ -75,10 +91,8 @@ theorem createi_pure_eq
     hacspec_ml_dsa.createi N inst c =
       .ok ⟨(List.range N.val).map f,
            by simp [List.length_map, List.length_range]⟩ := by
-  unfold hacspec_ml_dsa.createi core.array.from_fn rust_primitives.slice.array_from_fn
-  rw [array_from_fn_go_pure inst c f N.val hpure]
-  simp only [bind_tc_ok]
-  rw [dif_pos (by simp : ((List.range N.val).map f).length = N.val)]
+  unfold hacspec_ml_dsa.createi
+  exact from_fn_pure_eq N inst c f hpure
 
 /-! ## (2) lift + canon — the `Array I32 256` ↔ `SpecPoly` bridge. -/
 

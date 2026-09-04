@@ -669,4 +669,140 @@ info: 'libcrux_iot_ml_dsa.Polynomial.HacspecNorm.infinity_norm_exceeds_hacspec_f
 #guard_msgs in
 #print axioms infinity_norm_exceeds_hacspec_fc
 
+/-! ## The extracted spec-only lift `polynomial.canon_raw` agrees with `canon_raw`
+
+    The Rust annotation on `PolynomialRingElement::infinity_norm_exceeds` names the
+    spec-only lift `canon_raw` (`ml-dsa/src/polynomial.rs`), which the extraction
+    renders as `polynomial.canon_raw`: `core.array.from_fn 256` over a closure
+    computing `mod_q (lane as i64)`. At `portable_ops_inst` that is EXACTLY the
+    proof-side pure `canon_raw` above — `mod_q`'s canonical residue is `canonI32`
+    of the raw lane's `Zq` class (`mod_q_eq` + canonical uniqueness). This is the
+    keystone that lets the generated `infinity_norm_exceeds.spec` be discharged
+    from `infinity_norm_exceeds_hacspec_fc` (see `Verification/ProofObligations`). -/
+
+/-- `(⟨BitVec.ofNat _ k⟩ : Usize).val = k` for `k < 256` (file-local copy of the
+    computation inside `HacspecBridge.idx_ok`). -/
+theorem usize_lit_val (k : Nat) (hk : k < 256) :
+    (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
+  show (BitVec.ofNat _ k).toNat = k
+  rw [BitVec.toNat_ofNat]
+  apply Nat.mod_eq_of_lt
+  have hbits : 2 ^ 16 ≤ 2 ^ UScalarTy.Usize.numBits :=
+    Nat.pow_le_pow_right (by decide) (by
+      show 16 ≤ System.Platform.numBits
+      rcases System.Platform.numBits_eq with h | h <;> rw [h] <;> decide)
+  have : k < 2 ^ 16 := by omega
+  omega
+
+/-- `Array.index_usize` in `.ok` form (any element type / length). -/
+theorem aidx_ok {T : Type} [Inhabited T] {n : Std.Usize}
+    (a : Aeneas.Std.Array T n) (i : Std.Usize) (h : i.val < a.val.length) :
+    Aeneas.Std.Array.index_usize a i = .ok (a.val[i.val]!) := by
+  unfold Aeneas.Std.Array.index_usize
+  rw [Aeneas.Std.Array.getElem?_Usize_eq, List.getElem?_eq_getElem h,
+    List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]
+  rfl
+
+/-- Canonical uniqueness (file-local copy of `HacspecBridge.canonI32_eq_of_canonical`). -/
+private theorem canonI32_eq_of_canonical' (r : Std.I32) (z : Zq)
+    (hlo : 0 ≤ r.val) (hhi : r.val < (Q : Int)) (hres : ((r.val : Int) : Zq) = z) :
+    r = canonI32 z := by
+  apply Aeneas.Std.IScalar.eq_of_val_eq
+  rw [canonI32_val]
+  have hz : z = ((r.val.toNat : Nat) : Zq) := by
+    rw [← hres]
+    have e : ((r.val.toNat : Nat) : Int) = r.val := Int.toNat_of_nonneg hlo
+    rw [← e]; push_cast; rfl
+  have hrt : r.val.toNat < Q := by
+    have : r.val.toNat < (Q : Int).toNat := by
+      rw [Int.toNat_lt_toNat (by norm_num [Q])]; exact hhi
+    simpa [Q] using this
+  have hzv : z.val = r.val.toNat := by rw [hz]; exact ZMod.val_natCast_of_lt hrt
+  rw [hzv]; exact (Int.toNat_of_nonneg hlo).symm
+
+/-- The `Operations` instance's `lane` reads raw lane `j.val` (`j.val < 8`): the
+    portable `lane` is `Array.index_usize` + identity `declassify`. Stated on the
+    instance FIELD (what appears in goals once the reducible `portable_ops_inst`
+    projection has computed), so it works as a rewrite rule. -/
+theorem lane_ok (u : simd.portable.vector_type.Coefficients) (j : Std.Usize)
+    (hj : j.val < 8) :
+    simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.lane
+      u j = .ok (u.values.val[j.val]!) := by
+  unfold simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.lane
+         simd.portable.vector_type.lane
+  rw [aidx_ok u.values j (by
+    have hp := u.values.property
+    simp only [hp]; exact hj)]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rfl
+
+set_option maxHeartbeats 4000000 in
+/-- **Lift agreement.** The extracted `polynomial.canon_raw` at `portable_ops_inst`
+    computes the proof-side pure `canon_raw`. -/
+theorem canon_raw_ok
+    (self : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients) :
+    polynomial.canon_raw portable_ops_inst self = .ok (canon_raw self) := by
+  unfold polynomial.canon_raw
+  have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
+      (polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
+        portable_ops_inst).call_mut self ⟨BitVec.ofNat _ k⟩
+      = .ok (canonI32 ((((self.simd_units.val[k / 8]!).values.val[k % 8]!).val : Int) : Zq),
+             self) := by
+    intro k hk
+    have hk' : k < 256 := hk
+    have hkval : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := usize_lit_val k hk'
+    show polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+        portable_ops_inst self ⟨BitVec.ofNat _ k⟩ = _
+    unfold polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+    -- `k / 8`: the divisor is the constant `COEFFICIENTS_IN_SIMD_UNIT = 8`.
+    -- (`Usize` literals do not kernel-reduce — `numBits` is platform-opaque — so
+    -- the constant's `.val` is pinned with `scalar_tac` rather than `decide`.)
+    have hCval : (simd.traits.COEFFICIENTS_IN_SIMD_UNIT : Std.Usize).val = 8 := by
+      simp only [simd.traits.COEFFICIENTS_IN_SIMD_UNIT]
+      scalar_tac
+    have h8 : (simd.traits.COEFFICIENTS_IN_SIMD_UNIT : Std.Usize).val ≠ 0 := by
+      rw [hCval]; omega
+    obtain ⟨qi, hq_eq, hq_val, _⟩ :=
+      Aeneas.Std.UScalar.div_bv_spec (⟨BitVec.ofNat _ k⟩ : Std.Usize) h8
+    have hq_val' : qi.val = k / 8 := by
+      rw [hq_val, hkval, hCval]
+    rw [hq_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    -- index the SIMD unit: `k / 8 < 32`.
+    rw [aidx_ok self.simd_units qi (by
+      have hp := self.simd_units.property
+      simp only [hp, hq_val']
+      show k / 8 < (32#usize : Std.Usize).val
+      have : k / 8 < 32 := by omega
+      simpa using this)]
+    simp only [Aeneas.Std.bind_tc_ok]
+    -- `k % 8`.
+    obtain ⟨ri, hr_eq, hr_val⟩ :=
+      Aeneas.Std.WP.spec_imp_exists
+        (Aeneas.Std.UScalar.rem_spec (⟨BitVec.ofNat _ k⟩ : Std.Usize) h8)
+    have hr_val' : ri.val = k % 8 := by
+      rw [hr_val, hkval, hCval]
+    rw [hr_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    -- the raw lane read.
+    rw [lane_ok _ ri (by rw [hr_val']; exact Nat.mod_lt k (by decide))]
+    simp only [Aeneas.Std.bind_tc_ok]
+    -- cast to i64 and `mod_q`.
+    obtain ⟨w, hw_eq, hw_val⟩ :=
+      cast_i64_ok ((self.simd_units.val[qi.val]!).values.val[ri.val]!)
+    rw [hw_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    obtain ⟨r, hr_mq, hr_res, hr_lo, hr_hi⟩ := mod_q_eq w
+    have hr_c : r = canonI32
+        ((((self.simd_units.val[k / 8]!).values.val[k % 8]!).val : Int) : Zq) := by
+      apply canonI32_eq_of_canonical' r _ hr_lo hr_hi
+      rw [hr_res, hw_val, hq_val', hr_val']
+    rw [hr_mq, hr_c]
+    rfl
+  rw [from_fn_pure_eq 256#usize _ self
+        (fun k => canonI32 ((((self.simd_units.val[k / 8]!).values.val[k % 8]!).val : Int) : Zq))
+        hpure]
+  rfl
+
+/-- info: 'libcrux_iot_ml_dsa.Polynomial.HacspecNorm.canon_raw_ok' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms canon_raw_ok
+
 end libcrux_iot_ml_dsa.Polynomial.HacspecNorm

@@ -195,6 +195,7 @@ import LibcruxIotMlDsa.Vector.Portable.Rounding
 import LibcruxIotMlDsa.Spec.HacspecBridge
 import LibcruxIotMlDsa.Spec.RoundingBridge
 import LibcruxIotMlDsa.Vector.Portable.Arithmetic
+import LibcruxIotMlDsa.Polynomial.HacspecNorm
 
 open CoreModels Aeneas Aeneas.Std Std.Do
 
@@ -1190,5 +1191,293 @@ theorem compute_one_hint_spec_proof (low high gamma2 : Std.I32) :
   simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.compute_one_hint.post]
   rw [if_pos (show v ≥ 0#i32 from by scalar_tac)]
   exact holds_map_ok_of_bool (by simp; scalar_tac)
+
+
+/-! ## Generated top-level spec: `PolynomialRingElement.infinity_norm_exceeds`
+
+    The FIRST of the README's ten top-level `PolynomialRingElement` theorems whose
+    statement now lives in the Rust source (`#[requires]`/`#[ensures]` on the
+    generic method, `ml-dsa/src/polynomial.rs`) and whose generated spec is
+    discharged here from the existing FC theorem
+    (`Polynomial/HacspecNorm.infinity_norm_exceeds_hacspec_fc`).
+
+    Chain: the generated `pre` is the 32×8 `coefficients_centered` conjunction,
+    decoded below into the FC theorem's `hcentered`; the generated `post` names
+    the extracted spec-only lift `polynomial.canon_raw`, rewritten to the
+    proof-side `canon_raw` by `HacspecNorm.canon_raw_ok`; the FC theorem closes. -/
+
+/-- `lane_centered x = ok true` decoded: `|x.val| ≤ (Q-1)/2 = 4190208`. The three
+    constant steps (`FIELD_MODULUS - 1`, `/ 2`, checked negation) are resolved
+    first, as in `lane_in_field_true`. -/
+private theorem lane_centered_true {x : Std.I32}
+    (h : libcrux_iot_ml_dsa.polynomial.lane_centered x = .ok true) :
+    |x.val| ≤ 4190208 := by
+  have hsub : (libcrux_iot_ml_dsa.constants.FIELD_MODULUS - 1#i32 : RustM Std.I32)
+      = .ok 8380416#i32 := by
+    simp [libcrux_iot_ml_dsa.constants.FIELD_MODULUS]
+    first | rfl | decide
+  have hdiv : ((8380416#i32 : Std.I32) / 2#i32 : RustM Std.I32) = .ok 4190208#i32 := by
+    obtain ⟨z, hz_eq, hz_val, _⟩ :=
+      Aeneas.Std.IScalar.div_bv_spec
+        (x := (8380416#i32 : Std.I32)) (y := (2#i32 : Std.I32))
+        (by scalar_tac) (by scalar_tac)
+    rw [hz_eq]
+    congr 1
+    apply Aeneas.Std.IScalar.eq_of_val_eq
+    rw [hz_val,
+      show ((8380416#i32 : Std.I32)).val = 8380416 from by scalar_tac,
+      show ((2#i32 : Std.I32)).val = 2 from by scalar_tac,
+      show ((4190208#i32 : Std.I32)).val = 4190208 from by scalar_tac]
+    decide
+  have hneg : (-. (4190208#i32 : Std.I32) : RustM Std.I32) = .ok (-4190208)#i32 := by
+    first | rfl | decide
+  simp only [libcrux_iot_ml_dsa.polynomial.lane_centered, hsub, hdiv, hneg,
+    Aeneas.Std.bind_tc_ok] at h
+  by_cases h1 : ((-4190208)#i32 : Std.I32) ≤ x
+  · by_cases h2 : x ≤ (4190208#i32 : Std.I32)
+    · rw [abs_le]; exact ⟨by scalar_tac, by scalar_tac⟩
+    · exfalso; rw [if_pos h1] at h; simp [h2] at h
+  · exfalso; rw [if_neg h1] at h; simp at h
+
+/-- All eight lanes of the generic `unit_centered` (at `portable_ops_inst`) pass. -/
+private theorem unit_centered_lanes
+    (u : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (h : libcrux_iot_ml_dsa.polynomial.unit_centered
+          Polynomial.Ntt.portable_ops_inst u = .ok true) :
+    ∀ j : Nat, j < 8 →
+      libcrux_iot_ml_dsa.polynomial.lane_centered (u.values.val[j]!) = .ok true := by
+  simp only [libcrux_iot_ml_dsa.polynomial.unit_centered,
+    Polynomial.HacspecNorm.lane_ok u 0#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 1#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 2#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 3#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 4#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 5#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 6#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 7#usize (by scalar_tac),
+    Aeneas.Std.bind_tc_ok,
+    show ((0#usize : Std.Usize)).val = 0 from rfl,
+    show ((1#usize : Std.Usize)).val = 1 from rfl,
+    show ((2#usize : Std.Usize)).val = 2 from rfl,
+    show ((3#usize : Std.Usize)).val = 3 from rfl,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    show ((5#usize : Std.Usize)).val = 5 from rfl,
+    show ((6#usize : Std.Usize)).val = 6 from rfl,
+    show ((7#usize : Std.Usize)).val = 7 from rfl,
+    ] at h
+  obtain ⟨h0, h⟩ := bind_if_ok_true h
+  obtain ⟨h1, h⟩ := bind_if_ok_true h
+  obtain ⟨h2, h⟩ := bind_if_ok_true h
+  obtain ⟨h3, h⟩ := bind_if_ok_true h
+  obtain ⟨h4, h⟩ := bind_if_ok_true h
+  obtain ⟨h5, h⟩ := bind_if_ok_true h
+  obtain ⟨h6, h7⟩ := bind_if_ok_true h
+  intro j hj
+  rcases j with _ | _ | _ | _ | _ | _ | _ | _ | j
+  · exact h0
+  · exact h1
+  · exact h2
+  · exact h3
+  · exact h4
+  · exact h5
+  · exact h6
+  · exact h7
+  · exact absurd hj (by omega)
+
+/-- All 32 SIMD units of the generic `coefficients_centered` (at
+    `portable_ops_inst`) pass. The 32-way analogue of
+    `coefficients_in_field_lanes`. -/
+private theorem coefficients_centered_units
+    (re : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
+            libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (h : libcrux_iot_ml_dsa.polynomial.coefficients_centered
+          Polynomial.Ntt.portable_ops_inst re = .ok true) :
+    ∀ u : Nat, u < 32 →
+      libcrux_iot_ml_dsa.polynomial.unit_centered
+        Polynomial.Ntt.portable_ops_inst (re.simd_units.val[u]!) = .ok true := by
+  have hlen : re.simd_units.val.length = 32 := re.simd_units.property
+  simp only [libcrux_iot_ml_dsa.polynomial.coefficients_centered,
+    array_index_ok re.simd_units 0#usize (by simp [hlen]),
+    array_index_ok re.simd_units 1#usize (by simp [hlen]),
+    array_index_ok re.simd_units 2#usize (by simp [hlen]),
+    array_index_ok re.simd_units 3#usize (by simp [hlen]),
+    array_index_ok re.simd_units 4#usize (by simp [hlen]),
+    array_index_ok re.simd_units 5#usize (by simp [hlen]),
+    array_index_ok re.simd_units 6#usize (by simp [hlen]),
+    array_index_ok re.simd_units 7#usize (by simp [hlen]),
+    array_index_ok re.simd_units 8#usize (by simp [hlen]),
+    array_index_ok re.simd_units 9#usize (by simp [hlen]),
+    array_index_ok re.simd_units 10#usize (by simp [hlen]),
+    array_index_ok re.simd_units 11#usize (by simp [hlen]),
+    array_index_ok re.simd_units 12#usize (by simp [hlen]),
+    array_index_ok re.simd_units 13#usize (by simp [hlen]),
+    array_index_ok re.simd_units 14#usize (by simp [hlen]),
+    array_index_ok re.simd_units 15#usize (by simp [hlen]),
+    array_index_ok re.simd_units 16#usize (by simp [hlen]),
+    array_index_ok re.simd_units 17#usize (by simp [hlen]),
+    array_index_ok re.simd_units 18#usize (by simp [hlen]),
+    array_index_ok re.simd_units 19#usize (by simp [hlen]),
+    array_index_ok re.simd_units 20#usize (by simp [hlen]),
+    array_index_ok re.simd_units 21#usize (by simp [hlen]),
+    array_index_ok re.simd_units 22#usize (by simp [hlen]),
+    array_index_ok re.simd_units 23#usize (by simp [hlen]),
+    array_index_ok re.simd_units 24#usize (by simp [hlen]),
+    array_index_ok re.simd_units 25#usize (by simp [hlen]),
+    array_index_ok re.simd_units 26#usize (by simp [hlen]),
+    array_index_ok re.simd_units 27#usize (by simp [hlen]),
+    array_index_ok re.simd_units 28#usize (by simp [hlen]),
+    array_index_ok re.simd_units 29#usize (by simp [hlen]),
+    array_index_ok re.simd_units 30#usize (by simp [hlen]),
+    array_index_ok re.simd_units 31#usize (by simp [hlen]),
+    Aeneas.Std.bind_tc_ok,
+    show ((0#usize : Std.Usize)).val = 0 from rfl,
+    show ((1#usize : Std.Usize)).val = 1 from rfl,
+    show ((2#usize : Std.Usize)).val = 2 from rfl,
+    show ((3#usize : Std.Usize)).val = 3 from rfl,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    show ((5#usize : Std.Usize)).val = 5 from rfl,
+    show ((6#usize : Std.Usize)).val = 6 from rfl,
+    show ((7#usize : Std.Usize)).val = 7 from rfl,
+    show ((8#usize : Std.Usize)).val = 8 from rfl,
+    show ((9#usize : Std.Usize)).val = 9 from rfl,
+    show ((10#usize : Std.Usize)).val = 10 from rfl,
+    show ((11#usize : Std.Usize)).val = 11 from rfl,
+    show ((12#usize : Std.Usize)).val = 12 from rfl,
+    show ((13#usize : Std.Usize)).val = 13 from rfl,
+    show ((14#usize : Std.Usize)).val = 14 from rfl,
+    show ((15#usize : Std.Usize)).val = 15 from rfl,
+    show ((16#usize : Std.Usize)).val = 16 from rfl,
+    show ((17#usize : Std.Usize)).val = 17 from rfl,
+    show ((18#usize : Std.Usize)).val = 18 from rfl,
+    show ((19#usize : Std.Usize)).val = 19 from rfl,
+    show ((20#usize : Std.Usize)).val = 20 from rfl,
+    show ((21#usize : Std.Usize)).val = 21 from rfl,
+    show ((22#usize : Std.Usize)).val = 22 from rfl,
+    show ((23#usize : Std.Usize)).val = 23 from rfl,
+    show ((24#usize : Std.Usize)).val = 24 from rfl,
+    show ((25#usize : Std.Usize)).val = 25 from rfl,
+    show ((26#usize : Std.Usize)).val = 26 from rfl,
+    show ((27#usize : Std.Usize)).val = 27 from rfl,
+    show ((28#usize : Std.Usize)).val = 28 from rfl,
+    show ((29#usize : Std.Usize)).val = 29 from rfl,
+    show ((30#usize : Std.Usize)).val = 30 from rfl,
+    show ((31#usize : Std.Usize)).val = 31 from rfl,
+    ] at h
+  obtain ⟨h0, h⟩ := bind_if_ok_true h
+  obtain ⟨h1, h⟩ := bind_if_ok_true h
+  obtain ⟨h2, h⟩ := bind_if_ok_true h
+  obtain ⟨h3, h⟩ := bind_if_ok_true h
+  obtain ⟨h4, h⟩ := bind_if_ok_true h
+  obtain ⟨h5, h⟩ := bind_if_ok_true h
+  obtain ⟨h6, h⟩ := bind_if_ok_true h
+  obtain ⟨h7, h⟩ := bind_if_ok_true h
+  obtain ⟨h8, h⟩ := bind_if_ok_true h
+  obtain ⟨h9, h⟩ := bind_if_ok_true h
+  obtain ⟨h10, h⟩ := bind_if_ok_true h
+  obtain ⟨h11, h⟩ := bind_if_ok_true h
+  obtain ⟨h12, h⟩ := bind_if_ok_true h
+  obtain ⟨h13, h⟩ := bind_if_ok_true h
+  obtain ⟨h14, h⟩ := bind_if_ok_true h
+  obtain ⟨h15, h⟩ := bind_if_ok_true h
+  obtain ⟨h16, h⟩ := bind_if_ok_true h
+  obtain ⟨h17, h⟩ := bind_if_ok_true h
+  obtain ⟨h18, h⟩ := bind_if_ok_true h
+  obtain ⟨h19, h⟩ := bind_if_ok_true h
+  obtain ⟨h20, h⟩ := bind_if_ok_true h
+  obtain ⟨h21, h⟩ := bind_if_ok_true h
+  obtain ⟨h22, h⟩ := bind_if_ok_true h
+  obtain ⟨h23, h⟩ := bind_if_ok_true h
+  obtain ⟨h24, h⟩ := bind_if_ok_true h
+  obtain ⟨h25, h⟩ := bind_if_ok_true h
+  obtain ⟨h26, h⟩ := bind_if_ok_true h
+  obtain ⟨h27, h⟩ := bind_if_ok_true h
+  obtain ⟨h28, h⟩ := bind_if_ok_true h
+  obtain ⟨h29, h⟩ := bind_if_ok_true h
+  obtain ⟨h30, h31⟩ := bind_if_ok_true h
+  intro u hu
+  rcases u with _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | _ | u
+  · exact h0
+  · exact h1
+  · exact h2
+  · exact h3
+  · exact h4
+  · exact h5
+  · exact h6
+  · exact h7
+  · exact h8
+  · exact h9
+  · exact h10
+  · exact h11
+  · exact h12
+  · exact h13
+  · exact h14
+  · exact h15
+  · exact h16
+  · exact h17
+  · exact h18
+  · exact h19
+  · exact h20
+  · exact h21
+  · exact h22
+  · exact h23
+  · exact h24
+  · exact h25
+  · exact h26
+  · exact h27
+  · exact h28
+  · exact h29
+  · exact h30
+  · exact h31
+  · exact absurd hu (by omega)
+
+set_option maxHeartbeats 4000000 in
+/-- **Top-level FC, out of the Rust annotation.** Discharges the generated
+    `infinity_norm_exceeds.spec` at `portable_ops_inst` with full functional
+    correctness against the extracted hacspec `poly_infinity_norm`. -/
+theorem infinity_norm_exceeds_spec_proof
+    (self : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
+              libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (bound : Std.I32) :
+    libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.infinity_norm_exceeds.spec
+      Polynomial.Ntt.portable_ops_inst self bound := by
+  intro hpre
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only
+    [libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.infinity_norm_exceeds.pre] at hok
+  have hunits := coefficients_centered_units self hok
+  have hcentered : ∀ u : Nat, u < 32 → ∀ j : Nat, j < 8 →
+      |((self.simd_units.val[u]!).values.val[j]!).val|
+        ≤ ((libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) - 1) / 2 := by
+    intro u hu j hj
+    have h := lane_centered_true (unit_centered_lanes _ (hunits u hu) j hj)
+    have hQ : ((libcrux_iot_ml_dsa.Spec.Parameters.Q : Int) - 1) / 2 = 4190208 := by
+      norm_num [libcrux_iot_ml_dsa.Spec.Parameters.Q]
+    rw [hQ]; exact h
+  obtain ⟨r, hr_eq, hr_post⟩ :=
+    triple_exists_ok
+      (Polynomial.HacspecNorm.infinity_norm_exceeds_hacspec_fc self bound hcentered)
+  obtain ⟨n, hn_eq, hr_val⟩ := hr_post
+  refine triple_of_ok hr_eq ?_
+  have hpost :
+      (libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.infinity_norm_exceeds.post
+        Polynomial.Ntt.portable_ops_inst self bound r) = .ok true := by
+    simp only
+      [libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.infinity_norm_exceeds.post]
+    rw [Polynomial.HacspecNorm.canon_raw_ok self]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hn_eq]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hr_val]
+    simp [decide_eq_decide, Aeneas.Std.IScalar.le_equiv]
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
+
+/--
+info: 'libcrux_iot_ml_dsa.Verification.infinity_norm_exceeds_spec_proof' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms infinity_norm_exceeds_spec_proof
 
 end libcrux_iot_ml_dsa.Verification

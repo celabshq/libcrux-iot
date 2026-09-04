@@ -14,13 +14,13 @@ rev = "v0.3.17"
 # The machine-extracted clean-Z_q ML-DSA hacspec (crate `hacspec_ml_dsa`,
 # specs/ml-dsa in celabshq/libcrux). The poly-layer spec-bridge lemmas reference
 # `hacspec_ml_dsa.*`. Transitively brings in HacspecSha3.
-# Pinned by COMMIT SHA, not by branch name: ee9bfe56 is the specs/{ml-kem,ml-dsa}
-# hax v0.4.0-rc.2 bump (hax-lean v0.3.17), the same commit the Cargo side pins
-# where it names the hacspec crate. NOT YET PUSHED to celabshq/libcrux: until it
+# Pinned by COMMIT SHA, not by branch name: 3ce5232d is the specs/ml-dsa
+# polynomial-layer pub commit (on top of the hax v0.4.0-rc.2 bump ee9bfe56),
+# the same commit the Cargo side pins for the hacspec_ml_dsa crate. NOT YET PUSHED to celabshq/libcrux: until it
 # is, lake cannot fetch this rev on a fresh machine -- use the local-path form
 # (scratchpad lakepath.py) there, as this working tree does between commits.
 [[require]]
 name = "HacspecMlDsa"
 git = "https://github.com/celabshq/libcrux"
-rev = "ee9bfe56e4dfe532c52573425a5d4a187ed326ca"
+rev = "3ce5232d161e3a588136e4cd2b34bc13dac73180"
 subDir = "specs/ml-dsa/proofs/lean"

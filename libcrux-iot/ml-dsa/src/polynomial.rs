@@ -42,6 +42,80 @@ pub(crate) fn canon_raw<SIMDUnit: Operations>(
     })
 }
 
+// Spec-only bound predicates for `infinity_norm_exceeds`'s `#[requires]`.
+//
+// The FC theorem (`Polynomial/HacspecNorm.lean`, `infinity_norm_exceeds_hacspec_fc`)
+// needs every coefficient to be a CENTERED representative, `|c| <= (Q-1)/2`:
+// the impl computes the RAW `|coefficient|` while the extracted spec computes
+// the centered FIPS norm `coeff_norm`, and the two agree exactly on centered
+// values. The FIPS signing context feeds centered values, so this is a
+// documented representation choice, not a missing bound. (It also implies the
+// impl's own no-overflow precondition `|c| <= 2^30`, since (Q-1)/2 = 4190208.)
+//
+// Explicit conjunctions, not a loop or `forall`: the generated `pre` is then a
+// flat Bool expression the Lean discharge can destructure, the same idiom as
+// `coefficients_in_field` in `simd/portable/arithmetic.rs`, lifted to the
+// generic level via the spec-only `Operations::lane`.
+#[cfg(hax)]
+fn lane_centered(x: i32) -> bool {
+    -((crate::constants::FIELD_MODULUS - 1) / 2) <= x
+        && x <= (crate::constants::FIELD_MODULUS - 1) / 2
+}
+
+#[cfg(hax)]
+fn unit_centered<SIMDUnit: Operations>(u: &SIMDUnit) -> bool {
+    lane_centered(SIMDUnit::lane(u, 0))
+        && lane_centered(SIMDUnit::lane(u, 1))
+        && lane_centered(SIMDUnit::lane(u, 2))
+        && lane_centered(SIMDUnit::lane(u, 3))
+        && lane_centered(SIMDUnit::lane(u, 4))
+        && lane_centered(SIMDUnit::lane(u, 5))
+        && lane_centered(SIMDUnit::lane(u, 6))
+        && lane_centered(SIMDUnit::lane(u, 7))
+}
+
+#[cfg(hax)]
+pub(crate) fn coefficients_centered<SIMDUnit: Operations>(
+    re: &PolynomialRingElement<SIMDUnit>,
+) -> bool {
+    unit_centered(&re.simd_units[0])
+        && unit_centered(&re.simd_units[1])
+        && unit_centered(&re.simd_units[2])
+        && unit_centered(&re.simd_units[3])
+        && unit_centered(&re.simd_units[4])
+        && unit_centered(&re.simd_units[5])
+        && unit_centered(&re.simd_units[6])
+        && unit_centered(&re.simd_units[7])
+        && unit_centered(&re.simd_units[8])
+        && unit_centered(&re.simd_units[9])
+        && unit_centered(&re.simd_units[10])
+        && unit_centered(&re.simd_units[11])
+        && unit_centered(&re.simd_units[12])
+        && unit_centered(&re.simd_units[13])
+        && unit_centered(&re.simd_units[14])
+        && unit_centered(&re.simd_units[15])
+        && unit_centered(&re.simd_units[16])
+        && unit_centered(&re.simd_units[17])
+        && unit_centered(&re.simd_units[18])
+        && unit_centered(&re.simd_units[19])
+        && unit_centered(&re.simd_units[20])
+        && unit_centered(&re.simd_units[21])
+        && unit_centered(&re.simd_units[22])
+        && unit_centered(&re.simd_units[23])
+        && unit_centered(&re.simd_units[24])
+        && unit_centered(&re.simd_units[25])
+        && unit_centered(&re.simd_units[26])
+        && unit_centered(&re.simd_units[27])
+        && unit_centered(&re.simd_units[28])
+        && unit_centered(&re.simd_units[29])
+        && unit_centered(&re.simd_units[30])
+        && unit_centered(&re.simd_units[31])
+}
+
+// `hax_lib::attributes` so that methods of this inherent impl can carry
+// `#[hax_lib::requires]`/`#[ensures]` (they mention `Self`; the plain macros
+// reject that outside an annotated block).
+#[cfg_attr(hax, hax_lib::attributes)]
 impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     pub(crate) fn zero() -> Self {
         Self {
@@ -83,6 +157,17 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     #[inline(always)]
+    // Full functional correctness against the extracted FIPS-204 hacspec: the
+    // spec has no direct `infinity_norm_exceeds`, so the post states the
+    // equivalence through `poly_infinity_norm` on the canonical-residue array
+    // `canon_raw(self)` -- exactly the shape of the FC theorem
+    // `infinity_norm_exceeds_hacspec_fc` (`Polynomial/HacspecNorm.lean`).
+    // `canon_raw`, not `lift_poly_res`: the norm theorem is the one place the
+    // RAW (Montgomery-domain-agnostic) lift is the right one; see the note at
+    // `canon_raw`'s definition.
+    #[cfg_attr(hax, hax_lib::requires(coefficients_centered(self)))]
+    #[cfg_attr(hax, hax_lib::ensures(|result| result
+        == (bound <= hacspec_ml_dsa::polynomial::poly_infinity_norm(&canon_raw(self)))))]
     pub(crate) fn infinity_norm_exceeds(&self, bound: i32) -> bool {
         let mut result = false;
         for i in 0..self.simd_units.len() {
