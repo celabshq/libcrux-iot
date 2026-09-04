@@ -50,12 +50,16 @@ START_FROM = [
     #      only), so their generated specs reference bodies that were never
     #      extracted: Unknown identifier `matrix.sample_matrix_A`.
     # All three are aeneas-side spec-generation bugs, independent of this project.
-    "crate::matrix::entry",
-    "crate::matrix::compute_As_plus_e",
-    "crate::matrix::compute_message",
-    "crate::matrix::compute_ring_element_v",
-    "crate::matrix::compute_vector_u",
-    "crate::matrix::sample_matrix_entry",
+    # As of hax v0.4.0-rc.2 the glob WORKS with two driver fix-ups (below):
+    # bug 1 (parameter shadowing the module) is FIXED upstream -- charon now
+    # renames the parameter to `matrix1`. Bug 2 changed shape but persists:
+    # the extracted `compute_vector_u` DOES take `hash_functionsHashInst`, but
+    # the generated `.spec` calls it WITHOUT (fixed textually below, like the
+    # Funs.lean pass further down). Bug 3 persists: opaque
+    # `sample_matrix_{entry,A}` still get generated specs that do not compile
+    # (partially-applied `pre` projected with `.holds`, references to the
+    # never-extracted body) -- those blocks are DELETED below.
+    "crate::matrix::*",
     # INC-1: the deterministic (de)serialize + (de)compress layer. Only
     # `deserialize_to_reduced_ring_element` was reachable before (transitively via
     # matrix); this adds the eight compress_then_serialize_{4,5,10,11} /
@@ -280,3 +284,42 @@ if _agg.exists():
         l for l in _agg.read_text().splitlines(keepends=True)
         if "Extraction.ProofObligations" not in l
     ))
+
+
+# ---- GLOB FIX-UPS (rc.2): crate::matrix::* spec generation ------------------
+# 1. DELETE the generated spec blocks for the OPAQUE sampling items: their
+#    functions are extracted signature-only (axioms), and the generated
+#    `pre`/`spec` for them do not compile (aeneas-side bug; see the note at the
+#    START_FROM glob). Each block runs from its `::pre]:` docstring to the next
+#    top-level docstring.
+# 2. INSERT `hash_functionsHashInst` into `compute_vector_u`'s spec-side CALL:
+#    the extracted function takes the Hasher instance, the generated `.spec`
+#    call omits it (same class as the Funs.lean pass above).
+_specs = Path("proofs/lean/LibcruxIotMlKem/Extraction/Specs.lean")
+if _specs.exists():
+    _s = _specs.read_text()
+
+    for _fn in ("sample_matrix_entry", "sample_matrix_A"):
+        _start_marker = f"/-- [libcrux_iot_ml_kem::matrix::{_fn}::pre]:"
+        if _start_marker not in _s:
+            continue
+        _start = _s.index(_start_marker)
+        # end of the block: the next docstring after the block's `.spec` def
+        _spec_pos = _s.index(f"matrix.{_fn}.spec", _start)
+        _end = _s.find("/-- [", _spec_pos)
+        if _end == -1:
+            _end = _s.index("end libcrux_iot_ml_kem", _spec_pos)
+        _s = _s[:_start] + _s[_end:]
+
+    _old = "matrix.compute_vector_u K vectortraitsOperationsInst matrix_entry seed"
+    _new = ("matrix.compute_vector_u K vectortraitsOperationsInst "
+            "hash_functionsHashInst matrix_entry seed")
+    if _s.count(_old) != 1:
+        print(f"error: expected exactly one Hasher-less `compute_vector_u` call in "
+              f"Specs.lean, found {_s.count(_old)}. If aeneas now passes the "
+              f"instance itself, delete this pass.", file=sys.stderr)
+        sys.exit(1)
+    _s = _s.replace(_old, _new)
+
+    _specs.write_text(_s)
+    print("Patched Specs.lean (matrix glob fix-ups)")

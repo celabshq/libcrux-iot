@@ -34,3 +34,12 @@ axiom matrix.sample_matrix_entry
   polynomial.PolynomialRingElement Vector → Slice Std.U8 → Std.Usize →
     Std.Usize → RustM (polynomial.PolynomialRingElement Vector)
 
+/-- [libcrux_iot_ml_kem::matrix::sample_matrix_A]:
+    Source: 'ml-kem/src/matrix.rs', lines 49:0-83:1 -/
+axiom matrix.sample_matrix_A
+  {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher) :
+  Slice (polynomial.PolynomialRingElement Vector) → Array Std.U8 34#usize →
+    Bool → RustM (Slice (polynomial.PolynomialRingElement Vector))
+
