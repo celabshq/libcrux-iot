@@ -1,10 +1,27 @@
 use crate::{polynomial::PolynomialRingElement, simd::traits::Operations};
 
+#[cfg(hax)]
+use crate::polynomial::{lift_poly_res, lift_poly_res_intt, poly_abs_le};
+
+// Full functional correctness against the extracted FIPS-204 hacspec, the
+// README's `ntt_hacspec_fc` stated at the Rust level: impl `ntt` and spec
+// `ntt` agree through the Montgomery-stripping lift `lift_poly_res`. The
+// bound is the FC theorem's per-lane no-overflow precondition. `re` in the
+// `ensures` is the INPUT value, `future(re)` the output.
+#[cfg_attr(hax, hax_lib::requires(poly_abs_le(re, 1_577_058_303)))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_dsa::ntt::ntt(lift_poly_res(re)) == lift_poly_res(future(re))))]
 #[inline(always)]
 pub(crate) fn ntt<SIMDUnit: Operations>(re: &mut PolynomialRingElement<SIMDUnit>) {
     SIMDUnit::ntt(&mut re.simd_units);
 }
 
+// `intt_hacspec_fc` at the Rust level. The OUTPUT is lifted through
+// `lift_poly_res_intt` (one more `* R^-1`): the impl's inverse NTT leaves its
+// result in the Montgomery domain.
+#[cfg_attr(hax, hax_lib::requires(poly_abs_le(re, 8_388_607)))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_dsa::ntt::intt(lift_poly_res(re)) == lift_poly_res_intt(future(re))))]
 #[inline(always)]
 pub(crate) fn invert_ntt_montgomery<SIMDUnit: Operations>(
     re: &mut PolynomialRingElement<SIMDUnit>,
@@ -12,6 +29,13 @@ pub(crate) fn invert_ntt_montgomery<SIMDUnit: Operations>(
     SIMDUnit::invert_ntt_montgomery(&mut re.simd_units);
 }
 
+// `poly_pointwise_mul_hacspec_fc` at the Rust level: the FC theorem's only
+// precondition is the `[-q, q]` bound on `rhs` (the multiplier the NTT-domain
+// callers feed is reduced; `lhs` needs no bound).
+#[cfg_attr(hax, hax_lib::requires(poly_abs_le(rhs, 8_380_416)))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_dsa::polynomial::poly_pointwise_mul(&lift_poly_res(lhs), &lift_poly_res(rhs))
+        == lift_poly_res(future(lhs))))]
 #[inline(always)]
 pub(crate) fn ntt_multiply_montgomery<SIMDUnit: Operations>(
     lhs: &mut PolynomialRingElement<SIMDUnit>,

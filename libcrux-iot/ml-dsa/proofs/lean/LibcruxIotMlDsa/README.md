@@ -43,9 +43,9 @@ theorem ntt_hacspec_fc (re : PolynomialRingElement Coefficients)
 | `poly_sub_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.subtract` | `hacspec_ml_dsa.polynomial.poly_sub (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
 | `infinity_norm_exceeds_hacspec_fc` ([`Polynomial/HacspecNorm.lean`](Polynomial/HacspecNorm.lean)) | `…PolynomialRingElement.infinity_norm_exceeds` | `∃ n, hacspec_ml_dsa.polynomial.poly_infinity_norm (canon_raw self) = .ok n ∧ (r = decide (bound.val ≤ n.val))` (The spec does not have a direct equivalent to `infinity_norm_exceeds`. So the postcondition needs to establish equivalence using `poly_infinity_norm`.) |
 
-**Rust-annotation status.** Three of these now carry their statements in the
-Rust source itself (`src/polynomial.rs`), and the generated `<fn>.spec`s are
-discharged at `portable_ops_inst` in
+**Rust-annotation status.** All six hacspec-facing theorems now carry their
+statements in the Rust source itself (`src/polynomial.rs`, `src/ntt.rs`), and
+the generated `<fn>.spec`s are discharged at `portable_ops_inst` in
 [`Verification/ProofObligations.lean`](Verification/ProofObligations.lean):
 
 - `infinity_norm_exceeds` — `#[requires(coefficients_centered(self))]` +
@@ -57,11 +57,18 @@ discharged at `portable_ops_inst` in
   lift_poly_res(future(self)))]`, discharged by `{add,subtract}_spec_proof` on
   `HacspecNorm.lift_poly_res_ok` (the `R⁻¹` lift agreement); the array `==` in
   the post reduces by loop reflexivity (`array_eq_self`).
+- `ntt` / `invert_ntt_montgomery` / `ntt_multiply_montgomery` —
+  `#[requires(poly_abs_le(…, b))]` with the FC bounds (1577058303 / 8388607 /
+  8380416-on-`rhs`) + `#[ensures]` naming `ntt::{ntt,intt}` /
+  `polynomial::poly_pointwise_mul` through `lift_poly_res`
+  (`lift_poly_res_intt` for the inverse NTT's Montgomery-domain output),
+  discharged by `{ntt,invert_ntt_montgomery,ntt_multiply_montgomery}_spec_proof`
+  on `HacspecNtt.lift_poly_res_intt_ok` and the machinery above.
 
-The remaining seven top-level theorems still carry their statements only on the
-Lean side; `ntt`/`intt`/`ntt_multiply_montgomery` need the same `lift_poly_res`
-machinery (plus `lift_poly_res_intt` for `intt`) on free functions rather than
-methods, and the four value equations need per-index posts.
+The four value equations (`reduce`, `zero`, `to_i32_array`, `from_i32_array`)
+still carry their statements only on the Lean side; their posts are per-index
+rather than hacspec-naming, so they need a different `ensures` shape
+(quantified index or an auxiliary spec function).
 
 
 Four impl ops have no non-trivial counterpart in the spec (it treats them as

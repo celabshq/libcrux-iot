@@ -28,6 +28,121 @@ noncomputable section
 namespace libcrux_iot_ml_dsa
 
 
+/-- [libcrux_iot_ml_dsa::ntt::ntt::pre]:
+    Source: 'ml-dsa/src/ntt.rs', lines 11:16-11:65 -/
+@[reducible]
+def ntt.ntt.pre
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  polynomial.poly_abs_le simdtraitsOperationsInst re 1577058303#i32
+
+/-- [libcrux_iot_ml_dsa::ntt::ntt::post]:
+    Source: 'ml-dsa/src/ntt.rs', lines 12:0-13:79 -/
+@[reducible]
+def ntt.ntt.post
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit)
+  (re_future : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  let a ← polynomial.lift_poly_res simdtraitsOperationsInst re
+  let a1 ← hacspec_ml_dsa.ntt.ntt a
+  let a2 ← polynomial.lift_poly_res simdtraitsOperationsInst re_future
+  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
+    a1 a2
+
+def
+  ntt.ntt.spec {SIMDUnit : Type} (simdtraitsOperationsInst :
+              simd.traits.Operations SIMDUnit)
+  (re : polynomial.PolynomialRingElement SIMDUnit) : Prop :=
+  (ntt.ntt.pre simdtraitsOperationsInst re).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  ntt.ntt simdtraitsOperationsInst re
+  ⦃ ⇓ res => ⌜ (ntt.ntt.post simdtraitsOperationsInst re res).holds ⌝
+  ⦄
+
+
+/-- [libcrux_iot_ml_dsa::ntt::invert_ntt_montgomery::pre]:
+    Source: 'ml-dsa/src/ntt.rs', lines 22:16-22:61 -/
+@[reducible]
+def ntt.invert_ntt_montgomery.pre
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  polynomial.poly_abs_le simdtraitsOperationsInst re 8388607#i32
+
+/-- [libcrux_iot_ml_dsa::ntt::invert_ntt_montgomery::post]:
+    Source: 'ml-dsa/src/ntt.rs', lines 23:0-24:85 -/
+@[reducible]
+def ntt.invert_ntt_montgomery.post
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit)
+  (re_future : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  let a ← polynomial.lift_poly_res simdtraitsOperationsInst re
+  let a1 ← hacspec_ml_dsa.ntt.intt a
+  let a2 ← polynomial.lift_poly_res_intt simdtraitsOperationsInst re_future
+  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
+    a1 a2
+
+def
+  ntt.invert_ntt_montgomery.spec {SIMDUnit : Type} (simdtraitsOperationsInst :
+                                simd.traits.Operations SIMDUnit)
+  (re : polynomial.PolynomialRingElement SIMDUnit) : Prop :=
+  (ntt.invert_ntt_montgomery.pre simdtraitsOperationsInst re).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  ntt.invert_ntt_montgomery simdtraitsOperationsInst re
+  ⦃ ⇓ res =>
+  ⌜ (ntt.invert_ntt_montgomery.post simdtraitsOperationsInst re res).holds
+  ⌝ ⦄
+
+
+/-- [libcrux_iot_ml_dsa::ntt::ntt_multiply_montgomery::pre]:
+    Source: 'ml-dsa/src/ntt.rs', lines 35:16-35:62 -/
+@[reducible]
+def ntt.ntt_multiply_montgomery.pre
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (lhs : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  polynomial.poly_abs_le simdtraitsOperationsInst rhs 8380416#i32
+
+/-- [libcrux_iot_ml_dsa::ntt::ntt_multiply_montgomery::post]:
+    Source: 'ml-dsa/src/ntt.rs', lines 36:0-38:40 -/
+@[reducible]
+def ntt.ntt_multiply_montgomery.post
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (lhs : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit)
+  (lhs_future : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  let a ← polynomial.lift_poly_res simdtraitsOperationsInst lhs
+  let a1 ← polynomial.lift_poly_res simdtraitsOperationsInst rhs
+  let a2 ← hacspec_ml_dsa.polynomial.poly_pointwise_mul a a1
+  let a3 ← polynomial.lift_poly_res simdtraitsOperationsInst lhs_future
+  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
+    a2 a3
+
+def
+  ntt.ntt_multiply_montgomery.spec {SIMDUnit : Type} (simdtraitsOperationsInst
+                                  : simd.traits.Operations SIMDUnit)
+  (lhs : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit) : Prop :=
+  (ntt.ntt_multiply_montgomery.pre simdtraitsOperationsInst lhs rhs).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  ntt.ntt_multiply_montgomery simdtraitsOperationsInst lhs rhs
+  ⦃ ⇓ res =>
+  ⌜
+  (ntt.ntt_multiply_montgomery.post simdtraitsOperationsInst lhs rhs res).holds
+  ⌝ ⦄
+
+
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::get_n_least_significant_bits::pre]:
     Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 28:0-28:28 -/
 @[reducible]
@@ -393,7 +508,7 @@ def simd.portable.vector_type.lane.spec
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 260:16-260:35 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 341:16-341:35 -/
 @[reducible]
 def polynomial.PolynomialRingElement.add.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -404,7 +519,7 @@ def polynomial.PolynomialRingElement.add.pre
   polynomial.poly_add_in_range simdtraitsOperationsInst self_ rhs
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 329:4-331:45 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 410:4-412:45 -/
 @[reducible]
 def polynomial.PolynomialRingElement.add.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -437,7 +552,7 @@ def
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 260:16-260:35 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 341:16-341:35 -/
 @[reducible]
 def polynomial.PolynomialRingElement.subtract.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -448,7 +563,7 @@ def polynomial.PolynomialRingElement.subtract.pre
   polynomial.poly_sub_in_range simdtraitsOperationsInst self_ rhs
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 343:4-345:45 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 424:4-426:45 -/
 @[reducible]
 def polynomial.PolynomialRingElement.subtract.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -482,7 +597,7 @@ def
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 260:16-260:35 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 341:16-341:35 -/
 @[reducible]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -493,7 +608,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
   polynomial.coefficients_centered simdtraitsOperationsInst self_
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 311:4-312:89 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 392:4-393:89 -/
 @[reducible]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations

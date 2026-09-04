@@ -137,6 +137,87 @@ pub(crate) fn lift_poly_res<SIMDUnit: Operations>(
     })
 }
 
+#[cfg(hax)]
+pub(crate) fn lift_poly_res_intt<SIMDUnit: Operations>(
+    re: &PolynomialRingElement<SIMDUnit>,
+) -> [i32; crate::constants::COEFFICIENTS_IN_RING_ELEMENT] {
+    // `lift_poly_res` with ONE MORE `* R^-1` (Lean: `Polynomial.HacspecNtt.
+    // lift_poly_res_intt`): the impl's inverse NTT leaves its output in the
+    // Montgomery domain, and the extra factor strips it. Two `mod_q` steps so
+    // each i64 product stays in bounds (`mod_q(..) < 2^23`, `* RINV < 2^46`).
+    core::array::from_fn(|i| {
+        hacspec_ml_dsa::arithmetic::mod_q(
+            hacspec_ml_dsa::arithmetic::mod_q(
+                SIMDUnit::lane(&re.simd_units[i / COEFFICIENTS_IN_SIMD_UNIT],
+                               i % COEFFICIENTS_IN_SIMD_UNIT) as i64
+                    * RINV,
+            ) as i64
+                * RINV,
+        )
+    })
+}
+
+// Spec-only per-lane absolute bound `|lane| <= b`, parameterized: the NTT
+// entry points' `#[requires]` use it with their respective FC-theorem bounds
+// (ntt: 1577058303, intt: 8388607, ntt_multiply_montgomery: 8380416 on rhs).
+// Explicit conjunctions, as above.
+#[cfg(hax)]
+fn lane_abs_le(x: i32, b: i32) -> bool {
+    // in i64, so the negation cannot itself overflow (`-i32::MIN` would).
+    -(b as i64) <= (x as i64) && (x as i64) <= (b as i64)
+}
+
+#[cfg(hax)]
+fn unit_abs_le<SIMDUnit: Operations>(u: &SIMDUnit, b: i32) -> bool {
+    lane_abs_le(SIMDUnit::lane(u, 0), b)
+        && lane_abs_le(SIMDUnit::lane(u, 1), b)
+        && lane_abs_le(SIMDUnit::lane(u, 2), b)
+        && lane_abs_le(SIMDUnit::lane(u, 3), b)
+        && lane_abs_le(SIMDUnit::lane(u, 4), b)
+        && lane_abs_le(SIMDUnit::lane(u, 5), b)
+        && lane_abs_le(SIMDUnit::lane(u, 6), b)
+        && lane_abs_le(SIMDUnit::lane(u, 7), b)
+}
+
+#[cfg(hax)]
+pub(crate) fn poly_abs_le<SIMDUnit: Operations>(
+    re: &PolynomialRingElement<SIMDUnit>,
+    b: i32,
+) -> bool {
+    unit_abs_le(&re.simd_units[0], b)
+        && unit_abs_le(&re.simd_units[1], b)
+        && unit_abs_le(&re.simd_units[2], b)
+        && unit_abs_le(&re.simd_units[3], b)
+        && unit_abs_le(&re.simd_units[4], b)
+        && unit_abs_le(&re.simd_units[5], b)
+        && unit_abs_le(&re.simd_units[6], b)
+        && unit_abs_le(&re.simd_units[7], b)
+        && unit_abs_le(&re.simd_units[8], b)
+        && unit_abs_le(&re.simd_units[9], b)
+        && unit_abs_le(&re.simd_units[10], b)
+        && unit_abs_le(&re.simd_units[11], b)
+        && unit_abs_le(&re.simd_units[12], b)
+        && unit_abs_le(&re.simd_units[13], b)
+        && unit_abs_le(&re.simd_units[14], b)
+        && unit_abs_le(&re.simd_units[15], b)
+        && unit_abs_le(&re.simd_units[16], b)
+        && unit_abs_le(&re.simd_units[17], b)
+        && unit_abs_le(&re.simd_units[18], b)
+        && unit_abs_le(&re.simd_units[19], b)
+        && unit_abs_le(&re.simd_units[20], b)
+        && unit_abs_le(&re.simd_units[21], b)
+        && unit_abs_le(&re.simd_units[22], b)
+        && unit_abs_le(&re.simd_units[23], b)
+        && unit_abs_le(&re.simd_units[24], b)
+        && unit_abs_le(&re.simd_units[25], b)
+        && unit_abs_le(&re.simd_units[26], b)
+        && unit_abs_le(&re.simd_units[27], b)
+        && unit_abs_le(&re.simd_units[28], b)
+        && unit_abs_le(&re.simd_units[29], b)
+        && unit_abs_le(&re.simd_units[30], b)
+        && unit_abs_le(&re.simd_units[31], b)
+}
+
 // Spec-only per-lane no-overflow predicates for `add`/`subtract`'s
 // `#[requires]`: the FC theorems (`Polynomial/HacspecFC.lean`) need
 // `|a ± b| <= i32::MAX` per lane (the impl adds/subtracts lanes directly).
