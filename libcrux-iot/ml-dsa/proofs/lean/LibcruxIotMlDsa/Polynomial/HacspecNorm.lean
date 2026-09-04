@@ -805,4 +805,115 @@ theorem canon_raw_ok
 #guard_msgs in
 #print axioms canon_raw_ok
 
+set_option maxHeartbeats 8000000 in
+/-- **Lift agreement for `lift_poly_res`.** The extracted spec-only lift
+    `polynomial.lift_poly_res` (`canon_raw` composed with the Montgomery strip
+    `* RINV`, `ml-dsa/src/polynomial.rs`) at `portable_ops_inst` computes the
+    proof-side `Spec.HacspecBridge.lift_poly_res`. Same skeleton as
+    `canon_raw_ok`, plus the in-bounds `* RINV` multiply
+    (`|lane| * 8265825 < 2^54`) and the `liftZ` residue algebra. -/
+theorem lift_poly_res_ok
+    (self : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients) :
+    polynomial.lift_poly_res portable_ops_inst self
+      = .ok (Spec.HacspecBridge.lift_poly_res self) := by
+  unfold polynomial.lift_poly_res
+  have hRINV : (polynomial.RINV).val = 8265825 := by
+    simp [polynomial.RINV]
+  have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
+      (polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
+        portable_ops_inst).call_mut self ⟨BitVec.ofNat _ k⟩
+      = .ok (canonI32 (Lift.liftZ
+              (((self.simd_units.val[k / 8]!).values.val[k % 8]!).val)), self) := by
+    intro k hk
+    have hk' : k < 256 := hk
+    have hkval : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := usize_lit_val k hk'
+    show polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+        portable_ops_inst self ⟨BitVec.ofNat _ k⟩ = _
+    unfold polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+    have hCval : (simd.traits.COEFFICIENTS_IN_SIMD_UNIT : Std.Usize).val = 8 := by
+      simp only [simd.traits.COEFFICIENTS_IN_SIMD_UNIT]
+      scalar_tac
+    have h8 : (simd.traits.COEFFICIENTS_IN_SIMD_UNIT : Std.Usize).val ≠ 0 := by
+      rw [hCval]; omega
+    obtain ⟨qi, hq_eq, hq_val, _⟩ :=
+      Aeneas.Std.UScalar.div_bv_spec (⟨BitVec.ofNat _ k⟩ : Std.Usize) h8
+    have hq_val' : qi.val = k / 8 := by rw [hq_val, hkval, hCval]
+    rw [hq_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    rw [aidx_ok self.simd_units qi (by
+      have hp := self.simd_units.property
+      simp only [hp, hq_val']
+      show k / 8 < (32#usize : Std.Usize).val
+      have : k / 8 < 32 := by omega
+      simpa using this)]
+    simp only [Aeneas.Std.bind_tc_ok]
+    obtain ⟨ri, hr_eq, hr_val⟩ :=
+      Aeneas.Std.WP.spec_imp_exists
+        (Aeneas.Std.UScalar.rem_spec (⟨BitVec.ofNat _ k⟩ : Std.Usize) h8)
+    have hr_val' : ri.val = k % 8 := by rw [hr_val, hkval, hCval]
+    rw [hr_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    rw [lane_ok _ ri (by rw [hr_val']; exact Nat.mod_lt k (by decide))]
+    simp only [Aeneas.Std.bind_tc_ok]
+    obtain ⟨w, hw_eq, hw_val⟩ :=
+      cast_i64_ok ((self.simd_units.val[qi.val]!).values.val[ri.val]!)
+    rw [hw_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    -- the `* RINV` multiply is in-bounds: `|lane| ≤ 2^31`, `RINV < 2^23`.
+    have hwb := Aeneas.Std.IScalar.hBounds
+      ((self.simd_units.val[qi.val]!).values.val[ri.val]!)
+    simp only [IScalarTy.I32_numBits_eq] at hwb
+    have hwlo : -(2147483648 : Int) ≤ w.val := by rw [hw_val]; omega
+    have hwhi : w.val ≤ (2147483647 : Int) := by rw [hw_val]; omega
+    have hub : w.val * (polynomial.RINV).val ≤ 2147483647 * 8265825 := by
+      rw [hRINV]
+      exact mul_le_mul_of_nonneg_right hwhi (by norm_num)
+    have hlb : (-2147483648 : Int) * 8265825 ≤ w.val * (polynomial.RINV).val := by
+      rw [hRINV]
+      exact mul_le_mul_of_nonneg_right hwlo (by norm_num)
+    obtain ⟨m, hm_eq, hm_val, _⟩ :=
+      Aeneas.Std.WP.spec_imp_exists
+        (Aeneas.Std.IScalar.mul_bv_spec (x := w) (y := polynomial.RINV)
+          (by simp only [IScalar.min_IScalarTy_I64_eq, Aeneas.Std.I64.min,
+                Aeneas.Std.I64.numBits, IScalarTy.I64_numBits_eq]
+              omega)
+          (by simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max,
+                Aeneas.Std.I64.numBits, IScalarTy.I64_numBits_eq]
+              omega))
+    rw [hm_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    obtain ⟨r, hr_mq, hr_res, hr_lo, hr_hi⟩ := mod_q_eq m
+    have hr_c : r = canonI32 (Lift.liftZ
+        (((self.simd_units.val[k / 8]!).values.val[k % 8]!).val)) := by
+      apply canonI32_eq_of_canonical' r _ hr_lo hr_hi
+      rw [hr_res, hm_val, hw_val, hRINV, hq_val', hr_val']
+      unfold Lift.liftZ
+      have : ((Montgomery.RINV : Nat) : Zq) = ((8265825 : Int) : Zq) := by
+        norm_num [Montgomery.RINV]
+      rw [this]
+      push_cast
+      ring
+    rw [hr_mq, hr_c]
+    rfl
+  rw [from_fn_pure_eq 256#usize _ self
+        (fun k => canonI32 (Lift.liftZ
+          (((self.simd_units.val[k / 8]!).values.val[k % 8]!).val)))
+        hpure]
+  -- `congrArg`, not `congr 1`: `congr` recurses into the big `Subtype` proof
+  -- term and blows the recursion depth.
+  refine congrArg RustM.ok (Subtype.ext ?_)
+  -- unfold the proof-side def, reduce both constructor projections, then pin
+  -- `(256#usize).val = 256` (it does not reduce at elaboration transparency;
+  -- the platform word width is opaque) so the two `List.range`s align.
+  unfold Spec.HacspecBridge.lift_poly_res
+  dsimp only
+  rw [show ((256#usize : Std.Usize)).val = 256 from by scalar_tac]
+  apply List.map_congr_left
+  intro i hi
+  have hi' : i < 256 := List.mem_range.mp hi
+  refine congrArg canonI32 ?_
+  show Lift.liftZ _ = (Lift.lift_poly self)[i]!
+  unfold Lift.lift_poly
+  rw [Pure.build_getElem _ i hi']
+
+/-- info: 'libcrux_iot_ml_dsa.Polynomial.HacspecNorm.lift_poly_res_ok' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms lift_poly_res_ok
+
 end libcrux_iot_ml_dsa.Polynomial.HacspecNorm

@@ -112,6 +112,148 @@ pub(crate) fn coefficients_centered<SIMDUnit: Operations>(
         && unit_centered(&re.simd_units[31])
 }
 
+// Spec-only impl->spec lift, the Rust counterpart of Lean's
+// `Spec.HacspecBridge.lift_poly_res`: `canon_raw` composed with the Montgomery
+// factor strip `* R^-1` (`Spec/Lift.lean`: `liftZ x = (x : Zq) * RINV`,
+// `Spec/Montgomery.lean`: `RINV = 8265825`). One `mod_q` suffices:
+// `|lane| * RINV < 2^31 * 2^23 = 2^54` fits an i64, and the residue class of
+// `lane * RINV` IS `liftZ lane`.
+//
+// This is the lift the poly_add/poly_sub/poly_pointwise_mul and ntt top-level
+// theorems speak (see the three-lift table at `canon_raw` above).
+#[cfg(hax)]
+pub(crate) const RINV: i64 = 8_265_825;
+
+#[cfg(hax)]
+pub(crate) fn lift_poly_res<SIMDUnit: Operations>(
+    re: &PolynomialRingElement<SIMDUnit>,
+) -> [i32; crate::constants::COEFFICIENTS_IN_RING_ELEMENT] {
+    core::array::from_fn(|i| {
+        hacspec_ml_dsa::arithmetic::mod_q(
+            SIMDUnit::lane(&re.simd_units[i / COEFFICIENTS_IN_SIMD_UNIT],
+                           i % COEFFICIENTS_IN_SIMD_UNIT) as i64
+                * RINV,
+        )
+    })
+}
+
+// Spec-only per-lane no-overflow predicates for `add`/`subtract`'s
+// `#[requires]`: the FC theorems (`Polynomial/HacspecFC.lean`) need
+// `|a ± b| <= i32::MAX` per lane (the impl adds/subtracts lanes directly).
+// The sums are computed in i64 so the PREDICATE cannot itself overflow.
+// Explicit conjunctions, as for `coefficients_centered` above.
+#[cfg(hax)]
+fn lane_add_in_range(x: i32, y: i32) -> bool {
+    -2_147_483_647 <= (x as i64) + (y as i64) && (x as i64) + (y as i64) <= 2_147_483_647
+}
+
+#[cfg(hax)]
+fn lane_sub_in_range(x: i32, y: i32) -> bool {
+    -2_147_483_647 <= (x as i64) - (y as i64) && (x as i64) - (y as i64) <= 2_147_483_647
+}
+
+#[cfg(hax)]
+fn unit_add_in_range<SIMDUnit: Operations>(a: &SIMDUnit, b: &SIMDUnit) -> bool {
+    lane_add_in_range(SIMDUnit::lane(a, 0), SIMDUnit::lane(b, 0))
+        && lane_add_in_range(SIMDUnit::lane(a, 1), SIMDUnit::lane(b, 1))
+        && lane_add_in_range(SIMDUnit::lane(a, 2), SIMDUnit::lane(b, 2))
+        && lane_add_in_range(SIMDUnit::lane(a, 3), SIMDUnit::lane(b, 3))
+        && lane_add_in_range(SIMDUnit::lane(a, 4), SIMDUnit::lane(b, 4))
+        && lane_add_in_range(SIMDUnit::lane(a, 5), SIMDUnit::lane(b, 5))
+        && lane_add_in_range(SIMDUnit::lane(a, 6), SIMDUnit::lane(b, 6))
+        && lane_add_in_range(SIMDUnit::lane(a, 7), SIMDUnit::lane(b, 7))
+}
+
+#[cfg(hax)]
+fn unit_sub_in_range<SIMDUnit: Operations>(a: &SIMDUnit, b: &SIMDUnit) -> bool {
+    lane_sub_in_range(SIMDUnit::lane(a, 0), SIMDUnit::lane(b, 0))
+        && lane_sub_in_range(SIMDUnit::lane(a, 1), SIMDUnit::lane(b, 1))
+        && lane_sub_in_range(SIMDUnit::lane(a, 2), SIMDUnit::lane(b, 2))
+        && lane_sub_in_range(SIMDUnit::lane(a, 3), SIMDUnit::lane(b, 3))
+        && lane_sub_in_range(SIMDUnit::lane(a, 4), SIMDUnit::lane(b, 4))
+        && lane_sub_in_range(SIMDUnit::lane(a, 5), SIMDUnit::lane(b, 5))
+        && lane_sub_in_range(SIMDUnit::lane(a, 6), SIMDUnit::lane(b, 6))
+        && lane_sub_in_range(SIMDUnit::lane(a, 7), SIMDUnit::lane(b, 7))
+}
+
+#[cfg(hax)]
+pub(crate) fn poly_add_in_range<SIMDUnit: Operations>(
+    a: &PolynomialRingElement<SIMDUnit>,
+    b: &PolynomialRingElement<SIMDUnit>,
+) -> bool {
+    unit_add_in_range(&a.simd_units[0], &b.simd_units[0])
+        && unit_add_in_range(&a.simd_units[1], &b.simd_units[1])
+        && unit_add_in_range(&a.simd_units[2], &b.simd_units[2])
+        && unit_add_in_range(&a.simd_units[3], &b.simd_units[3])
+        && unit_add_in_range(&a.simd_units[4], &b.simd_units[4])
+        && unit_add_in_range(&a.simd_units[5], &b.simd_units[5])
+        && unit_add_in_range(&a.simd_units[6], &b.simd_units[6])
+        && unit_add_in_range(&a.simd_units[7], &b.simd_units[7])
+        && unit_add_in_range(&a.simd_units[8], &b.simd_units[8])
+        && unit_add_in_range(&a.simd_units[9], &b.simd_units[9])
+        && unit_add_in_range(&a.simd_units[10], &b.simd_units[10])
+        && unit_add_in_range(&a.simd_units[11], &b.simd_units[11])
+        && unit_add_in_range(&a.simd_units[12], &b.simd_units[12])
+        && unit_add_in_range(&a.simd_units[13], &b.simd_units[13])
+        && unit_add_in_range(&a.simd_units[14], &b.simd_units[14])
+        && unit_add_in_range(&a.simd_units[15], &b.simd_units[15])
+        && unit_add_in_range(&a.simd_units[16], &b.simd_units[16])
+        && unit_add_in_range(&a.simd_units[17], &b.simd_units[17])
+        && unit_add_in_range(&a.simd_units[18], &b.simd_units[18])
+        && unit_add_in_range(&a.simd_units[19], &b.simd_units[19])
+        && unit_add_in_range(&a.simd_units[20], &b.simd_units[20])
+        && unit_add_in_range(&a.simd_units[21], &b.simd_units[21])
+        && unit_add_in_range(&a.simd_units[22], &b.simd_units[22])
+        && unit_add_in_range(&a.simd_units[23], &b.simd_units[23])
+        && unit_add_in_range(&a.simd_units[24], &b.simd_units[24])
+        && unit_add_in_range(&a.simd_units[25], &b.simd_units[25])
+        && unit_add_in_range(&a.simd_units[26], &b.simd_units[26])
+        && unit_add_in_range(&a.simd_units[27], &b.simd_units[27])
+        && unit_add_in_range(&a.simd_units[28], &b.simd_units[28])
+        && unit_add_in_range(&a.simd_units[29], &b.simd_units[29])
+        && unit_add_in_range(&a.simd_units[30], &b.simd_units[30])
+        && unit_add_in_range(&a.simd_units[31], &b.simd_units[31])
+}
+
+#[cfg(hax)]
+pub(crate) fn poly_sub_in_range<SIMDUnit: Operations>(
+    a: &PolynomialRingElement<SIMDUnit>,
+    b: &PolynomialRingElement<SIMDUnit>,
+) -> bool {
+    unit_sub_in_range(&a.simd_units[0], &b.simd_units[0])
+        && unit_sub_in_range(&a.simd_units[1], &b.simd_units[1])
+        && unit_sub_in_range(&a.simd_units[2], &b.simd_units[2])
+        && unit_sub_in_range(&a.simd_units[3], &b.simd_units[3])
+        && unit_sub_in_range(&a.simd_units[4], &b.simd_units[4])
+        && unit_sub_in_range(&a.simd_units[5], &b.simd_units[5])
+        && unit_sub_in_range(&a.simd_units[6], &b.simd_units[6])
+        && unit_sub_in_range(&a.simd_units[7], &b.simd_units[7])
+        && unit_sub_in_range(&a.simd_units[8], &b.simd_units[8])
+        && unit_sub_in_range(&a.simd_units[9], &b.simd_units[9])
+        && unit_sub_in_range(&a.simd_units[10], &b.simd_units[10])
+        && unit_sub_in_range(&a.simd_units[11], &b.simd_units[11])
+        && unit_sub_in_range(&a.simd_units[12], &b.simd_units[12])
+        && unit_sub_in_range(&a.simd_units[13], &b.simd_units[13])
+        && unit_sub_in_range(&a.simd_units[14], &b.simd_units[14])
+        && unit_sub_in_range(&a.simd_units[15], &b.simd_units[15])
+        && unit_sub_in_range(&a.simd_units[16], &b.simd_units[16])
+        && unit_sub_in_range(&a.simd_units[17], &b.simd_units[17])
+        && unit_sub_in_range(&a.simd_units[18], &b.simd_units[18])
+        && unit_sub_in_range(&a.simd_units[19], &b.simd_units[19])
+        && unit_sub_in_range(&a.simd_units[20], &b.simd_units[20])
+        && unit_sub_in_range(&a.simd_units[21], &b.simd_units[21])
+        && unit_sub_in_range(&a.simd_units[22], &b.simd_units[22])
+        && unit_sub_in_range(&a.simd_units[23], &b.simd_units[23])
+        && unit_sub_in_range(&a.simd_units[24], &b.simd_units[24])
+        && unit_sub_in_range(&a.simd_units[25], &b.simd_units[25])
+        && unit_sub_in_range(&a.simd_units[26], &b.simd_units[26])
+        && unit_sub_in_range(&a.simd_units[27], &b.simd_units[27])
+        && unit_sub_in_range(&a.simd_units[28], &b.simd_units[28])
+        && unit_sub_in_range(&a.simd_units[29], &b.simd_units[29])
+        && unit_sub_in_range(&a.simd_units[30], &b.simd_units[30])
+        && unit_sub_in_range(&a.simd_units[31], &b.simd_units[31])
+}
+
 // `hax_lib::attributes` so that methods of this inherent impl can carry
 // `#[hax_lib::requires]`/`#[ensures]` (they mention `Self`; the plain macros
 // reject that outside an annotated block).
@@ -178,6 +320,15 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     #[inline(always)]
+    // Full functional correctness against the extracted FIPS-204 hacspec, the
+    // README's `poly_add_hacspec_fc` stated at the Rust level: the outputs of
+    // impl `add` and spec `poly_add` agree through the Montgomery-stripping
+    // lift `lift_poly_res`. `self` in the `ensures` is the INPUT value,
+    // `future(self)` the output.
+    #[cfg_attr(hax, hax_lib::requires(poly_add_in_range(self, rhs)))]
+    #[cfg_attr(hax, hax_lib::ensures(|_|
+        hacspec_ml_dsa::polynomial::poly_add(&lift_poly_res(self), &lift_poly_res(rhs))
+            == lift_poly_res(future(self))))]
     pub(crate) fn add(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::add(&mut self.simd_units[i], &rhs.simd_units[i]);
@@ -187,6 +338,11 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     #[inline(always)]
+    // `poly_sub_hacspec_fc` at the Rust level; see `add` above.
+    #[cfg_attr(hax, hax_lib::requires(poly_sub_in_range(self, rhs)))]
+    #[cfg_attr(hax, hax_lib::ensures(|_|
+        hacspec_ml_dsa::polynomial::poly_sub(&lift_poly_res(self), &lift_poly_res(rhs))
+            == lift_poly_res(future(self))))]
     pub(crate) fn subtract(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::subtract(&mut self.simd_units[i], &rhs.simd_units[i]);

@@ -7,10 +7,10 @@
    "type": "git",
    "subDir": "specs/ml-dsa/proofs/lean",
    "scope": "",
-   "rev": "3ce5232d161e3a588136e4cd2b34bc13dac73180",
+   "rev": "647fa10e8b84ec9784b67891dba89ebbae5c32d0",
    "name": "HacspecMlDsa",
    "manifestFile": "lake-manifest.json",
-   "inputRev": "3ce5232d161e3a588136e4cd2b34bc13dac73180",
+   "inputRev": "647fa10e8b84ec9784b67891dba89ebbae5c32d0",
    "inherited": false,
    "configFile": "lakefile.toml"
   },

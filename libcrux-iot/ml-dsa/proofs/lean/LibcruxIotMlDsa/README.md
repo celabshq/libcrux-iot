@@ -43,17 +43,25 @@ theorem ntt_hacspec_fc (re : PolynomialRingElement Coefficients)
 | `poly_sub_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.subtract` | `hacspec_ml_dsa.polynomial.poly_sub (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
 | `infinity_norm_exceeds_hacspec_fc` ([`Polynomial/HacspecNorm.lean`](Polynomial/HacspecNorm.lean)) | `…PolynomialRingElement.infinity_norm_exceeds` | `∃ n, hacspec_ml_dsa.polynomial.poly_infinity_norm (canon_raw self) = .ok n ∧ (r = decide (bound.val ≤ n.val))` (The spec does not have a direct equivalent to `infinity_norm_exceeds`. So the postcondition needs to establish equivalence using `poly_infinity_norm`.) |
 
-**Rust-annotation status.** `infinity_norm_exceeds` is the first of these whose
-statement lives in the Rust source itself:
-`#[hax_lib::requires(coefficients_centered(self))]` +
-`#[hax_lib::ensures(|result| result == (bound <= poly_infinity_norm(&canon_raw(self))))]`
-on the generic method (`src/polynomial.rs`). The generated
-`infinity_norm_exceeds.spec` is discharged at `portable_ops_inst` in
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean)
-(`infinity_norm_exceeds_spec_proof`), resting on the lift-agreement lemma
-`HacspecNorm.canon_raw_ok` (extracted `polynomial.canon_raw` = proof-side
-`canon_raw`). The remaining nine top-level theorems still carry their
-statements only on the Lean side.
+**Rust-annotation status.** Three of these now carry their statements in the
+Rust source itself (`src/polynomial.rs`), and the generated `<fn>.spec`s are
+discharged at `portable_ops_inst` in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean):
+
+- `infinity_norm_exceeds` — `#[requires(coefficients_centered(self))]` +
+  `#[ensures(|result| result == (bound <= poly_infinity_norm(&canon_raw(self))))]`,
+  discharged by `infinity_norm_exceeds_spec_proof` on the lift-agreement lemma
+  `HacspecNorm.canon_raw_ok`.
+- `add` / `subtract` — `#[requires(poly_{add,sub}_in_range(self, rhs))]` +
+  `#[ensures(|_| poly_{add,sub}(&lift_poly_res(self), &lift_poly_res(rhs)) ==
+  lift_poly_res(future(self)))]`, discharged by `{add,subtract}_spec_proof` on
+  `HacspecNorm.lift_poly_res_ok` (the `R⁻¹` lift agreement); the array `==` in
+  the post reduces by loop reflexivity (`array_eq_self`).
+
+The remaining seven top-level theorems still carry their statements only on the
+Lean side; `ntt`/`intt`/`ntt_multiply_montgomery` need the same `lift_poly_res`
+machinery (plus `lift_poly_res_intt` for `intt`) on free functions rather than
+methods, and the four value equations need per-index posts.
 
 
 Four impl ops have no non-trivial counterpart in the spec (it treats them as

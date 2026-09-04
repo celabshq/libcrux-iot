@@ -80,6 +80,12 @@ structure polynomial.PolynomialRingElement (SIMDUnit : Type) where
 def polynomial.canon_raw.closure (SIMDUnit : Type) :=
   polynomial.PolynomialRingElement SIMDUnit
 
+/-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res::closure]
+    Source: 'ml-dsa/src/polynomial.rs', lines 131:25-137:5 -/
+@[reducible]
+def polynomial.lift_poly_res.closure (SIMDUnit : Type) :=
+  polynomial.PolynomialRingElement SIMDUnit
+
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients]
     Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 12:0-14:1 -/
 structure simd.portable.vector_type.Coefficients where

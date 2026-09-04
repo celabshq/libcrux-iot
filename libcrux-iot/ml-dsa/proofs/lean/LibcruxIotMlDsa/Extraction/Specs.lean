@@ -392,8 +392,97 @@ def simd.portable.vector_type.lane.spec
   ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
+/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add::pre]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 260:16-260:35 -/
+@[reducible]
+def polynomial.PolynomialRingElement.add.pre
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  polynomial.poly_add_in_range simdtraitsOperationsInst self_ rhs
+
+/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add::post]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 329:4-331:45 -/
+@[reducible]
+def polynomial.PolynomialRingElement.add.post
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit)
+  (self__future : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  let a ← polynomial.lift_poly_res simdtraitsOperationsInst self_
+  let a1 ← polynomial.lift_poly_res simdtraitsOperationsInst rhs
+  let a2 ← hacspec_ml_dsa.polynomial.poly_add a a1
+  let a3 ← polynomial.lift_poly_res simdtraitsOperationsInst self__future
+  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
+    a2 a3
+
+def
+  polynomial.PolynomialRingElement.add.spec {SIMDUnit : Type}
+                                           (simdtraitsOperationsInst :
+                                           simd.traits.Operations SIMDUnit)
+  (self : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit) : Prop :=
+  (polynomial.PolynomialRingElement.add.pre simdtraitsOperationsInst self
+  rhs).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  polynomial.PolynomialRingElement.add simdtraitsOperationsInst self rhs
+  ⦃ ⇓ res =>
+  ⌜
+  (polynomial.PolynomialRingElement.add.post simdtraitsOperationsInst self rhs
+  res).holds ⌝ ⦄
+
+
+/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract::pre]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 260:16-260:35 -/
+@[reducible]
+def polynomial.PolynomialRingElement.subtract.pre
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  polynomial.poly_sub_in_range simdtraitsOperationsInst self_ rhs
+
+/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract::post]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 343:4-345:45 -/
+@[reducible]
+def polynomial.PolynomialRingElement.subtract.post
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit)
+  (self__future : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM Bool
+  := do
+  let a ← polynomial.lift_poly_res simdtraitsOperationsInst self_
+  let a1 ← polynomial.lift_poly_res simdtraitsOperationsInst rhs
+  let a2 ← hacspec_ml_dsa.polynomial.poly_sub a a1
+  let a3 ← polynomial.lift_poly_res simdtraitsOperationsInst self__future
+  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
+    a2 a3
+
+def
+  polynomial.PolynomialRingElement.subtract.spec {SIMDUnit : Type}
+                                                (simdtraitsOperationsInst :
+                                                simd.traits.Operations
+                                                SIMDUnit)
+  (self : polynomial.PolynomialRingElement SIMDUnit)
+  (rhs : polynomial.PolynomialRingElement SIMDUnit) : Prop :=
+  (polynomial.PolynomialRingElement.subtract.pre simdtraitsOperationsInst self
+  rhs).holds →
+  ⦃ ⌜ True ⌝ ⦄
+  polynomial.PolynomialRingElement.subtract simdtraitsOperationsInst self rhs
+  ⦃ ⇓ res =>
+  ⌜
+  (polynomial.PolynomialRingElement.subtract.post simdtraitsOperationsInst self
+  rhs res).holds ⌝ ⦄
+
+
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 118:16-118:35 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 260:16-260:35 -/
 @[reducible]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -404,7 +493,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
   polynomial.coefficients_centered simdtraitsOperationsInst self_
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 169:4-170:89 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 311:4-312:89 -/
 @[reducible]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations

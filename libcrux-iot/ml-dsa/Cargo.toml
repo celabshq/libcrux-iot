@@ -21,14 +21,14 @@ bench = false # so libtest doesn't eat the arguments to criterion
 # `decompose_element`'s `#[ensures]` names `hacspec_ml_dsa::arithmetic::decompose`
 # directly, so it must be in scope for the hax build.
 #
-# 3ce5232d is the specs/ml-dsa commit that makes the polynomial layer pub
+# 647fa10e is the specs/ml-dsa commit that exposes the polynomial layer (poly_infinity_norm, poly_add, poly_sub, poly_pointwise_mul)
 # (so this crate's #[ensures] can name polynomial::poly_infinity_norm), on
 # top of the hax v0.4.0-rc.2 bump ee9bfe56 -- and the SAME commit
 # `proofs/lean/lakefile.toml` pins for the `HacspecMlDsa` Lean package, so the
 # Rust side and the Lean side check the same spec content. It descends from ee9bfe56 and d8f55146.
 # NOT YET PUSHED to celabshq/libcrux: until it is, a fresh checkout must use
 # the local-path form (scratchpad dep2.py) to build or extract.
-hacspec_ml_dsa = { git = "https://github.com/celabshq/libcrux.git", rev = "3ce5232d161e3a588136e4cd2b34bc13dac73180" }
+hacspec_ml_dsa = { git = "https://github.com/celabshq/libcrux.git", rev = "647fa10e8b84ec9784b67891dba89ebbae5c32d0" }
 libcrux-iot-sha3 = { path = "../sha3", features = ["unbuffered-xof"] }
 libcrux-macros.workspace = true
 hax-lib.workspace = true
