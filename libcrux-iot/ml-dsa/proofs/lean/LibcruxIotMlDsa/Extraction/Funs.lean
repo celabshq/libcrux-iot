@@ -27,7 +27,7 @@ noncomputable section
 namespace libcrux_iot_ml_dsa
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 396:8-398:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 431:8-433:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -49,7 +49,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop.body
       ok (cont (iter1, result1))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 396:8-398:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 431:8-433:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -64,7 +64,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop
     (iter, result)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 394:4-401:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 429:4-436:5 -/
 def polynomial.PolynomialRingElement.infinity_norm_exceeds
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
@@ -232,7 +232,7 @@ def polynomial.PolynomialRingElement.to_i32_array_loop
     (iter, result)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::to_i32_array]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 350:4-360:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 378:4-388:5 -/
 def polynomial.PolynomialRingElement.to_i32_array
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit) :
@@ -249,7 +249,7 @@ def polynomial.PolynomialRingElement.to_i32_array
     iter result
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::zero]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 343:4-347:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 366:4-370:5 -/
 def polynomial.PolynomialRingElement.zero
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) :
@@ -382,7 +382,7 @@ def simd.traits.SIMD_UNITS_IN_RING_ELEMENT : RustM Std.Usize :=
     simd.traits.COEFFICIENTS_IN_SIMD_UNIT
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 365:8-370:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 400:8-405:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.from_i32_array_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -411,7 +411,7 @@ def polynomial.PolynomialRingElement.from_i32_array_loop.body
     ok (cont (iter1, { simd_units := a }))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 365:8-370:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 400:8-405:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.from_i32_array_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -426,7 +426,7 @@ def polynomial.PolynomialRingElement.from_i32_array_loop
     (iter, result)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 362:4-373:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 397:4-408:5 -/
 def polynomial.PolynomialRingElement.from_i32_array
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (array : Slice Std.I32)
@@ -562,7 +562,7 @@ def constants.GAMMA2_V261_888 : Std.I32 := 261888#i32
 def constants.GAMMA2_V95_232 : Std.I32 := 95232#i32
 
 /-- [libcrux_iot_ml_dsa::polynomial::lane_abs_le]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 165:0-168:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 184:0-187:1 -/
 def polynomial.lane_abs_le (x : Std.I32) (b : Std.I32) : RustM Bool := do
   let i ← lift (IScalar.cast .I64 b)
   let i1 ← -. i
@@ -575,7 +575,7 @@ def polynomial.lane_abs_le (x : Std.I32) (b : Std.I32) : RustM Bool := do
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::unit_abs_le]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 171:0-180:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 190:0-199:1 -/
 def polynomial.unit_abs_le
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (u : SIMDUnit) (b : Std.I32) :
@@ -620,7 +620,7 @@ def polynomial.unit_abs_le
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::poly_abs_le]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 183:0-219:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 202:0-238:1 -/
 def polynomial.poly_abs_le
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) (b : Std.I32) :
@@ -877,11 +877,11 @@ def polynomial.poly_abs_le
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::RINV]
-    Source: 'ml-dsa/src/polynomial.rs', lines 125:0-125:39 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 128:0-128:39 -/
 @[global_simps, irreducible] def polynomial.RINV : Std.I64 := 8265825#i64
 
 /-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res::closure<'_0, SIMDUnit>}::call_mut]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 131:25-137:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 134:25-140:5 -/
 def
   polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -899,7 +899,7 @@ def
   ok (i5, c)
 
 /-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res::closure<'_0, SIMDUnit>}::call_once]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 131:25-137:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 134:25-140:5 -/
 def
   polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32.call_once
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -912,7 +912,7 @@ def
   ok i1
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::lift_poly_res::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 131:25-137:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 134:25-140:5 -/
 @[reducible]
 def polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -924,7 +924,7 @@ def polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
 }
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::lift_poly_res::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 131:25-137:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 134:25-140:5 -/
 @[reducible]
 def polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -939,7 +939,7 @@ def polynomial.lift_poly_res.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
 }
 
 /-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 128:0-138:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 131:0-141:1 -/
 def polynomial.lift_poly_res
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -960,7 +960,7 @@ def ntt.ntt
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::closure<'_0, SIMDUnit>}::call_mut]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 148:25-157:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 151:25-160:5 -/
 def
   polynomial.lift_poly_res_intt.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -981,7 +981,7 @@ def
   ok (i8, c)
 
 /-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::closure<'_0, SIMDUnit>}::call_once]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 148:25-157:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 151:25-160:5 -/
 def
   polynomial.lift_poly_res_intt.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32.call_once
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -995,7 +995,7 @@ def
   ok i1
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 148:25-157:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 151:25-160:5 -/
 @[reducible]
 def
   polynomial.lift_poly_res_intt.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
@@ -1008,7 +1008,7 @@ def
 }
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 148:25-157:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 151:25-160:5 -/
 @[reducible]
 def
   polynomial.lift_poly_res_intt.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
@@ -1024,7 +1024,7 @@ def
 }
 
 /-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 141:0-158:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 144:0-161:1 -/
 def polynomial.lift_poly_res_intt
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -1097,7 +1097,7 @@ def ntt.ntt_multiply_montgomery
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::ntt::reduce]:
-    Source: 'ml-dsa/src/ntt.rs', lines 53:0-55:1 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 62:0-64:1 -/
 def ntt.reduce
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -1107,7 +1107,7 @@ def ntt.reduce
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::polynomial::canon_raw::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::canon_raw::closure<'_0, SIMDUnit>}::call_mut]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 37:25-42:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 40:25-45:5 -/
 def
   polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -1124,7 +1124,7 @@ def
   ok (i4, c)
 
 /-- [libcrux_iot_ml_dsa::polynomial::canon_raw::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::canon_raw::closure<'_0, SIMDUnit>}::call_once]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 37:25-42:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 40:25-45:5 -/
 def
   polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32.call_once
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -1137,7 +1137,7 @@ def
   ok i1
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::canon_raw::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::canon_raw::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 37:25-42:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 40:25-45:5 -/
 @[reducible]
 def polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -1149,7 +1149,7 @@ def polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
 }
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::canon_raw::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::canon_raw::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 37:25-42:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 40:25-45:5 -/
 @[reducible]
 def polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -1164,7 +1164,7 @@ def polynomial.canon_raw.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
 }
 
 /-- [libcrux_iot_ml_dsa::polynomial::canon_raw]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 34:0-43:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 37:0-46:1 -/
 def polynomial.canon_raw
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -1175,7 +1175,7 @@ def polynomial.canon_raw
     simdtraitsOperationsInst) re
 
 /-- [libcrux_iot_ml_dsa::polynomial::lane_centered]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 60:0-63:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 63:0-66:1 -/
 def polynomial.lane_centered (x : Std.I32) : RustM Bool := do
   let i ← constants.FIELD_MODULUS - 1#i32
   let i1 ← i / 2#i32
@@ -1186,7 +1186,7 @@ def polynomial.lane_centered (x : Std.I32) : RustM Bool := do
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::unit_centered]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 66:0-75:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 69:0-78:1 -/
 def polynomial.unit_centered
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (u : SIMDUnit) :
@@ -1231,7 +1231,7 @@ def polynomial.unit_centered
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::coefficients_centered]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 78:0-113:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 81:0-116:1 -/
 def polynomial.coefficients_centered
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -1486,8 +1486,74 @@ def polynomial.coefficients_centered
     else ok false
   else ok false
 
+/-- [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}::call_mut]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 173:25-176:5 -/
+def
+  polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (c : polynomial.raw_gather.closure SIMDUnit)
+  (tupled_args : Std.Usize) :
+  RustM (Std.I32 × (polynomial.raw_gather.closure SIMDUnit))
+  := do
+  let i ← tupled_args / simd.traits.COEFFICIENTS_IN_SIMD_UNIT
+  let t ← Array.index_usize c.simd_units i
+  let i1 ← tupled_args % simd.traits.COEFFICIENTS_IN_SIMD_UNIT
+  let i2 ← simdtraitsOperationsInst.lane t i1
+  ok (i2, c)
+
+/-- [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}::call_once]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 173:25-176:5 -/
+def
+  polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32.call_once
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (c : polynomial.raw_gather.closure SIMDUnit) (i : Std.Usize) :
+  RustM Std.I32
+  := do
+  let (i1, _) ←
+    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+      simdtraitsOperationsInst c i
+  ok i1
+
+/-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}]
+    Source: 'ml-dsa/src/polynomial.rs', lines 173:25-176:5 -/
+@[reducible]
+def polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) : core.ops.function.FnOnce (polynomial.raw_gather.closure SIMDUnit)
+  Std.Usize Std.I32 := {
+  call_once :=
+    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32.call_once
+    simdtraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}]
+    Source: 'ml-dsa/src/polynomial.rs', lines 173:25-176:5 -/
+@[reducible]
+def polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) : core.ops.function.FnMut (polynomial.raw_gather.closure SIMDUnit)
+  Std.Usize Std.I32 := {
+  FnOnceInst :=
+    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
+    simdtraitsOperationsInst
+  call_mut :=
+    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+    simdtraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_dsa::polynomial::raw_gather]:
+    Source: 'ml-dsa/src/polynomial.rs', lines 170:0-177:1 -/
+def polynomial.raw_gather
+  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
+  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
+  RustM (Array Std.I32 256#usize)
+  := do
+  core.array.from_fn 256#usize
+    (polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
+    simdtraitsOperationsInst) re
+
 /-- [libcrux_iot_ml_dsa::polynomial::lane_add_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 227:0-229:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 246:0-248:1 -/
 def polynomial.lane_add_in_range (x : Std.I32) (y : Std.I32) : RustM Bool := do
   let i ← lift (IScalar.cast .I64 x)
   let i1 ← lift (IScalar.cast .I64 y)
@@ -1501,7 +1567,7 @@ def polynomial.lane_add_in_range (x : Std.I32) (y : Std.I32) : RustM Bool := do
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::lane_sub_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 232:0-234:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 251:0-253:1 -/
 def polynomial.lane_sub_in_range (x : Std.I32) (y : Std.I32) : RustM Bool := do
   let i ← lift (IScalar.cast .I64 x)
   let i1 ← lift (IScalar.cast .I64 y)
@@ -1515,7 +1581,7 @@ def polynomial.lane_sub_in_range (x : Std.I32) (y : Std.I32) : RustM Bool := do
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::unit_add_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 237:0-246:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 256:0-265:1 -/
 def polynomial.unit_add_in_range
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (a : SIMDUnit) (b : SIMDUnit) :
@@ -1568,7 +1634,7 @@ def polynomial.unit_add_in_range
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::unit_sub_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 249:0-258:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 268:0-277:1 -/
 def polynomial.unit_sub_in_range
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (a : SIMDUnit) (b : SIMDUnit) :
@@ -1621,7 +1687,7 @@ def polynomial.unit_sub_in_range
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::poly_add_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 261:0-297:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 280:0-316:1 -/
 def polynomial.poly_add_in_range
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (a : polynomial.PolynomialRingElement SIMDUnit)
@@ -1953,7 +2019,7 @@ def polynomial.poly_add_in_range
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::poly_sub_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 300:0-336:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 319:0-355:1 -/
 def polynomial.poly_sub_in_range
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (a : polynomial.PolynomialRingElement SIMDUnit)
@@ -2285,7 +2351,7 @@ def polynomial.poly_sub_in_range
   else ok false
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 414:8-416:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 449:8-451:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.add_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2307,7 +2373,7 @@ def polynomial.PolynomialRingElement.add_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 414:8-416:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 449:8-451:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.add_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2322,7 +2388,7 @@ def polynomial.PolynomialRingElement.add_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 413:4-419:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 448:4-454:5 -/
 def polynomial.PolynomialRingElement.add
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
@@ -2337,7 +2403,7 @@ def polynomial.PolynomialRingElement.add
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 428:8-430:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 463:8-465:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.subtract_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2359,7 +2425,7 @@ def polynomial.PolynomialRingElement.subtract_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 428:8-430:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 463:8-465:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.subtract_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2374,7 +2440,7 @@ def polynomial.PolynomialRingElement.subtract_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 427:4-433:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 462:4-468:5 -/
 def polynomial.PolynomialRingElement.subtract
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)

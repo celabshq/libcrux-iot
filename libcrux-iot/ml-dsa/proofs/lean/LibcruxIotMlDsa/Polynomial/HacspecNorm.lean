@@ -916,4 +916,80 @@ theorem lift_poly_res_ok
 #guard_msgs in
 #print axioms lift_poly_res_ok
 
+/-! ## The raw lane gather `polynomial.raw_gather`
+
+    The identity view of the raw 32x8 lanes as a flat 256-array -- what the four
+    value-equation theorems (`zero`, `to_i32_array`, `from_i32_array`, and
+    `reduce`'s bound half) speak. No `mod_q`, no Montgomery factor. -/
+
+/-- Proof-side raw lane gather. -/
+def raw_res (self : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients) :
+    Aeneas.Std.Array Std.I32 256#usize :=
+  ⟨(List.range 256).map (fun i => (self.simd_units.val[i / 8]!).values.val[i % 8]!),
+   by simp [List.length_map, List.length_range]⟩
+
+/-- `(raw_res self).val[k]!` is raw lane `k` (`k < 256`). -/
+theorem raw_res_getElem
+    (self : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients)
+    (k : Nat) (hk : k < 256) :
+    (raw_res self).val[k]! = (self.simd_units.val[k / 8]!).values.val[k % 8]! := by
+  show ((List.range 256).map
+      (fun i => (self.simd_units.val[i / 8]!).values.val[i % 8]!))[k]! = _
+  rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk]
+  rfl
+
+set_option maxHeartbeats 4000000 in
+/-- **Lift agreement for `raw_gather`.** The extracted spec-only raw gather at
+    `portable_ops_inst` computes `raw_res` -- the simplest of the four
+    agreements (no `mod_q` stage at all). -/
+theorem raw_res_ok
+    (self : polynomial.PolynomialRingElement simd.portable.vector_type.Coefficients) :
+    polynomial.raw_gather portable_ops_inst self = .ok (raw_res self) := by
+  unfold polynomial.raw_gather
+  have hpure : ∀ k : Nat, k < (256#usize : Std.Usize).val →
+      (polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
+        portable_ops_inst).call_mut self ⟨BitVec.ofNat _ k⟩
+      = .ok ((self.simd_units.val[k / 8]!).values.val[k % 8]!, self) := by
+    intro k hk
+    have hk' : k < 256 := hk
+    have hkval : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := usize_lit_val k hk'
+    show polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+        portable_ops_inst self ⟨BitVec.ofNat _ k⟩ = _
+    unfold polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
+    have hCval : (simd.traits.COEFFICIENTS_IN_SIMD_UNIT : Std.Usize).val = 8 := by
+      simp only [simd.traits.COEFFICIENTS_IN_SIMD_UNIT]
+      scalar_tac
+    have h8 : (simd.traits.COEFFICIENTS_IN_SIMD_UNIT : Std.Usize).val ≠ 0 := by
+      rw [hCval]; omega
+    obtain ⟨qi, hq_eq, hq_val, _⟩ :=
+      Aeneas.Std.UScalar.div_bv_spec (⟨BitVec.ofNat _ k⟩ : Std.Usize) h8
+    have hq_val' : qi.val = k / 8 := by rw [hq_val, hkval, hCval]
+    rw [hq_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    rw [aidx_ok self.simd_units qi (by
+      have hp := self.simd_units.property
+      simp only [hp, hq_val']
+      show k / 8 < (32#usize : Std.Usize).val
+      have : k / 8 < 32 := by omega
+      simpa using this)]
+    simp only [Aeneas.Std.bind_tc_ok]
+    obtain ⟨ri, hr_eq, hr_val⟩ :=
+      Aeneas.Std.WP.spec_imp_exists
+        (Aeneas.Std.UScalar.rem_spec (⟨BitVec.ofNat _ k⟩ : Std.Usize) h8)
+    have hr_val' : ri.val = k % 8 := by rw [hr_val, hkval, hCval]
+    rw [hr_eq]; simp only [Aeneas.Std.bind_tc_ok]
+    rw [lane_ok _ ri (by rw [hr_val']; exact Nat.mod_lt k (by decide))]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [hq_val', hr_val']
+  rw [from_fn_pure_eq 256#usize _ self
+        (fun k => (self.simd_units.val[k / 8]!).values.val[k % 8]!)
+        hpure]
+  refine congrArg RustM.ok (Subtype.ext ?_)
+  unfold raw_res
+  dsimp only
+  rw [show ((256#usize : Std.Usize)).val = 256 from by scalar_tac]
+
+/-- info: 'libcrux_iot_ml_dsa.Polynomial.HacspecNorm.raw_res_ok' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms raw_res_ok
+
 end libcrux_iot_ml_dsa.Polynomial.HacspecNorm

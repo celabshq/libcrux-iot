@@ -43,7 +43,7 @@ theorem ntt_hacspec_fc (re : PolynomialRingElement Coefficients)
 | `poly_sub_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.subtract` | `hacspec_ml_dsa.polynomial.poly_sub (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
 | `infinity_norm_exceeds_hacspec_fc` ([`Polynomial/HacspecNorm.lean`](Polynomial/HacspecNorm.lean)) | `…PolynomialRingElement.infinity_norm_exceeds` | `∃ n, hacspec_ml_dsa.polynomial.poly_infinity_norm (canon_raw self) = .ok n ∧ (r = decide (bound.val ≤ n.val))` (The spec does not have a direct equivalent to `infinity_norm_exceeds`. So the postcondition needs to establish equivalence using `poly_infinity_norm`.) |
 
-**Rust-annotation status.** All six hacspec-facing theorems now carry their
+**Rust-annotation status.** ALL TEN top-level theorems now carry their
 statements in the Rust source itself (`src/polynomial.rs`, `src/ntt.rs`), and
 the generated `<fn>.spec`s are discharged at `portable_ops_inst` in
 [`Verification/ProofObligations.lean`](Verification/ProofObligations.lean):
@@ -65,10 +65,26 @@ the generated `<fn>.spec`s are discharged at `portable_ops_inst` in
   discharged by `{ntt,invert_ntt_montgomery,ntt_multiply_montgomery}_spec_proof`
   on `HacspecNtt.lift_poly_res_intt_ok` and the machinery above.
 
-The four value equations (`reduce`, `zero`, `to_i32_array`, `from_i32_array`)
-still carry their statements only on the Lean side; their posts are per-index
-rather than hacspec-naming, so they need a different `ensures` shape
-(quantified index or an auxiliary spec function).
+- the four value equations, through the RAW lane gather `raw_gather` (identity
+  view of the lanes; no `mod_q`, no Montgomery factor — their FC posts are
+  per-index value equations, not hacspec calls):
+  - `zero` — `#[ensures(|result| raw_gather(&result) == [0i32; 256])]`
+    (the raw-lane form; strictly stronger than "residues are zero", and the
+    Lean FC states both).
+  - `to_i32_array` — `#[ensures(|result| result == raw_gather(self))]`.
+  - `from_i32_array` — `#[requires(array.len() == 256)]` +
+    `#[ensures(|_| &raw_gather(future(result))[..] == array.declassify_ref())]`
+    (slice-shaped, discharged through [`Util/SliceEq.lean`](Util/SliceEq.lean),
+    the port of sha3's slice-`==` closed form).
+  - `reduce` — `#[requires(poly_abs_le(re, 2_139_095_040))]` +
+    `#[ensures(|_| poly_abs_le(future(re), 6_283_009) &&
+    lift_poly_res(future(re)) == lift_poly_res(re))]` — BOTH halves of the
+    Lean FC: residues unchanged AND the Barrett output bound (a residue-only
+    post would be strictly weaker).
+
+Discharged by `{zero,to_i32_array,from_i32_array,reduce}_spec_proof` on
+`HacspecNorm.raw_res_ok` (the fourth lift agreement) and, for `reduce`'s
+post, the build-direction bound lemmas (`poly_abs_le_of_natAbs`).
 
 
 Four impl ops have no non-trivial counterpart in the spec (it treats them as

@@ -198,6 +198,9 @@ import LibcruxIotMlDsa.Vector.Portable.Arithmetic
 import LibcruxIotMlDsa.Polynomial.HacspecNorm
 import LibcruxIotMlDsa.Polynomial.HacspecFC
 import LibcruxIotMlDsa.Polynomial.HacspecNtt
+import LibcruxIotMlDsa.Polynomial.Convert
+import LibcruxIotMlDsa.Polynomial.NttArith
+import LibcruxIotMlDsa.Util.SliceEq
 
 open CoreModels Aeneas Aeneas.Std Std.Do
 
@@ -2567,5 +2570,399 @@ info: 'libcrux_iot_ml_dsa.Verification.ntt_multiply_montgomery_spec_proof' depen
 -/
 #guard_msgs in
 #print axioms ntt_multiply_montgomery_spec_proof
+
+
+/-! ## Generated top-level specs: the four value equations
+    `zero`, `to_i32_array`, `from_i32_array`, `reduce`
+
+    The last four of the README's ten top-level theorems, stated in the Rust
+    source through the RAW lane gather `raw_gather` (no counterpart in the
+    hacspec: the FC posts are per-index value equations). Discharged from
+    `Polynomial/Convert.lean`'s `{zero,to_i32_array,from_i32_array}_fc` and
+    `Polynomial/NttArith.lean`'s `reduce_fc`, via `HacspecNorm.raw_res_ok` and,
+    for `from_i32_array`'s slice-shaped comparison, `Util/SliceEq.lean`. -/
+
+/-- The `RangeFull` shared index on an `I32` array is `to_slice` (port of the
+    sha3 lemma of the same name). -/
+private theorem range_full_index_eq_i32 {N : Std.Usize} (arr : Std.Array Std.I32 N) :
+    (CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
+      (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
+        (CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+          Std.I32))
+      arr ()) = .ok (Aeneas.Std.Array.to_slice arr) := by
+  simp [CoreModels.core.Array.Insts.CoreOpsIndexIndex.index,
+    CoreModels.core.array.Array.as_slice,
+    CoreModels.rust_primitives.slice.array_as_slice,
+    CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index,
+    CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
+
+/-- getElem-with-proof to getElem! bridge. -/
+private theorem getElem_eq_getElem! {T : Type} [Inhabited T]
+    (l : List T) (k : Nat) (h : k < l.length) : l[k] = l[k]! := by
+  rw [List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]
+  rfl
+
+/-! ### Build direction for the parameterized bound (`ok true` FROM the bounds;
+    the reverse of the peels above -- `reduce`'s generated POST asserts
+    `poly_abs_le(future(re), 6283009)`). -/
+
+private theorem lane_abs_le_of {x b : Std.I32}
+    (hlo : -b.val ≤ x.val) (hhi : x.val ≤ b.val) :
+    libcrux_iot_ml_dsa.polynomial.lane_abs_le x b = .ok true := by
+  obtain ⟨wb, hwb_eq, hwb_val⟩ := cast_i64_ok' b
+  obtain ⟨wx, hwx_eq, hwx_val⟩ := cast_i64_ok' x
+  have hbb := Aeneas.Std.IScalar.hBounds b
+  simp only [IScalarTy.I32_numBits_eq] at hbb
+  obtain ⟨nb, hnb_eq, hnb_val⟩ :=
+    Aeneas.Std.WP.spec_imp_exists
+      (Aeneas.Std.WP.spec_of_partialSpec (Aeneas.Std.IScalar.neg_step wb)
+        (fun e => by
+          cases e
+          · simp only [IScalar.min_IScalarTy_I64_eq, Aeneas.Std.I64.min,
+              Aeneas.Std.I64.numBits, IScalarTy.I64_numBits_eq, hwb_val]
+            omega
+          · simp)
+        (by simp))
+  simp only [libcrux_iot_ml_dsa.polynomial.lane_abs_le, hwb_eq, hwx_eq,
+    show (-. wb : RustM Std.I64) = Aeneas.Std.IScalar.neg wb from rfl, hnb_eq,
+    Aeneas.Std.bind_tc_ok]
+  rw [if_pos (show nb ≤ wx by scalar_tac)]
+  have hle : wx ≤ wb := by scalar_tac
+  simp [hle]
+
+private theorem unit_abs_le_of
+    (u : libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) (b : Std.I32)
+    (h : ∀ j : Nat, j < 8 →
+      libcrux_iot_ml_dsa.polynomial.lane_abs_le (u.values.val[j]!) b = .ok true) :
+    libcrux_iot_ml_dsa.polynomial.unit_abs_le
+      Polynomial.Ntt.portable_ops_inst u b = .ok true := by
+  simp only [libcrux_iot_ml_dsa.polynomial.unit_abs_le,
+    Polynomial.HacspecNorm.lane_ok u 0#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 1#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 2#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 3#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 4#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 5#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 6#usize (by scalar_tac),
+    Polynomial.HacspecNorm.lane_ok u 7#usize (by scalar_tac),
+    Aeneas.Std.bind_tc_ok,
+    show ((0#usize : Std.Usize)).val = 0 from rfl,
+    show ((1#usize : Std.Usize)).val = 1 from rfl,
+    show ((2#usize : Std.Usize)).val = 2 from rfl,
+    show ((3#usize : Std.Usize)).val = 3 from rfl,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    show ((5#usize : Std.Usize)).val = 5 from rfl,
+    show ((6#usize : Std.Usize)).val = 6 from rfl,
+    show ((7#usize : Std.Usize)).val = 7 from rfl,
+    h 0 (by omega),
+    h 1 (by omega),
+    h 2 (by omega),
+    h 3 (by omega),
+    h 4 (by omega),
+    h 5 (by omega),
+    h 6 (by omega),
+    h 7 (by omega),
+    if_true]
+
+private theorem poly_abs_le_of
+    (re : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
+            libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) (b : Std.I32)
+    (h : ∀ u : Nat, u < 32 →
+      libcrux_iot_ml_dsa.polynomial.unit_abs_le
+        Polynomial.Ntt.portable_ops_inst (re.simd_units.val[u]!) b = .ok true) :
+    libcrux_iot_ml_dsa.polynomial.poly_abs_le
+      Polynomial.Ntt.portable_ops_inst re b = .ok true := by
+  have hlen : re.simd_units.val.length = 32 := re.simd_units.property
+  simp only [libcrux_iot_ml_dsa.polynomial.poly_abs_le,
+    array_index_ok re.simd_units 0#usize (by simp [hlen]),
+    array_index_ok re.simd_units 1#usize (by simp [hlen]),
+    array_index_ok re.simd_units 2#usize (by simp [hlen]),
+    array_index_ok re.simd_units 3#usize (by simp [hlen]),
+    array_index_ok re.simd_units 4#usize (by simp [hlen]),
+    array_index_ok re.simd_units 5#usize (by simp [hlen]),
+    array_index_ok re.simd_units 6#usize (by simp [hlen]),
+    array_index_ok re.simd_units 7#usize (by simp [hlen]),
+    array_index_ok re.simd_units 8#usize (by simp [hlen]),
+    array_index_ok re.simd_units 9#usize (by simp [hlen]),
+    array_index_ok re.simd_units 10#usize (by simp [hlen]),
+    array_index_ok re.simd_units 11#usize (by simp [hlen]),
+    array_index_ok re.simd_units 12#usize (by simp [hlen]),
+    array_index_ok re.simd_units 13#usize (by simp [hlen]),
+    array_index_ok re.simd_units 14#usize (by simp [hlen]),
+    array_index_ok re.simd_units 15#usize (by simp [hlen]),
+    array_index_ok re.simd_units 16#usize (by simp [hlen]),
+    array_index_ok re.simd_units 17#usize (by simp [hlen]),
+    array_index_ok re.simd_units 18#usize (by simp [hlen]),
+    array_index_ok re.simd_units 19#usize (by simp [hlen]),
+    array_index_ok re.simd_units 20#usize (by simp [hlen]),
+    array_index_ok re.simd_units 21#usize (by simp [hlen]),
+    array_index_ok re.simd_units 22#usize (by simp [hlen]),
+    array_index_ok re.simd_units 23#usize (by simp [hlen]),
+    array_index_ok re.simd_units 24#usize (by simp [hlen]),
+    array_index_ok re.simd_units 25#usize (by simp [hlen]),
+    array_index_ok re.simd_units 26#usize (by simp [hlen]),
+    array_index_ok re.simd_units 27#usize (by simp [hlen]),
+    array_index_ok re.simd_units 28#usize (by simp [hlen]),
+    array_index_ok re.simd_units 29#usize (by simp [hlen]),
+    array_index_ok re.simd_units 30#usize (by simp [hlen]),
+    array_index_ok re.simd_units 31#usize (by simp [hlen]),
+    Aeneas.Std.bind_tc_ok,
+    show ((0#usize : Std.Usize)).val = 0 from rfl,
+    show ((1#usize : Std.Usize)).val = 1 from rfl,
+    show ((2#usize : Std.Usize)).val = 2 from rfl,
+    show ((3#usize : Std.Usize)).val = 3 from rfl,
+    show ((4#usize : Std.Usize)).val = 4 from rfl,
+    show ((5#usize : Std.Usize)).val = 5 from rfl,
+    show ((6#usize : Std.Usize)).val = 6 from rfl,
+    show ((7#usize : Std.Usize)).val = 7 from rfl,
+    show ((8#usize : Std.Usize)).val = 8 from rfl,
+    show ((9#usize : Std.Usize)).val = 9 from rfl,
+    show ((10#usize : Std.Usize)).val = 10 from rfl,
+    show ((11#usize : Std.Usize)).val = 11 from rfl,
+    show ((12#usize : Std.Usize)).val = 12 from rfl,
+    show ((13#usize : Std.Usize)).val = 13 from rfl,
+    show ((14#usize : Std.Usize)).val = 14 from rfl,
+    show ((15#usize : Std.Usize)).val = 15 from rfl,
+    show ((16#usize : Std.Usize)).val = 16 from rfl,
+    show ((17#usize : Std.Usize)).val = 17 from rfl,
+    show ((18#usize : Std.Usize)).val = 18 from rfl,
+    show ((19#usize : Std.Usize)).val = 19 from rfl,
+    show ((20#usize : Std.Usize)).val = 20 from rfl,
+    show ((21#usize : Std.Usize)).val = 21 from rfl,
+    show ((22#usize : Std.Usize)).val = 22 from rfl,
+    show ((23#usize : Std.Usize)).val = 23 from rfl,
+    show ((24#usize : Std.Usize)).val = 24 from rfl,
+    show ((25#usize : Std.Usize)).val = 25 from rfl,
+    show ((26#usize : Std.Usize)).val = 26 from rfl,
+    show ((27#usize : Std.Usize)).val = 27 from rfl,
+    show ((28#usize : Std.Usize)).val = 28 from rfl,
+    show ((29#usize : Std.Usize)).val = 29 from rfl,
+    show ((30#usize : Std.Usize)).val = 30 from rfl,
+    show ((31#usize : Std.Usize)).val = 31 from rfl,
+    h 0 (by omega),
+    h 1 (by omega),
+    h 2 (by omega),
+    h 3 (by omega),
+    h 4 (by omega),
+    h 5 (by omega),
+    h 6 (by omega),
+    h 7 (by omega),
+    h 8 (by omega),
+    h 9 (by omega),
+    h 10 (by omega),
+    h 11 (by omega),
+    h 12 (by omega),
+    h 13 (by omega),
+    h 14 (by omega),
+    h 15 (by omega),
+    h 16 (by omega),
+    h 17 (by omega),
+    h 18 (by omega),
+    h 19 (by omega),
+    h 20 (by omega),
+    h 21 (by omega),
+    h 22 (by omega),
+    h 23 (by omega),
+    h 24 (by omega),
+    h 25 (by omega),
+    h 26 (by omega),
+    h 27 (by omega),
+    h 28 (by omega),
+    h 29 (by omega),
+    h 30 (by omega),
+    h 31 (by omega),
+    if_true]
+
+/-- ∀-form to `poly_abs_le = ok true` (compose the two builders). -/
+private theorem poly_abs_le_of_natAbs
+    (re : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
+            libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients)
+    (b : Std.I32) (bn : Nat) (hb : b.val = (bn : Int))
+    (h : ∀ u : Nat, u < 32 → ∀ j : Nat, j < 8 →
+      ((re.simd_units.val[u]!).values.val[j]!).val.natAbs ≤ bn) :
+    libcrux_iot_ml_dsa.polynomial.poly_abs_le
+      Polynomial.Ntt.portable_ops_inst re b = .ok true := by
+  apply poly_abs_le_of
+  intro u hu
+  apply unit_abs_le_of
+  intro j hj
+  have hn := h u hu j hj
+  exact lane_abs_le_of (by omega) (by omega)
+
+/-! ### The discharges -/
+
+set_option maxHeartbeats 4000000 in
+set_option maxRecDepth 4000 in
+/-- **Top-level FC, out of the Rust annotation.** Discharges the generated
+    `zero.spec`: every raw lane of the result is literally `0`. -/
+theorem zero_spec_proof :
+    libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.zero.spec
+      Polynomial.Ntt.portable_ops_inst := by
+  obtain ⟨r, hr_eq, hlift, hraw⟩ := triple_exists_ok Polynomial.Convert.zero_fc
+  refine triple_of_ok hr_eq ?_
+  have hpost : (libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.zero.post
+      Polynomial.Ntt.portable_ops_inst r) = .ok true := by
+    simp only [libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.zero.post]
+    rw [Polynomial.HacspecNorm.raw_res_ok r]
+    simp only [Aeneas.Std.bind_tc_ok]
+    have harr : Polynomial.HacspecNorm.raw_res r
+        = Aeneas.Std.Array.repeat 256#usize (0#i32 : Std.I32) := by
+      apply Subtype.ext
+      unfold Polynomial.HacspecNorm.raw_res
+      dsimp only
+      rw [Aeneas.Std.Array.repeat_val,
+          show ((256#usize : Std.Usize)).val = 256 from by scalar_tac]
+      apply List.ext_getElem (by simp)
+      intro k h1 h2
+      simp only [List.length_map, List.length_range] at h1
+      rw [List.getElem_map, List.getElem_range, List.getElem_replicate]
+      apply Aeneas.Std.IScalar.eq_of_val_eq
+      have h0 := hraw (k / 8) (by omega) (k % 8) (Nat.mod_lt k (by decide))
+      simpa using h0
+    rw [harr]
+    exact array_eq_self _
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
+
+/-- info: 'libcrux_iot_ml_dsa.Verification.zero_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms zero_spec_proof
+
+set_option maxHeartbeats 4000000 in
+/-- **Top-level FC, out of the Rust annotation.** Discharges the generated
+    `to_i32_array.spec`: the output is the raw lane gather. -/
+theorem to_i32_array_spec_proof
+    (self : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
+              libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
+    libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.to_i32_array.spec
+      Polynomial.Ntt.portable_ops_inst self := by
+  obtain ⟨r, hr_eq, hall⟩ :=
+    triple_exists_ok (Polynomial.Convert.to_i32_array_fc self)
+  refine triple_of_ok hr_eq ?_
+  have hpost : (libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.to_i32_array.post
+      Polynomial.Ntt.portable_ops_inst self r) = .ok true := by
+    simp only [libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.to_i32_array.post]
+    rw [Polynomial.HacspecNorm.raw_res_ok self]
+    simp only [Aeneas.Std.bind_tc_ok]
+    have harr : r = Polynomial.HacspecNorm.raw_res self := by
+      apply Subtype.ext
+      have hrl : r.val.length = 256 := by
+        have h := r.property
+        simp only [show ((256#usize : Std.Usize)).val = 256 from by scalar_tac] at h
+        exact h
+      apply List.ext_getElem (by simp [hrl])
+      intro k h1 h2
+      have hk : k < 256 := by omega
+      rw [getElem_eq_getElem! _ k h1, getElem_eq_getElem! _ k h2,
+          Polynomial.HacspecNorm.raw_res_getElem self k hk]
+      apply Aeneas.Std.IScalar.eq_of_val_eq
+      exact hall k hk
+    rw [harr]
+    exact array_eq_self _
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
+
+/-- info: 'libcrux_iot_ml_dsa.Verification.to_i32_array_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms to_i32_array_spec_proof
+
+set_option maxHeartbeats 4000000 in
+/-- **Top-level FC, out of the Rust annotation.** Discharges the generated
+    `from_i32_array.spec`: the result's raw lanes are the (declassified) input
+    values. The comparison is slice-shaped, closed by `Util/SliceEq.lean`. -/
+theorem from_i32_array_spec_proof
+    (array : Slice Std.I32)
+    (result : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
+                libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
+    libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.from_i32_array.spec
+      Polynomial.Ntt.portable_ops_inst array result := by
+  intro hpre
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only
+    [libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.from_i32_array.pre] at hok
+  rw [show CoreModels.core.slice.Slice.len array = .ok (Std.Slice.len array) from by
+        simp [CoreModels.core.slice.Slice.len,
+              CoreModels.rust_primitives.slice.slice_length],
+      Aeneas.Std.bind_tc_ok] at hok
+  have hlen : array.val.length = 256 := by
+    have heq : Std.Slice.len array = (256#usize : Std.Usize) := by
+      have hb : (decide (Std.Slice.len array = (256#usize : Std.Usize))) = true := by
+        simpa using hok
+      exact of_decide_eq_true hb
+    have hv : (Std.Slice.len array).val = 256 := by
+      rw [heq]; scalar_tac
+    rw [Aeneas.Std.Slice.len_val] at hv
+    exact hv
+  obtain ⟨r, hr_eq, hall⟩ :=
+    triple_exists_ok (Polynomial.Convert.from_i32_array_fc array result hlen)
+  refine triple_of_ok hr_eq ?_
+  have hpost : (libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.from_i32_array.post
+      Polynomial.Ntt.portable_ops_inst array result r) = .ok true := by
+    simp only
+      [libcrux_iot_ml_dsa.polynomial.PolynomialRingElement.from_i32_array.post]
+    rw [Polynomial.HacspecNorm.raw_res_ok r]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [range_full_index_eq_i32 (Polynomial.HacspecNorm.raw_res r)]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [show libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+          libcrux_secrets.I32.Insts.Libcrux_secretsTraitsScalar array = .ok array from rfl]
+    simp only [Aeneas.Std.bind_tc_ok]
+    apply Util.SliceEq.slice_eq_true _ Util.SliceEq.lawful_partialEq_i32
+    rw [Aeneas.Std.Array.val_to_slice]
+    unfold Polynomial.HacspecNorm.raw_res
+    dsimp only
+    apply List.ext_getElem (by simp [hlen])
+    intro k h1 h2
+    have hk : k < 256 := by
+      simp only [List.length_map, List.length_range] at h1
+      omega
+    rw [List.getElem_map, List.getElem_range,
+        getElem_eq_getElem! array.val k h2]
+    apply Aeneas.Std.IScalar.eq_of_val_eq
+    exact hall k hk
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
+
+/-- info: 'libcrux_iot_ml_dsa.Verification.from_i32_array_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms from_i32_array_spec_proof
+
+set_option maxHeartbeats 4000000 in
+/-- **Top-level FC, out of the Rust annotation.** Discharges the generated
+    `reduce.spec`: residues unchanged (through `lift_poly_res`) AND the output
+    bounded by 6283009 (`poly_abs_le` in the post, rebuilt from the FC bound by
+    the `_of` lemmas above). -/
+theorem reduce_spec_proof
+    (re : libcrux_iot_ml_dsa.polynomial.PolynomialRingElement
+            libcrux_iot_ml_dsa.simd.portable.vector_type.Coefficients) :
+    libcrux_iot_ml_dsa.ntt.reduce.spec Polynomial.Ntt.portable_ops_inst re := by
+  intro hpre
+  have hok := eq_ok_true_of_holds_map hpre
+  simp only [libcrux_iot_ml_dsa.ntt.reduce.pre] at hok
+  have hpre' := poly_abs_le_natAbs re _ 2139095040 (by scalar_tac) hok
+  obtain ⟨r, hr_eq, hr_lift, hr_bnd⟩ :=
+    triple_exists_ok (Polynomial.NttArith.reduce_fc re hpre')
+  refine triple_of_ok hr_eq ?_
+  have hpost : (libcrux_iot_ml_dsa.ntt.reduce.post
+      Polynomial.Ntt.portable_ops_inst re r) = .ok true := by
+    simp only [libcrux_iot_ml_dsa.ntt.reduce.post]
+    rw [poly_abs_le_of_natAbs r _ 6283009 (by scalar_tac) hr_bnd]
+    simp only [Aeneas.Std.bind_tc_ok, if_true]
+    rw [Polynomial.HacspecNorm.lift_poly_res_ok r]
+    simp only [Aeneas.Std.bind_tc_ok]
+    rw [Polynomial.HacspecNorm.lift_poly_res_ok re]
+    simp only [Aeneas.Std.bind_tc_ok]
+    have harr : Spec.HacspecBridge.lift_poly_res r
+        = Spec.HacspecBridge.lift_poly_res re := by
+      unfold Spec.HacspecBridge.lift_poly_res
+      simp only [hr_lift]
+    rw [harr]
+    exact array_eq_self _
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
+
+/-- info: 'libcrux_iot_ml_dsa.Verification.reduce_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms reduce_spec_proof
 
 end libcrux_iot_ml_dsa.Verification

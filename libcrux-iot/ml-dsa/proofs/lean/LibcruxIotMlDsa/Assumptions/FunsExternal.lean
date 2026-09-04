@@ -207,5 +207,11 @@ def I32.Insts.Libcrux_secretsIntCastOps.as_i64 (x : Std.I32) : RustM Std.I64 := 
 def SharedAT.Insts.Libcrux_secretsTraitsDeclassifyRefSharedAT.declassify_ref
     {T : Type} (a : T) : Aeneas.Std.RustM T := ok a
 
+/-- `declassify_ref` on a shared SLICE — no-op identity (used by
+    `from_i32_array`'s generated post; same model as sha3's). -/
+def SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+    {T : Type} (_inst : traits.Scalar T) (a : Aeneas.Std.Slice T) :
+    Aeneas.Std.RustM (Aeneas.Std.Slice T) := ok a
+
 end libcrux_secrets
 end

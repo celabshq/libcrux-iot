@@ -1,5 +1,8 @@
 use libcrux_secrets::I32;
 
+#[cfg(hax)]
+use libcrux_secrets::DeclassifyRef as _;
+
 use crate::{
     helper::cloop,
     simd::traits::{Operations, COEFFICIENTS_IN_SIMD_UNIT, SIMD_UNITS_IN_RING_ELEMENT},
@@ -154,6 +157,22 @@ pub(crate) fn lift_poly_res_intt<SIMDUnit: Operations>(
             ) as i64
                 * RINV,
         )
+    })
+}
+
+// Spec-only RAW lane gather: the 32x8 SIMD layout as a flat `[i32; 256]`,
+// NO `mod_q` and NO Montgomery factor -- the identity view of the raw lanes.
+// This is what the four value-equation theorems (`zero`, `to_i32_array`,
+// `from_i32_array`, and `reduce`'s bound half) speak: their Lean FC posts are
+// per-raw-lane, not residue-level. Distinct from all three residue lifts in
+// the table at `canon_raw`.
+#[cfg(hax)]
+pub(crate) fn raw_gather<SIMDUnit: Operations>(
+    re: &PolynomialRingElement<SIMDUnit>,
+) -> [i32; crate::constants::COEFFICIENTS_IN_RING_ELEMENT] {
+    core::array::from_fn(|i| {
+        SIMDUnit::lane(&re.simd_units[i / COEFFICIENTS_IN_SIMD_UNIT],
+                       i % COEFFICIENTS_IN_SIMD_UNIT)
     })
 }
 
@@ -340,6 +359,10 @@ pub(crate) fn poly_sub_in_range<SIMDUnit: Operations>(
 // reject that outside an annotated block).
 #[cfg_attr(hax, hax_lib::attributes)]
 impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
+    // `zero_fc` at the Rust level: every RAW lane of the result is literally
+    // `0` (strictly stronger than "the residues are zero", which would also
+    // admit lanes of ±q; the Lean FC states both, and this implies the other).
+    #[cfg_attr(hax, hax_lib::ensures(|result| raw_gather(&result) == [0i32; 256]))]
     pub(crate) fn zero() -> Self {
         Self {
             simd_units: [SIMDUnit::zero(); SIMD_UNITS_IN_RING_ELEMENT],
@@ -347,6 +370,11 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     // This is used in `make_hint` and for tests
+    //
+    // `to_i32_array_fc` at the Rust level: the output is exactly the raw lane
+    // gather (array equality = the FC's per-index `.val` equality, `.val`
+    // being injective).
+    #[cfg_attr(hax, hax_lib::ensures(|result| result == raw_gather(self)))]
     pub(crate) fn to_i32_array(&self) -> [i32; 256] {
         let mut result = [0i32; 256];
 
@@ -359,6 +387,13 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         result
     }
 
+    // `from_i32_array_fc` at the Rust level: the result's raw lanes are the
+    // (declassified) input values. The FC's length hypothesis becomes the
+    // `requires`; the comparison is slice-shaped, so the discharge rides the
+    // slice-eq machinery rather than the array-eq one.
+    #[cfg_attr(hax, hax_lib::requires(array.len() == 256))]
+    #[cfg_attr(hax, hax_lib::ensures(|_|
+        &raw_gather(future(result))[..] == array.declassify_ref()))]
     pub(crate) fn from_i32_array(array: &[I32], result: &mut Self) {
         #[cfg(not(eurydice))]
         debug_assert!(array.len() >= 256);

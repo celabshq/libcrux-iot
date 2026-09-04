@@ -48,6 +48,15 @@ pub(crate) fn ntt_multiply_montgomery<SIMDUnit: Operations>(
     ()
 }
 
+// `reduce_fc` at the Rust level, BOTH halves: the residues are unchanged
+// (Barrett reduce; through `lift_poly_res`) AND the output is bounded by
+// 6283009 -- the bound is the point of the reduction and what downstream
+// callers consume, so a residue-only post would be strictly weaker than the
+// Lean FC theorem. The pre is the FC's no-overflow bound 2^31 - 2^23.
+#[cfg_attr(hax, hax_lib::requires(poly_abs_le(re, 2_139_095_040)))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    poly_abs_le(future(re), 6_283_009)
+        && lift_poly_res(future(re)) == lift_poly_res(re)))]
 #[inline(always)]
 // Barrett reduce all coefficients.
 pub(crate) fn reduce<SIMDUnit: Operations>(re: &mut PolynomialRingElement<SIMDUnit>) {
