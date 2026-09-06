@@ -976,7 +976,10 @@ theorem compute_vector_u_fc
                   (lift_vec_slice r_as_ntt K)
                   (lift_vec_slice error_1 K)
                 = .ok (lift_vec_slice p.2.1 K)
-              ∧ p.2.1.length = K.val ⌝ ⦄ := by
+              ∧ p.2.1.length = K.val
+              ∧ (∀ c : Nat, c < K.val →
+                  accumulating_ntt_multiply_poly_cache_post
+                    (r_as_ntt.val[c]!) (p.2.2.2.1.val[c]!)) ⌝ ⦄ := by
   set lm : Std.Array
       (Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) K :=
     lift_matrix_from_seed seed K with hlm_def
@@ -1264,8 +1267,8 @@ theorem compute_vector_u_fc
     simp only [Aeneas.Std.bind_tc_ok]
     rw [show (rslice2.set 0#usize) row0poly = s1 from rfl]
     rw [h_loop1_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  · -- Spec equation + result-slice length preservation.
-    refine ⟨?_, h_result3_len⟩
+  · -- Spec equation + result-slice length + output cache-correctness (h_cache_char).
+    refine ⟨?_, h_result3_len, h_cache_post⟩
     show hacspec_ml_kem.matrix.compute_vector_u (lift_matrix_from_seed seed K)
           (lift_vec_slice r_as_ntt K) (lift_vec_slice error_1 K)
         = .ok (lift_vec_slice result3 K)

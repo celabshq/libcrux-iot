@@ -343,7 +343,7 @@ theorem compute_vector_u_spec_proof {K : Std.Usize} {Hasher : Type}
                 (fun c hc a b => h_err_bnd c hc a.val a.isLt b.val b.isLt)) ?_
               intro res hP
               obtain ⟨me, rf, sc, cf, af⟩ := res
-              obtain ⟨heq, h_rf_len⟩ := hP
+              obtain ⟨heq, h_rf_len, _h_cache⟩ := hP
               have hFErefl : ∀ (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize),
                   ∀ jj : Nat, jj < (256#usize : Std.Usize).val →
                     hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq
