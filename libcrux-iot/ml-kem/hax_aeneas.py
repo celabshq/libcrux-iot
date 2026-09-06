@@ -197,6 +197,10 @@ _AFFECTED_FNS = [
     "compute_vector_u_loop1",
     "compute_vector_u_loop0.body",
     "compute_vector_u_loop0",
+    # The same Hasher-instance drop hits the top-level `compute_vector_u` CALL in
+    # the body of the `compute_u_and_v` wrapper (the composed L7.2+L7.3 spec fn).
+    # Its definition takes both instances; the call site drops the Hasher one.
+    "compute_vector_u",
     "sample_matrix_entry",
 ]
 for _fn in _AFFECTED_FNS:
@@ -331,6 +335,29 @@ if _specs.exists():
               f"instances itself, delete this pass.", file=sys.stderr)
         sys.exit(1)
     _s = _s.replace(_oldm, _newm)
+
+    # Same aeneas trait-clause drop hits the `lift_t_as_ntt_from_public_key` call
+    # in `compute_u_and_v.post` (the Vector instance is dropped).
+    _oldt = "matrix.lift_t_as_ntt_from_public_key K public_key"
+    _newt = "matrix.lift_t_as_ntt_from_public_key K vectortraitsOperationsInst public_key"
+    if _s.count(_oldt) != 1:
+        print(f"error: expected exactly one instance-less `lift_t_as_ntt_from_public_key` "
+              f"call in Specs.lean, found {_s.count(_oldt)}. If aeneas now passes the "
+              f"instance itself, delete this pass.", file=sys.stderr)
+        sys.exit(1)
+    _s = _s.replace(_oldt, _newt)
+
+    # And the Hasher instance is dropped from the `compute_u_and_v` CALL inside its
+    # own `.spec` (the wrapper takes both instances; same class as compute_vector_u).
+    _olduv = "matrix.compute_u_and_v K vectortraitsOperationsInst seed public_key"
+    _newuv = ("matrix.compute_u_and_v K vectortraitsOperationsInst "
+              "hash_functionsHashInst seed public_key")
+    if _s.count(_olduv) != 1:
+        print(f"error: expected exactly one Hasher-less `compute_u_and_v` call in "
+              f"Specs.lean, found {_s.count(_olduv)}. If aeneas now passes the "
+              f"instance itself, delete this pass.", file=sys.stderr)
+        sys.exit(1)
+    _s = _s.replace(_olduv, _newuv)
 
     _specs.write_text(_s)
     print("Patched Specs.lean (matrix glob fix-ups)")

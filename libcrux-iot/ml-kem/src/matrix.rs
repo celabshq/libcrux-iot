@@ -65,6 +65,24 @@ pub(crate) fn lift_matrix_from_seed<Vector: Operations, Hasher: crate::hash_func
     })
 }
 
+/// Lift the `t_as_ntt` vector deserialized from a public key (spec-only): entry
+/// `[i]` is `lift_poly(deserialize_to_reduced_ring_element(pk[i*384..(i+1)*384]))`.
+/// Rust witness for `Spec.t_as_ntt_from_public_key_pure`; bridged via the A2
+/// deserialization axiom, chunk-by-chunk.
+#[cfg(hax)]
+pub(crate) fn lift_t_as_ntt_from_public_key<Vector: Operations, const K: usize>(
+    public_key: &[u8],
+) -> hacspec_ml_kem::parameters::Vector<K> {
+    core::array::from_fn(|i| {
+        let mut re = PolynomialRingElement::<Vector>::ZERO();
+        deserialize_to_reduced_ring_element::<Vector>(
+            public_key[i * BYTES_PER_RING_ELEMENT..(i + 1) * BYTES_PER_RING_ELEMENT].classify_ref(),
+            &mut re,
+        );
+        lift_poly(&re)
+    })
+}
+
 /// One lane's centred bound (ordinary fn: the `&&` here is fine, unlike inside a
 /// `Prop` quantifier closure).
 #[cfg(hax)]
@@ -440,4 +458,54 @@ pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
 
         t_as_ntt[i].add_standard_error_reduce(&error_as_ntt[i]);
     }
+}
+
+/// Composed matrix core of K-PKE.Encrypt (spec-only), the L7.3 statement with
+/// its cache produced INTERNALLY: `compute_vector_u` fills `cache` (and, as a
+/// by-product, establishes it holds the NTT products of `r`), then
+/// `compute_ring_element_v` consumes that same `cache`. So there is NO
+/// cache-correctness precondition -- it is discharged by the first call. The
+/// `#[ensures]` names the hacspec `compute_ring_element_v` on the seed/pk-derived
+/// operands; it rests on A1 (the `u` step samples the matrix) and A2 (the `v`
+/// step deserializes `t`).
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(
+        K > 0 && K <= 4 && seed.len() == 32
+        && public_key.len() == BYTES_PER_RING_ELEMENT * K
+        && r_as_ntt.len() == K && error_1.len() == K
+        && result_u.len() == K && cache.len() == K)
+        .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
+        .and(vec_slice_bnd::<Vector, K>(error_1, 29439))
+        .and(poly_bnd(error_2, 3328))
+        .and(poly_bnd(message, 3328))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
+        &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
+        &lift_vec_slice::<Vector, K>(r_as_ntt),
+        &lift_poly(error_2), &lift_poly(message))
+        == lift_poly(future(result_v))))]
+#[inline(always)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn compute_u_and_v<const K: usize, Vector: Operations, Hasher: Hash>(
+    seed: &[u8],
+    public_key: &[u8],
+    r_as_ntt: &[PolynomialRingElement<Vector>],
+    error_1: &[PolynomialRingElement<Vector>],
+    error_2: &PolynomialRingElement<Vector>,
+    message: &PolynomialRingElement<Vector>,
+    matrix_entry: &mut PolynomialRingElement<Vector>,
+    t_as_ntt_entry: &mut PolynomialRingElement<Vector>,
+    result_u: &mut [PolynomialRingElement<Vector>],
+    result_v: &mut PolynomialRingElement<Vector>,
+    scratch: &mut Vector,
+    cache: &mut [PolynomialRingElement<Vector>],
+    accumulator: &mut [I32; 256],
+) {
+    compute_vector_u::<K, Vector, Hasher>(
+        matrix_entry, seed, r_as_ntt, error_1, result_u, scratch, cache, accumulator,
+    );
+    compute_ring_element_v::<K, Vector>(
+        public_key, t_as_ntt_entry, r_as_ntt, error_2, message, result_v, scratch, cache,
+        accumulator,
+    );
 }

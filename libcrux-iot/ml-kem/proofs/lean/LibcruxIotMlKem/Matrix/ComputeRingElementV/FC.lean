@@ -131,7 +131,6 @@ theorem compute_ring_element_v_fc
         ((r_as_ntt.val[c]!.coefficients.val[a.val]!).elements.val[b.val]!).val.natAbs ≤ 3328)
     (h_cache_char : ∀ c : Nat, c < K.val →
         accumulating_ntt_multiply_poly_cache_post (r_as_ntt.val[c]!) (cache.val[c]!))
-    (h_acc_zero : ∀ n : Nat, n < 256 → (accumulator.val[n]!).val = 0)
     (h_error_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
         ((error_2.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328)
     (h_message_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
