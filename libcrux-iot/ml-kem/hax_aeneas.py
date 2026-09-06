@@ -321,5 +321,16 @@ if _specs.exists():
         sys.exit(1)
     _s = _s.replace(_old, _new)
 
+    # Same aeneas trait-clause drop hits the `lift_matrix_from_seed` call in
+    # `compute_vector_u.post` (both the Vector AND Hasher instances are dropped).
+    _oldm = "matrix.lift_matrix_from_seed K seed"
+    _newm = "matrix.lift_matrix_from_seed K vectortraitsOperationsInst hash_functionsHashInst seed"
+    if _s.count(_oldm) != 1:
+        print(f"error: expected exactly one instance-less `lift_matrix_from_seed` call in "
+              f"Specs.lean, found {_s.count(_oldm)}. If aeneas now passes the "
+              f"instances itself, delete this pass.", file=sys.stderr)
+        sys.exit(1)
+    _s = _s.replace(_oldm, _newm)
+
     _specs.write_text(_s)
     print("Patched Specs.lean (matrix glob fix-ups)")

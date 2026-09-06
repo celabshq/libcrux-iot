@@ -1700,7 +1700,7 @@ def matrix.compute_ring_element_v_loop
     (iter, t_as_ntt_entry, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v]:
-    Source: 'ml-kem/src/matrix.rs', lines 112:0-134:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 305:0-327:1 -/
 def matrix.compute_ring_element_v
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (public_key : Slice Std.U8)
@@ -3005,7 +3005,7 @@ def polynomial.PolynomialRingElement.subtract_reduce
     vectortraitsOperationsInst { start := 0#usize, «end» := i } self b
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message]: loop body 0:
-    Source: 'ml-kem/src/matrix.rs', lines 100:4-102:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 293:4-295:5 -/
 @[rust_loop_body]
 def matrix.compute_message_loop.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3031,7 +3031,7 @@ def matrix.compute_message_loop.body
     ok (cont (iter1, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message]: loop 0:
-    Source: 'ml-kem/src/matrix.rs', lines 100:4-102:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 293:4-295:5 -/
 @[rust_loop]
 def matrix.compute_message_loop
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3047,7 +3047,7 @@ def matrix.compute_message_loop
     (iter, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message]:
-    Source: 'ml-kem/src/matrix.rs', lines 91:0-107:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 284:0-300:1 -/
 def matrix.compute_message
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
@@ -3291,8 +3291,1055 @@ def ind_cpa.decrypt
     { secret_as_ntt := secret_as_ntt1 } ciphertext decrypted scratch
     accumulator
 
+/-- [libcrux_iot_ml_kem::matrix::lift_poly::{impl core::ops::function::FnMut<(usize,), hacspec_ml_kem::parameters::FieldElement> for libcrux_iot_ml_kem::matrix::lift_poly::closure<'_0, Vector>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 19:25-23:5 -/
+def
+  matrix.lift_poly.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (c : matrix.lift_poly.closure Vector) (tupled_args : Std.Usize) :
+  RustM (hacspec_ml_kem.parameters.FieldElement × (matrix.lift_poly.closure
+    Vector))
+  := do
+  let i ← tupled_args / 16#usize
+  let t ← Array.index_usize c.coefficients i
+  let a ← vectortraitsOperationsInst.ReprInst.repr t
+  let i1 ← tupled_args % 16#usize
+  let i2 ← Array.index_usize a i1
+  let fe ← hacspec_ml_kem.parameters.FieldElement.from_i16 i2
+  ok (fe, c)
+
+/-- [libcrux_iot_ml_kem::matrix::lift_poly::{impl core::ops::function::FnOnce<(usize,), hacspec_ml_kem::parameters::FieldElement> for libcrux_iot_ml_kem::matrix::lift_poly::closure<'_0, Vector>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 19:25-23:5 -/
+def
+  matrix.lift_poly.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeFieldElement.call_once
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (c : matrix.lift_poly.closure Vector) (i : Std.Usize) :
+  RustM hacspec_ml_kem.parameters.FieldElement
+  := do
+  let (fe, _) ←
+    matrix.lift_poly.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
+      vectortraitsOperationsInst c i
+  ok fe
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_poly::{impl core::ops::function::FnOnce<(usize,), hacspec_ml_kem::parameters::FieldElement> for libcrux_iot_ml_kem::matrix::lift_poly::closure<'_0, Vector>}]
+    Source: 'ml-kem/src/matrix.rs', lines 19:25-23:5 -/
+@[reducible]
+def matrix.lift_poly.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeFieldElement
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) : core.ops.function.FnOnce (matrix.lift_poly.closure Vector)
+  Std.Usize hacspec_ml_kem.parameters.FieldElement := {
+  call_once :=
+    matrix.lift_poly.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeFieldElement.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_poly::{impl core::ops::function::FnMut<(usize,), hacspec_ml_kem::parameters::FieldElement> for libcrux_iot_ml_kem::matrix::lift_poly::closure<'_0, Vector>}]
+    Source: 'ml-kem/src/matrix.rs', lines 19:25-23:5 -/
+@[reducible]
+def matrix.lift_poly.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) : core.ops.function.FnMut (matrix.lift_poly.closure Vector) Std.Usize
+  hacspec_ml_kem.parameters.FieldElement := {
+  FnOnceInst :=
+    matrix.lift_poly.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeFieldElement
+    vectortraitsOperationsInst
+  call_mut :=
+    matrix.lift_poly.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::lift_poly]:
+    Source: 'ml-kem/src/matrix.rs', lines 16:0-24:1 -/
+def matrix.lift_poly
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector) :
+  RustM (Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+  := do
+  core.array.from_fn 256#usize
+    (matrix.lift_poly.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement
+    vectortraitsOperationsInst) re
+
+/-- [libcrux_iot_ml_kem::matrix::lift_vec::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec::closure<'_0, Vector, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 31:25-31:45 -/
+def
+  matrix.lift_vec.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.lift_vec.closure Vector K)
+  (tupled_args : Std.Usize) :
+  RustM ((Array hacspec_ml_kem.parameters.FieldElement 256#usize) ×
+    (matrix.lift_vec.closure Vector K))
+  := do
+  let pre ← Array.index_usize c tupled_args
+  let a ← matrix.lift_poly vectortraitsOperationsInst pre
+  ok (a, c)
+
+/-- [libcrux_iot_ml_kem::matrix::lift_vec::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec::closure<'_0, Vector, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 31:25-31:45 -/
+def
+  matrix.lift_vec.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.lift_vec.closure Vector K)
+  (i : Std.Usize) :
+  RustM (Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+  := do
+  let (a, _) ←
+    matrix.lift_vec.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+      vectortraitsOperationsInst c i
+  ok a
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_vec::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec::closure<'_0, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 31:25-31:45 -/
+@[reducible]
+def
+  matrix.lift_vec.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (matrix.lift_vec.closure Vector K) Std.Usize (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  call_once :=
+    matrix.lift_vec.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_vec::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec::closure<'_0, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 31:25-31:45 -/
+@[reducible]
+def
+  matrix.lift_vec.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (matrix.lift_vec.closure Vector K) Std.Usize (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  FnOnceInst :=
+    matrix.lift_vec.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+    K vectortraitsOperationsInst
+  call_mut :=
+    matrix.lift_vec.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::lift_vec]:
+    Source: 'ml-kem/src/matrix.rs', lines 28:0-32:1 -/
+def matrix.lift_vec
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (v : Array (polynomial.PolynomialRingElement Vector) K) :
+  RustM (Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K)
+  := do
+  core.array.from_fn K
+    (matrix.lift_vec.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+    K vectortraitsOperationsInst) v
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::closure<'_0, '_1, Vector, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 40:50-40:82 -/
+def
+  matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : matrix.lift_matrix_from_slice.closure.closure Vector K)
+  (tupled_args : Std.Usize) :
+  RustM ((Array hacspec_ml_kem.parameters.FieldElement 256#usize) ×
+    (matrix.lift_matrix_from_slice.closure.closure Vector K))
+  := do
+  let (s, i) := c
+  let i1 ← tupled_args * K
+  let i2 ← i1 + i
+  let pre ← Slice.index_usize s i2
+  let a ← matrix.lift_poly vectortraitsOperationsInst pre
+  ok (a, c)
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::closure<'_0, '_1, Vector, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 40:50-40:82 -/
+def
+  matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : matrix.lift_matrix_from_slice.closure.closure Vector K) (i : Std.Usize)
+  :
+  RustM (Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+  := do
+  let (a, _) ←
+    matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+      vectortraitsOperationsInst c i
+  ok a
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 40:50-40:82 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (matrix.lift_matrix_from_slice.closure.closure Vector K) Std.Usize (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  call_once :=
+    matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 40:50-40:82 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (matrix.lift_matrix_from_slice.closure.closure Vector K) Std.Usize (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  FnOnceInst :=
+    matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+    K vectortraitsOperationsInst
+  call_mut :=
+    matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::{impl core::ops::function::FnMut<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure<'_0, Vector, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 40:25-40:83 -/
+def
+  matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K.call_mut
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : matrix.lift_matrix_from_slice.closure Vector K)
+  (tupled_args : Std.Usize) :
+  RustM ((Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) ×
+    (matrix.lift_matrix_from_slice.closure Vector K))
+  := do
+  let a ←
+    core.array.from_fn K
+      (matrix.lift_matrix_from_slice.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+      K vectortraitsOperationsInst) (c, tupled_args)
+  ok (a, c)
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::{impl core::ops::function::FnOnce<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure<'_0, Vector, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 40:25-40:83 -/
+def
+  matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K.call_once
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : matrix.lift_matrix_from_slice.closure Vector K) (i : Std.Usize) :
+  RustM (Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K)
+  := do
+  let (a, _) ←
+    matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K.call_mut
+      vectortraitsOperationsInst c i
+  ok a
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::{impl core::ops::function::FnOnce<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure<'_0, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 40:25-40:83 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (matrix.lift_matrix_from_slice.closure Vector K) Std.Usize (Array (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) K) := {
+  call_once :=
+    matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::{impl core::ops::function::FnMut<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure<'_0, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 40:25-40:83 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (matrix.lift_matrix_from_slice.closure Vector K) Std.Usize (Array (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) K) := {
+  FnOnceInst :=
+    matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K
+    K vectortraitsOperationsInst
+  call_mut :=
+    matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice]:
+    Source: 'ml-kem/src/matrix.rs', lines 37:0-41:1 -/
+def matrix.lift_matrix_from_slice
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (slice : Slice (polynomial.PolynomialRingElement Vector)) :
+  RustM (Array (Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    K) K)
+  := do
+  core.array.from_fn K
+    (matrix.lift_matrix_from_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K
+    K vectortraitsOperationsInst) slice
+
+/-- [libcrux_iot_ml_kem::matrix::lift_vec_slice::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec_slice::closure<'_0, Vector, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 48:25-48:45 -/
+def
+  matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.lift_vec_slice.closure Vector K)
+  (tupled_args : Std.Usize) :
+  RustM ((Array hacspec_ml_kem.parameters.FieldElement 256#usize) ×
+    (matrix.lift_vec_slice.closure Vector K))
+  := do
+  let pre ← Slice.index_usize c tupled_args
+  let a ← matrix.lift_poly vectortraitsOperationsInst pre
+  ok (a, c)
+
+/-- [libcrux_iot_ml_kem::matrix::lift_vec_slice::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec_slice::closure<'_0, Vector, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 48:25-48:45 -/
+def
+  matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.lift_vec_slice.closure Vector K)
+  (i : Std.Usize) :
+  RustM (Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+  := do
+  let (a, _) ←
+    matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+      vectortraitsOperationsInst c i
+  ok a
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_vec_slice::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec_slice::closure<'_0, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 48:25-48:45 -/
+@[reducible]
+def
+  matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (matrix.lift_vec_slice.closure Vector K) Std.Usize (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  call_once :=
+    matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_vec_slice::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_vec_slice::closure<'_0, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 48:25-48:45 -/
+@[reducible]
+def
+  matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (matrix.lift_vec_slice.closure Vector K) Std.Usize (Array
+  hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  FnOnceInst :=
+    matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+    K vectortraitsOperationsInst
+  call_mut :=
+    matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::lift_vec_slice]:
+    Source: 'ml-kem/src/matrix.rs', lines 45:0-49:1 -/
+def matrix.lift_vec_slice
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (v : Slice (polynomial.PolynomialRingElement Vector)) :
+  RustM (Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K)
+  := do
+  core.array.from_fn K
+    (matrix.lift_vec_slice.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+    K vectortraitsOperationsInst) v
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::closure<'_0, '_1, Vector, Hasher, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 60:29-64:9 -/
+def
+  matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+  {Vector : Type} {Hasher : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher)
+  (c : matrix.lift_matrix_from_seed.closure.closure Vector Hasher K)
+  (tupled_args : Std.Usize) :
+  RustM ((Array hacspec_ml_kem.parameters.FieldElement 256#usize) ×
+    (matrix.lift_matrix_from_seed.closure.closure Vector Hasher K))
+  := do
+  let (s, i) := c
+  let entry ←
+    polynomial.PolynomialRingElement.ZERO vectortraitsOperationsInst
+  let entry1 ←
+    matrix.sample_matrix_entry vectortraitsOperationsInst hash_functionsHashInst entry s i tupled_args
+  let a ← matrix.lift_poly vectortraitsOperationsInst entry1
+  ok (a, c)
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::closure<'_0, '_1, Vector, Hasher, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 60:29-64:9 -/
+def
+  matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+  {Vector : Type} {Hasher : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher)
+  (c : matrix.lift_matrix_from_seed.closure.closure Vector Hasher K)
+  (i : Std.Usize) :
+  RustM (Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+  := do
+  let (a, _) ←
+    matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+      vectortraitsOperationsInst hash_functionsHashInst c i
+  ok a
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::{impl core::ops::function::FnOnce<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::closure<'_0, '_1, Vector, Hasher, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 60:29-64:9 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+  {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher) : core.ops.function.FnOnce
+  (matrix.lift_matrix_from_seed.closure.closure Vector Hasher K) Std.Usize
+  (Array hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  call_once :=
+    matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256.call_once
+    vectortraitsOperationsInst hash_functionsHashInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::{impl core::ops::function::FnMut<(usize,), [hacspec_ml_kem::parameters::FieldElement; 256usize]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::closure<'_0, '_1, Vector, Hasher, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 60:29-64:9 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+  {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher) : core.ops.function.FnMut
+  (matrix.lift_matrix_from_seed.closure.closure Vector Hasher K) Std.Usize
+  (Array hacspec_ml_kem.parameters.FieldElement 256#usize) := {
+  FnOnceInst :=
+    matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayFieldElement256
+    K vectortraitsOperationsInst hash_functionsHashInst
+  call_mut :=
+    matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut
+    vectortraitsOperationsInst hash_functionsHashInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::{impl core::ops::function::FnMut<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure<'_0, Vector, Hasher, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 59:25-65:5 -/
+def
+  matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K.call_mut
+  {Vector : Type} {Hasher : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher)
+  (c : matrix.lift_matrix_from_seed.closure Vector Hasher K)
+  (tupled_args : Std.Usize) :
+  RustM ((Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) ×
+    (matrix.lift_matrix_from_seed.closure Vector Hasher K))
+  := do
+  let a ←
+    core.array.from_fn K
+      (matrix.lift_matrix_from_seed.closure.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256
+      K vectortraitsOperationsInst hash_functionsHashInst) (c, tupled_args)
+  ok (a, c)
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::{impl core::ops::function::FnOnce<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure<'_0, Vector, Hasher, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 59:25-65:5 -/
+def
+  matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K.call_once
+  {Vector : Type} {Hasher : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher)
+  (c : matrix.lift_matrix_from_seed.closure Vector Hasher K) (i : Std.Usize) :
+  RustM (Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K)
+  := do
+  let (a, _) ←
+    matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K.call_mut
+      vectortraitsOperationsInst hash_functionsHashInst c i
+  ok a
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::{impl core::ops::function::FnOnce<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure<'_0, Vector, Hasher, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 59:25-65:5 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K
+  {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher) : core.ops.function.FnOnce
+  (matrix.lift_matrix_from_seed.closure Vector Hasher K) Std.Usize (Array
+  (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) := {
+  call_once :=
+    matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K.call_once
+    vectortraitsOperationsInst hash_functionsHashInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::{impl core::ops::function::FnMut<(usize,), [[hacspec_ml_kem::parameters::FieldElement; 256usize]; K]> for libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure<'_0, Vector, Hasher, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 59:25-65:5 -/
+@[reducible]
+def
+  matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K
+  {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher) : core.ops.function.FnMut
+  (matrix.lift_matrix_from_seed.closure Vector Hasher K) Std.Usize (Array
+  (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) := {
+  FnOnceInst :=
+    matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeArrayArrayFieldElement256K
+    K vectortraitsOperationsInst hash_functionsHashInst
+  call_mut :=
+    matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K.call_mut
+    vectortraitsOperationsInst hash_functionsHashInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed]:
+    Source: 'ml-kem/src/matrix.rs', lines 56:0-66:1 -/
+def matrix.lift_matrix_from_seed
+  {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (hash_functionsHashInst :
+  hash_functions.Hash Hasher) (seed : Slice Std.U8) :
+  RustM (Array (Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize)
+    K) K)
+  := do
+  core.array.from_fn K
+    (matrix.lift_matrix_from_seed.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayArrayFieldElement256K
+    K vectortraitsOperationsInst hash_functionsHashInst) seed
+
+/-- [libcrux_iot_ml_kem::matrix::lane_bnd]:
+    Source: 'ml-kem/src/matrix.rs', lines 71:0-73:1 -/
+def matrix.lane_bnd (x : Std.I16) (b : Std.I16) : RustM Bool := do
+  let i ← -. b
+  if i <= x
+  then ok (x <= b)
+  else ok false
+
+/-- [libcrux_iot_ml_kem::matrix::chunk_bnd]:
+    Source: 'ml-kem/src/matrix.rs', lines 78:0-96:1 -/
+def matrix.chunk_bnd
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (c : Vector) (b : Std.I16) :
+  RustM Bool
+  := do
+  let r ← vectortraitsOperationsInst.ReprInst.repr c
+  let i ← Array.index_usize r 0#usize
+  let b1 ← matrix.lane_bnd i b
+  if b1
+  then
+    let i1 ← Array.index_usize r 1#usize
+    let b2 ← matrix.lane_bnd i1 b
+    if b2
+    then
+      let i2 ← Array.index_usize r 2#usize
+      let b3 ← matrix.lane_bnd i2 b
+      if b3
+      then
+        let i3 ← Array.index_usize r 3#usize
+        let b4 ← matrix.lane_bnd i3 b
+        if b4
+        then
+          let i4 ← Array.index_usize r 4#usize
+          let b5 ← matrix.lane_bnd i4 b
+          if b5
+          then
+            let i5 ← Array.index_usize r 5#usize
+            let b6 ← matrix.lane_bnd i5 b
+            if b6
+            then
+              let i6 ← Array.index_usize r 6#usize
+              let b7 ← matrix.lane_bnd i6 b
+              if b7
+              then
+                let i7 ← Array.index_usize r 7#usize
+                let b8 ← matrix.lane_bnd i7 b
+                if b8
+                then
+                  let i8 ← Array.index_usize r 8#usize
+                  let b9 ← matrix.lane_bnd i8 b
+                  if b9
+                  then
+                    let i9 ← Array.index_usize r 9#usize
+                    let b10 ← matrix.lane_bnd i9 b
+                    if b10
+                    then
+                      let i10 ← Array.index_usize r 10#usize
+                      let b11 ← matrix.lane_bnd i10 b
+                      if b11
+                      then
+                        let i11 ← Array.index_usize r 11#usize
+                        let b12 ← matrix.lane_bnd i11 b
+                        if b12
+                        then
+                          let i12 ← Array.index_usize r 12#usize
+                          let b13 ← matrix.lane_bnd i12 b
+                          if b13
+                          then
+                            let i13 ← Array.index_usize r 13#usize
+                            let b14 ← matrix.lane_bnd i13 b
+                            if b14
+                            then
+                              let i14 ← Array.index_usize r 14#usize
+                              let b15 ← matrix.lane_bnd i14 b
+                              if b15
+                              then
+                                let i15 ← Array.index_usize r 15#usize
+                                matrix.lane_bnd i15 b
+                              else ok false
+                            else ok false
+                          else ok false
+                        else ok false
+                      else ok false
+                    else ok false
+                  else ok false
+                else ok false
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [libcrux_iot_ml_kem::matrix::poly_bnd]:
+    Source: 'ml-kem/src/matrix.rs', lines 100:0-117:1 -/
+def matrix.poly_bnd
+  {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) (re : polynomial.PolynomialRingElement Vector) (b : Std.I16) :
+  RustM Bool
+  := do
+  let t ← Array.index_usize re.coefficients 0#usize
+  let b1 ← matrix.chunk_bnd vectortraitsOperationsInst t b
+  if b1
+  then
+    let t1 ← Array.index_usize re.coefficients 1#usize
+    let b2 ← matrix.chunk_bnd vectortraitsOperationsInst t1 b
+    if b2
+    then
+      let t2 ← Array.index_usize re.coefficients 2#usize
+      let b3 ← matrix.chunk_bnd vectortraitsOperationsInst t2 b
+      if b3
+      then
+        let t3 ← Array.index_usize re.coefficients 3#usize
+        let b4 ← matrix.chunk_bnd vectortraitsOperationsInst t3 b
+        if b4
+        then
+          let t4 ← Array.index_usize re.coefficients 4#usize
+          let b5 ← matrix.chunk_bnd vectortraitsOperationsInst t4 b
+          if b5
+          then
+            let t5 ← Array.index_usize re.coefficients 5#usize
+            let b6 ← matrix.chunk_bnd vectortraitsOperationsInst t5 b
+            if b6
+            then
+              let t6 ← Array.index_usize re.coefficients 6#usize
+              let b7 ← matrix.chunk_bnd vectortraitsOperationsInst t6 b
+              if b7
+              then
+                let t7 ← Array.index_usize re.coefficients 7#usize
+                let b8 ← matrix.chunk_bnd vectortraitsOperationsInst t7 b
+                if b8
+                then
+                  let t8 ← Array.index_usize re.coefficients 8#usize
+                  let b9 ← matrix.chunk_bnd vectortraitsOperationsInst t8 b
+                  if b9
+                  then
+                    let t9 ← Array.index_usize re.coefficients 9#usize
+                    let b10 ←
+                      matrix.chunk_bnd vectortraitsOperationsInst t9 b
+                    if b10
+                    then
+                      let t10 ← Array.index_usize re.coefficients 10#usize
+                      let b11 ←
+                        matrix.chunk_bnd vectortraitsOperationsInst t10 b
+                      if b11
+                      then
+                        let t11 ← Array.index_usize re.coefficients 11#usize
+                        let b12 ←
+                          matrix.chunk_bnd vectortraitsOperationsInst t11 b
+                        if b12
+                        then
+                          let t12 ←
+                            Array.index_usize re.coefficients 12#usize
+                          let b13 ←
+                            matrix.chunk_bnd vectortraitsOperationsInst t12 b
+                          if b13
+                          then
+                            let t13 ←
+                              Array.index_usize re.coefficients 13#usize
+                            let b14 ←
+                              matrix.chunk_bnd vectortraitsOperationsInst t13 b
+                            if b14
+                            then
+                              let t14 ←
+                                Array.index_usize re.coefficients 14#usize
+                              let b15 ←
+                                matrix.chunk_bnd vectortraitsOperationsInst t14
+                                  b
+                              if b15
+                              then
+                                let t15 ←
+                                  Array.index_usize re.coefficients 15#usize
+                                matrix.chunk_bnd vectortraitsOperationsInst t15
+                                  b
+                              else ok false
+                            else ok false
+                          else ok false
+                        else ok false
+                      else ok false
+                    else ok false
+                  else ok false
+                else ok false
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [libcrux_iot_ml_kem::matrix::vec_bnd::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_bnd::closure<'_0, '_1, Vector, K>}::call]:
+    Source: 'ml-kem/src/matrix.rs', lines 130:20-136:5 -/
+def matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.vec_bnd.closure Vector K)
+  (tupled_args : Std.Usize) :
+  RustM Bool
+  := do
+  let (a, i) := c
+  if tupled_args < K
+  then
+    let pre ← Array.index_usize a tupled_args
+    matrix.poly_bnd vectortraitsOperationsInst pre i
+  else ok true
+
+/-- [libcrux_iot_ml_kem::matrix::vec_bnd::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_bnd::closure<'_0, '_1, Vector, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 130:20-136:5 -/
+def matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (state : matrix.vec_bnd.closure Vector K)
+  (args : Std.Usize) :
+  RustM (Bool × (matrix.vec_bnd.closure Vector K))
+  := do
+  let b ←
+    matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+      vectortraitsOperationsInst state args
+  ok (b, state)
+
+/-- [libcrux_iot_ml_kem::matrix::vec_bnd::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_bnd::closure<'_0, '_1, Vector, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 130:20-136:5 -/
+def matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.vec_bnd.closure Vector K)
+  (i : Std.Usize) :
+  RustM Bool
+  := do
+  let (b, _) ←
+    matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+      vectortraitsOperationsInst c i
+  ok b
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::vec_bnd::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 130:20-136:5 -/
+@[reducible]
+def matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool {Vector :
+  Type} (K : Std.Usize) (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) : core.ops.function.FnOnce (matrix.vec_bnd.closure Vector K)
+  Std.Usize Bool := {
+  call_once :=
+    matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::vec_bnd::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 130:20-136:5 -/
+@[reducible]
+def matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool {Vector :
+  Type} (K : Std.Usize) (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) : core.ops.function.FnMut (matrix.vec_bnd.closure Vector K) Std.Usize
+  Bool := {
+  FnOnceInst :=
+    matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool K
+    vectortraitsOperationsInst
+  call_mut :=
+    matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::vec_bnd::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 130:20-136:5 -/
+@[reducible]
+def matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool {Vector :
+  Type} (K : Std.Usize) (vectortraitsOperationsInst : vector.traits.Operations
+  Vector) : core.ops.function.Fn (matrix.vec_bnd.closure Vector K) Std.Usize
+  Bool := {
+  FnMutInst := matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+    K vectortraitsOperationsInst
+  call := matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::vec_bnd]:
+    Source: 'ml-kem/src/matrix.rs', lines 126:0-137:1 -/
+def matrix.vec_bnd
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (v : Array (polynomial.PolynomialRingElement Vector) K) (b : Std.I16) :
+  RustM hax_lib.prop.Prop
+  := do
+  hax_lib.prop.forall (core.convert.Into.Blanket
+    hax_lib.prop.Prop.Insts.CoreConvertFromBool)
+    (matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool K
+    vectortraitsOperationsInst) (v, b)
+
+/-- [libcrux_iot_ml_kem::matrix::vec_slice_bnd::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_slice_bnd::closure<'_0, '_1, Vector, K>}::call]:
+    Source: 'ml-kem/src/matrix.rs', lines 146:20-152:5 -/
+def matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.vec_slice_bnd.closure Vector K)
+  (tupled_args : Std.Usize) :
+  RustM Bool
+  := do
+  let (s, i) := c
+  if tupled_args < K
+  then
+    let pre ← Slice.index_usize s tupled_args
+    matrix.poly_bnd vectortraitsOperationsInst pre i
+  else ok true
+
+/-- [libcrux_iot_ml_kem::matrix::vec_slice_bnd::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_slice_bnd::closure<'_0, '_1, Vector, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 146:20-152:5 -/
+def
+  matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (state : matrix.vec_slice_bnd.closure Vector K) (args : Std.Usize) :
+  RustM (Bool × (matrix.vec_slice_bnd.closure Vector K))
+  := do
+  let b ←
+    matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+      vectortraitsOperationsInst state args
+  ok (b, state)
+
+/-- [libcrux_iot_ml_kem::matrix::vec_slice_bnd::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_slice_bnd::closure<'_0, '_1, Vector, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 146:20-152:5 -/
+def
+  matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) (c : matrix.vec_slice_bnd.closure Vector K)
+  (i : Std.Usize) :
+  RustM Bool
+  := do
+  let (b, _) ←
+    matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+      vectortraitsOperationsInst c i
+  ok b
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::vec_slice_bnd::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_slice_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 146:20-152:5 -/
+@[reducible]
+def matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (matrix.vec_slice_bnd.closure Vector K) Std.Usize Bool := {
+  call_once :=
+    matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::vec_slice_bnd::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_slice_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 146:20-152:5 -/
+@[reducible]
+def matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (matrix.vec_slice_bnd.closure Vector K) Std.Usize Bool := {
+  FnOnceInst :=
+    matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool K
+    vectortraitsOperationsInst
+  call_mut :=
+    matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::vec_slice_bnd::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::vec_slice_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 146:20-152:5 -/
+@[reducible]
+def matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool {Vector
+  : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.Fn
+  (matrix.vec_slice_bnd.closure Vector K) Std.Usize Bool := {
+  FnMutInst :=
+    matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool K
+    vectortraitsOperationsInst
+  call :=
+    matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::vec_slice_bnd]:
+    Source: 'ml-kem/src/matrix.rs', lines 142:0-153:1 -/
+def matrix.vec_slice_bnd
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (v : Slice (polynomial.PolynomialRingElement Vector)) (b : Std.I16) :
+  RustM hax_lib.prop.Prop
+  := do
+  hax_lib.prop.forall (core.convert.Into.Blanket
+    hax_lib.prop.Prop.Insts.CoreConvertFromBool)
+    (matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool K
+    vectortraitsOperationsInst) (v, b)
+
+/-- [libcrux_iot_ml_kem::matrix::matrix_slice_bnd::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::matrix_slice_bnd::closure<'_0, '_1, Vector, K>}::call]:
+    Source: 'ml-kem/src/matrix.rs', lines 162:20-168:5 -/
+def matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : matrix.matrix_slice_bnd.closure Vector K) (tupled_args : Std.Usize) :
+  RustM Bool
+  := do
+  let (s, i) := c
+  let i1 ← K * K
+  if tupled_args < i1
+  then
+    let pre ← Slice.index_usize s tupled_args
+    matrix.poly_bnd vectortraitsOperationsInst pre i
+  else ok true
+
+/-- [libcrux_iot_ml_kem::matrix::matrix_slice_bnd::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::matrix_slice_bnd::closure<'_0, '_1, Vector, K>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 162:20-168:5 -/
+def
+  matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (state : matrix.matrix_slice_bnd.closure Vector K) (args : Std.Usize) :
+  RustM (Bool × (matrix.matrix_slice_bnd.closure Vector K))
+  := do
+  let b ←
+    matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+      vectortraitsOperationsInst state args
+  ok (b, state)
+
+/-- [libcrux_iot_ml_kem::matrix::matrix_slice_bnd::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::matrix_slice_bnd::closure<'_0, '_1, Vector, K>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 162:20-168:5 -/
+def
+  matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+  {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (c : matrix.matrix_slice_bnd.closure Vector K) (i : Std.Usize) :
+  RustM Bool
+  := do
+  let (b, _) ←
+    matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+      vectortraitsOperationsInst c i
+  ok b
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::matrix_slice_bnd::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::matrix_slice_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 162:20-168:5 -/
+@[reducible]
+def matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnOnce
+  (matrix.matrix_slice_bnd.closure Vector K) Std.Usize Bool := {
+  call_once :=
+    matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::matrix_slice_bnd::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::matrix_slice_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 162:20-168:5 -/
+@[reducible]
+def matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.FnMut
+  (matrix.matrix_slice_bnd.closure Vector K) Std.Usize Bool := {
+  FnOnceInst :=
+    matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool K
+    vectortraitsOperationsInst
+  call_mut :=
+    matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+    vectortraitsOperationsInst
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::matrix_slice_bnd::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::matrix_slice_bnd::closure<'_0, '_1, Vector, K>}]
+    Source: 'ml-kem/src/matrix.rs', lines 162:20-168:5 -/
+@[reducible]
+def matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector) : core.ops.function.Fn
+  (matrix.matrix_slice_bnd.closure Vector K) Std.Usize Bool := {
+  FnMutInst :=
+    matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool K
+    vectortraitsOperationsInst
+  call :=
+    matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+    vectortraitsOperationsInst
+}
+
+/-- [libcrux_iot_ml_kem::matrix::matrix_slice_bnd]:
+    Source: 'ml-kem/src/matrix.rs', lines 158:0-169:1 -/
+def matrix.matrix_slice_bnd
+  {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
+  vector.traits.Operations Vector)
+  (slice : Slice (polynomial.PolynomialRingElement Vector)) (b : Std.I16) :
+  RustM hax_lib.prop.Prop
+  := do
+  hax_lib.prop.forall (core.convert.Into.Blanket
+    hax_lib.prop.Prop.Insts.CoreConvertFromBool)
+    (matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool K
+    vectortraitsOperationsInst) (slice, b)
+
+/-- [libcrux_iot_ml_kem::matrix::acc_zero::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::acc_zero::closure<'_0>}::call]:
+    Source: 'ml-kem/src/matrix.rs', lines 175:20-181:5 -/
+def matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+  (c : matrix.acc_zero.closure) (tupled_args : Std.Usize) : RustM Bool := do
+  if tupled_args < 256#usize
+  then
+    let i ← Array.index_usize c tupled_args
+    let i1 ← libcrux_secrets.traits.Declassify.Blanket.declassify i
+    ok (i1 = 0#i32)
+  else ok true
+
+/-- [libcrux_iot_ml_kem::matrix::acc_zero::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::acc_zero::closure<'_0>}::call_mut]:
+    Source: 'ml-kem/src/matrix.rs', lines 175:20-181:5 -/
+def matrix.acc_zero.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+  (state : matrix.acc_zero.closure) (args : Std.Usize) :
+  RustM (Bool × matrix.acc_zero.closure)
+  := do
+  let b ←
+    matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call state
+      args
+  ok (b, state)
+
+/-- [libcrux_iot_ml_kem::matrix::acc_zero::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::acc_zero::closure<'_0>}::call_once]:
+    Source: 'ml-kem/src/matrix.rs', lines 175:20-181:5 -/
+def matrix.acc_zero.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+  (c : matrix.acc_zero.closure) (i : Std.Usize) : RustM Bool := do
+  let (b, _) ←
+    matrix.acc_zero.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut c
+      i
+  ok b
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::acc_zero::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::acc_zero::closure<'_0>}]
+    Source: 'ml-kem/src/matrix.rs', lines 175:20-181:5 -/
+@[reducible]
+def matrix.acc_zero.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool :
+  core.ops.function.FnOnce matrix.acc_zero.closure Std.Usize Bool := {
+  call_once :=
+    matrix.acc_zero.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::acc_zero::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_ml_kem::matrix::acc_zero::closure<'_0>}]
+    Source: 'ml-kem/src/matrix.rs', lines 175:20-181:5 -/
+@[reducible]
+def matrix.acc_zero.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool :
+  core.ops.function.FnMut matrix.acc_zero.closure Std.Usize Bool := {
+  FnOnceInst :=
+    matrix.acc_zero.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
+  call_mut :=
+    matrix.acc_zero.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
+}
+
+/-- Trait implementation: [libcrux_iot_ml_kem::matrix::acc_zero::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_ml_kem::matrix::acc_zero::closure<'_0>}]
+    Source: 'ml-kem/src/matrix.rs', lines 175:20-181:5 -/
+@[reducible]
+def matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool :
+  core.ops.function.Fn matrix.acc_zero.closure Std.Usize Bool := {
+  FnMutInst := matrix.acc_zero.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
+  call := matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
+}
+
+/-- [libcrux_iot_ml_kem::matrix::acc_zero]:
+    Source: 'ml-kem/src/matrix.rs', lines 174:0-182:1 -/
+def matrix.acc_zero
+  (accumulator : Array Std.I32 256#usize) : RustM hax_lib.prop.Prop := do
+  hax_lib.prop.forall (core.convert.Into.Blanket
+    hax_lib.prop.Prop.Insts.CoreConvertFromBool)
+    matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool accumulator
+
 /-- [libcrux_iot_ml_kem::matrix::entry]:
-    Source: 'ml-kem/src/matrix.rs', lines 10:0-22:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 191:0-203:1 -/
 def matrix.entry
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
@@ -3455,7 +4502,7 @@ def polynomial.PolynomialRingElement.add_error_reduce
     vectortraitsOperationsInst { start := 0#usize, «end» := i } self error
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::compute_vector_u::closure#2<'_0, '_1, Vector, Hasher, K>}::call_once]:
-    Source: 'ml-kem/src/matrix.rs', lines 182:37-182:85 -/
+    Source: 'ml-kem/src/matrix.rs', lines 379:37-379:85 -/
 def
   matrix.compute_vector_u.closure_2.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
   {Vector : Type} {Hasher : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3473,7 +4520,7 @@ def
   else ok false
 
 /-- Trait implementation: [libcrux_iot_ml_kem::matrix::compute_vector_u::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::compute_vector_u::closure#2<'_0, '_1, Vector, Hasher, K>}]
-    Source: 'ml-kem/src/matrix.rs', lines 182:37-182:85 -/
+    Source: 'ml-kem/src/matrix.rs', lines 379:37-379:85 -/
 @[reducible]
 def matrix.compute_vector_u.closure_2.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3486,7 +4533,7 @@ def matrix.compute_vector_u.closure_2.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
 }
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::compute_vector_u::closure#1<'_0, '_1, Vector, Hasher, K>}::call_once]:
-    Source: 'ml-kem/src/matrix.rs', lines 178:33-178:81 -/
+    Source: 'ml-kem/src/matrix.rs', lines 375:33-375:81 -/
 def
   matrix.compute_vector_u.closure_1.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
   {Vector : Type} {Hasher : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3504,7 +4551,7 @@ def
   else ok false
 
 /-- Trait implementation: [libcrux_iot_ml_kem::matrix::compute_vector_u::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::compute_vector_u::closure#1<'_0, '_1, Vector, Hasher, K>}]
-    Source: 'ml-kem/src/matrix.rs', lines 178:33-178:81 -/
+    Source: 'ml-kem/src/matrix.rs', lines 375:33-375:81 -/
 @[reducible]
 def matrix.compute_vector_u.closure_1.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3517,7 +4564,7 @@ def matrix.compute_vector_u.closure_1.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
 }
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::compute_vector_u::closure<'_0, '_1, Vector, Hasher, K>}::call_once]:
-    Source: 'ml-kem/src/matrix.rs', lines 168:33-168:81 -/
+    Source: 'ml-kem/src/matrix.rs', lines 365:33-365:81 -/
 def
   matrix.compute_vector_u.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
   {Vector : Type} {Hasher : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3535,7 +4582,7 @@ def
   else ok false
 
 /-- Trait implementation: [libcrux_iot_ml_kem::matrix::compute_vector_u::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_ml_kem::matrix::compute_vector_u::closure<'_0, '_1, Vector, Hasher, K>}]
-    Source: 'ml-kem/src/matrix.rs', lines 168:33-168:81 -/
+    Source: 'ml-kem/src/matrix.rs', lines 365:33-365:81 -/
 @[reducible]
 def matrix.compute_vector_u.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3548,7 +4595,7 @@ def matrix.compute_vector_u.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
 }
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop body 0:
-    Source: 'ml-kem/src/matrix.rs', lines 166:4-171:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 363:4-368:5 -/
 @[rust_loop_body]
 def matrix.compute_vector_u_loop0.body
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3584,7 +4631,7 @@ def matrix.compute_vector_u_loop0.body
     ok (cont (iter1, matrix_entry1, s, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop 0:
-    Source: 'ml-kem/src/matrix.rs', lines 166:4-171:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 363:4-368:5 -/
 @[rust_loop]
 def matrix.compute_vector_u_loop0
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3606,7 +4653,7 @@ def matrix.compute_vector_u_loop0
     (iter, matrix_entry, cache, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop body 2:
-    Source: 'ml-kem/src/matrix.rs', lines 180:8-185:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 377:8-382:9 -/
 @[rust_loop_body]
 def matrix.compute_vector_u_loop1_loop0.body
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3639,7 +4686,7 @@ def matrix.compute_vector_u_loop1_loop0.body
     ok (cont (iter1, matrix_entry1, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop 2:
-    Source: 'ml-kem/src/matrix.rs', lines 180:8-185:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 377:8-382:9 -/
 @[rust_loop]
 def matrix.compute_vector_u_loop1_loop0
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3661,7 +4708,7 @@ def matrix.compute_vector_u_loop1_loop0
     (iter, matrix_entry, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop body 1:
-    Source: 'ml-kem/src/matrix.rs', lines 176:4-190:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 373:4-387:5 -/
 @[rust_loop_body]
 def matrix.compute_vector_u_loop1.body
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3713,7 +4760,7 @@ def matrix.compute_vector_u_loop1.body
     ok (cont (iter1, matrix_entry1, s1, scratch1, accumulator2))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop 1:
-    Source: 'ml-kem/src/matrix.rs', lines 176:4-190:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 373:4-387:5 -/
 @[rust_loop]
 def matrix.compute_vector_u_loop1
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -3738,7 +4785,7 @@ def matrix.compute_vector_u_loop1
     (iter, matrix_entry, result, scratch, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]:
-    Source: 'ml-kem/src/matrix.rs', lines 150:0-191:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 347:0-388:1 -/
 def matrix.compute_vector_u
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (hash_functionsHashInst :
@@ -3861,7 +4908,7 @@ def polynomial.PolynomialRingElement.add_standard_error_reduce
     vectortraitsOperationsInst { start := 0#usize, «end» := i } self error
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop body 0:
-    Source: 'ml-kem/src/matrix.rs', lines 207:4-213:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 418:4-424:5 -/
 @[rust_loop_body]
 def matrix.compute_As_plus_e_loop0.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3892,7 +4939,7 @@ def matrix.compute_As_plus_e_loop0.body
     ok (cont (iter1, a, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop 0:
-    Source: 'ml-kem/src/matrix.rs', lines 207:4-213:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 418:4-424:5 -/
 @[rust_loop]
 def matrix.compute_As_plus_e_loop0
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3910,7 +4957,7 @@ def matrix.compute_As_plus_e_loop0
     (iter, s_cache, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop body 2:
-    Source: 'ml-kem/src/matrix.rs', lines 221:8-227:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 432:8-438:9 -/
 @[rust_loop_body]
 def matrix.compute_As_plus_e_loop1_loop0.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3938,7 +4985,7 @@ def matrix.compute_As_plus_e_loop1_loop0.body
     ok (cont (iter1, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop 2:
-    Source: 'ml-kem/src/matrix.rs', lines 221:8-227:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 432:8-438:9 -/
 @[rust_loop]
 def matrix.compute_As_plus_e_loop1_loop0
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -3956,7 +5003,7 @@ def matrix.compute_As_plus_e_loop1_loop0
     (iter, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop body 1:
-    Source: 'ml-kem/src/matrix.rs', lines 219:4-231:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 430:4-442:5 -/
 @[rust_loop_body]
 def matrix.compute_As_plus_e_loop1.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4000,7 +5047,7 @@ def matrix.compute_As_plus_e_loop1.body
     ok (cont (iter1, a, accumulator2))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop 1:
-    Source: 'ml-kem/src/matrix.rs', lines 219:4-231:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 430:4-442:5 -/
 @[rust_loop]
 def matrix.compute_As_plus_e_loop1
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4021,7 +5068,7 @@ def matrix.compute_As_plus_e_loop1
     (iter, t_as_ntt, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]:
-    Source: 'ml-kem/src/matrix.rs', lines 197:0-232:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 408:0-443:1 -/
 def matrix.compute_As_plus_e
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
   vector.traits.Operations Vector)

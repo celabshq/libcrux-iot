@@ -26,7 +26,7 @@ set_option maxRecDepth 2048
 open libcrux_iot_ml_kem
 
 /-- [libcrux_iot_ml_kem::matrix::sample_matrix_entry]:
-    Source: 'ml-kem/src/matrix.rs', lines 26:0-43:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 207:0-224:1 -/
 axiom matrix.sample_matrix_entry
   {Vector : Type} {Hasher : Type} (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (hash_functionsHashInst :
@@ -35,7 +35,7 @@ axiom matrix.sample_matrix_entry
     Std.Usize → RustM (polynomial.PolynomialRingElement Vector)
 
 /-- [libcrux_iot_ml_kem::matrix::sample_matrix_A]:
-    Source: 'ml-kem/src/matrix.rs', lines 49:0-83:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 230:0-264:1 -/
 axiom matrix.sample_matrix_A
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (hash_functionsHashInst :

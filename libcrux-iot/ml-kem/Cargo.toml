@@ -31,6 +31,12 @@ libcrux-iot-sha3 = { path = "../sha3", features = [
     "unbuffered-xof",
 ] }
 hax-lib.workspace = true
+# NORMAL (not dev-) dependency: the matrix top-level `#[ensures]` name
+# `hacspec_ml_kem::matrix::*` directly, so the hacspec must be in scope for
+# the hax build. Pinned to the specs/ml-kem whose hax-lib matches
+# libcrux-iot (rc.2); a mismatch makes charon emit `hax_lib_1`. NOT YET
+# PUSHED to celabshq/libcrux -- local-path form here; git form for commits.
+hacspec_ml_kem = { git = "https://github.com/celabshq/libcrux", rev = "ee9bfe56e4dfe532c52573425a5d4a187ed326ca" }
 libcrux-secrets.workspace = true
 libcrux-traits = { version = "0.0.7", features = ["generic-tests"] }
 tls_codec = { version = "0.4.2", features = [
@@ -82,7 +88,6 @@ libcrux-kats = { workspace = true, features = ["mlkem"] }
 # proofs/lean/lakefile.toml, so the Rust cross-spec tests and the Lean proofs
 # check against one single spec revision. These used to disagree: this was
 # cryspen/libcrux@a4cfb1eb while the lakefile was celabshq/libcrux@718a6011.
-hacspec_ml_kem = { git = "https://github.com/celabshq/libcrux", rev = "718a601178c06afa6b4b10d143819da38df8770f" }
 proptest = "1"
 
 [[test]]

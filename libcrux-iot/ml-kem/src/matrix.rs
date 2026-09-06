@@ -1,4 +1,185 @@
-use libcrux_secrets::{Classify as _, ClassifyRef as _, I32};
+use libcrux_secrets::{Classify as _, ClassifyRef as _, Declassify as _, I32};
+
+// ============================================================================
+// Spec-only impl->spec LIFTS + bound predicates for the four matrix top-level
+// theorems (README §L7). Mirror the Lean `Spec/Lift.lean` lifts exactly: the
+// impl stores Montgomery/16x16-chunked `i16` lanes, the spec uses canonical
+// `FieldElement = u16` in a flat `[_; 256]`. `Repr::repr` is the spec-only pure
+// lane reader (16 lanes per SIMD chunk); `FieldElement::from_i16` is the
+// canonical-residue constructor (== the Lean `lift_fe`/`feOfZMod` composite).
+// ============================================================================
+
+/// Lift one ring element to a hacspec `Polynomial` (`[FieldElement; 256]`),
+/// PLAIN domain (`lift_fe`, no Montgomery factor): lane `j` reads SIMD chunk
+/// `j/16`, lane `j%16`, then canonicalises with `from_i16`.
+#[cfg(hax)]
+pub(crate) fn lift_poly<Vector: Operations>(
+    re: &PolynomialRingElement<Vector>,
+) -> hacspec_ml_kem::parameters::Polynomial {
+    core::array::from_fn(|j| {
+        hacspec_ml_kem::parameters::FieldElement::from_i16(
+            Vector::repr(&re.coefficients[j / 16])[j % 16],
+        )
+    })
+}
+
+/// Lift a length-`K` vector of ring elements (`lift_vec`).
+#[cfg(hax)]
+pub(crate) fn lift_vec<Vector: Operations, const K: usize>(
+    v: &[PolynomialRingElement<Vector>; K],
+) -> hacspec_ml_kem::parameters::Vector<K> {
+    core::array::from_fn(|i| lift_poly(&v[i]))
+}
+
+/// Lift a flat `K*K` slice of ring elements into a `K×K` spec matrix.
+/// Mirrors `Spec.Lift.lift_matrix_from_slice`: entry `[j][i] = lift_poly(slice[i*K + j])`.
+#[cfg(hax)]
+pub(crate) fn lift_matrix_from_slice<Vector: Operations, const K: usize>(
+    slice: &[PolynomialRingElement<Vector>],
+) -> hacspec_ml_kem::parameters::Matrix<K> {
+    core::array::from_fn(|j| core::array::from_fn(|i| lift_poly(&slice[i * K + j])))
+}
+
+/// Lift a slice of ring elements (`lift_vec_slice`, the `Slice` analogue of `lift_vec`).
+#[cfg(hax)]
+pub(crate) fn lift_vec_slice<Vector: Operations, const K: usize>(
+    v: &[PolynomialRingElement<Vector>],
+) -> hacspec_ml_kem::parameters::Vector<K> {
+    core::array::from_fn(|i| lift_poly(&v[i]))
+}
+
+/// Lift the matrix sampled on-the-fly from `seed` (spec-only): entry `[i][j]` is
+/// `lift_poly(sample_matrix_entry(seed, i, j))`. This is the Rust witness for the
+/// opaque `Spec.sample_matrix_A_pure`; the bridge to it is the A1 sampling axiom,
+/// applied entry-by-entry.
+#[cfg(hax)]
+pub(crate) fn lift_matrix_from_seed<Vector: Operations, Hasher: crate::hash_functions::Hash, const K: usize>(
+    seed: &[u8],
+) -> hacspec_ml_kem::parameters::Matrix<K> {
+    core::array::from_fn(|i| {
+        core::array::from_fn(|j| {
+            let mut entry = PolynomialRingElement::<Vector>::ZERO();
+            sample_matrix_entry::<Vector, Hasher>(&mut entry, seed, i, j);
+            lift_poly(&entry)
+        })
+    })
+}
+
+/// One lane's centred bound (ordinary fn: the `&&` here is fine, unlike inside a
+/// `Prop` quantifier closure).
+#[cfg(hax)]
+fn lane_bnd(x: i16, b: i16) -> bool {
+    -b <= x && x <= b
+}
+
+/// All 16 lanes of one SIMD chunk are bounded (unrolled, as `ntt.rs`'s
+/// `elements_abs_le` -- through `repr()` since `Vector` is generic).
+#[cfg(hax)]
+fn chunk_bnd<Vector: Operations>(c: &Vector, b: i16) -> bool {
+    let r = Vector::repr(c);
+    lane_bnd(r[0], b)
+        && lane_bnd(r[1], b)
+        && lane_bnd(r[2], b)
+        && lane_bnd(r[3], b)
+        && lane_bnd(r[4], b)
+        && lane_bnd(r[5], b)
+        && lane_bnd(r[6], b)
+        && lane_bnd(r[7], b)
+        && lane_bnd(r[8], b)
+        && lane_bnd(r[9], b)
+        && lane_bnd(r[10], b)
+        && lane_bnd(r[11], b)
+        && lane_bnd(r[12], b)
+        && lane_bnd(r[13], b)
+        && lane_bnd(r[14], b)
+        && lane_bnd(r[15], b)
+}
+
+/// All 256 lanes of one ring element are bounded (16 chunks, unrolled).
+#[cfg(hax)]
+pub(crate) fn poly_bnd<Vector: Operations>(re: &PolynomialRingElement<Vector>, b: i16) -> bool {
+    chunk_bnd(&re.coefficients[0], b)
+        && chunk_bnd(&re.coefficients[1], b)
+        && chunk_bnd(&re.coefficients[2], b)
+        && chunk_bnd(&re.coefficients[3], b)
+        && chunk_bnd(&re.coefficients[4], b)
+        && chunk_bnd(&re.coefficients[5], b)
+        && chunk_bnd(&re.coefficients[6], b)
+        && chunk_bnd(&re.coefficients[7], b)
+        && chunk_bnd(&re.coefficients[8], b)
+        && chunk_bnd(&re.coefficients[9], b)
+        && chunk_bnd(&re.coefficients[10], b)
+        && chunk_bnd(&re.coefficients[11], b)
+        && chunk_bnd(&re.coefficients[12], b)
+        && chunk_bnd(&re.coefficients[13], b)
+        && chunk_bnd(&re.coefficients[14], b)
+        && chunk_bnd(&re.coefficients[15], b)
+}
+
+/// Every ring element of a length-`K` vector is bounded. `K` is a const generic
+/// (2/3/4), so this dimension CANNOT be unrolled -- it uses `forall` with an
+/// `if k < K { .. } else { true }` body. The `if` keeps the index `v[k]` inside
+/// the taken branch, so out-of-range `k` takes `else` and the quantifier is the
+/// intended `forall k < K` rather than a vacuous one (the `forall(|k| implies(k
+/// < K, ..))` form indexes eagerly and is unsatisfiable).
+#[cfg(hax)]
+pub(crate) fn vec_bnd<Vector: Operations, const K: usize>(
+    v: &[PolynomialRingElement<Vector>; K],
+    b: i16,
+) -> hax_lib::prop::Prop {
+    hax_lib::forall(|k: usize| {
+        if k < K {
+            poly_bnd(&v[k], b)
+        } else {
+            true
+        }
+    })
+}
+
+/// Every ring element of a length-`K` slice is bounded (`Slice` analogue of
+/// `vec_bnd`, for `compute_vector_u`'s `r`/`error_1` slice arguments).
+#[cfg(hax)]
+pub(crate) fn vec_slice_bnd<Vector: Operations, const K: usize>(
+    v: &[PolynomialRingElement<Vector>],
+    b: i16,
+) -> hax_lib::prop::Prop {
+    hax_lib::forall(|k: usize| {
+        if k < K {
+            poly_bnd(&v[k], b)
+        } else {
+            true
+        }
+    })
+}
+
+/// Every ring element of a flat `K*K` matrix slice is bounded (the `matrix_A`
+/// dimension of `compute_As_plus_e`). `forall` + `if k < K*K` like `vec_bnd`.
+#[cfg(hax)]
+pub(crate) fn matrix_slice_bnd<Vector: Operations, const K: usize>(
+    slice: &[PolynomialRingElement<Vector>],
+    b: i16,
+) -> hax_lib::prop::Prop {
+    hax_lib::forall(|k: usize| {
+        if k < K * K {
+            poly_bnd(&slice[k], b)
+        } else {
+            true
+        }
+    })
+}
+
+/// The `accumulator` scratch is all-zero on entry. `declassify()` is fine here:
+/// `#[requires]` is an identity macro outside `cfg(hax)`, so nothing leaks.
+#[cfg(hax)]
+pub(crate) fn acc_zero(accumulator: &[I32; 256]) -> hax_lib::prop::Prop {
+    hax_lib::forall(|n: usize| {
+        if n < 256 {
+            accumulator[n].declassify() == 0
+        } else {
+            true
+        }
+    })
+}
 
 use crate::{
     constants::BYTES_PER_RING_ELEMENT, hash_functions::Hash, helper::cloop,
@@ -87,6 +268,18 @@ pub(crate) fn sample_matrix_A<const K: usize, Vector: Operations, Hasher: Hash>(
 /// abstracted away into these functions in order to save on loop iterations.
 
 /// Compute v − InverseNTT(sᵀ ◦ NTT(u))
+// Top-level FC (README L7.4, axiom-clean) stated at the Rust level: impl
+// `compute_message`, lifted, equals the hacspec `compute_message`. Pre = the
+// FC theorem's per-lane bounds (secret ≤ 4095, u ≤ 3328, v ≤ 3328) and K ≤ 4.
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(K <= 4)
+        .and(vec_bnd(secret_as_ntt, 4095))
+        .and(vec_bnd(u_as_ntt, 3328))
+        .and(poly_bnd(v, 3328))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_kem::matrix::compute_message(
+        &lift_poly(v), &lift_vec(secret_as_ntt), &lift_vec(u_as_ntt))
+        == lift_poly(future(result))))]
 #[inline(always)]
 pub(crate) fn compute_message<const K: usize, Vector: Operations>(
     v: &PolynomialRingElement<Vector>,
@@ -134,18 +327,22 @@ pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
 }
 
 /// Compute u := InvertNTT(Aᵀ ◦ r̂) + e₁
-#[hax_lib::requires(
-    seed.len() == 32 &&
-    r_as_ntt.len() == K &&
-    error_1.len() == K &&
-    result.len() == K &&
-    cache.len() == K &&
-    K > 0
-)]
-#[hax_lib::ensures(|_|
-    future(result).len() == result.len() &&
-    future(cache).len() == cache.len()
-)]
+// Top-level FC (README L7.2, encrypt): impl `compute_vector_u`, lifted, equals the
+// hacspec `compute_vector_u` on the seed-sampled matrix. Rests on A1 (sampling leaf).
+// Pre = the FC theorem's lengths, `0 < K ≤ 4`, and the bounds `|r| ≤ 3328`,
+// `|error_1| ≤ 29439`.
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(
+        seed.len() == 32 && r_as_ntt.len() == K && error_1.len() == K
+        && result.len() == K && cache.len() == K && K > 0 && K <= 4)
+        .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
+        .and(vec_slice_bnd::<Vector, K>(error_1, 29439))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_kem::matrix::compute_vector_u::<K>(
+        &lift_matrix_from_seed::<Vector, Hasher, K>(seed),
+        &lift_vec_slice::<Vector, K>(r_as_ntt),
+        &lift_vec_slice::<Vector, K>(error_1))
+        == lift_vec_slice::<Vector, K>(future(result))))]
 #[inline(always)]
 pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>(
     matrix_entry: &mut PolynomialRingElement<Vector>,
@@ -191,7 +388,21 @@ pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>
 }
 
 /// Compute Â ◦ ŝ + ê
-#[hax_lib::requires(K > 0 && K <= 4 && matrix_A.len() == K * K)]
+// Top-level FC (README L7.1, keygen, axiom-clean) at the Rust level: impl
+// `compute_As_plus_e`, lifted, equals the hacspec `compute_As_plus_e`. Pre = the
+// FC theorem's bounds (matrix_A ≤ 3328, s ≤ 3328, error ≤ 29439), a zeroed
+// accumulator, and 0 < K ≤ 4 with matrix_A a K×K slice.
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(K > 0 && K <= 4 && matrix_A.len() == K * K)
+        .and(matrix_slice_bnd::<Vector, K>(matrix_A, 3328))
+        .and(vec_bnd(s_as_ntt, 3328))
+        .and(vec_bnd(error_as_ntt, 29439))
+        .and(acc_zero(accumulator))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_kem::matrix::compute_As_plus_e::<K>(
+        &lift_matrix_from_slice::<Vector, K>(matrix_A),
+        &lift_vec(s_as_ntt), &lift_vec(error_as_ntt))
+        == lift_vec(future(t_as_ntt))))]
 #[inline(always)]
 #[allow(non_snake_case)]
 pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
