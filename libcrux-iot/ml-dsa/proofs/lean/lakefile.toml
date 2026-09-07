@@ -4,7 +4,10 @@ defaultTargets = ["LibcruxIotMlDsa"]
 
 [[lean_lib]]
 name = "LibcruxIotMlDsa"
-globs = ["LibcruxIotMlDsa", "LibcruxIotMlDsa.+"]
+# No module glob: the library is driven by the `LibcruxIotMlDsa` root module's
+# import tree, so the generated `Extraction/ProofObligations.lean` (sorry bodies,
+# @[spec]-tagged, imported by nothing) stays on disk but OUT of the build.
+globs = ["LibcruxIotMlDsa"]
 
 [[require]]
 name = "Hax"

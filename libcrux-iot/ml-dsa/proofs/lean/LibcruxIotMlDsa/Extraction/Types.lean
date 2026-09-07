@@ -103,9 +103,4 @@ def polynomial.raw_gather.closure (SIMDUnit : Type) :=
 structure simd.portable.vector_type.Coefficients where
   values : Array Std.I32 8#usize
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::closure]
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 231:33-231:64 -/
-@[reducible]
-def simd.portable.arithmetic.compute_hint.closure := Std.Usize
-
 end libcrux_iot_ml_dsa

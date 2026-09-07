@@ -41,3 +41,5 @@ import LibcruxIotMlDsa.Spec.HacspecBridge              -- createi/mod_q/lift_res
 import LibcruxIotMlDsa.Polynomial.HacspecFC            -- @[spec] poly_{add,sub,mul}_hacspec_fc (extracted-spec posts)
 import LibcruxIotMlDsa.Polynomial.HacspecNtt           -- ntt/intt_layer + ntt/intt bridges + @[spec] ntt/intt_hacspec_fc
 import LibcruxIotMlDsa.Polynomial.HacspecNorm          -- coeff_norm/poly_infinity_norm bridges + @[spec] infinity_norm_exceeds_hacspec_fc
+-- Import-DAG sink: with no lakefile glob, the root's import tree is what builds.
+import LibcruxIotMlDsa.Verification.ProofObligations
