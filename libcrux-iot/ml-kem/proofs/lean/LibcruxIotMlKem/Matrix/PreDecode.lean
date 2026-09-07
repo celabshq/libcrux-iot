@@ -396,6 +396,64 @@ theorem array_eq_self {T : Type} [Inhabited T] {N : Std.Usize}
   unfold CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq
   exact array_eq_loop_self inst x hrefl N.val 0#usize (by simp)
 
+/-- Loop-form soundness (dual of `array_eq_loop_self`): if the element-wise `==`
+    loop returns `ok true` from index `i`, then every element `==` from `i` onward
+    is `ok true`. Downward induction on `fuel = N - i`. -/
+private theorem array_eq_loop_sound {T : Type} [Inhabited T] {N : Std.Usize}
+    (inst : CoreModels.core.cmp.PartialEq T T) (A B : Std.Array T N) :
+    ∀ (fuel : Nat) (i : Std.Usize), i.val + fuel = N.val →
+      CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop inst A B i = .ok true →
+      ∀ j : Nat, i.val ≤ j → j < N.val → inst.eq (A.val[j]!) (B.val[j]!) = .ok true := by
+  intro fuel
+  induction fuel with
+  | zero => intro i hi _ j hij hj; omega
+  | succ f ih =>
+      intro i hi heq j hij hj
+      have hlt : i.val < N.val := by omega
+      have hltB : (i < N) := by scalar_tac
+      have hNmax : N.val ≤ Aeneas.Std.UScalar.max .Usize := by have := N.hBounds; scalar_tac
+      obtain ⟨i1, hi1_eq, hi1_val⟩ :
+          ∃ i1 : Std.Usize, (i + 1#usize : RustM Std.Usize) = .ok i1 ∧ i1.val = i.val + 1 := by
+        obtain ⟨i1, h1, h2, _⟩ := Aeneas.Std.WP.spec_imp_exists
+          (Aeneas.Std.UScalar.add_bv_spec (x := i) (y := 1#usize)
+            (by show i.val + 1 ≤ Aeneas.Std.UScalar.max .Usize; omega))
+        exact ⟨i1, h1, by simp [h2]⟩
+      rw [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop, Aeneas.Std.loop.eq_1] at heq
+      cases hb : inst.eq (A.val[i.val]!) (B.val[i.val]!) with
+      | ok bb =>
+          cases bb with
+          | true =>
+              simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
+                if_pos hltB, array_index_self_ok A i hlt, array_index_self_ok B i hlt,
+                bind_tc_ok, hb, hi1_eq] at heq
+              rcases Nat.lt_or_ge i.val j with hji | hji
+              · exact ih i1 (by omega) heq j (by omega) hj
+              · have hje : j = i.val := by omega
+                rw [hje]; exact hb
+          | false =>
+              simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
+                if_pos hltB, array_index_self_ok A i hlt, array_index_self_ok B i hlt,
+                bind_tc_ok, hb] at heq <;> simp at heq
+      | fail e =>
+          simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
+            if_pos hltB, array_index_self_ok A i hlt, array_index_self_ok B i hlt,
+            bind_tc_ok, hb] at heq <;> simp at heq
+      | div =>
+          simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
+            if_pos hltB, array_index_self_ok A i hlt, array_index_self_ok B i hlt,
+            bind_tc_ok, hb] at heq <;> simp at heq
+
+open CoreModels in
+/-- Rust `==` on two arrays returning `ok true` means every element `==` is
+    `ok true` (soundness; the converse direction to `array_eq_self`). -/
+theorem array_eq_sound {T : Type} [Inhabited T] {N : Std.Usize}
+    (inst : CoreModels.core.cmp.PartialEq T T) (A B : Std.Array T N)
+    (h : CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq inst A B = .ok true) :
+    ∀ j : Nat, j < N.val → inst.eq (A.val[j]!) (B.val[j]!) = .ok true := by
+  intro j hj
+  rw [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq] at h
+  exact array_eq_loop_sound inst A B N.val 0#usize (by simp) h j (Nat.zero_le _) hj
+
 /-! ## `matrix_slice_bnd` and `acc_zero` decode (for `compute_As_plus_e`) -/
 
 /-- The decoded `matrix_slice_bnd slice bnd` `forall` conjunct (over `k < K*K`),

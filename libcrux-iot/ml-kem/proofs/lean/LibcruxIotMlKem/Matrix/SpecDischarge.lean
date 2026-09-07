@@ -701,3 +701,280 @@ theorem compute_u_and_v_spec_proof {K : Std.Usize} {Hasher : Type}
       · exfalso; rw [if_neg hs] at hbx; simp at hbx
     · exfalso; rw [if_neg hK4] at hbx; simp at hbx
   · exfalso; rw [if_neg hkp] at hbx; simp at hbx
+
+-- ============================================================================
+-- L7.3 STANDALONE: `compute_ring_element_v` carries its OWN discharged functional
+-- Rust spec. The cache precondition is not the Montgomery `cache_post` relation
+-- (no Rust surface) but the equivalent Rust-stateable pair: `vec_slice_bnd(cache)`
+-- (the natAbs half) + `cache_matches` (plain-lift equality to the canonical
+-- `compute_cache(r̂)`, which — since Montgomery = 169· the same residue — pins the
+-- Montgomery lane values too). A2 (deserialization) + the fill-cache leaf lemma.
+-- ============================================================================
+
+open libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.Shared
+  libcrux_iot_ml_kem.Polynomial.NttMultiply in
+/-- Plain-domain lift equality transfers to the Montgomery domain (`mont = 169·`
+    the same residue). -/
+private theorem lift_fe_eq_mont {a b : Std.I16} (h : lift_fe a = lift_fe b) :
+    lift_fe_mont a = lift_fe_mont b := by
+  have hz : (a.val : ZMod 3329) = (b.val : ZMod 3329) := by
+    have hc := congrArg zmodOfFE h
+    rwa [lift_fe, lift_fe, zmodOfFE_feOfZMod, zmodOfFE_feOfZMod,
+        i16_to_spec_fe_plain, i16_to_spec_fe_plain] at hc
+  unfold lift_fe_mont i16_to_spec_fe_mont
+  rw [hz]
+
+/-- `FieldElement` `==` soundness: the value determines the element. -/
+private theorem fe_eq_sound {a b : hacspec_ml_kem.parameters.FieldElement}
+    (h : hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq a b
+          = .ok true) : a = b := by
+  simp only [hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq] at h
+  have hv : a.val = b.val := of_decide_eq_true ((RustM.ok.injEq _ _).mp h)
+  cases a; cases b; simp_all
+
+-- `array_eq_sound` (the `==`-true → per-element decode) lives in `PreDecode`,
+-- next to `array_eq_self`, where the private loop helpers are in scope.
+
+open libcrux_iot_ml_kem.Util.CreateI libcrux_iot_ml_kem.Util.Shared
+  libcrux_iot_ml_kem.Polynomial.NttMultiply
+  libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper in
+set_option maxHeartbeats 1000000 in
+/-- The spec-only `compute_cache` succeeds and its output is a correct NTT-multiply
+    cache for `r̂` (each entry satisfies `accumulating_ntt_multiply_poly_cache_post`),
+    from the fill-cache leaf lemma applied at a zero `self`/accumulator. -/
+private theorem compute_cache_fc {K : Std.Usize}
+    (r_as_ntt : Slice (polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector))
+    (h_r_len : r_as_ntt.length = K.val)
+    (h_r_bnd : ∀ c : Nat, c < K.val → ∀ a : Fin 16, ∀ b : Fin 16,
+        ((r_as_ntt.val[c]!.coefficients.val[a.val]!).elements.val[b.val]!).val.natAbs ≤ 3328) :
+    ∃ V : Std.Array
+            (polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector) K,
+      matrix.compute_cache K portable_ops_inst r_as_ntt = .ok V
+      ∧ ∀ c : Nat, c < K.val →
+          accumulating_ntt_multiply_poly_cache_post (r_as_ntt.val[c]!) (V.val[c]!) := by
+  have hKlt : K.val < 2 ^ UScalarTy.Usize.numBits := K.bv.isLt
+  -- ZERO witness + its lane values (all 0).
+  obtain ⟨z, hz⟩ : ∃ z, (polynomial.PolynomialRingElement.ZERO portable_ops_inst :
+      RustM (polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector))
+      = .ok z := ⟨_, rfl⟩
+  have hz_lane : ∀ i : Fin 16, ∀ j : Fin 16,
+      ((z.coefficients.val[i.val]!).elements.val[j.val]!) = 0#i16 := by
+    intro i j
+    have := hz
+    simp only [polynomial.PolynomialRingElement.ZERO, vector.portable.vector_type.zero,
+      libcrux_secrets.traits.Classify.Blanket.classify, bind_tc_ok] at this
+    rw [← (RustM.ok.injEq _ _).mp this]
+    simp only [Std.Array.repeat_val]
+    rw [getElem!_pos _ i.val (by simp [List.length_replicate]), List.getElem_replicate,
+      Std.Array.repeat_val,
+      getElem!_pos _ j.val (by simp [List.length_replicate]), List.getElem_replicate]
+  have hz_bnd : ∀ i : Fin 16, ∀ j : Fin 16,
+      ((z.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328 := by
+    intro i j; rw [hz_lane i j]; decide
+  -- acc0 all zero.
+  set acc0 : Std.Array Std.I32 256#usize := Std.Array.repeat 256#usize (0#i32) with hacc0_def
+  have hacc0_bnd : ∀ n : Fin 256, (acc0.val[n.val]!).val.natAbs ≤ 2^30 := by
+    intro n
+    rw [hacc0_def, Std.Array.repeat_val,
+      getElem!_pos _ n.val (by rw [List.length_replicate]; exact n.isLt), List.getElem_replicate]
+    decide
+  -- per-index fill_cache result.
+  have hfill : ∀ k : Nat, k < K.val → ∃ p,
+      polynomial.PolynomialRingElement.accumulating_ntt_multiply_fill_cache
+        portable_ops_inst z (r_as_ntt.val[k]!) acc0 z = .ok p
+      ∧ accumulating_ntt_multiply_poly_cache_post (r_as_ntt.val[k]!) p.2 := by
+    intro k hk
+    obtain ⟨p, hp_eq, _hp1, _hp2, hp_cache⟩ := triple_exists_ok
+      (accumulating_ntt_multiply_fill_cache_poly_fc z (r_as_ntt.val[k]!) z acc0
+        hz_bnd (fun a b => h_r_bnd k hk a b) hacc0_bnd)
+    exact ⟨p, hp_eq, hp_cache⟩
+  -- f k := the fill-cache output cache at index k.
+  set f : Nat → polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector :=
+    fun k => match polynomial.PolynomialRingElement.accumulating_ntt_multiply_fill_cache
+                    portable_ops_inst z (r_as_ntt.val[k]!) acc0 z with
+             | .ok p => p.2 | _ => z with hf_def
+  -- compute_cache = ok ⟨(range K).map f, _⟩.
+  have hcc : matrix.compute_cache K portable_ops_inst r_as_ntt
+      = .ok ⟨(List.range K.val).map f, by simp⟩ := by
+    unfold matrix.compute_cache
+    rw [from_fn_pure_eq K
+      (matrix.compute_cache.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement
+        K portable_ops_inst) r_as_ntt f
+      (by
+        intro k hk
+        have hkval : (⟨BitVec.ofNat _ k⟩ : Std.Usize).val = k := by
+          show (BitVec.ofNat UScalarTy.Usize.numBits k).toNat = k
+          rw [BitVec.toNat_ofNat]; exact Nat.mod_eq_of_lt (by omega)
+        obtain ⟨p, hp_eq, _⟩ := hfill k hk
+        simp only
+          [matrix.compute_cache.closure.Insts.CoreOpsFunctionFnMutTupleUsizePolynomialRingElement.call_mut]
+        rw [hz]; simp only [bind_tc_ok]
+        rw [show libcrux_secrets.traits.Classify.Blanket.classify (0#i32 : Std.I32)
+              = .ok (0#i32 : Std.I32) from rfl]
+        simp only [bind_tc_ok]
+        rw [slice_index_usize_ok_eq r_as_ntt (⟨BitVec.ofNat _ k⟩ : Std.Usize)
+              (by rw [hkval]; have hh : r_as_ntt.val.length = K.val := h_r_len; omega)]
+        simp only [bind_tc_ok, hkval]
+        rw [show Std.Array.repeat 256#usize (0#i32 : Std.I32) = acc0 from rfl, hp_eq]
+        obtain ⟨pa, pb⟩ := p
+        simp only [bind_tc_ok, hf_def, hp_eq]; rfl
+      )]
+  refine ⟨⟨(List.range K.val).map f, by simp⟩, hcc, ?_⟩
+  intro c hc
+  obtain ⟨p, hp_eq, hp_cache⟩ := hfill c hc
+  have hVc : (⟨(List.range K.val).map f, by simp⟩ :
+      Std.Array (polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector) K).val[c]!
+      = f c := by
+    show ((List.range K.val).map f)[c]! = f c
+    rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hc]
+    simp
+  rw [hVc, hf_def]; simp only [hp_eq]; exact hp_cache
+
+open libcrux_iot_ml_kem.Polynomial.NttMultiply in
+set_option maxHeartbeats 2000000 in
+set_option maxRecDepth 4000 in
+theorem compute_ring_element_v_spec_proof {K : Std.Usize}
+    (public_key : Slice Std.U8)
+    (t_as_ntt_entry error_2 message result :
+      polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector)
+    (r_as_ntt : Slice
+      (polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector))
+    (scratch : vector.portable.vector_type.PortableVector)
+    (cache : Slice
+      (polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector))
+    (accumulator : Std.Array Std.I32 256#usize) :
+    matrix.compute_ring_element_v.spec K portable_ops_inst public_key t_as_ntt_entry
+      r_as_ntt error_2 message result scratch cache accumulator := by
+  intro hpre
+  simp only [matrix.compute_ring_element_v.pre, matrix.vec_slice_bnd, hax_lib.prop.forall,
+    hax_lib.prop.Prop.from_bool, hax_lib.prop.Prop.and, core.convert.Into.Blanket.into,
+    core.convert.From.Blanket.from, hax_lib.prop.Prop.Insts.CoreConvertFromBool, bind_tc_ok] at hpre
+  obtain ⟨bv, hbx, hcont⟩ := holds_bind_cont hpre
+  obtain ⟨be2, hbe2, hcont2⟩ := holds_bind_cont hcont
+  obtain ⟨bmsg, hbmsg, hcont3⟩ := holds_bind_cont hcont2
+  obtain ⟨bcm, hbcm, hcont4⟩ := holds_bind_cont hcont3
+  obtain ⟨⟨⟨⟨⟨hbv, hR⟩, hCbnd⟩, hbe2t⟩, hbmt⟩, hbcmt⟩ := holds_ok hcont4
+  subst hbv
+  rw [hbe2t] at hbe2; rw [hbmt] at hbmsg; rw [hbcmt] at hbcm
+  have h_e2_bnd := poly_bnd_natAbs_3328 error_2 hbe2
+  have h_msg_bnd := poly_bnd_natAbs_3328 message hbmsg
+  -- lengths from the bigcond `= .ok true`.
+  simp only [CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
+    bind_tc_ok] at hbx
+  by_cases hK4 : K ≤ 4#usize
+  · rw [if_pos hK4] at hbx
+    have hK4v : K.val ≤ 4 := by scalar_tac
+    obtain ⟨pkprod, hpkprod_eq, hpkprod_val⟩ := Util.Shared.usize_mul_ok_e
+      (384#usize : Std.Usize) K
+      (by have h384 : (384#usize : Std.Usize).val = 384 := rfl
+          rw [h384]
+          calc 384 * K.val ≤ 384 * 4 := Nat.mul_le_mul_left _ hK4v
+            _ ≤ Std.Usize.max := by scalar_tac)
+    rw [impl_bpre_local] at hbx
+    simp only [bind_tc_ok] at hbx
+    rw [hpkprod_eq] at hbx
+    simp only [bind_tc_ok] at hbx
+    by_cases hpkc : Std.Slice.len public_key = pkprod
+    · rw [if_pos hpkc] at hbx
+      by_cases hr : Std.Slice.len r_as_ntt = K
+      · rw [if_pos hr] at hbx
+        have hca : Std.Slice.len cache = K := by
+          have hd := (RustM.ok.injEq _ _).mp hbx; simpa using hd
+        have h_pk_len : public_key.length = K.val * 384 := by
+          have hv := congrArg Aeneas.Std.UScalar.val hpkc
+          rw [Aeneas.Std.Slice.len_val] at hv
+          rw [hv, hpkprod_val]; have h384 : (384#usize : Std.Usize).val = 384 := rfl
+          rw [h384]; ring
+        have h_r_len : r_as_ntt.length = K.val := by
+          have := congrArg Aeneas.Std.UScalar.val hr
+          rw [Aeneas.Std.Slice.len_val] at this; exact this
+        have h_cache_len : cache.length = K.val := by
+          have := congrArg Aeneas.Std.UScalar.val hca
+          rw [Aeneas.Std.Slice.len_val] at this; exact this
+        have h_r_bnd := vec_slice_natAbs_3328 r_as_ntt (le_of_eq h_r_len.symm) hR
+        have h_cache_bnd := vec_slice_natAbs_3328 cache (le_of_eq h_cache_len.symm) hCbnd
+        -- compute_cache correctness.
+        obtain ⟨V, hV_eq, hV_cache⟩ := compute_cache_fc r_as_ntt h_r_len
+          (fun c hc a b => h_r_bnd c hc a.val a.isLt b.val b.isLt)
+        have hV_len : V.val.length = K.val := V.property
+        -- decode cache_matches: lift_poly cache[c] = lift_poly V[c] per lane.
+        rw [matrix.cache_matches,
+          lift_vec_slice_ok cache (le_of_eq h_cache_len.symm), bind_tc_ok, hV_eq, bind_tc_ok] at hbcm
+        rw [show Aeneas.Std.lift (Aeneas.Std.Array.to_slice V)
+              = Aeneas.Std.RustM.ok (Aeneas.Std.Array.to_slice V) from rfl, bind_tc_ok,
+          lift_vec_slice_ok (Aeneas.Std.Array.to_slice V)
+            (by rw [Aeneas.Std.Array.val_to_slice]; exact le_of_eq hV_len.symm), bind_tc_ok] at hbcm
+        -- hbcm : eq (CmpArr256) (lift_vec_slice cache K) (lift_vec_slice (to_slice V) K) = ok true
+        have h_lane_eq : ∀ c : Nat, c < K.val → ∀ flat : Nat, flat < 256 →
+            lift_fe ((cache.val[c]!).coefficients.val[flat / 16]!).elements.val[flat % 16]!
+            = lift_fe ((V.val[c]!).coefficients.val[flat / 16]!).elements.val[flat % 16]! := by
+          intro c hc flat hflat
+          have houter := PreDecode.array_eq_sound _ _ _ hbcm c hc
+          -- houter : eq (FEinst-array) (lift_vec_slice cache K).val[c]! (lift_vec_slice (to_slice V) K).val[c]! = ok true
+          have hcachec : (lift_vec_slice cache K).val[c]! = lift_poly cache.val[c]! := by
+            simp only [lift_vec_slice, Std.Array.make]
+            rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hc]; simp
+          have hVc : (lift_vec_slice (Aeneas.Std.Array.to_slice V) K).val[c]! = lift_poly V.val[c]! := by
+            simp only [lift_vec_slice, Std.Array.make]
+            rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hc,
+              Aeneas.Std.Array.val_to_slice]; simp
+          rw [hcachec, hVc] at houter
+          have hinner := PreDecode.array_eq_sound _ _ _ houter flat hflat
+          have hfe := fe_eq_sound hinner
+          have hlpc : (lift_poly cache.val[c]!).val[flat]!
+              = lift_fe ((cache.val[c]!).coefficients.val[flat / 16]!).elements.val[flat % 16]! := by
+            simp only [lift_poly, Std.Array.make]
+            rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hflat]; simp
+          have hlpV : (lift_poly V.val[c]!).val[flat]!
+              = lift_fe ((V.val[c]!).coefficients.val[flat / 16]!).elements.val[flat % 16]! := by
+            simp only [lift_poly, Std.Array.make]
+            rw [List.getElem!_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hflat]; simp
+          rw [hlpc, hlpV] at hfe; exact hfe
+        -- h_cache_char from the transfer + compute_cache_fc.
+        have h_cache_char : ∀ c : Nat, c < K.val →
+            accumulating_ntt_multiply_poly_cache_post (r_as_ntt.val[c]!) (cache.val[c]!) := by
+          intro c hc
+          have hVpost := hV_cache c hc
+          unfold accumulating_ntt_multiply_poly_cache_post
+          intro j i
+          have hji : j.val * 16 + i.val < 256 := by omega
+          have hdiv : (j.val * 16 + i.val) / 16 = j.val := by omega
+          have hmod : (j.val * 16 + i.val) % 16 = i.val := by omega
+          have hlane := h_lane_eq c hc (j.val * 16 + i.val) hji
+          rw [hdiv, hmod] at hlane
+          have hmont := lift_fe_eq_mont hlane
+          obtain ⟨hVn, hVeq⟩ := hVpost j i
+          refine ⟨?_, ?_⟩
+          · exact h_cache_bnd c hc j.val j.isLt i.val (by omega)
+          · rw [hmont]; exact hVeq
+        -- apply the FC + post-lift.
+        obtain ⟨⟨te1, rv1, sc2, ac2⟩, h_crv_eq, h_v_correct⟩ :=
+          triple_exists_ok (ComputeRingElementV.FC.compute_ring_element_v_fc K public_key
+            t_as_ntt_entry r_as_ntt error_2 message result scratch cache accumulator hK4v h_pk_len
+            h_r_len h_cache_len
+            (fun c hc a b => h_r_bnd c hc a.val a.isLt b.val b.isLt)
+            h_cache_char
+            (fun chunk hchunk ℓ hℓ => h_e2_bnd chunk hchunk ℓ hℓ)
+            (fun chunk hchunk ℓ hℓ => h_msg_bnd chunk hchunk ℓ hℓ))
+        rw [h_crv_eq]
+        apply triple_ok_intro
+        have hrefl : ∀ jj : Nat, jj < (256#usize : Std.Usize).val →
+            hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq
+              ((lift_poly rv1).val[jj]!) ((lift_poly rv1).val[jj]!) = .ok true := by
+          intro jj hjj
+          simp [hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq]
+        have harr := PreDecode.array_eq_self
+          hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement
+          (lift_poly rv1) hrefl
+        have hpost : matrix.compute_ring_element_v.post K portable_ops_inst public_key
+            t_as_ntt_entry r_as_ntt error_2 message result scratch cache accumulator
+            (te1, rv1, sc2, ac2) = .ok true := by
+          simp only [matrix.compute_ring_element_v.post,
+            lift_t_as_ntt_from_public_key_ok public_key h_pk_len,
+            lift_vec_slice_ok r_as_ntt (le_of_eq h_r_len.symm),
+            lift_poly_ok, bind_tc_ok, h_v_correct]
+          exact harr
+        exact holds_post_of_ok hpost
+      · exfalso; rw [if_neg hr] at hbx; simp at hbx
+    · exfalso; rw [if_neg hpkc] at hbx; simp at hbx
+  · exfalso; rw [if_neg hK4] at hbx; simp at hbx

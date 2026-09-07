@@ -340,12 +340,12 @@ if _specs.exists():
     # in `compute_u_and_v.post` (the Vector instance is dropped).
     _oldt = "matrix.lift_t_as_ntt_from_public_key K public_key"
     _newt = "matrix.lift_t_as_ntt_from_public_key K vectortraitsOperationsInst public_key"
-    if _s.count(_oldt) != 1:
-        print(f"error: expected exactly one instance-less `lift_t_as_ntt_from_public_key` "
-              f"call in Specs.lean, found {_s.count(_oldt)}. If aeneas now passes the "
-              f"instance itself, delete this pass.", file=sys.stderr)
+    if _s.count(_oldt) < 1:
+        print(f"error: expected the instance-less `lift_t_as_ntt_from_public_key` call in "
+              f"Specs.lean, found none. If aeneas now passes the instance itself, delete "
+              f"this pass.", file=sys.stderr)
         sys.exit(1)
-    _s = _s.replace(_oldt, _newt)
+    _s = _s.replace(_oldt, _newt)  # both the compute_u_and_v and compute_ring_element_v posts
 
     # And the Hasher instance is dropped from the `compute_u_and_v` CALL inside its
     # own `.spec` (the wrapper takes both instances; same class as compute_vector_u).

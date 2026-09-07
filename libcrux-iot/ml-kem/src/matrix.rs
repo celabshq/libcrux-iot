@@ -83,6 +83,39 @@ pub(crate) fn lift_t_as_ntt_from_public_key<Vector: Operations, const K: usize>(
     })
 }
 
+/// The NTT-multiply cache that `compute_ring_element_v` consumes is a pure
+/// function of `r̂` alone: entry `[j]` is what `accumulating_ntt_multiply_fill_cache`
+/// writes for `r_as_ntt[j]` (the second-operand precompute; the `self`/accumulator
+/// arguments do not affect the cache output). Spec-only witness so the precondition
+/// can name "the correct cache" without a Montgomery predicate on Rust's surface.
+#[cfg(hax)]
+pub(crate) fn compute_cache<const K: usize, Vector: Operations>(
+    r_as_ntt: &[PolynomialRingElement<Vector>],
+) -> [PolynomialRingElement<Vector>; K] {
+    core::array::from_fn(|j| {
+        let mut c = PolynomialRingElement::<Vector>::ZERO();
+        let dummy = PolynomialRingElement::<Vector>::ZERO();
+        let mut acc = [0i32.classify(); 256];
+        dummy.accumulating_ntt_multiply_fill_cache(&r_as_ntt[j], &mut acc, &mut c);
+        c
+    })
+}
+
+/// The cache-pinning predicate (returns `bool` so it folds into `#[requires]` like
+/// `poly_bnd`): the caller's `cache` lifts to the same residues as the canonical
+/// `compute_cache(r̂)`. Plain-domain lift equality suffices — the Montgomery lane
+/// values `cache_post` constrains are `169·` these residues, so equal residues give
+/// equal Montgomery values. Together with `vec_slice_bnd` on `cache` (the natAbs
+/// half) this reconstructs `compute_ring_element_v`'s internal cache contract.
+#[cfg(hax)]
+pub(crate) fn cache_matches<const K: usize, Vector: Operations>(
+    r_as_ntt: &[PolynomialRingElement<Vector>],
+    cache: &[PolynomialRingElement<Vector>],
+) -> bool {
+    lift_vec_slice::<Vector, K>(cache)
+        == lift_vec_slice::<Vector, K>(&compute_cache::<K, Vector>(r_as_ntt))
+}
+
 /// One lane's centred bound (ordinary fn: the `&&` here is fine, unlike inside a
 /// `Prop` quantifier closure).
 #[cfg(hax)]
@@ -318,7 +351,28 @@ pub(crate) fn compute_message<const K: usize, Vector: Operations>(
 }
 
 /// Compute InverseNTT(tᵀ ◦ r̂) + e₂ + message
-#[hax_lib::requires(r_as_ntt.len() == K && cache.len() == K && (public_key.len() / BYTES_PER_RING_ELEMENT) == K)]
+// Top-level FC (README L7.3, encrypt): impl `compute_ring_element_v`, lifted, equals
+// the hacspec `compute_ring_element_v` on the pk-deserialized `t̂`. Rests on A2
+// (deserialization leaf). The cache precondition is NOT the Montgomery
+// `cache_post` relation (which has no Rust surface) but the equivalent Rust-stateable
+// pair: `vec_slice_bnd(cache)` (the natAbs half) + `cache_matches` (the Montgomery-lift
+// half, pinning `cache` to the canonical `compute_cache(r̂)`).
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(
+        K <= 4
+        && public_key.len() == BYTES_PER_RING_ELEMENT * K
+        && r_as_ntt.len() == K && cache.len() == K)
+        .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
+        .and(vec_slice_bnd::<Vector, K>(cache, 3328))
+        .and(poly_bnd(error_2, 3328))
+        .and(poly_bnd(message, 3328))
+        .and(cache_matches::<K, Vector>(r_as_ntt, cache))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
+        &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
+        &lift_vec_slice::<Vector, K>(r_as_ntt),
+        &lift_poly(error_2), &lift_poly(message))
+        == lift_poly(future(result))))]
 #[inline(always)]
 pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
     public_key: &[u8],
