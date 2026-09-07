@@ -19,83 +19,62 @@ The polynomial API (`PolynomialRingElement`) is generic over the
 concrete instance, `Operations Coefficients`. Every top-level theorem
 applies the generic impl function at this instance.
 
-Each is an `mvcgen` Triple `⦃ True ⦄ <impl> <args>… ⦃ ⇓ r => ⌜ <spec> (lift_poly_res <args>)… = .ok (lift_poly_res r)⌝ ⦄`
-that ties the impl function directly to its counterpart in the extracted spec. The impl stores coefficients as 32 SIMD units × 8 signed,
-Montgomery-domain `i32` lanes, wheras the spec uses a flat array `[i32; 256]`,
-Montgomery factor stripped lane-wise.
-Lifting functions do the conversion.
+All ten API functions carry their specification as hax contracts in the Rust
+source ([`src/polynomial.rs`](../../../src/polynomial.rs),
+[`src/ntt.rs`](../../../src/ntt.rs)). hax generates a `<fn>.spec` from each
+contract in [`Extraction/Specs.lean`](Extraction/Specs.lean), and
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean)
+discharges every one of them (`<fn>_spec_proof`) at `Operations Coefficients`,
+on top of the hand-written functional-correctness (FC) theorems listed below.
 
-Representative statement ([`Polynomial/HacspecNtt.lean`](Polynomial/HacspecNtt.lean)):
-```lean
-theorem ntt_hacspec_fc (re : PolynomialRingElement Coefficients)
-    (hin : …per-lane bound ≤ 1577058303…) :
-    ⦃ ⌜ True ⌝ ⦄
-    ntt.ntt portable_ops_inst re
-    ⦃ ⇓ r => ⌜ hacspec_ml_dsa.ntt.ntt (lift_poly_res re) = .ok (lift_poly_res r) ⌝ ⦄
+Representative contract (`src/ntt.rs`):
+
+```rust
+#[cfg_attr(hax, hax_lib::requires(poly_abs_le(re, 1_577_058_303)))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    hacspec_ml_dsa::ntt::ntt(lift_poly_res(re)) == lift_poly_res(future(re))))]
+pub(crate) fn ntt<SIMDUnit: Operations>(re: &mut PolynomialRingElement<SIMDUnit>)
 ```
 
-| Theorem (file) | impl function | post condition of the triple |
-|---|---|---|
-| `ntt_hacspec_fc` ([`Polynomial/HacspecNtt.lean`](Polynomial/HacspecNtt.lean)) | `ntt.ntt` | `hacspec_ml_dsa.ntt.ntt (lift_poly_res re) = .ok (lift_poly_res r)` |
-| `intt_hacspec_fc` ([`Polynomial/HacspecNtt.lean`](Polynomial/HacspecNtt.lean)) | `ntt.invert_ntt_montgomery` | `hacspec_ml_dsa.ntt.intt (lift_poly_res re) = .ok (lift_poly_res_intt r)` (The impl's inverse NTT leaves its output in the Montgomery domain (`· R`); `lift_poly_res_intt` strips that factor (`· R⁻¹`) so te result matches the extracted `intt`.) |
-| `poly_pointwise_mul_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `ntt.ntt_multiply_montgomery` | `hacspec_ml_dsa.polynomial.poly_pointwise_mul (lift_poly_res lhs) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
-| `poly_add_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.add` | `hacspec_ml_dsa.polynomial.poly_add (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
-| `poly_sub_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.subtract` | `hacspec_ml_dsa.polynomial.poly_sub (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
-| `infinity_norm_exceeds_hacspec_fc` ([`Polynomial/HacspecNorm.lean`](Polynomial/HacspecNorm.lean)) | `…PolynomialRingElement.infinity_norm_exceeds` | `∃ n, hacspec_ml_dsa.polynomial.poly_infinity_norm (canon_raw self) = .ok n ∧ (r = decide (bound.val ≤ n.val))` (The spec does not have a direct equivalent to `infinity_norm_exceeds`. So the postcondition needs to establish equivalence using `poly_infinity_norm`.) |
+The contracts use spec helpers defined at the top of `src/polynomial.rs`: the
+impl stores coefficients as 32 SIMD units × 8 signed, Montgomery-domain `i32`
+lanes, whereas the spec uses a flat `[i32; 256]` with the Montgomery factor
+stripped lane-wise. `lift_poly_res` performs that conversion;
+`lift_poly_res_intt` additionally strips the extra Montgomery factor the impl's
+inverse NTT leaves on its output; `raw_gather` is the identity view of the lanes
+(no reduction, no Montgomery factor) and `canon_raw` its canonical form;
+`poly_abs_le(re, b)` bounds every lane by `b` in absolute value;
+`coefficients_centered` and `poly_{add,sub}_in_range` are the domain conditions
+of the norm check and of addition/subtraction.
 
-**Rust-annotation status.** ALL TEN top-level theorems now carry their
-statements in the Rust source itself (`src/polynomial.rs`, `src/ntt.rs`), and
-the generated `<fn>.spec`s are discharged at `portable_ops_inst` in
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean):
+Six functions are tied directly to their counterpart in the extracted spec:
 
-- `infinity_norm_exceeds` — `#[requires(coefficients_centered(self))]` +
-  `#[ensures(|result| result == (bound <= poly_infinity_norm(&canon_raw(self))))]`,
-  discharged by `infinity_norm_exceeds_spec_proof` on the lift-agreement lemma
-  `HacspecNorm.canon_raw_ok`.
-- `add` / `subtract` — `#[requires(poly_{add,sub}_in_range(self, rhs))]` +
-  `#[ensures(|_| poly_{add,sub}(&lift_poly_res(self), &lift_poly_res(rhs)) ==
-  lift_poly_res(future(self)))]`, discharged by `{add,subtract}_spec_proof` on
-  `HacspecNorm.lift_poly_res_ok` (the `R⁻¹` lift agreement); the array `==` in
-  the post reduces by loop reflexivity (`array_eq_self`).
-- `ntt` / `invert_ntt_montgomery` / `ntt_multiply_montgomery` —
-  `#[requires(poly_abs_le(…, b))]` with the FC bounds (1577058303 / 8388607 /
-  8380416-on-`rhs`) + `#[ensures]` naming `ntt::{ntt,intt}` /
-  `polynomial::poly_pointwise_mul` through `lift_poly_res`
-  (`lift_poly_res_intt` for the inverse NTT's Montgomery-domain output),
-  discharged by `{ntt,invert_ntt_montgomery,ntt_multiply_montgomery}_spec_proof`
-  on `HacspecNtt.lift_poly_res_intt_ok` and the machinery above.
-
-- the four value equations, through the RAW lane gather `raw_gather` (identity
-  view of the lanes; no `mod_q`, no Montgomery factor — their FC posts are
-  per-index value equations, not hacspec calls):
-  - `zero` — `#[ensures(|result| raw_gather(&result) == [0i32; 256])]`
-    (the raw-lane form; strictly stronger than "residues are zero", and the
-    Lean FC states both).
-  - `to_i32_array` — `#[ensures(|result| result == raw_gather(self))]`.
-  - `from_i32_array` — `#[requires(array.len() == 256)]` +
-    `#[ensures(|_| &raw_gather(future(result))[..] == array.declassify_ref())]`
-    (slice-shaped, discharged through [`Util/SliceEq.lean`](Util/SliceEq.lean),
-    the port of sha3's slice-`==` closed form).
-  - `reduce` — `#[requires(poly_abs_le(re, 2_139_095_040))]` +
-    `#[ensures(|_| poly_abs_le(future(re), 6_283_009) &&
-    lift_poly_res(future(re)) == lift_poly_res(re))]` — BOTH halves of the
-    Lean FC: residues unchanged AND the Barrett output bound (a residue-only
-    post would be strictly weaker).
-
-Discharged by `{zero,to_i32_array,from_i32_array,reduce}_spec_proof` on
-`HacspecNorm.raw_res_ok` (the fourth lift agreement) and, for `reduce`'s
-post, the build-direction bound lemmas (`poly_abs_le_of_natAbs`).
-
+| impl function | `requires` | `ensures` | FC theorem (file) |
+|---|---|---|---|
+| `ntt::ntt` | `poly_abs_le(re, 1_577_058_303)` | `hacspec_ml_dsa::ntt::ntt(lift_poly_res(re)) == lift_poly_res(future(re))` | `ntt_hacspec_fc` ([`Polynomial/HacspecNtt.lean`](Polynomial/HacspecNtt.lean)) |
+| `ntt::invert_ntt_montgomery` | `poly_abs_le(re, 8_388_607)` | `hacspec_ml_dsa::ntt::intt(lift_poly_res(re)) == lift_poly_res_intt(future(re))` | `intt_hacspec_fc` ([`Polynomial/HacspecNtt.lean`](Polynomial/HacspecNtt.lean)) |
+| `ntt::ntt_multiply_montgomery` | `poly_abs_le(rhs, 8_380_416)` | `hacspec_ml_dsa::polynomial::poly_pointwise_mul(&lift_poly_res(lhs), &lift_poly_res(rhs)) == lift_poly_res(future(lhs))` | `poly_pointwise_mul_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) |
+| `PolynomialRingElement::add` | `poly_add_in_range(self, rhs)` | `hacspec_ml_dsa::polynomial::poly_add(&lift_poly_res(self), &lift_poly_res(rhs)) == lift_poly_res(future(self))` | `poly_add_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) |
+| `PolynomialRingElement::subtract` | `poly_sub_in_range(self, rhs)` | `hacspec_ml_dsa::polynomial::poly_sub(&lift_poly_res(self), &lift_poly_res(rhs)) == lift_poly_res(future(self))` | `poly_sub_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) |
+| `PolynomialRingElement::infinity_norm_exceeds` | `coefficients_centered(self)` | `result == (bound <= hacspec_ml_dsa::polynomial::poly_infinity_norm(&canon_raw(self)))` (the spec has no direct `infinity_norm_exceeds`, so the contract goes through `poly_infinity_norm`) | `infinity_norm_exceeds_hacspec_fc` ([`Polynomial/HacspecNorm.lean`](Polynomial/HacspecNorm.lean)) |
 
 Four impl ops have no non-trivial counterpart in the spec (it treats them as
-identity / a constant / a copy), so they are stated as direct value equations:
+identity / a constant / a copy), so their contracts are direct value equations
+over the raw lanes:
 
-| Theorem (file) | impl function | post condition of the triple |
-|---|---|---|
-| `reduce_fc` ([`Polynomial/NttArith.lean`](Polynomial/NttArith.lean)) | `ntt.reduce` | `lift_poly r = lift_poly re` (Barrett-reduce; residues unchanged) |
-| `zero_fc` ([`Polynomial/Convert.lean`](Polynomial/Convert.lean)) | `…zero` | `lift_poly r = Pure.zero_poly` (the zero polynomial) |
-| `to_i32_array_fc` ([`Polynomial/Convert.lean`](Polynomial/Convert.lean)) | `…to_i32_array` | `∀ k<256, (r[k]).val = <self coefficient k>` |
-| `from_i32_array_fc` ([`Polynomial/Convert.lean`](Polynomial/Convert.lean)) | `…from_i32_array` | `∀ k<256, <r coefficient k> = (array[k]).val` |
+| impl function | `requires` | `ensures` | FC theorem (file) |
+|---|---|---|---|
+| `ntt::reduce` (Barrett) | `poly_abs_le(re, 2_139_095_040)` | `poly_abs_le(future(re), 6_283_009) && lift_poly_res(future(re)) == lift_poly_res(re)` (residues unchanged AND the output bound) | `reduce_fc` ([`Polynomial/NttArith.lean`](Polynomial/NttArith.lean)) |
+| `PolynomialRingElement::zero` | — | `raw_gather(&result) == [0i32; 256]` | `zero_fc` ([`Polynomial/Convert.lean`](Polynomial/Convert.lean)) |
+| `PolynomialRingElement::to_i32_array` | — | `result == raw_gather(self)` | `to_i32_array_fc` ([`Polynomial/Convert.lean`](Polynomial/Convert.lean)) |
+| `PolynomialRingElement::from_i32_array` | `array.len() == 256` | `&raw_gather(future(result))[..] == array.declassify_ref()` | `from_i32_array_fc` ([`Polynomial/Convert.lean`](Polynomial/Convert.lean)) |
+
+The discharges rest on four lift-agreement lemmas — `HacspecNorm.canon_raw_ok`,
+`HacspecNorm.lift_poly_res_ok`, `HacspecNtt.lift_poly_res_intt_ok`,
+`HacspecNorm.raw_res_ok` — that connect the Rust-side helpers to the Lean lifts
+used in the FC theorems; the array `==` in the posts reduces by loop reflexivity
+(`array_eq_self`), the slice-shaped one of `from_i32_array` through
+[`Util/SliceEq.lean`](Util/SliceEq.lean).
 
 ## Supporting layers
 
@@ -267,7 +246,7 @@ lake exe cache get   # fetch the mathlib build cache
 lake build
 ```
 
-A clean build reports 1766 jobs and no errors. Each top-level `*_fc` theorem
+A clean build reports ~1794 jobs and no errors. Each top-level `*_fc` theorem
 carries a `#print axioms` guard (`#guard_msgs`) that fails the build if the
 axiom set drifts from the one documented under [Axioms](#axioms).
 

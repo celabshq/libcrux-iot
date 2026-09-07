@@ -36,17 +36,47 @@ theorem keccak.keccak_keccak_spec
 
 Informally: the IOT-friendly implementation `keccak.keccak` (for some rate `RATE`,
 delimiter `DELIM`, input `data`, output buffer `out`) produces the same
-byte sequence as the hacspec-style specification `sponge.keccak`.
+byte sequence as the hacspec-style specification `sponge.keccak`. (In the Rust
+source `keccak` only carries the rate precondition
+`RATE > 0 && RATE % 8 == 0 && RATE <= 168` and a length postcondition; the
+functional statement lives in this Lean theorem.)
 
-From this theorem, we can derive equivalence theorems for the SHA-3 and SHAKE functions
-([`Sponge/Shake.lean`](Sponge/Shake.lean)):
+The public SHA-3 and SHAKE functions in [`src/lib.rs`](../../../src/lib.rs), in
+contrast, carry their equivalence with the hacspec as hax contracts. For example:
 
-- `shake128_spec`  — RATE 168, DELIM 0x1f.
-- `shake256_spec`  — RATE 136, DELIM 0x1f.
-- `sha224_ema_spec` — RATE 144, DELIM 0x06, 28-byte digest.
-- `sha256_ema_spec` — RATE 136, DELIM 0x06, 32-byte digest.
-- `sha384_ema_spec` — RATE 104, DELIM 0x06, 48-byte digest.
-- `sha512_ema_spec` — RATE  72, DELIM 0x06, 64-byte digest.
+```rust
+#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE))]
+#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
+    && future(digest).declassify_ref()
+        == &hacspec_sha3::sha3_256(payload.declassify_ref())[..]))]
+pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
+```
+
+```rust
+#[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
+#[cfg_attr(hax, hax_lib::ensures(|out| (&out[..]).declassify_ref()
+    == &hacspec_sha3::shake128::<BYTES>(data.declassify_ref())[..]))]
+pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES]
+```
+
+hax generates a `<fn>.spec` from each contract in
+[`Extraction/Specs.lean`](Extraction/Specs.lean), and
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean)
+discharges all six (`<fn>_spec_proof`) from the corollaries of
+`keccak_keccak_spec` in [`Sponge/Shake.lean`](Sponge/Shake.lean):
+
+| impl function | `ensures` (hacspec function) | instance of `keccak_keccak_spec` | Lean corollary |
+|---|---|---|---|
+| `shake128::<BYTES>` | `hacspec_sha3::shake128::<BYTES>` | RATE 168, DELIM 0x1f | `shake128_spec` |
+| `shake256::<BYTES>` | `hacspec_sha3::shake256::<BYTES>` | RATE 136, DELIM 0x1f | `shake256_spec` |
+| `sha224_ema` | `hacspec_sha3::sha3_224`, 28-byte digest | RATE 144, DELIM 0x06 | `sha224_ema_spec` |
+| `sha256_ema` | `hacspec_sha3::sha3_256`, 32-byte digest | RATE 136, DELIM 0x06 | `sha256_ema_spec` |
+| `sha384_ema` | `hacspec_sha3::sha3_384`, 48-byte digest | RATE 104, DELIM 0x06 | `sha384_ema_spec` |
+| `sha512_ema` | `hacspec_sha3::sha3_512`, 64-byte digest | RATE  72, DELIM 0x06 | `sha512_ema_spec` |
+
+All six require `payload.len() <= u32::MAX as usize` (resp. `BYTES <= u32::MAX
+as usize`), and the `_ema` variants a correctly sized `digest` buffer. The
+`declassify_ref` calls only strip the secret-independence wrapper `U8`.
 
 The incremental API is not part of this verification.
 

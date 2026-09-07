@@ -16,98 +16,209 @@ trust boundary.
 
 ## Matrix-level theorems
 
-All four main results are `mvcgen` Triples of the form
-`⦃ True ⦄ <impl> ⦃ ⇓ p => ⌜ <hacspec> (lift args…) = .ok (lift p…) ⌝ ⦄`
-— i.e. they link the Aeneas-extracted impl to the hacspec spec through a `lift` bridge.
-The `lift` bridge accounts for different representations of the input/output data:
-The impl uses potentially non-canonical values mod 3329,
-stores coefficients in the Montgomery domain, and
-stores ring elements as 16 SIMD-shaped chunks of 16 lanes each.
-In contrast, the spec uses canonical representations, plain coefficients, 
-and a flat array of 256 field elements.
+Each of the four functions carries its specification as a hax contract in the
+Rust source ([`src/matrix.rs`](../../../src/matrix.rs)): a `#[requires]` giving
+the input bounds and an `#[ensures]` stating that the result, lifted, equals the
+hacspec function applied to the lifted inputs. hax turns every contract into a
+generated `matrix.<fn>.spec` in [`Extraction/Specs.lean`](Extraction/Specs.lean),
+and [`Matrix/SpecDischarge.lean`](Matrix/SpecDischarge.lean) proves each of them
+(`<fn>_spec_proof`) at the portable `Vector` instance, on top of the hand-written
+functional-correctness (FC) theorem named with each function below.
+
+The contracts use a small vocabulary of spec helpers, defined at the top of
+`src/matrix.rs` and mirrored on the Lean side:
+
+- `lift_poly`, `lift_vec`, `lift_vec_slice`, `lift_matrix_from_slice`,
+  `lift_matrix_from_seed`, `lift_t_as_ntt_from_public_key` map impl values to
+  the spec's representation. The impl uses potentially non-canonical values
+  mod 3329, stores coefficients in the Montgomery domain, and stores ring
+  elements as 16 SIMD-shaped chunks of 16 lanes each; the spec uses canonical
+  representatives, plain coefficients, and a flat array of 256 field elements.
+- `poly_matches` / `vec_matches`: an impl polynomial (vector of polynomials),
+  lifted, equals the given spec value.
+- `poly_bnd`, `vec_bnd`, `vec_slice_bnd`, `matrix_slice_bnd` bound the absolute
+  value of every lane; `acc_zero` says the `i32` accumulator is all zeros;
+  `cache_matches` ties a precomputed NTT-multiplication cache to its vector.
 
 ### L7.1 — key generation: `Â · ŝ + ê`
 
-[`Matrix/ComputeAsPlusE.lean`](Matrix/ComputeAsPlusE.lean) — `libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc`:
-
-```lean
-⦃ ⌜ True ⌝ ⦄
-  libcrux_iot_ml_kem.matrix.compute_As_plus_e
-    (vectortraitsOperationsInst := portable_ops_inst)
-    t_as_ntt matrix_A s_as_ntt error_as_ntt s_cache accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_As_plus_e
-              (lift_matrix_from_slice matrix_A K)
-              (lift_vec s_as_ntt) (lift_vec error_as_ntt)
-            = .ok (lift_vec p.1) ⌝ ⦄ 
+```rust
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(K > 0 && K <= 4 && matrix_A.len() == K * K)
+        .and(matrix_slice_bnd::<Vector, K>(matrix_A, 3328))
+        .and(vec_bnd(s_as_ntt, 3328))
+        .and(vec_bnd(error_as_ntt, 29439))
+        .and(acc_zero(accumulator))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    vec_matches::<Vector, K>(future(t_as_ntt),
+        &hacspec_ml_kem::matrix::compute_As_plus_e::<K>(
+            &lift_matrix_from_slice::<Vector, K>(matrix_A),
+            &lift_vec(s_as_ntt), &lift_vec(error_as_ntt)))))]
+pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
+    t_as_ntt: &mut [PolynomialRingElement<Vector>; K],
+    matrix_A: &[PolynomialRingElement<Vector>],
+    s_as_ntt: &[PolynomialRingElement<Vector>; K],
+    error_as_ntt: &[PolynomialRingElement<Vector>; K],
+    s_cache: &mut [PolynomialRingElement<Vector>; K],
+    accumulator: &mut [I32; 256],
+)
 ```
 
-The impl's `compute_As_plus_e`, lifted, equals
-the hacspec `compute_As_plus_e`. The matrix is read from a **stored**
-array, so this theorem is fully
-axiom-clean.
+The impl's `compute_As_plus_e`, lifted, equals the hacspec `compute_As_plus_e`.
+The matrix is read from a **stored** array, so this result is fully axiom-clean.
+Discharged by `compute_As_plus_e_spec_proof` on the FC theorem
+`Matrix.ComputeAsPlusE.compute_As_plus_e_fc`
+([`Matrix/ComputeAsPlusE.lean`](Matrix/ComputeAsPlusE.lean)).
 
 ### L7.2 — encryption: `Âᵀ · r̂ + ê₁`
 
-[`Matrix/ComputeVectorU/FC.lean`](Matrix/ComputeVectorU/FC.lean) — `libcrux_iot_ml_kem.Matrix.ComputeVectorU.FC.compute_vector_u_fc`:
-
-```lean
-⦃ ⌜ True ⌝ ⦄
-  libcrux_iot_ml_kem.matrix.compute_vector_u
-    K (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
-    matrix_entry seed r_as_ntt error_1 result scratch cache accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_vector_u
-              (lift_matrix_from_seed seed K)
-              (lift_vec_slice r_as_ntt K)
-              (lift_vec_slice error_1 K)
-            = .ok (lift_vec_slice p.2.1 K) ⌝ ⦄
+```rust
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(
+        seed.len() == 32 && r_as_ntt.len() == K && error_1.len() == K
+        && result.len() == K && cache.len() == K && K > 0 && K <= 4)
+        .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
+        .and(vec_slice_bnd::<Vector, K>(error_1, 29439))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    vec_matches::<Vector, K>(future(result),
+        &hacspec_ml_kem::matrix::compute_vector_u::<K>(
+            &lift_matrix_from_seed::<Vector, Hasher, K>(seed),
+            &lift_vec_slice::<Vector, K>(r_as_ntt),
+            &lift_vec_slice::<Vector, K>(error_1)))))]
+pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>(
+    matrix_entry: &mut PolynomialRingElement<Vector>,
+    seed: &[u8],
+    r_as_ntt: &[PolynomialRingElement<Vector>],
+    error_1: &[PolynomialRingElement<Vector>],
+    result: &mut [PolynomialRingElement<Vector>],
+    scratch: &mut Vector,
+    cache: &mut [PolynomialRingElement<Vector>],
+    accumulator: &mut [I32; 256],
+)
 ```
-The impl's `compute_vector_u`, lifted, equals
-the hacspec `compute_vector_u`. Here the matrix is
-**sampled on the fly** from `seed` (`lift_matrix_from_seed`), so this
-theorem is conditional on the matrix-sampling leaf axiom **A1** (see
-[Assumptions](#assumptions-trust-boundary)).
+
+The impl's `compute_vector_u`, lifted, equals the hacspec `compute_vector_u`.
+Here the matrix is **sampled on the fly** from `seed` (`lift_matrix_from_seed`),
+so this result is conditional on the matrix-sampling leaf axiom **A1** (see
+[Assumptions](#assumptions-trust-boundary)). Discharged by
+`compute_vector_u_spec_proof` on the FC theorem
+`Matrix.ComputeVectorU.FC.compute_vector_u_fc`
+([`Matrix/ComputeVectorU/FC.lean`](Matrix/ComputeVectorU/FC.lean)).
 
 ### L7.3 — encryption: `t̂ · r̂ + e₂ + Decompress(message)`
 
-[`Matrix/ComputeRingElementV/FC.lean`](Matrix/ComputeRingElementV/FC.lean) — `libcrux_iot_ml_kem.Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc`:
-
-```lean
-⦃ ⌜ True ⌝ ⦄
-  libcrux_iot_ml_kem.matrix.compute_ring_element_v
-    K (vectortraitsOperationsInst := portable_ops_inst)
-    public_key t_as_ntt_entry r_as_ntt error_2 message result scratch
-    cache accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_ring_element_v
-              (lift_t_as_ntt_from_public_key public_key K)
-              (lift_vec_slice r_as_ntt K)
-              (lift_poly error_2) (lift_poly message)
-            = .ok (lift_poly p.2.1) ⌝ ⦄
+```rust
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(
+        K <= 4
+        && public_key.len() == BYTES_PER_RING_ELEMENT * K
+        && r_as_ntt.len() == K && cache.len() == K)
+        .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
+        .and(vec_slice_bnd::<Vector, K>(cache, 3328))
+        .and(poly_bnd(error_2, 3328))
+        .and(poly_bnd(message, 3328))
+        .and(cache_matches::<K, Vector>(r_as_ntt, cache))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    poly_matches(future(result),
+        &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
+            &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
+            &lift_vec_slice::<Vector, K>(r_as_ntt),
+            &lift_poly(error_2), &lift_poly(message)))))]
+pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
+    public_key: &[u8],
+    t_as_ntt_entry: &mut PolynomialRingElement<Vector>,
+    r_as_ntt: &[PolynomialRingElement<Vector>],
+    error_2: &PolynomialRingElement<Vector>,
+    message: &PolynomialRingElement<Vector>,
+    result: &mut PolynomialRingElement<Vector>,
+    scratch: &mut Vector,
+    cache: &[PolynomialRingElement<Vector>],
+    accumulator: &mut [I32; 256],
+)
 ```
 
-The impl's `compute_ring_element_v`, lifted, equals
-the hacspec `compute_ring_element_v`. The first vector `t̂` is **deserialized**
-from the public key (`lift_t_as_ntt_from_public_key`), so this theorem
-is conditional on the deserialization leaf axiom **A2** (see
-[Assumptions](#assumptions-trust-boundary)).
+The impl's `compute_ring_element_v`, lifted, equals the hacspec
+`compute_ring_element_v`. The function consumes the NTT-multiplication cache that
+`compute_vector_u` filled, so its contract requires `cache_matches` (the cache is
+the canonical one for `r_as_ntt`). The first vector `t̂` is **deserialized** from
+the public key (`lift_t_as_ntt_from_public_key`), so this result is conditional
+on the deserialization leaf axiom **A2** (see
+[Assumptions](#assumptions-trust-boundary)). Discharged by
+`compute_ring_element_v_spec_proof` on the FC theorem
+`Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc`
+([`Matrix/ComputeRingElementV/FC.lean`](Matrix/ComputeRingElementV/FC.lean)).
 
 ### L7.4 — decryption: `NTT⁻¹(v̂ − ŝ · û)`
 
-[`Matrix/ComputeMessage/FC.lean`](Matrix/ComputeMessage/FC.lean) — `libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc`:
-
-```lean
-⦃ ⌜ True ⌝ ⦄
-  libcrux_iot_ml_kem.matrix.compute_message
-    (vectortraitsOperationsInst := portable_ops_inst)
-    v secret_as_ntt u_as_ntt result scratch accumulator
-⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_message
-              (lift_poly v)
-              (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
-            = .ok (lift_poly p.1) ⌝ ⦄ 
+```rust
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(K <= 4)
+        .and(vec_bnd(secret_as_ntt, 4095))
+        .and(vec_bnd(u_as_ntt, 3328))
+        .and(poly_bnd(v, 3328))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    poly_matches(future(result),
+        &hacspec_ml_kem::matrix::compute_message(
+            &lift_poly(v), &lift_vec(secret_as_ntt), &lift_vec(u_as_ntt)))))]
+pub(crate) fn compute_message<const K: usize, Vector: Operations>(
+    v: &PolynomialRingElement<Vector>,
+    secret_as_ntt: &[PolynomialRingElement<Vector>; K],
+    u_as_ntt: &[PolynomialRingElement<Vector>; K],
+    result: &mut PolynomialRingElement<Vector>,
+    scratch: &mut Vector,
+    accumulator: &mut [I32; 256],
+)
 ```
 
-The impl's `compute_message`, lifted, equals
-the hacspec `compute_message`. All inputs are passed-in polynomials,
-so this theorem is fully axiom-clean.
+The impl's `compute_message`, lifted, equals the hacspec `compute_message`. All
+inputs are passed-in polynomials, so this result is fully axiom-clean.
+Discharged by `compute_message_spec_proof` on the FC theorem
+`Matrix.ComputeMessage.FC.compute_message_fc`
+([`Matrix/ComputeMessage/FC.lean`](Matrix/ComputeMessage/FC.lean)).
+
+### Composed encryption: `compute_u_and_v`
+
+The encryption path in `ind_cpa` calls L7.2 and L7.3 back to back through
+`compute_u_and_v`, which fills the cache itself. Its contract therefore needs no
+`cache_matches` hypothesis and states L7.3's conclusion for `result_v`:
+
+```rust
+#[cfg_attr(hax, hax_lib::requires(
+    hax_lib::prop::Prop::from_bool(
+        K > 0 && K <= 4 && seed.len() == 32
+        && public_key.len() == BYTES_PER_RING_ELEMENT * K
+        && r_as_ntt.len() == K && error_1.len() == K
+        && result_u.len() == K && cache.len() == K)
+        .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
+        .and(vec_slice_bnd::<Vector, K>(error_1, 29439))
+        .and(poly_bnd(error_2, 3328))
+        .and(poly_bnd(message, 3328))))]
+#[cfg_attr(hax, hax_lib::ensures(|_|
+    poly_matches(future(result_v),
+        &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
+            &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
+            &lift_vec_slice::<Vector, K>(r_as_ntt),
+            &lift_poly(error_2), &lift_poly(message)))))]
+pub(crate) fn compute_u_and_v<const K: usize, Vector: Operations, Hasher: Hash>(
+    seed: &[u8],
+    public_key: &[u8],
+    r_as_ntt: &[PolynomialRingElement<Vector>],
+    error_1: &[PolynomialRingElement<Vector>],
+    error_2: &PolynomialRingElement<Vector>,
+    message: &PolynomialRingElement<Vector>,
+    matrix_entry: &mut PolynomialRingElement<Vector>,
+    t_as_ntt_entry: &mut PolynomialRingElement<Vector>,
+    result_u: &mut [PolynomialRingElement<Vector>],
+    result_v: &mut PolynomialRingElement<Vector>,
+    scratch: &mut Vector,
+    cache: &mut [PolynomialRingElement<Vector>],
+    accumulator: &mut [I32; 256],
+)
+```
+
+Discharged by `compute_u_and_v_spec_proof`, which chains the L7.2 result (it
+establishes `cache_matches` for the cache `compute_vector_u` leaves behind) into
+the L7.3 result; it inherits both leaf axioms **A1** and **A2**.
 
 ## Polynomial-level theorems
 
@@ -276,7 +387,7 @@ lake exe cache get   # fetch the mathlib build cache
 lake build
 ```
 
-A clean build reports ~1783 jobs and no errors. Each top-level `*_fc`
+A clean build reports ~1810 jobs and no errors. Each top-level `*_fc`
 theorem carries a `#print axioms` guard (`#guard_msgs`) that fails the build
 if the axiom set drifts from the one documented above.
 
