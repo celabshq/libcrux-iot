@@ -297,7 +297,11 @@ pub(crate) fn entry<const K: usize, Vector: Operations>(
     &matrix[i * K + j]
 }
 
-#[hax_lib::requires(seed.len() == 32)]
+// `sample_matrix_entry`/`sample_matrix_A` are `--opaque` in the Lean extraction
+// (see `hax.toml`): only their signatures are extracted, so there is nothing
+// for their contracts to specify there -- and the generated spec blocks for
+// opaque items do not type-check. Keep the contracts for the F* extraction only.
+#[cfg_attr(not(hax_backend_lean), hax_lib::requires(seed.len() == 32))]
 #[inline(always)]
 pub(crate) fn sample_matrix_entry<Vector: Operations, Hasher: Hash>(
     out: &mut PolynomialRingElement<Vector>,
@@ -318,8 +322,8 @@ pub(crate) fn sample_matrix_entry<Vector: Operations, Hasher: Hash>(
     PolynomialRingElement::from_i16_array(out_raw[0].classify().as_slice(), out);
 }
 
-#[hax_lib::requires(K <= 4 && A_transpose.len() == K * K)]
-#[hax_lib::ensures(|_| future(A_transpose).len() == A_transpose.len())]
+#[cfg_attr(not(hax_backend_lean), hax_lib::requires(K <= 4 && A_transpose.len() == K * K))]
+#[cfg_attr(not(hax_backend_lean), hax_lib::ensures(|_| future(A_transpose).len() == A_transpose.len()))]
 #[inline(always)]
 #[allow(non_snake_case)]
 pub(crate) fn sample_matrix_A<const K: usize, Vector: Operations, Hasher: Hash>(

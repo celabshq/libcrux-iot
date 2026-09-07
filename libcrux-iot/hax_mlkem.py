@@ -27,20 +27,13 @@ the raw extraction differs from it ONLY in these places:
     `compute_vector_u_loop1_loop0[.body]`, `compute_vector_u_loop1[.body]`,
     `compute_vector_u`. Without the fix the next positional argument lands in
     the Hasher slot ("`start` is not a field of hash_functions.Hash" /
-    "Application type mismatch"). Repaired systematically (pass 3): collect every
+    "Application type mismatch"). Repaired systematically (pass 2): collect every
     def/axiom with that binder pair (18 functions), then at every call
     `<fn> [K] vectortraitsOperationsInst` not already followed by the instance,
     insert it (K-arity taken from the def; binder positions excluded).
 
- Specs.lean -- two things:
-  * the opaque `matrix::sample_matrix_{entry,A}` (extracted signature-only, as
-    axioms in `Assumptions/FunsExternal.lean`) still get generated `.pre`/`.post`/
-    `.spec` blocks from their `#[requires]`/`#[ensures]`; the `.spec` applies the
-    axiom to the Vector instance ALONE (no Hasher, no value arguments), i.e. a
-    partial application inside a Hoare triple, which does not type-check -- and
-    there is nothing to prove about an opaque anyway. Deleted (pass 1).
-  * 5 spec-side calls drop trait-clause instance arguments (pass 2, one exact
-    textual pattern each):
+ Specs.lean -- 5 spec-side calls drop trait-clause instance arguments (pass 1,
+    one exact textual pattern each):
       `lift_t_as_ntt_from_public_key K public_key`  -> + `vectortraitsOperationsInst`
           (x2: `compute_u_and_v.post`, `compute_ring_element_v.post`)
       `lift_matrix_from_seed K seed`                -> + both instances
@@ -52,11 +45,15 @@ the raw extraction differs from it ONLY in these places:
                                                     -> + `hash_functionsHashInst`
           (`compute_u_and_v.spec`)
 
+(The opaque `matrix::sample_matrix_{entry,A}` used to get generated `.pre`/`.post`/
+`.spec` blocks from their `#[requires]`/`#[ensures]` too -- non-type-checking
+partial applications of the axioms; those contracts are now
+`#[cfg_attr(not(hax_backend_lean), ...)]`-gated in `matrix.rs`, so they only
+reach the F* extraction and no Lean-side deletion is needed.)
+
 The passes are guarded by exact-count tripwires and are NOT idempotent: run once
 on a fresh extraction (which is what the default mode guarantees). Each pass
 fails loudly, or reports zero work, once upstream fixes its bug -- delete it then.
-There is also a pure tripwire (no patch) for the old `rej_sample` swapped-pair
-`&mut` bug, so its return is noticed.
 """
 import re
 import subprocess
@@ -84,39 +81,7 @@ def extract():
         die("`cargo hax extract` failed; nothing patched")
 
 
-# ---- tripwire: the rc.1/rc.2 `&mut` pairing bug on rej_sample -------------------
-def tripwire_rej_sample(s):
-    for fn in ("vector.portable.sampling.rej_sample",
-               "vector.portable.OperationsPortableVector.rej_sample"):
-        if f"{fn}.post a out (res.2, res.1))" in s:
-            die(f"`{fn}.post` is applied to a swapped pair again in Specs.lean -- "
-                f"the `&mut` pairing bug is back; restore the swap pass this "
-                f"tripwire replaced.")
-
-
-# ---- pass 1: drop the generated spec blocks of the OPAQUE sampling items --------
-def drop_opaque_spec_blocks(s):
-    """Each block runs from its `::pre]:` docstring to the docstring after its
-    `.spec` def (or to `end libcrux_iot_ml_kem`)."""
-    dropped = []
-    for fn in ("sample_matrix_entry", "sample_matrix_A"):
-        start_marker = f"/-- [libcrux_iot_ml_kem::matrix::{fn}::pre]:"
-        if start_marker not in s:
-            continue
-        start = s.index(start_marker)
-        spec_pos = s.index(f"matrix.{fn}.spec", start)
-        end = s.find("/-- [", spec_pos)
-        if end == -1:
-            end = s.index("end libcrux_iot_ml_kem", spec_pos)
-        s = s[:start] + s[end:]
-        dropped.append(fn)
-    if not dropped:
-        print("note: no opaque sample_matrix_* spec blocks found -- if this persists, "
-              "hax stopped emitting them; delete pass 1.", file=sys.stderr)
-    return s, dropped
-
-
-# ---- pass 2: re-insert dropped trait-clause instances at spec-side calls --------
+# ---- pass 1: re-insert dropped trait-clause instances at spec-side calls --------
 SPEC_CALL_FIXES = [
     # (old, new, expected count)
     ("matrix.lift_t_as_ntt_from_public_key K public_key",
@@ -142,7 +107,7 @@ def fix_spec_calls(s):
     return s, n
 
 
-# ---- pass 3: re-insert the dropped `hash_functionsHashInst` argument in Funs ----
+# ---- pass 2: re-insert the dropped `hash_functionsHashInst` argument in Funs ----
 def hasher_taking_names(*texts):
     """{name: k} for every def/axiom/opaque whose binders have
     `(hash_functionsHashInst :` right after `(vectortraitsOperationsInst :`;
@@ -175,13 +140,9 @@ def patch():
     if not SPECS.exists() or not FUNS.exists():
         die(f"missing {SPECS} or {FUNS}; run the extraction first")
 
-    s = SPECS.read_text()
-    tripwire_rej_sample(s)
-    s, dropped = drop_opaque_spec_blocks(s)
-    s, n_spec = fix_spec_calls(s)
+    s, n_spec = fix_spec_calls(SPECS.read_text())
     SPECS.write_text(s)
-    print(f"Specs.lean: dropped opaque spec blocks {dropped}; "
-          f"re-inserted instances at {n_spec} call site(s)")
+    print(f"Specs.lean: re-inserted instances at {n_spec} call site(s)")
 
     names = hasher_taking_names(FUNS.read_text(),
                                 FUNS_EXTERNAL.read_text() if FUNS_EXTERNAL.exists() else "")
@@ -191,7 +152,7 @@ def patch():
           f"({len(names)} Hasher-taking functions)")
     if n_funs == 0:
         print("note: zero Funs.lean insertions -- if this persists, aeneas fixed the drop; "
-              "delete pass 3.", file=sys.stderr)
+              "delete pass 2.", file=sys.stderr)
 
 
 if __name__ == "__main__":

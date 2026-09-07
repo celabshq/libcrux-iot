@@ -1373,7 +1373,7 @@ def matrix.compute_ring_element_v_loop
     (iter, t_as_ntt_entry, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v]:
-    Source: 'ml-kem/src/matrix.rs', lines 424:0-446:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 428:0-450:1 -/
 def matrix.compute_ring_element_v
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (public_key : Slice Std.U8)
@@ -2465,7 +2465,7 @@ def polynomial.PolynomialRingElement.subtract_reduce
     vectortraitsOperationsInst { start := 0#usize, «end» := i } self b
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message]: loop body 0:
-    Source: 'ml-kem/src/matrix.rs', lines 391:4-393:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 395:4-397:5 -/
 @[rust_loop_body]
 def matrix.compute_message_loop.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -2491,7 +2491,7 @@ def matrix.compute_message_loop.body
     ok (cont (iter1, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message]: loop 0:
-    Source: 'ml-kem/src/matrix.rs', lines 391:4-393:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 395:4-397:5 -/
 @[rust_loop]
 def matrix.compute_message_loop
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -2507,7 +2507,7 @@ def matrix.compute_message_loop
     (iter, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message]:
-    Source: 'ml-kem/src/matrix.rs', lines 382:0-398:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 386:0-402:1 -/
 def matrix.compute_message
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
@@ -4362,7 +4362,7 @@ def polynomial.PolynomialRingElement.add_error_reduce
     vectortraitsOperationsInst { start := 0#usize, «end» := i } self error
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop body 0:
-    Source: 'ml-kem/src/matrix.rs', lines 482:4-488:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 486:4-492:5 -/
 @[rust_loop_body]
 def matrix.compute_vector_u_loop0.body
   {Vector : Type} {Hasher : Type} (vectortraitsOperationsInst :
@@ -4397,7 +4397,7 @@ def matrix.compute_vector_u_loop0.body
     ok (cont (iter1, matrix_entry1, s, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop 0:
-    Source: 'ml-kem/src/matrix.rs', lines 482:4-488:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 486:4-492:5 -/
 @[rust_loop]
 def matrix.compute_vector_u_loop0
   {Vector : Type} {Hasher : Type} (vectortraitsOperationsInst :
@@ -4418,7 +4418,7 @@ def matrix.compute_vector_u_loop0
     (iter, matrix_entry, cache, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop body 2:
-    Source: 'ml-kem/src/matrix.rs', lines 498:8-504:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 502:8-508:9 -/
 @[rust_loop_body]
 def matrix.compute_vector_u_loop1_loop0.body
   {Vector : Type} {Hasher : Type} (vectortraitsOperationsInst :
@@ -4450,7 +4450,7 @@ def matrix.compute_vector_u_loop1_loop0.body
     ok (cont (iter1, matrix_entry1, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop 2:
-    Source: 'ml-kem/src/matrix.rs', lines 498:8-504:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 502:8-508:9 -/
 @[rust_loop]
 def matrix.compute_vector_u_loop1_loop0
   {Vector : Type} {Hasher : Type} (vectortraitsOperationsInst :
@@ -4471,7 +4471,7 @@ def matrix.compute_vector_u_loop1_loop0
     (iter, matrix_entry, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop body 1:
-    Source: 'ml-kem/src/matrix.rs', lines 493:4-509:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 497:4-513:5 -/
 @[rust_loop_body]
 def matrix.compute_vector_u_loop1.body
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -4523,7 +4523,7 @@ def matrix.compute_vector_u_loop1.body
     ok (cont (iter1, matrix_entry1, s1, scratch1, accumulator2))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]: loop 1:
-    Source: 'ml-kem/src/matrix.rs', lines 493:4-509:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 497:4-513:5 -/
 @[rust_loop]
 def matrix.compute_vector_u_loop1
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -4548,7 +4548,7 @@ def matrix.compute_vector_u_loop1
     (iter, matrix_entry, result, scratch, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u]:
-    Source: 'ml-kem/src/matrix.rs', lines 466:0-510:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 470:0-514:1 -/
 def matrix.compute_vector_u
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (hash_functionsHashInst :
@@ -4671,7 +4671,7 @@ def polynomial.PolynomialRingElement.add_standard_error_reduce
     vectortraitsOperationsInst { start := 0#usize, «end» := i } self error
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop body 0:
-    Source: 'ml-kem/src/matrix.rs', lines 540:4-546:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 544:4-550:5 -/
 @[rust_loop_body]
 def matrix.compute_As_plus_e_loop0.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4702,7 +4702,7 @@ def matrix.compute_As_plus_e_loop0.body
     ok (cont (iter1, a, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop 0:
-    Source: 'ml-kem/src/matrix.rs', lines 540:4-546:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 544:4-550:5 -/
 @[rust_loop]
 def matrix.compute_As_plus_e_loop0
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4720,7 +4720,7 @@ def matrix.compute_As_plus_e_loop0
     (iter, s_cache, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop body 2:
-    Source: 'ml-kem/src/matrix.rs', lines 554:8-560:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 558:8-564:9 -/
 @[rust_loop_body]
 def matrix.compute_As_plus_e_loop1_loop0.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4748,7 +4748,7 @@ def matrix.compute_As_plus_e_loop1_loop0.body
     ok (cont (iter1, accumulator1))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop 2:
-    Source: 'ml-kem/src/matrix.rs', lines 554:8-560:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 558:8-564:9 -/
 @[rust_loop]
 def matrix.compute_As_plus_e_loop1_loop0
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4766,7 +4766,7 @@ def matrix.compute_As_plus_e_loop1_loop0
     (iter, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop body 1:
-    Source: 'ml-kem/src/matrix.rs', lines 552:4-564:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 556:4-568:5 -/
 @[rust_loop_body]
 def matrix.compute_As_plus_e_loop1.body
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4810,7 +4810,7 @@ def matrix.compute_As_plus_e_loop1.body
     ok (cont (iter1, a, accumulator2))
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]: loop 1:
-    Source: 'ml-kem/src/matrix.rs', lines 552:4-564:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 556:4-568:5 -/
 @[rust_loop]
 def matrix.compute_As_plus_e_loop1
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -4831,7 +4831,7 @@ def matrix.compute_As_plus_e_loop1
     (iter, t_as_ntt, accumulator)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e]:
-    Source: 'ml-kem/src/matrix.rs', lines 530:0-565:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 534:0-569:1 -/
 def matrix.compute_As_plus_e
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
@@ -4866,7 +4866,7 @@ def matrix.compute_As_plus_e
   ok (t_as_ntt2, s_cache1, accumulator2)
 
 /-- [libcrux_iot_ml_kem::matrix::compute_u_and_v]:
-    Source: 'ml-kem/src/matrix.rs', lines 593:0-615:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 597:0-619:1 -/
 def matrix.compute_u_and_v
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (hash_functionsHashInst :

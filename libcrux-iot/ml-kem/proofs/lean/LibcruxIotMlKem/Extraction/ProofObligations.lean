@@ -147,28 +147,6 @@ theorem
 
 @[spec]
 theorem
-  matrix.sample_matrix_entry.spec.proof {Vector : Type} {Hasher : Type}
-                                       (vectortraitsOperationsInst :
-                                       vector.traits.Operations Vector)
-                                       (hash_functionsHashInst :
-                                       hash_functions.Hash Hasher) :
-  matrix.sample_matrix_entry.spec vectortraitsOperationsInst
-  hash_functionsHashInst
-  := by sorry
-
-@[spec]
-theorem
-  matrix.sample_matrix_A.spec.proof {Vector : Type} {Hasher : Type} (K :
-                                   Std.Usize) (vectortraitsOperationsInst :
-                                   vector.traits.Operations Vector)
-                                   (hash_functionsHashInst :
-                                   hash_functions.Hash Hasher) :
-  matrix.sample_matrix_A.spec K vectortraitsOperationsInst
-  hash_functionsHashInst
-  := by sorry
-
-@[spec]
-theorem
   matrix.compute_message.spec.proof {Vector : Type} {K : Std.Usize}
                                    (vectortraitsOperationsInst :
                                    vector.traits.Operations Vector)
