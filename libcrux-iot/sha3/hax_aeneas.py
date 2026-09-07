@@ -209,14 +209,15 @@ if _specs.exists():
 # `<fn>.spec` as `pre.holds -> triple`), and the top-level ones are discharged in
 # Verification/GeneratedSpecs.lean from the hand-written correctness theorems.
 #
-# ProofObligations.lean is DROPPED: its generated bodies are `sorry`, and every
-# one is `@[spec]`-tagged, so keeping it would both put sorries in the build and
-# feed unproved specs to `hax_mvcgen`. Its import is stripped from the
-# `Extraction.lean` aggregator too (the lakefile globs every module).
-_p = Path("proofs/lean/LibcruxIotSha3/Extraction/ProofObligations.lean")
-if _p.exists():
-    _p.unlink()
-
+# ProofObligations.lean is KEPT ON DISK but kept OUT OF THE BUILD: its generated
+# bodies are `sorry` and every one is `@[spec]`-tagged, so compiling it would put
+# sorries in the build and feed unproved specs to `hax_mvcgen`. The lakefile no
+# longer globs every module (it is import-tree-driven), so the only thing that
+# would pull this file in is the `Extraction.lean` aggregator's own generated
+# `import ...Extraction.ProofObligations` line — which is transitively reachable
+# from the root (Verification/ProofObligations imports the aggregator). So we
+# leave the file in place (do NOT delete it) and only strip that one import from
+# the aggregator; nothing else reaches it, so it is not built.
 _agg = Path("proofs/lean/LibcruxIotSha3/Extraction.lean")
 if _agg.exists():
     _agg.write_text("".join(
