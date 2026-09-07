@@ -257,13 +257,15 @@ The proof is structured into layers L0 to L7:
   - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.12` (provides the
     `CoreModels` library; pulled in by the lakefile).
 - For extraction:
-  - Mainline Hax at rev `4c9e2b7c` (= `cargo-hax-v0.4.0-rc.1`, the Lean/Aeneas
-    backend now lives in `cryspen/hax` main; the old `aeneas-lean` backend was
-    renamed to `lean`), with the matching **prebuilt** charon/aeneas binaries:
-    - Charon `nightly-2026.08.20`
-    - Aeneas `nightly-2026.08.24` (commit `f8a0eb8`)
-  - Easiest via the flake: `nix develop .#lean` from the repo root provides a
-    version-wrapped `cargo hax` @ `4c9e2b7c` + aeneas + cargo.
+  - Mainline Hax `cargo-hax-v0.4.0` (rev `f8fe6933`; the Lean/Aeneas backend
+    lives in `cryspen/hax` main, the old `aeneas-lean` backend was renamed to
+    `lean`), with the **prebuilt** charon/aeneas binaries pinned workspace-wide
+    in `libcrux-iot/hax.toml`:
+    - Charon `nightly-2026.09.02`
+    - Aeneas `nightly-2026.09.03` (commit `6852e64`)
+  - Easiest via the flake: `nix develop .#lean` from the repo root provides
+    `cargo hax` @ `f8fe6933` + cargo; `cargo hax tools install` fetches the
+    pinned charon/aeneas.
 
 ### Verifying the Lean proof
 
@@ -291,9 +293,14 @@ This catches mismatches at the Rust level before they propagate into Lean proof 
 
 ### Extraction from Rust into Lean
 
-Both `hax_aeneas.py` scripts run `cargo hax into lean` (+ the charon
-`--start-from`/`--opaque` bounding and a few post-processing passes); run
-them inside the `nix develop .#lean` environment described above:
+The impl side is the hax scenario `[scenario.libcrux-iot-ml-kem]` declared in
+`libcrux-iot/ml-kem/hax.toml` (Lean backend, `proofs/lean` output, and the
+charon `--start-from`/`--opaque` scope), followed by the residual fix-ups in
+`hax_mlkem.py` (its docstring lists them exactly: the dropped
+`hash_functionsHashInst` arguments in `Funs.lean`, and in `Specs.lean` the
+dropped instance arguments plus the generated spec blocks of the two opaque
+sampling functions). Run inside the `nix develop .#lean` environment described
+above:
 
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
@@ -302,5 +309,5 @@ cd specs/ml-kem/
 
 # Impl side:
 cd libcrux-iot/ml-kem/
-./hax_aeneas.py
+./hax_mlkem.py          # = `cargo hax extract libcrux-iot-ml-kem` + fix-ups
 ```

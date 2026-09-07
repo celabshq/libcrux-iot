@@ -200,11 +200,12 @@ and proceeds as follows:
 
 ## Extraction pipeline
 
-The specification and the implementation are extracted separately,
-using the python scripts [`libcrux-iot/sha3/hax_aeneas.py`](../../../../sha3/hax_aeneas.py) and
-the corresponding `specs/sha3/hax_aeneas.py` in the
-[`cryspen/libcrux`](https://github.com/cryspen/libcrux) repo. Internally, these scripts
-call `cargo hax into lean` and apply small fixes to the output.
+The specification and the implementation are extracted separately. The
+implementation is a plain hax scenario declared in
+[`libcrux-iot/sha3/hax.toml`](../../../hax.toml) and run with `cargo hax extract`
+(no post-processing); the specification is extracted by
+`specs/sha3/hax_aeneas.py` in the [`cryspen/libcrux`](https://github.com/cryspen/libcrux)
+repo, which calls `cargo hax into lean` and applies small fixes to the output.
 The resulting Lean files are:
 * `specs/sha3/proofs/lean/HacspecSha3/Extraction/Funs.lean` (in `cryspen/libcrux`)
 * [`libcrux-iot/sha3/proofs/lean/LibcruxIotSha3/Extraction/Funs.lean`](Extraction/Funs.lean)
@@ -219,11 +220,11 @@ The resulting Lean files are:
     `lake` dependency via `lakefile.toml`).
   - Hacspec-style implementation from https://github.com/cryspen/libcrux at commit `a4cfb1ebf26431b2ee81f0dc19383158aaf397b7`
 - For extraction:
-  - Hax at commit `4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800` (`cargo-hax-v0.4.0-rc.1`)
+  - Hax at commit `f8fe69339b69e48a01b8a6a6bcb2ab5e5c5e424d` (`cargo-hax-v0.4.0`)
     (mainline https://github.com/cryspen/hax) providing the `lean` backend,
-    with the charon/aeneas binaries it pins in `pins.toml`:
-    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.08.20
-    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.08.24-f8a0eb8
+    with the charon/aeneas binaries pinned workspace-wide in `libcrux-iot/hax.toml`:
+    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.09.02
+    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.09.03-6852e64
     These are fetched automatically by `cargo hax tools install` inside the
     `nix develop .#lean` shell.
 
@@ -257,6 +258,6 @@ cd specs/sha3/
 
 # Impl side:
 cd libcrux-iot/sha3/
-./hax_aeneas.py
+cargo hax extract
 ```
 

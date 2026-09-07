@@ -7,6 +7,7 @@
 # The charon `--start-from` roots and `--opaque` items are the extraction scope
 # the driver used to pass on the command line; they are load-bearing (without
 # them the whole crate is extracted and aeneas cannot translate the SHAKE bodies).
+# Tool versions are pinned workspace-wide in `../hax.toml`.
 [scenario.libcrux-iot-ml-dsa]
 backend = "lean"
 output-dir = "proofs/lean"
@@ -62,8 +63,3 @@ charon-args = [
   "--opaque",
   "crate::matrix::compute_matrix_x_mask"
 ]
-
-# Pin the external tools (the versions the committed proofs were checked against).
-[tools]
-aeneas = "nightly-2026.09.03-6852e64"
-charon = "nightly-2026.09.02"

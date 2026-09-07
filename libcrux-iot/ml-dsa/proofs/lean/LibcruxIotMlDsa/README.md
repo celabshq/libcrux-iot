@@ -248,14 +248,15 @@ trusted extracted spec, not an independently trusted artifact.
   - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.12` (provides the
     `CoreModels` library; pulled in by the lakefile).
 - For extraction:
-  - Mainline Hax at rev `4c9e2b7c` (= `cargo-hax-v0.4.0-rc.1`; the Lean/Aeneas
-    backend now lives in `cryspen/hax` main and the old `aeneas-lean` backend
-    was renamed to `lean`), with the matching **prebuilt** charon/aeneas
-    binaries:
-    - Charon `nightly-2026.08.20`
-    - Aeneas `nightly-2026.08.24` (commit `f8a0eb8`)
-  - Easiest via the flake: `nix develop .#lean` from the repo root provides a
-    version-wrapped `cargo hax` @ `4c9e2b7c` + aeneas + cargo.
+  - Mainline Hax `cargo-hax-v0.4.0` (rev `f8fe6933`; the Lean/Aeneas backend
+    lives in `cryspen/hax` main, the old `aeneas-lean` backend was renamed to
+    `lean`), with the **prebuilt** charon/aeneas binaries pinned workspace-wide
+    in `libcrux-iot/hax.toml`:
+    - Charon `nightly-2026.09.02`
+    - Aeneas `nightly-2026.09.03` (commit `6852e64`)
+  - Easiest via the flake: `nix develop .#lean` from the repo root provides
+    `cargo hax` @ `f8fe6933` + cargo; `cargo hax tools install` fetches the
+    pinned charon/aeneas.
 
 ### Verifying the Lean proof
 
@@ -272,8 +273,9 @@ axiom set drifts from the one documented under [Axioms](#axioms).
 
 ### Extraction from Rust into Lean
 
-Both `hax_aeneas.py` scripts run `cargo hax into lean` (+ the charon
-`--start-from`/`--opaque` bounding and a few post-processing passes); run them
+The impl side is a plain hax scenario: `libcrux-iot/ml-dsa/hax.toml` declares
+`[scenario.libcrux-iot-ml-dsa]` (Lean backend, `proofs/lean` output, and the
+charon `--start-from`/`--opaque` scope), and needs no post-processing. Run it
 inside the `nix develop .#lean` environment described above:
 
 ```bash
@@ -283,5 +285,5 @@ cd specs/ml-dsa/
 
 # Impl side:
 cd libcrux-iot/ml-dsa/
-./hax_aeneas.py
+cargo hax extract
 ```

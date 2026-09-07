@@ -1,0 +1,20 @@
+# Workspace-wide hax configuration for the `libcrux-iot` crates.
+#
+# Pins the external tools `cargo hax` drives for the Lean extraction, so it is
+# reproducible regardless of hax's evolving built-in defaults. These are the
+# versions the committed proofs were checked against (and, currently, hax
+# v0.4.0's own defaults; the flake pins hax itself, see `flake.nix`). hax wants a
+# single workspace-wide pin: do not repeat `[tools]` in the member crates.
+#
+# Each member declares its extraction as a `[scenario.<package>]` in its own
+# `hax.toml`. From this directory
+#
+#     cargo hax extract                    # all three crates
+#     cargo hax extract libcrux-iot-sha3   # one of them
+#
+# runs them (ml-kem additionally needs `ml-kem/hax_mlkem.py`, which runs its
+# scenario and then applies the residual fix-ups; see that file). Tool binaries
+# are fetched on first use, or eagerly with `cargo hax tools install`.
+[tools]
+aeneas = "nightly-2026.09.03-6852e64"
+charon = "nightly-2026.09.02"

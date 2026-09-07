@@ -25,15 +25,17 @@
     # itself: as of 0.4.0 the old root `pins.toml` + `install-aeneas.sh` are
     # gone, replaced by versions embedded from `cli/cargo-hax/defaults.toml`
     # and fetched by `cargo hax tools install` (see the devShell below). The
-    # tool versions this pins to are also declared in each crate's `hax.toml`;
-    # keep them and the Lean projects' `{lean-toolchain,lakefile.toml}` in sync.
+    # tool versions are pinned workspace-wide in `libcrux-iot/hax.toml`; keep
+    # them and the Lean projects' `{lean-toolchain,lakefile.toml}` in sync.
     #
     # cargo-hax v0.4.0 (release). This is the first version that (a) fills the
     # `PartialEq.ne`/`Clone.clone_from` record fields and fixes the `lane`
     # namespace shadowing itself, and (b) sets the `hax_backend_lean` cfg for the
     # Lean backend on its own — so the per-crate `hax_aeneas.py` post-processing
-    # driver is no longer needed for `sha3` (extraction is a plain
-    # `cargo hax into lean`, configured by `sha3/hax.toml`).
+    # drivers are gone: each crate declares a `[scenario.<package>]` in its
+    # `hax.toml` and is extracted with `cargo hax extract` (ml-kem via
+    # `ml-kem/hax_mlkem.py`, which runs the scenario and applies its residual
+    # fix-ups).
     hax-main.url = "github:cryspen/hax/f8fe69339b69e48a01b8a6a6bcb2ab5e5c5e424d";
   };
 
@@ -102,35 +104,11 @@
         };
 
         # --- Lean toolchain (used by devShells.lean) ------------------------
-        # `cargo hax` bakes its commit into the binary at build time (via
-        # `env!("HAX_GIT_COMMIT_HASH")`). Built from a Nix source tree (no
-        # `.git`) it reports "unknown", so the version check in `hax_aeneas.py`
-        # would fail. We wrap it so `cargo hax --version` reports the
-        # flake-locked rev — the exact source Nix built — and pass every other
-        # invocation straight through. The reported value is taken from the
-        # lock, so it cannot drift from what is actually built.
-        haxMainPkg = inputs.hax-main.packages.${system}.default;
-        haxMainRev = inputs.hax-main.rev;
-        # `cargo hax --version` (clap long-version) is what the script greps for
-        # `commit=<rev>`; everything else passes through to the real binary.
-        haxVersionScript = pkgs.writeShellScript "cargo-hax" ''
-          case " $* " in
-            *" --version "*)
-              echo "hax"
-              echo "commit=${haxMainRev}"
-              exit 0
-              ;;
-          esac
-          exec ${haxMainPkg}/bin/cargo-hax "$@"
-        '';
-        haxMain = pkgs.symlinkJoin {
-          name = "hax-main-version-wrapped";
-          paths = [ haxMainPkg ];
-          postBuild = ''
-            rm -f $out/bin/cargo-hax
-            install -m555 ${haxVersionScript} $out/bin/cargo-hax
-          '';
-        };
+        # cargo-hax with the `lean` backend, built from the flake-locked
+        # `hax-main` rev. (Built from a Nix source tree it reports its commit as
+        # "unknown" in `--version`; nothing depends on that any more since the
+        # `hax_aeneas.py` drivers, which grepped it, were replaced by hax.toml.)
+        haxMain = inputs.hax-main.packages.${system}.default;
       in
       {
         devShells.default = pkgs.mkShell (tools-environment // {
@@ -162,26 +140,26 @@
           LIBCLANG_PATH = "${pkgs.llvmPackages_18.libclang.lib}/lib";
         });
 
-        # Toolchain for the SHA-3 Lean proof. Reproduces the "Reproduction"
-        # section of
-        # libcrux-iot/sha3/proofs/lean/LibcruxIotSha3/README.md.
+        # Toolchain for the Lean proofs (sha3, ml-kem, ml-dsa). Reproduces the
+        # "Reproduction" sections of the
+        # libcrux-iot/<crate>/proofs/lean/<Lib>/README.md files.
         #
         #   nix develop .#lean
         #
-        # Extraction (Rust -> Lean):
-        #   cd libcrux-iot/sha3
+        # Extraction (Rust -> Lean; scenarios declared in the crates' hax.toml,
+        # tools pinned in libcrux-iot/hax.toml):
+        #   cd libcrux-iot
         #   cargo hax tools install # once: fetch pinned aeneas + charon
-        #   ./hax_aeneas.py
+        #   cargo hax extract libcrux-iot-sha3 libcrux-iot-ml-dsa
+        #   ml-kem/hax_mlkem.py     # = cargo hax extract libcrux-iot-ml-kem + fix-ups
         # Proving:
-        #   cd libcrux-iot/sha3/proofs/lean
+        #   cd libcrux-iot/<crate>/proofs/lean
         #   lake exe cache get && lake build
         devShells.lean = pkgs.mkShell {
           packages = [
-            # Extraction: `cargo hax into lean` drives charon + aeneas.
-            # cargo-hax is version-wrapped (see the `let` block) so the version
-            # check in hax_aeneas.py passes against the flake-locked rev; aeneas
-            # and charon are downloaded on first use by cargo-hax itself, or
-            # eagerly by `cargo hax tools install`.
+            # Extraction: `cargo hax extract` drives charon + aeneas; both are
+            # downloaded on first use by cargo-hax itself, or eagerly by
+            # `cargo hax tools install`.
             haxMain # cargo-hax (with the lean backend)
             rustToolchain # `cargo` launcher for `cargo hax` + rust-src
             # charon (the prebuilt binary cargo-hax fetches) drives a
@@ -189,7 +167,7 @@
             # baked toolchain (currently nightly-2026-06-01 + rustc-dev, ...)
             # and runs charon-driver under it. Without rustup charon aborts.
             pkgs.rustup
-            pkgs.python3 # runs hax_aeneas.py
+            pkgs.python3 # runs ml-kem/hax_mlkem.py
 
             # Proving: elan provisions the pinned Lean toolchain (from the
             # lean-toolchain file) and provides `lake`.
@@ -207,7 +185,7 @@
           ];
           RUST_SRC_PATH = "${rustToolchain.outPath}/lib/rustlib/src/rust/library";
           # cargo-hax caches aeneas/charon under ~/.cargo/bin; make sure
-          # `cargo hax into lean` can find them on PATH.
+          # `cargo hax extract` can find them on PATH.
           shellHook = ''
             export PATH="''${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
           '';
