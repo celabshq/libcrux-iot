@@ -12,8 +12,8 @@
 #     cargo hax extract                    # all three crates
 #     cargo hax extract libcrux-iot-sha3   # one of them
 #
-# runs them (ml-kem additionally needs `ml-kem/hax_mlkem.py`, which runs its
-# scenario and then applies the residual fix-ups; see that file). Tool binaries
+# runs them (ml-kem additionally needs `./hax_mlkem.py`, which runs its scenario
+# and then applies the residual fix-ups; see that file). Tool binaries
 # are fetched on first use, or eagerly with `cargo hax tools install`.
 [tools]
 aeneas = "nightly-2026.09.03-6852e64"

@@ -34,7 +34,7 @@
     # Lean backend on its own — so the per-crate `hax_aeneas.py` post-processing
     # drivers are gone: each crate declares a `[scenario.<package>]` in its
     # `hax.toml` and is extracted with `cargo hax extract` (ml-kem via
-    # `ml-kem/hax_mlkem.py`, which runs the scenario and applies its residual
+    # `libcrux-iot/hax_mlkem.py`, which runs the scenario and applies its residual
     # fix-ups).
     hax-main.url = "github:cryspen/hax/f8fe69339b69e48a01b8a6a6bcb2ab5e5c5e424d";
   };
@@ -151,7 +151,7 @@
         #   cd libcrux-iot
         #   cargo hax tools install # once: fetch pinned aeneas + charon
         #   cargo hax extract libcrux-iot-sha3 libcrux-iot-ml-dsa
-        #   ml-kem/hax_mlkem.py     # = cargo hax extract libcrux-iot-ml-kem + fix-ups
+        #   ./hax_mlkem.py          # = cargo hax extract libcrux-iot-ml-kem + fix-ups
         # Proving:
         #   cd libcrux-iot/<crate>/proofs/lean
         #   lake exe cache get && lake build
@@ -167,7 +167,7 @@
             # baked toolchain (currently nightly-2026-06-01 + rustc-dev, ...)
             # and runs charon-driver under it. Without rustup charon aborts.
             pkgs.rustup
-            pkgs.python3 # runs ml-kem/hax_mlkem.py
+            pkgs.python3 # runs libcrux-iot/hax_mlkem.py
 
             # Proving: elan provisions the pinned Lean toolchain (from the
             # lean-toolchain file) and provides `lake`.

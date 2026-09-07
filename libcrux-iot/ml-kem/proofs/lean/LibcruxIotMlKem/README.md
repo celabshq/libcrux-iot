@@ -296,7 +296,7 @@ This catches mismatches at the Rust level before they propagate into Lean proof 
 The impl side is the hax scenario `[scenario.libcrux-iot-ml-kem]` declared in
 `libcrux-iot/ml-kem/hax.toml` (Lean backend, `proofs/lean` output, and the
 charon `--start-from`/`--opaque` scope), followed by the residual fix-ups in
-`hax_mlkem.py` (its docstring lists them exactly: the dropped
+`libcrux-iot/hax_mlkem.py` (its docstring lists them exactly: the dropped
 `hash_functionsHashInst` arguments in `Funs.lean`, and in `Specs.lean` the
 dropped instance arguments plus the generated spec blocks of the two opaque
 sampling functions). Run inside the `nix develop .#lean` environment described
@@ -308,6 +308,6 @@ cd specs/ml-kem/
 ./hax_aeneas.py
 
 # Impl side:
-cd libcrux-iot/ml-kem/
+cd libcrux-iot/
 ./hax_mlkem.py          # = `cargo hax extract libcrux-iot-ml-kem` + fix-ups
 ```

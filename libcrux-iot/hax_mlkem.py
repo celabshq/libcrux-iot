@@ -4,9 +4,10 @@
     ./hax_mlkem.py              # `cargo hax extract libcrux-iot-ml-kem`, then patch
     ./hax_mlkem.py --no-extract # patch only (a FRESH, still unpatched extraction)
 
-Run inside `nix develop .#lean` (from the repo root). The scenario itself --
-backend, output dir, the charon `--start-from`/`--opaque` scope -- lives in
-`hax.toml`; the tool versions are pinned workspace-wide in `../hax.toml`. The
+Lives next to the workspace `hax.toml` (which pins the tool versions); runs
+from any directory, inside `nix develop .#lean` (from the repo root). The
+scenario itself -- backend, output dir, the charon `--start-from`/`--opaque`
+scope -- lives in `ml-kem/hax.toml`. The
 scenario is named after the cargo package because hax derives the Lean package
 name (`LibcruxIotMlKem`) from it.
 
@@ -62,9 +63,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+WORKSPACE = Path(__file__).resolve().parent          # libcrux-iot/, has hax.toml
+CRATE = WORKSPACE / "ml-kem"
 SCENARIO = "libcrux-iot-ml-kem"
-LEAN = HERE / "proofs" / "lean" / "LibcruxIotMlKem"
+LEAN = CRATE / "proofs" / "lean" / "LibcruxIotMlKem"
 SPECS = LEAN / "Extraction" / "Specs.lean"
 FUNS = LEAN / "Extraction" / "Funs.lean"
 FUNS_EXTERNAL = LEAN / "Assumptions" / "FunsExternal.lean"
@@ -77,8 +79,8 @@ def die(msg):
 
 def extract():
     cmd = ["cargo", "hax", "extract", SCENARIO]
-    print("+", " ".join(cmd), f"(in {HERE})")
-    if subprocess.run(cmd, cwd=HERE).returncode != 0:
+    print("+", " ".join(cmd), f"(in {CRATE})")
+    if subprocess.run(cmd, cwd=CRATE).returncode != 0:
         die("`cargo hax extract` failed; nothing patched")
 
 
