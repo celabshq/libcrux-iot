@@ -433,7 +433,7 @@ def keccakx1.spec (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
 
 
 /-- [libcrux_iot_sha3::keccak::_squeeze::pre]:
-    Source: 'sha3/src/keccak.rs', lines 209:16-209:105 -/
+    Source: 'sha3/src/keccak.rs', lines 211:16-211:105 -/
 @[reducible]
 def keccak._squeeze.pre
   {RATE : Std.Usize} (keccak_state : keccak.KeccakXofState RATE)
@@ -461,7 +461,7 @@ def keccak._squeeze.spec {RATE : Std.Usize}
 
 
 /-- [libcrux_iot_sha3::keccak::absorb_block::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2604:16-2608:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2606:16-2610:1 -/
 @[reducible]
 def keccak.absorb_block.pre
   (RATE : Std.Usize) (s : state.KeccakState) (blocks : Slice Std.U8)
@@ -492,7 +492,7 @@ def keccak.absorb_block.spec (RATE : Std.Usize) (s : state.KeccakState)
 
 
 /-- [libcrux_iot_sha3::keccak::absorb_final::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2615:16-2620:60 -/
+    Source: 'sha3/src/keccak.rs', lines 2617:16-2622:60 -/
 @[reducible]
 def keccak.absorb_final.pre
   (RATE : Std.Usize) (DELIM : Std.U8) (s : state.KeccakState)
@@ -530,7 +530,7 @@ def keccak.absorb_final.spec (RATE : Std.Usize) (DELIM : Std.U8)
 
 
 /-- [libcrux_iot_sha3::keccak::squeeze_first_block::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2641:16-2641:84 -/
+    Source: 'sha3/src/keccak.rs', lines 2643:16-2643:84 -/
 @[reducible]
 def keccak.squeeze_first_block.pre
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
@@ -546,7 +546,7 @@ def keccak.squeeze_first_block.pre
   else ok false
 
 /-- [libcrux_iot_sha3::keccak::squeeze_first_block::post]:
-    Source: 'sha3/src/keccak.rs', lines 2642:0-2642:70 -/
+    Source: 'sha3/src/keccak.rs', lines 2644:0-2644:70 -/
 @[reducible]
 def keccak.squeeze_first_block.post
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8)
@@ -567,7 +567,7 @@ def keccak.squeeze_first_block.spec (RATE : Std.Usize) (s : state.KeccakState)
 
 
 /-- [libcrux_iot_sha3::keccak::squeeze_next_block::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2648:16-2648:84 -/
+    Source: 'sha3/src/keccak.rs', lines 2650:16-2650:84 -/
 @[reducible]
 def keccak.squeeze_next_block.pre
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
@@ -583,7 +583,7 @@ def keccak.squeeze_next_block.pre
   else ok false
 
 /-- [libcrux_iot_sha3::keccak::squeeze_next_block::post]:
-    Source: 'sha3/src/keccak.rs', lines 2649:0-2649:70 -/
+    Source: 'sha3/src/keccak.rs', lines 2651:0-2651:70 -/
 @[reducible]
 def keccak.squeeze_next_block.post
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8)
@@ -605,7 +605,7 @@ def keccak.squeeze_next_block.spec (RATE : Std.Usize) (s : state.KeccakState)
 
 
 /-- [libcrux_iot_sha3::keccak::squeeze_last::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2676:16-2676:83 -/
+    Source: 'sha3/src/keccak.rs', lines 2678:16-2678:83 -/
 @[reducible]
 def keccak.squeeze_last.pre
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
@@ -629,7 +629,7 @@ def keccak.squeeze_last.spec (RATE : Std.Usize) (s : state.KeccakState)
 
 
 /-- [libcrux_iot_sha3::keccak::squeeze_first_and_last::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2685:16-2685:83 -/
+    Source: 'sha3/src/keccak.rs', lines 2687:16-2687:83 -/
 @[reducible]
 def keccak.squeeze_first_and_last.pre
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
@@ -653,7 +653,7 @@ def keccak.squeeze_first_and_last.spec (RATE : Std.Usize)
 
 
 /-- [libcrux_iot_sha3::keccak::keccak::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2696:16-2698:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2735:16-2737:1 -/
 @[reducible]
 def keccak.keccak.pre
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
@@ -669,16 +669,25 @@ def keccak.keccak.pre
   else ok false
 
 /-- [libcrux_iot_sha3::keccak::keccak::post]:
-    Source: 'sha3/src/keccak.rs', lines 2699:0-2699:70 -/
+    Source: 'sha3/src/keccak.rs', lines 2738:0-2740:97 -/
 @[reducible]
 def keccak.keccak.post
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
   (out : Slice Std.U8) (out_future : Slice Std.U8) :
-  RustM Bool
+  RustM hax_lib.prop.Prop
   := do
   let i ← core.slice.Slice.len out_future
   let i1 ← core.slice.Slice.len out
-  ok (i = i1)
+  let p ← hax_lib.prop.Prop.from_bool (i = i1)
+  let s ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar data
+  let s1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar out_future
+  let p1 ← keccak.keccak_matches RATE DELIM s s1
+  hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
+    hax_lib.prop.Prop)) p p1
 
 def keccak.keccak.spec (RATE : Std.Usize) (DELIM : Std.U8)
   (data : Slice Std.U8) (out : Slice Std.U8) : Prop :=
@@ -796,7 +805,7 @@ def state.store_block_full_2u32.spec (RATE : Std.Usize) (s : state.KeccakState)
 
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::absorb::pre]:
-    Source: 'sha3/src/keccak.rs', lines 27:16-27:35 -/
+    Source: 'sha3/src/keccak.rs', lines 29:16-29:35 -/
 @[reducible]
 def keccak.KeccakXofState.absorb.pre
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
@@ -834,7 +843,7 @@ def keccak.KeccakXofState.absorb.spec {RATE : Std.Usize}
 
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::absorb_full::pre]:
-    Source: 'sha3/src/keccak.rs', lines 27:16-27:35 -/
+    Source: 'sha3/src/keccak.rs', lines 29:16-29:35 -/
 @[reducible]
 def keccak.KeccakXofState.absorb_full.pre
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
@@ -864,7 +873,7 @@ def keccak.KeccakXofState.absorb_full.pre
   else ok false
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::absorb_full::post]:
-    Source: 'sha3/src/keccak.rs', lines 86:4-91:7 -/
+    Source: 'sha3/src/keccak.rs', lines 88:4-93:7 -/
 @[reducible]
 def keccak.KeccakXofState.absorb_full.post
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
@@ -901,7 +910,7 @@ def keccak.KeccakXofState.absorb_full.spec {RATE : Std.Usize}
 
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::fill_buffer::pre]:
-    Source: 'sha3/src/keccak.rs', lines 27:16-27:35 -/
+    Source: 'sha3/src/keccak.rs', lines 29:16-29:35 -/
 @[reducible]
 def keccak.KeccakXofState.fill_buffer.pre
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
@@ -920,7 +929,7 @@ def keccak.KeccakXofState.fill_buffer.pre
   else ok false
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::fill_buffer::post]:
-    Source: 'sha3/src/keccak.rs', lines 141:4-145:7 -/
+    Source: 'sha3/src/keccak.rs', lines 143:4-147:7 -/
 @[reducible]
 def keccak.KeccakXofState.fill_buffer.post
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
@@ -954,7 +963,7 @@ def keccak.KeccakXofState.fill_buffer.spec {RATE : Std.Usize}
 
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::absorb_final::pre]:
-    Source: 'sha3/src/keccak.rs', lines 27:16-27:35 -/
+    Source: 'sha3/src/keccak.rs', lines 29:16-29:35 -/
 @[reducible]
 def keccak.KeccakXofState.absorb_final.pre
   {RATE : Std.Usize} (DELIMITER : Std.U8) (self_ : keccak.KeccakXofState RATE)
@@ -994,7 +1003,7 @@ def
 
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::squeeze::pre]:
-    Source: 'sha3/src/keccak.rs', lines 27:16-27:35 -/
+    Source: 'sha3/src/keccak.rs', lines 29:16-29:35 -/
 @[reducible]
 def keccak.KeccakXofState.squeeze.pre
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE) (out : Slice Std.U8)

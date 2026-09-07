@@ -37,12 +37,17 @@ structure state.KeccakState where
   i : Std.Usize
 
 /-- [libcrux_iot_sha3::keccak::KeccakXofState]
-    Source: 'sha3/src/keccak.rs', lines 14:0-25:1 -/
+    Source: 'sha3/src/keccak.rs', lines 16:0-27:1 -/
 structure keccak.KeccakXofState (RATE : Std.Usize) where
   inner : state.KeccakState
   buf : Array Std.U8 RATE
   buf_len : Std.Usize
   sponge : Bool
+
+/-- [libcrux_iot_sha3::keccak::keccak_matches::closure]
+    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
+def keccak.keccak_matches.closure :=
+  Slice Std.U8 × Std.Usize × Std.U8 × Slice Std.U8
 
 /-- [libcrux_iot_sha3::Algorithm]
     Source: 'sha3/src/lib.rs', lines 92:0-104:1

@@ -224,8 +224,11 @@ trusted extracted spec, not an independently trusted artifact.
 
 - For running the proofs:
   - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
-  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.12` (provides the
+  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.17` (provides the
     `CoreModels` library; pulled in by the lakefile).
+  - The extracted hacspec (`HacspecMlDsa`, from `specs/ml-dsa` of
+    https://github.com/cryspen/libcrux) at commit `962ac24d92c229cae810398869f52eb85f6fc823`
+    (pinned by commit in `lakefile.toml`).
 - For extraction:
   - Mainline Hax `cargo-hax-v0.4.0` (rev `f8fe6933`; the Lean/Aeneas backend
     lives in `cryspen/hax` main, the old `aeneas-lean` backend was renamed to

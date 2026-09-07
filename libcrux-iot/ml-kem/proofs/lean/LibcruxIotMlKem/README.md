@@ -365,8 +365,11 @@ The proof is structured into layers L0 to L7:
 
 - For running the proofs:
   - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
-  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.12` (provides the
+  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.17` (provides the
     `CoreModels` library; pulled in by the lakefile).
+  - The extracted hacspec (`HacspecMlKem`, from `specs/ml-kem` of
+    https://github.com/cryspen/libcrux) at commit `ee9bfe56e4dfe532c52573425a5d4a187ed326ca`
+    (pinned by commit in `lakefile.toml`).
 - For extraction:
   - Mainline Hax `cargo-hax-v0.4.0` (rev `f8fe6933`; the Lean/Aeneas backend
     lives in `cryspen/hax` main, the old `aeneas-lean` backend was renamed to
@@ -407,11 +410,10 @@ This catches mismatches at the Rust level before they propagate into Lean proof 
 The impl side is the hax scenario `[scenario.libcrux-iot-ml-kem]` declared in
 `libcrux-iot/ml-kem/hax.toml` (Lean backend, `proofs/lean` output, and the
 charon `--start-from`/`--opaque` scope), followed by the residual fix-ups in
-`libcrux-iot/hax_mlkem.py` (its docstring lists them exactly: the dropped
-`hash_functionsHashInst` arguments in `Funs.lean`, and in `Specs.lean` the
-dropped instance arguments plus the generated spec blocks of the two opaque
-sampling functions). Run inside the `nix develop .#lean` environment described
-above:
+`libcrux-iot/hax_mlkem.py` (its docstring lists them exactly: trait-clause
+instance arguments that the pipeline drops at generated call sites, 10 in
+`Funs.lean` and 5 in `Specs.lean`). Run inside the `nix develop .#lean`
+environment described above:
 
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
