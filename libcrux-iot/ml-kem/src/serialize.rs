@@ -22,6 +22,7 @@ pub(super) fn compress_then_serialize_message<Vector: Operations>(
 ) {
     for i in 0..16 {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { serialized.len() == SHARED_SECRET_SIZE });
         to_unsigned_field_modulus(&re.coefficients[i], scratch);
         Vector::compress_1(scratch);
@@ -54,6 +55,7 @@ pub(super) fn serialize_uncompressed_ring_element<Vector: Operations>(
 
     for i in 0..VECTORS_IN_RING_ELEMENT {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { serialized.len() == BYTES_PER_RING_ELEMENT });
 
         to_unsigned_field_modulus(&re.coefficients[i], scratch);
@@ -115,6 +117,7 @@ pub(super) fn deserialize_ring_elements_reduced<const K: usize, Vector: Operatio
             .enumerate()
         {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|i: usize| {
                 deserialized_pk.len() == K
             });
@@ -140,6 +143,7 @@ fn compress_then_serialize_10<const BLOCK_LEN: usize, Vector: Operations>(
     debug_assert!(serialized.len() == BLOCK_LEN);
     for i in 0..VECTORS_IN_RING_ELEMENT {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { serialized.len() == BLOCK_LEN });
         to_unsigned_field_modulus(&re.coefficients[i], scratch);
         Vector::compress::<10>(scratch);
@@ -161,6 +165,7 @@ fn compress_then_serialize_11<const BLOCK_LEN: usize, Vector: Operations>(
 
     for i in 0..VECTORS_IN_RING_ELEMENT {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { serialized.len() == BLOCK_LEN });
         to_unsigned_representative::<Vector>(&re.coefficients[i], scratch);
         Vector::compress::<11>(scratch);
@@ -202,6 +207,7 @@ fn compress_then_serialize_4<Vector: Operations>(
 ) {
     for i in 0..VECTORS_IN_RING_ELEMENT {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { serialized.len() == 128 });
         to_unsigned_field_modulus(&re.coefficients[i], scratch);
         Vector::compress::<4>(scratch);
@@ -220,6 +226,7 @@ fn compress_then_serialize_5<Vector: Operations>(
 ) {
     for i in 0..VECTORS_IN_RING_ELEMENT {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { serialized.len() == 160 });
         to_unsigned_representative::<Vector>(&re.coefficients[i], scratch);
         Vector::compress::<5>(scratch);

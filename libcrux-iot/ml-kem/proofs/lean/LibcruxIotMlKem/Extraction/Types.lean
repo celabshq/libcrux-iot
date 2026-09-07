@@ -118,121 +118,8 @@ structure vector.traits.Operations (Self : Type) where
   rej_sample : Slice Std.U8 → Slice Std.I16 → RustM (Std.Usize × (Slice
     Std.I16))
 
-/-- [libcrux_iot_ml_kem::serialize::serialize_uncompressed_ring_element::closure]
-    Source: 'ml-kem/src/serialize.rs', lines 57:33-57:90 -/
-@[reducible]
-def serialize.serialize_uncompressed_ring_element.closure (Vector : Type) :=
-  Slice Std.U8
-
-/-- [libcrux_iot_ml_kem::ind_cpa::serialize_vector::closure]
-    Source: 'ml-kem/src/ind_cpa.rs', lines 128:37-130:13 -/
-@[reducible]
-def ind_cpa.serialize_vector.closure (Vector : Type) (K : Std.Usize) :=
-  Slice Std.U8
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11::closure]
-    Source: 'ml-kem/src/serialize.rs', lines 164:33-164:77 -/
-@[reducible]
-def serialize.compress_then_serialize_11.closure (Vector : Type) (BLOCK_LEN :
-  Std.Usize) :=
-  Slice Std.U8
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10::closure]
-    Source: 'ml-kem/src/serialize.rs', lines 143:33-143:77 -/
-@[reducible]
-def serialize.compress_then_serialize_10.closure (Vector : Type) (BLOCK_LEN :
-  Std.Usize) :=
-  Slice Std.U8
-
-/-- [libcrux_iot_ml_kem::ind_cpa::compress_then_serialize_u::closure]
-    Source: 'ml-kem/src/ind_cpa.rs', lines 486:37-486:66 -/
-@[reducible]
-def ind_cpa.compress_then_serialize_u.closure (Vector : Type) (K : Std.Usize)
-  (C1_LEN : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize) (BLOCK_LEN :
-  Std.Usize) :=
-  Slice Std.U8
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5::closure]
-    Source: 'ml-kem/src/serialize.rs', lines 223:33-223:71 -/
-@[reducible]
-def serialize.compress_then_serialize_5.closure (Vector : Type) := Slice Std.U8
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4::closure]
-    Source: 'ml-kem/src/serialize.rs', lines 205:33-205:71 -/
-@[reducible]
-def serialize.compress_then_serialize_4.closure (Vector : Type) := Slice Std.U8
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus::closure#1]
-    Source: 'ml-kem/src/invert_ntt.rs', lines 112:37-112:89 -/
-def invert_ntt.invert_ntt_at_layer_4_plus.closure_1 (Vector : Type) :=
-  Std.Usize × Std.Usize × Std.Usize
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus::closure]
-    Source: 'ml-kem/src/invert_ntt.rs', lines 104:33-104:85 -/
-def invert_ntt.invert_ntt_at_layer_4_plus.closure (Vector : Type) :=
-  Std.Usize × Std.Usize
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3::closure]
-    Source: 'ml-kem/src/invert_ntt.rs', lines 61:33-61:61 -/
-@[reducible]
-def invert_ntt.invert_ntt_at_layer_3.closure (Vector : Type) := Std.Usize
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2::closure]
-    Source: 'ml-kem/src/invert_ntt.rs', lines 39:33-39:65 -/
-@[reducible]
-def invert_ntt.invert_ntt_at_layer_2.closure (Vector : Type) := Std.Usize
-
-/-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_1::closure]
-    Source: 'ml-kem/src/invert_ntt.rs', lines 16:33-16:66 -/
-@[reducible]
-def invert_ntt.invert_ntt_at_layer_1.closure (Vector : Type) := Std.Usize
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus::closure#1]
-    Source: 'ml-kem/src/ntt.rs', lines 103:37-103:85 -/
-def ntt.ntt_at_layer_4_plus.closure_1 (Vector : Type) :=
-  Std.Usize × Std.Usize × Std.Usize
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus::closure]
-    Source: 'ml-kem/src/ntt.rs', lines 96:33-96:89 -/
-def ntt.ntt_at_layer_4_plus.closure (Vector : Type) := Std.Usize × Std.Usize
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3::closure]
-    Source: 'ml-kem/src/ntt.rs', lines 58:33-58:61 -/
-@[reducible]
-def ntt.ntt_at_layer_3.closure (Vector : Type) := Std.Usize
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2::closure]
-    Source: 'ml-kem/src/ntt.rs', lines 38:33-38:65 -/
-@[reducible]
-def ntt.ntt_at_layer_2.closure (Vector : Type) := Std.Usize
-
-/-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_1::closure]
-    Source: 'ml-kem/src/ntt.rs', lines 16:33-16:65 -/
-@[reducible]
-def ntt.ntt_at_layer_1.closure (Vector : Type) := Std.Usize
-
-/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_then_decompress_u::closure]
-    Source: 'ml-kem/src/ind_cpa.rs', lines 810:37-810:68 -/
-@[reducible]
-def ind_cpa.deserialize_then_decompress_u.closure (Vector : Type) (K :
-  Std.Usize) (CIPHERTEXT_SIZE : Std.Usize) (U_COMPRESSION_FACTOR : Std.Usize)
-  :=
-  Slice (polynomial.PolynomialRingElement Vector)
-
-/-- [libcrux_iot_ml_kem::ind_cpa::deserialize_vector::closure]
-    Source: 'ml-kem/src/ind_cpa.rs', lines 831:33-831:68 -/
-@[reducible]
-def ind_cpa.deserialize_vector.closure (Vector : Type) (K : Std.Usize) :=
-  Slice (polynomial.PolynomialRingElement Vector)
-
-/-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_message::closure]
-    Source: 'ml-kem/src/serialize.rs', lines 25:33-25:86 -/
-@[reducible]
-def serialize.compress_then_serialize_message.closure (Vector : Type) :=
-  Slice Std.U8
-
 /-- [libcrux_iot_ml_kem::ind_cpa::decrypt_unpacked::closure]
-    Source: 'ml-kem/src/ind_cpa.rs', lines 887:31-887:74 -/
+    Source: 'ml-kem/src/ind_cpa.rs', lines 893:31-893:74 -/
 @[reducible]
 def ind_cpa.decrypt_unpacked.closure (Vector : Type) (K : Std.Usize)
   (CIPHERTEXT_SIZE : Std.Usize) (VECTOR_U_ENCODED_SIZE : Std.Usize)
@@ -240,7 +127,7 @@ def ind_cpa.decrypt_unpacked.closure (Vector : Type) (K : Std.Usize)
 Unit
 
 /-- [libcrux_iot_ml_kem::ind_cpa::decrypt::closure]
-    Source: 'ml-kem/src/ind_cpa.rs', lines 941:36-941:79 -/
+    Source: 'ml-kem/src/ind_cpa.rs', lines 947:36-947:79 -/
 @[reducible]
 def ind_cpa.decrypt.closure (Vector : Type) (K : Std.Usize) (CIPHERTEXT_SIZE :
   Std.Usize) (VECTOR_U_ENCODED_SIZE : Std.Usize) (U_COMPRESSION_FACTOR :
@@ -335,42 +222,10 @@ def matrix.matrix_slice_bnd.closure (Vector : Type) (K : Std.Usize) :=
 @[reducible]
 def matrix.acc_zero.closure := Array Std.I32 256#usize
 
-/-- [libcrux_iot_ml_kem::matrix::compute_vector_u::closure#2]
-    Source: 'ml-kem/src/matrix.rs', lines 495:37-495:85 -/
-def matrix.compute_vector_u.closure_2 (Vector : Type) (Hasher : Type) (K :
-  Std.Usize) :=
-  Slice (polynomial.PolynomialRingElement Vector) × Slice
-  (polynomial.PolynomialRingElement Vector)
-
-/-- [libcrux_iot_ml_kem::matrix::compute_vector_u::closure#1]
-    Source: 'ml-kem/src/matrix.rs', lines 491:33-491:81 -/
-def matrix.compute_vector_u.closure_1 (Vector : Type) (Hasher : Type) (K :
-  Std.Usize) :=
-  Slice (polynomial.PolynomialRingElement Vector) × Slice
-  (polynomial.PolynomialRingElement Vector)
-
-/-- [libcrux_iot_ml_kem::matrix::compute_vector_u::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 481:33-481:81 -/
-def matrix.compute_vector_u.closure (Vector : Type) (Hasher : Type) (K :
-  Std.Usize) :=
-  Slice (polynomial.PolynomialRingElement Vector) × Slice
-  (polynomial.PolynomialRingElement Vector)
-
-/-- [libcrux_iot_ml_kem::serialize::deserialize_ring_elements_reduced::closure]
-    Source: 'ml-kem/src/serialize.rs', lines 118:37-120:13 -/
-@[reducible]
-def serialize.deserialize_ring_elements_reduced.closure (Vector : Type) (K :
-  Std.Usize) :=
-  Slice (polynomial.PolynomialRingElement Vector)
-
 /-- [libcrux_iot_ml_kem::vector::portable::vector_type::PortableVector]
     Source: 'ml-kem/src/vector/portable/vector_type.rs', lines 9:0-11:1
     Visibility: public -/
 structure vector.portable.vector_type.PortableVector where
   elements : Array Std.I16 16#usize
-
-/-- [libcrux_iot_ml_kem::vector::portable::sampling::rej_sample::closure]
-    Source: 'ml-kem/src/vector/portable/sampling.rs', lines 10:33-10:83 -/
-def vector.portable.sampling.rej_sample.closure := Slice Std.I16 × Std.Usize
 
 end libcrux_iot_ml_kem

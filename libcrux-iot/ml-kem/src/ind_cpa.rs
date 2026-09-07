@@ -125,6 +125,7 @@ pub(crate) fn serialize_vector<const K: usize, Vector: Operations>(
     cloop! {
         for (i, re) in key.into_iter().enumerate() {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|i: usize| {
                 out.len() == K * BYTES_PER_RING_ELEMENT
             });
@@ -175,6 +176,7 @@ fn sample_ring_element_cbd<
     );
     for i in 0..K {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { error_1.len() == K });
         let randomness = &prf_outputs[i * ETA2_RANDOMNESS_SIZE..(i + 1) * ETA2_RANDOMNESS_SIZE];
         sample_from_binomial_distribution::<ETA2, Vector>(randomness, sample_buffer);
@@ -218,6 +220,7 @@ fn sample_vector_cbd_then_ntt<
     Hasher::PRFxN(&prf_inputs, &mut prf_outputs, ETA_RANDOMNESS_SIZE);
     for i in 0..K {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|_i: usize| { re_as_ntt.len() == K });
         let randomness = &prf_outputs[i * ETA_RANDOMNESS_SIZE..(i + 1) * ETA_RANDOMNESS_SIZE];
         let mut sample_buffer = [0i16.classify(); 256];
@@ -483,6 +486,7 @@ fn compress_then_serialize_u<
     cloop! {
         for (i, re) in input.into_iter().enumerate() {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|_:usize| out.len() == C1_LEN);
             compress_then_serialize_ring_element_u::<U_COMPRESSION_FACTOR, BLOCK_LEN, Vector>(&re, &mut out[i * (C1_LEN / K)..(i + 1) * (C1_LEN / K)],scratch);
         }
@@ -807,6 +811,7 @@ fn deserialize_then_decompress_u<
             .enumerate()
         {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|_i: usize| u_as_ntt.len() == K);
             deserialize_then_decompress_ring_element_u::<U_COMPRESSION_FACTOR, Vector>(u_bytes, &mut u_as_ntt[i]);
             ntt_vector_u::<U_COMPRESSION_FACTOR, Vector>(&mut u_as_ntt[i], scratch);
@@ -828,6 +833,7 @@ pub(crate) fn deserialize_vector<const K: usize, Vector: Operations>(
 ) {
     for i in 0..K {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| secret_as_ntt.len() == K);
         deserialize_to_uncompressed_ring_element(
             &secret_key[i * BYTES_PER_RING_ELEMENT..(i + 1) * BYTES_PER_RING_ELEMENT],

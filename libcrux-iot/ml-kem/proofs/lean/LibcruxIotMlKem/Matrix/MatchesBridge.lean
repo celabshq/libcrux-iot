@@ -101,7 +101,7 @@ theorem poly_matches_self
       exact holds_ok_prop (by trivial)
     · simp only [reduceIte, ht]
       exact holds_ok_prop (by trivial)
-  unfold matrix.poly_matches hax_lib.prop.forall
+  unfold matrix.poly_matches hax_lib_1.prop.forall hax_lib.prop.forall
   simp only [RustM.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]
   exact Std.Do.SPred.pure_intro key
 
@@ -235,7 +235,7 @@ theorem vec_matches_self {K : Std.Usize}
     · rw [if_neg ht]
       simp only [Aeneas.Std.bind_tc_ok]
       exact holds_ok_prop (by trivial)
-  unfold matrix.vec_matches hax_lib.prop.forall
+  unfold matrix.vec_matches hax_lib_1.prop.forall hax_lib.prop.forall
   simp only [RustM.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow]
   exact Std.Do.SPred.pure_intro key
 

@@ -332,10 +332,12 @@ pub(crate) fn sample_matrix_A<const K: usize, Vector: Operations, Hasher: Hash>(
 
     for i in 0..K {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|_: usize| A_transpose.len() == K * K);
         let mut seeds = [*seed; K];
         for j in 0..K {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|_: usize| A_transpose.len() == K * K);
             seeds[j][32] = i as u8;
             seeds[j][33] = j as u8;
@@ -346,6 +348,7 @@ pub(crate) fn sample_matrix_A<const K: usize, Vector: Operations, Hasher: Hash>(
         cloop! {
             for (j, sample) in out.into_iter().enumerate() {
                 #[cfg(hax)]
+                #[cfg(not(hax_backend_lean))]
                 hax_lib::loop_invariant!(|_:usize| A_transpose.len() == K * K);
                 // A[i][j] = A_transpose[j][i]
                 if transpose {
@@ -478,6 +481,7 @@ pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>
     *accumulator = [0i32.classify(); 256];
     for j in 0..K {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|_: usize| result.len() == K && cache.len() == K);
         sample_matrix_entry::<Vector, Hasher>(matrix_entry, seed, 0, j);
         matrix_entry.accumulating_ntt_multiply_fill_cache(&r_as_ntt[j], accumulator, &mut cache[j]);
@@ -488,10 +492,12 @@ pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>
 
     for i in 1..K {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|_: usize| result.len() == K && cache.len() == K);
         *accumulator = [0i32.classify(); 256];
         for j in 0..K {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|_: usize| result.len() == K && cache.len() == K);
             sample_matrix_entry::<Vector, Hasher>(matrix_entry, seed, i, j);
             matrix_entry.accumulating_ntt_multiply_use_cache(&r_as_ntt[j], accumulator, &cache[j]);

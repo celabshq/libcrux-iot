@@ -267,7 +267,7 @@ private theorem dv_loop_fc (K : Std.Usize) (secret_key : Slice Std.U8)
     (h_out : out.length = K.val) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop
-      (vectortraitsOperationsInst := portable_ops_inst) K
+      (vectortraitsOperationsInst := portable_ops_inst)
       { start := 0#usize, «end» := K } secret_key out
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (dvInv secret_key K K.val p)).holds ⌝ ⦄ := by
   have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
@@ -322,7 +322,7 @@ private theorem dv_loop_fc (K : Std.Usize) (secret_key : Slice Std.U8)
       (v := .cont (({ start := s', «end» := K } : CoreModels.core.ops.range.Range Std.Usize),
                    Aeneas.Std.Slice.set acc i te)) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
-        K portable_ops_inst secret_key
+        portable_ops_inst secret_key
         ({ start := i, «end» := K } : CoreModels.core.ops.range.Range Std.Usize) acc = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
       rw [hnext]
@@ -382,7 +382,7 @@ private theorem dv_loop_fc (K : Std.Usize) (secret_key : Slice Std.U8)
   · -- i = K: the loop is done
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
-        K portable_ops_inst secret_key
+        portable_ops_inst secret_key
         ({ start := i, «end» := K } : CoreModels.core.ops.range.Range Std.Usize) acc = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_vector_loop.body
       rw [iter_none_gen i K (by omega)]
@@ -951,7 +951,7 @@ private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
     (h_out : out.val.length = K.val * 384) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop
-      (vectortraitsOperationsInst := portable_ops_inst) K
+      (vectortraitsOperationsInst := portable_ops_inst)
       ({ iter := Aeneas.Std.Array.to_slice key, count := 0#usize } : EnumIter SPoly)
       out scratch
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (svInv K key K.val p)).holds ⌝ ⦄ := by
@@ -1010,7 +1010,7 @@ private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
     refine triple_of_ok_fc
       (v := .cont (({ iter := rest', count := cnt' } : EnumIter SPoly), (wb p.2, p.1))) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
-        K portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
+        portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
       rw [hnext]
       simp only [Aeneas.Std.bind_tc_ok]
@@ -1068,7 +1068,7 @@ private theorem sv_loop_fc (K : Std.Usize) (key : Std.Array SPoly K)
     have h_e : rest.val.length = 0 := by rw [hlen]; omega
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
-        K portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
+        portable_ops_inst ({ iter := rest, count := cnt } : EnumIter SPoly) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop.body
       rw [enum_iter_next_done rest cnt h_e]
       rfl
@@ -1152,7 +1152,7 @@ theorem serialize_vector_fc
     have hred : libcrux_iot_ml_kem.ind_cpa.serialize_vector
           (vectortraitsOperationsInst := portable_ops_inst) (K := K) key out scratch
         = libcrux_iot_ml_kem.ind_cpa.serialize_vector_loop
-            (vectortraitsOperationsInst := portable_ops_inst) K
+            (vectortraitsOperationsInst := portable_ops_inst)
             ({ iter := Aeneas.Std.Array.to_slice key, count := 0#usize } : EnumIter SPoly)
             out scratch := rfl
     rw [hred]
@@ -2935,17 +2935,13 @@ private def dduInv (ciphertext : Slice Std.U8) (du : Std.Usize) (cs K : Nat) (k 
 
 set_option maxHeartbeats 4000000 in
 /-- The rank-K fused loop: after `K` chunks the written prefix covers every index `< K`. -/
-private theorem ddu_loop_fc (K du csz : Std.Usize)
-    -- `deserialize_then_decompress_u_loop` gained leading explicit `K` and
-    -- `CIPHERTEXT_SIZE` parameters in hax v0.4.0-rc.1; `CIPHERTEXT_SIZE` is DEAD in
-    -- the body, so it is quantified here rather than pinned.
-    (CIPHERTEXT_SIZE : Std.Usize) (ciphertext : Slice Std.U8)
+private theorem ddu_loop_fc (K du csz : Std.Usize) (ciphertext : Slice Std.U8)
     (hdu : du.val = 10 ∨ du.val = 11) (hcs : csz.val = 32 * du.val)
     (h_ct : ciphertext.val.length = K.val * csz.val)
     (out : Slice SPoly) (scratch : SVec) (h_out : out.length = K.val) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop
-      (vectortraitsOperationsInst := portable_ops_inst) K CIPHERTEXT_SIZE du
+      (vectortraitsOperationsInst := portable_ops_inst) du
       ({ iter := { cs := csz, elements := ciphertext }, count := 0#usize } : EnumCE)
       out scratch
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (dduInv ciphertext du csz.val K.val K.val p)).holds ⌝ ⦄ := by
@@ -3014,7 +3010,7 @@ private theorem ddu_loop_fc (K du csz : Std.Usize)
       (v := .cont (({ iter := { cs := csz, elements := drop }, count := cnt' } : EnumCE),
                    (Aeneas.Std.Slice.set acc.1 cnt v1.1, v1.2))) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
-        K CIPHERTEXT_SIZE du portable_ops_inst
+        du portable_ops_inst
         ({ iter := { cs := csz, elements := rest }, count := cnt } : EnumCE) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
@@ -3079,7 +3075,7 @@ private theorem ddu_loop_fc (K du csz : Std.Usize)
     have hrest0 : rest.length = 0 := by rw [hrest, hkK]; simp
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
-        K CIPHERTEXT_SIZE du portable_ops_inst
+        du portable_ops_inst
         ({ iter := { cs := csz, elements := rest }, count := cnt } : EnumCE) acc.1 acc.2 = _
       unfold libcrux_iot_ml_kem.ind_cpa.deserialize_then_decompress_u_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
@@ -3356,7 +3352,7 @@ theorem deserialize_then_decompress_u_fc
   -- The fused loop, then the two-`createi` spec bridge.
   obtain ⟨p, hp_eq, hp_holds⟩ :=
     triple_exists_ok_fc
-      (ddu_loop_fc K U_COMPRESSION_FACTOR csz _ ciphertext h_du hcsz_val h_ctK
+      (ddu_loop_fc K U_COMPRESSION_FACTOR csz ciphertext h_du hcsz_val h_ctK
         u_as_ntt scratch h_out_len)
   obtain ⟨hp_len, hp_cell, hp_bnd⟩ := (holds_ok _).mp hp_holds
   refine triple_of_ok_fc (v := p) ?_ ?_

@@ -127,6 +127,7 @@ pub(crate) mod portable {
     fn PRFxN(input: &[[U8; 33]], outputs: &mut [U8], out_len: usize) {
         for i in 0..input.len() {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|_: usize| outputs.len() == input.len() * out_len);
             shake256_ema(
                 &mut outputs[i * out_len..(i + 1) * out_len],

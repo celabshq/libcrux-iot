@@ -2823,7 +2823,7 @@ theorem ntt_at_layer_4_plus_inner_step_lemma_fc
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
       (vectortraitsOperationsInst := portable_ops_inst)
-      zeta_i1 layer round a_offset b_offset
+      zeta_i1 a_offset b_offset
       { start := k, «end» := step_vec } acc.1 acc.2
     ⦃ ⇓ r => ⌜ Layer4PlusInnerFC.step_post re0 a_offset b_offset step_vec
               (Spec.zeta_at zeta_i1.val) k r ⌝ ⦄ := by
@@ -2905,7 +2905,7 @@ theorem ntt_at_layer_4_plus_inner_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          zeta_i1 layer round a_offset b_offset
+          zeta_i1 a_offset b_offset
           { start := k, «end» := step_vec } acc.1 acc.2
         = .ok (ControlFlow.cont (({ start := s, «end» := step_vec }
                         : CoreModels.core.ops.range.Range Std.Usize), acc')) := by
@@ -3049,7 +3049,7 @@ theorem ntt_at_layer_4_plus_inner_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          zeta_i1 layer round a_offset b_offset
+          zeta_i1 a_offset b_offset
           { start := k, «end» := step_vec } acc.1 acc.2
         = .ok (ControlFlow.done (acc.1, acc.2)) := by
       unfold libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
@@ -3266,7 +3266,7 @@ theorem ntt_at_layer_4_plus_inner_loop_fc
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0
       (vectortraitsOperationsInst := portable_ops_inst)
-      { start := 0#usize, «end» := step_vec } zeta_i1 re0 layer scratch round a_offset b_offset
+      { start := 0#usize, «end» := step_vec } zeta_i1 re0 scratch a_offset b_offset
     ⦃ ⇓ r => ⌜
       (∀ j' : Nat, j' < step_vec.val →
         lift_chunk (r.1.coefficients.val[a_offset.val + j']!)
@@ -3290,7 +3290,7 @@ theorem ntt_at_layer_4_plus_inner_loop_fc
       (fun (iter1, acc1) =>
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          zeta_i1 layer round a_offset b_offset iter1 acc1.1 acc1.2)
+          zeta_i1 a_offset b_offset iter1 acc1.1 acc1.2)
       (β := Layer4PlusInnerFC.Acc)
       (re0, scratch)
       0#usize step_vec
@@ -3378,7 +3378,7 @@ theorem ntt_at_layer_4_plus_outer_step_lemma_fc
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
       (vectortraitsOperationsInst := portable_ops_inst)
-      layer step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
+      step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
     ⦃ ⇓ r => ⌜ Layer4PlusOuterFC.step_post re0 zeta_i_0 step_vec i_end k r ⌝ ⦄ := by
   obtain ⟨h_zeta_acc, h_acc_a, h_acc_b, h_acc_undone⟩ := by
     simpa [Aeneas.Std.RustM.holds, Std.Do.Triple, Std.Do.WP.wp] using h_inv
@@ -3490,7 +3490,7 @@ theorem ntt_at_layer_4_plus_outer_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          layer step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
+          step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
         = .ok (ControlFlow.cont (({ start := s, «end» := i_end }
                         : CoreModels.core.ops.range.Range Std.Usize), acc')) := by
       unfold libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
@@ -3514,8 +3514,8 @@ theorem ntt_at_layer_4_plus_outer_step_lemma_fc
               let (re1, scratch1) ←
                 libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0
                   (vectortraitsOperationsInst := portable_ops_inst)
-                  { start := 0#usize, «end» := step_vec } zi1' acc.2.1 layer acc.2.2
-                  k ao' bo'
+                  { start := 0#usize, «end» := step_vec } zi1' acc.2.1 acc.2.2
+                  ao' bo'
               .ok (ControlFlow.cont (({ start := s, «end» := i_end }
                           : CoreModels.core.ops.range.Range Std.Usize),
                         zi1', re1, scratch1))) = _
@@ -3684,7 +3684,7 @@ theorem ntt_at_layer_4_plus_outer_step_lemma_fc
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
           (vectortraitsOperationsInst := portable_ops_inst)
-          layer step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
+          step_vec { start := k, «end» := i_end } acc.1 acc.2.1 acc.2.2
         = .ok (ControlFlow.done (acc.1, acc.2.1, acc.2.2)) := by
       unfold libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
       conv_lhs =>
@@ -3876,7 +3876,7 @@ theorem ntt_at_layer_4_plus_portable_fc
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, acc1) =>
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) layer step_vec
+          (vectortraitsOperationsInst := portable_ops_inst) step_vec
           iter1 acc1.1 acc1.2.1 acc1.2.2)
       (β := Layer4PlusOuterFC.Acc)
       (zeta_i, re, scratch)

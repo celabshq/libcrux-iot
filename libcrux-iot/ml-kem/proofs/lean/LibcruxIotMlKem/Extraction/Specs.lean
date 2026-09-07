@@ -66,7 +66,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_2::pre]:
-    Source: 'ml-kem/src/ntt.rs', lines 29:0-29:35 -/
+    Source: 'ml-kem/src/ntt.rs', lines 30:0-30:35 -/
 @[reducible]
 def ntt.ntt_at_layer_2.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -90,7 +90,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_3::pre]:
-    Source: 'ml-kem/src/ntt.rs', lines 49:0-49:35 -/
+    Source: 'ml-kem/src/ntt.rs', lines 51:0-51:35 -/
 @[reducible]
 def ntt.ntt_at_layer_3.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -114,7 +114,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::ntt::ntt_layer_int_vec_step::pre]:
-    Source: 'ml-kem/src/ntt.rs', lines 64:0-64:38 -/
+    Source: 'ml-kem/src/ntt.rs', lines 67:0-67:38 -/
 @[reducible]
 def ntt.ntt_layer_int_vec_step.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -140,7 +140,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::ntt::ntt_at_layer_4_plus::pre]:
-    Source: 'ml-kem/src/ntt.rs', lines 80:0-82:2 -/
+    Source: 'ml-kem/src/ntt.rs', lines 83:0-85:2 -/
 @[reducible]
 def ntt.ntt_at_layer_4_plus.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -212,7 +212,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2::pre]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 30:0-30:35 -/
+    Source: 'ml-kem/src/invert_ntt.rs', lines 31:0-31:35 -/
 @[reducible]
 def invert_ntt.invert_ntt_at_layer_2.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -222,7 +222,7 @@ def invert_ntt.invert_ntt_at_layer_2.pre
   ok (zeta_i = 64#usize)
 
 /-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_2::post]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 31:0-31:46 -/
+    Source: 'ml-kem/src/invert_ntt.rs', lines 32:0-32:46 -/
 @[reducible]
 def invert_ntt.invert_ntt_at_layer_2.post
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -249,7 +249,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3::pre]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 52:0-52:35 -/
+    Source: 'ml-kem/src/invert_ntt.rs', lines 54:0-54:35 -/
 @[reducible]
 def invert_ntt.invert_ntt_at_layer_3.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -259,7 +259,7 @@ def invert_ntt.invert_ntt_at_layer_3.pre
   ok (zeta_i = 32#usize)
 
 /-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_3::post]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 53:0-53:46 -/
+    Source: 'ml-kem/src/invert_ntt.rs', lines 55:0-55:46 -/
 @[reducible]
 def invert_ntt.invert_ntt_at_layer_3.post
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -286,7 +286,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::invert_ntt::inv_ntt_layer_int_vec_step_reduce::pre]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 68:0-68:38 -/
+    Source: 'ml-kem/src/invert_ntt.rs', lines 71:0-71:38 -/
 @[reducible]
 def invert_ntt.inv_ntt_layer_int_vec_step_reduce.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -314,7 +314,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::invert_ntt::invert_ntt_at_layer_4_plus::pre]:
-    Source: 'ml-kem/src/invert_ntt.rs', lines 89:0-91:2 -/
+    Source: 'ml-kem/src/invert_ntt.rs', lines 92:0-94:2 -/
 @[reducible]
 def invert_ntt.invert_ntt_at_layer_4_plus.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -380,7 +380,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 369:16-373:32 -/
+    Source: 'ml-kem/src/matrix.rs', lines 372:16-376:32 -/
 @[reducible]
 def matrix.compute_message.pre
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -390,23 +390,23 @@ def matrix.compute_message.pre
   (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
   (result : polynomial.PolynomialRingElement Vector) (scratch : Vector)
   (accumulator : Array Std.I32 256#usize) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
-  let p ← hax_lib.prop.Prop.from_bool (K <= 4#usize)
+  let p ← hax_lib_1.prop.Prop.from_bool (K <= 4#usize)
   let p1 ← matrix.vec_bnd vectortraitsOperationsInst secret_as_ntt 4095#i16
   let p2 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p p1
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p p1
   let p3 ← matrix.vec_bnd vectortraitsOperationsInst u_as_ntt 3328#i16
   let p4 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p2 p3
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p2 p3
   let b ← matrix.poly_bnd vectortraitsOperationsInst v 3328#i16
-  hax_lib.prop.Prop.and (core.convert.Into.Blanket
-    hax_lib.prop.Prop.Insts.CoreConvertFromBool) p4 b
+  hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p4 b
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 374:0-377:77 -/
+    Source: 'ml-kem/src/matrix.rs', lines 377:0-380:77 -/
 @[reducible]
 def matrix.compute_message.post
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -418,7 +418,7 @@ def matrix.compute_message.post
   (accumulator : Array Std.I32 256#usize)
   (t : ((polynomial.PolynomialRingElement Vector) × Vector × (Array Std.I32
   256#usize))) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let (result_future, _, _) := t
   let a ← matrix.lift_poly vectortraitsOperationsInst v
@@ -448,7 +448,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 404:16-413:58 -/
+    Source: 'ml-kem/src/matrix.rs', lines 407:16-416:58 -/
 @[reducible]
 def matrix.compute_ring_element_v.pre
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -460,7 +460,7 @@ def matrix.compute_ring_element_v.pre
   (result : polynomial.PolynomialRingElement Vector) (scratch : Vector)
   (cache : Slice (polynomial.PolynomialRingElement Vector))
   (accumulator : Array Std.I32 256#usize) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let b ←
     if K <= 4#usize
@@ -478,30 +478,30 @@ def matrix.compute_ring_element_v.pre
         else ok false
       else ok false
     else ok false
-  let p ← hax_lib.prop.Prop.from_bool b
+  let p ← hax_lib_1.prop.Prop.from_bool b
   let p1 ←
     matrix.vec_slice_bnd K vectortraitsOperationsInst r_as_ntt 3328#i16
   let p2 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p p1
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p p1
   let p3 ← matrix.vec_slice_bnd K vectortraitsOperationsInst cache 3328#i16
   let p4 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p2 p3
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p2 p3
   let b1 ← matrix.poly_bnd vectortraitsOperationsInst error_2 3328#i16
   let p5 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool) p4 b1
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p4 b1
   let b2 ← matrix.poly_bnd vectortraitsOperationsInst message 3328#i16
   let p6 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool) p5 b2
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p5 b2
   let b3 ← matrix.cache_matches K vectortraitsOperationsInst r_as_ntt cache
-  hax_lib.prop.Prop.and (core.convert.Into.Blanket
-    hax_lib.prop.Prop.Insts.CoreConvertFromBool) p6 b3
+  hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p6 b3
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 414:0-419:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 417:0-422:57 -/
 @[reducible]
 def matrix.compute_ring_element_v.post
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -516,7 +516,7 @@ def matrix.compute_ring_element_v.post
   (t : ((polynomial.PolynomialRingElement Vector) ×
   (polynomial.PolynomialRingElement Vector) × Vector × (Array Std.I32
   256#usize))) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let (_, result_future, _, _) := t
   let a ← matrix.lift_t_as_ntt_from_public_key K vectortraitsOperationsInst public_key
@@ -552,7 +552,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 450:16-455:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 453:16-458:57 -/
 @[reducible]
 def matrix.compute_vector_u.pre
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -565,7 +565,7 @@ def matrix.compute_vector_u.pre
   (result : Slice (polynomial.PolynomialRingElement Vector)) (scratch : Vector)
   (cache : Slice (polynomial.PolynomialRingElement Vector))
   (accumulator : Array Std.I32 256#usize) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let i ← core.slice.Slice.len seed
   let b ←
@@ -591,19 +591,19 @@ def matrix.compute_vector_u.pre
         else ok false
       else ok false
     else ok false
-  let p ← hax_lib.prop.Prop.from_bool b
+  let p ← hax_lib_1.prop.Prop.from_bool b
   let p1 ←
     matrix.vec_slice_bnd K vectortraitsOperationsInst r_as_ntt 3328#i16
   let p2 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p p1
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p p1
   let p3 ←
     matrix.vec_slice_bnd K vectortraitsOperationsInst error_1 29439#i16
-  hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-    hax_lib.prop.Prop)) p2 p3
+  hax_lib_1.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
+    hax_lib_1.prop.Prop)) p2 p3
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 456:0-461:54 -/
+    Source: 'ml-kem/src/matrix.rs', lines 459:0-464:54 -/
 @[reducible]
 def matrix.compute_vector_u.post
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -619,7 +619,7 @@ def matrix.compute_vector_u.post
   (t : ((polynomial.PolynomialRingElement Vector) × (Slice
   (polynomial.PolynomialRingElement Vector)) × Vector × (Slice
   (polynomial.PolynomialRingElement Vector)) × (Array Std.I32 256#usize))) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let (_, result_future, _, _, _) := t
   let a ← matrix.lift_matrix_from_seed K vectortraitsOperationsInst hash_functionsHashInst seed
@@ -655,7 +655,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 511:16-516:36 -/
+    Source: 'ml-kem/src/matrix.rs', lines 517:16-522:36 -/
 @[reducible]
 def matrix.compute_As_plus_e.pre
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -666,7 +666,7 @@ def matrix.compute_As_plus_e.pre
   (error_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
   (s_cache : Array (polynomial.PolynomialRingElement Vector) K)
   (accumulator : Array Std.I32 256#usize) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let b ←
     if K > 0#usize
@@ -679,26 +679,26 @@ def matrix.compute_As_plus_e.pre
         ok (i = i1)
       else ok false
     else ok false
-  let p ← hax_lib.prop.Prop.from_bool b
+  let p ← hax_lib_1.prop.Prop.from_bool b
   let p1 ←
     matrix.matrix_slice_bnd K vectortraitsOperationsInst matrix_A 3328#i16
   let p2 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p p1
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p p1
   let p3 ← matrix.vec_bnd vectortraitsOperationsInst s_as_ntt 3328#i16
   let p4 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p2 p3
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p2 p3
   let p5 ← matrix.vec_bnd vectortraitsOperationsInst error_as_ntt 29439#i16
   let p6 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p4 p5
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p4 p5
   let p7 ← matrix.acc_zero accumulator
-  hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-    hax_lib.prop.Prop)) p6 p7
+  hax_lib_1.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
+    hax_lib_1.prop.Prop)) p6 p7
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 517:0-521:61 -/
+    Source: 'ml-kem/src/matrix.rs', lines 523:0-527:61 -/
 @[reducible]
 def matrix.compute_As_plus_e.post
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -711,7 +711,7 @@ def matrix.compute_As_plus_e.post
   (accumulator : Array Std.I32 256#usize)
   (t : ((Array (polynomial.PolynomialRingElement Vector) K) × (Array
   (polynomial.PolynomialRingElement Vector) K) × (Array Std.I32 256#usize))) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let (t_as_ntt_future, _, _) := t
   let s ← lift (Array.to_slice t_as_ntt_future)
@@ -743,7 +743,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_u_and_v::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 569:16-578:38 -/
+    Source: 'ml-kem/src/matrix.rs', lines 575:16-584:38 -/
 @[reducible]
 def matrix.compute_u_and_v.pre
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -759,7 +759,7 @@ def matrix.compute_u_and_v.pre
   (result_v : polynomial.PolynomialRingElement Vector) (scratch : Vector)
   (cache : Slice (polynomial.PolynomialRingElement Vector))
   (accumulator : Array Std.I32 256#usize) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let b ←
     if K > 0#usize
@@ -792,27 +792,27 @@ def matrix.compute_u_and_v.pre
         else ok false
       else ok false
     else ok false
-  let p ← hax_lib.prop.Prop.from_bool b
+  let p ← hax_lib_1.prop.Prop.from_bool b
   let p1 ←
     matrix.vec_slice_bnd K vectortraitsOperationsInst r_as_ntt 3328#i16
   let p2 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p p1
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p p1
   let p3 ←
     matrix.vec_slice_bnd K vectortraitsOperationsInst error_1 29439#i16
   let p4 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib.prop.Prop)) p2 p3
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      (core.convert.From.Blanket hax_lib_1.prop.Prop)) p2 p3
   let b1 ← matrix.poly_bnd vectortraitsOperationsInst error_2 3328#i16
   let p5 ←
-    hax_lib.prop.Prop.and (core.convert.Into.Blanket
-      hax_lib.prop.Prop.Insts.CoreConvertFromBool) p4 b1
+    hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+      hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p4 b1
   let b2 ← matrix.poly_bnd vectortraitsOperationsInst message 3328#i16
-  hax_lib.prop.Prop.and (core.convert.Into.Blanket
-    hax_lib.prop.Prop.Insts.CoreConvertFromBool) p5 b2
+  hax_lib_1.prop.Prop.and (core.convert.Into.Blanket
+    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p5 b2
 
 /-- [libcrux_iot_ml_kem::matrix::compute_u_and_v::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 579:0-584:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 585:0-590:57 -/
 @[reducible]
 def matrix.compute_u_and_v.post
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -833,7 +833,7 @@ def matrix.compute_u_and_v.post
   (polynomial.PolynomialRingElement Vector)) ×
   (polynomial.PolynomialRingElement Vector) × Vector × (Slice
   (polynomial.PolynomialRingElement Vector)) × (Array Std.I32 256#usize))) :
-  RustM hax_lib.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let (_, _, _, result_v_future, _, _, _) := t
   let a ← matrix.lift_t_as_ntt_from_public_key K vectortraitsOperationsInst public_key
@@ -922,7 +922,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::serialize_uncompressed_ring_element::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 44:0-44:64 -/
+    Source: 'ml-kem/src/serialize.rs', lines 45:0-45:64 -/
 @[reducible]
 def serialize.serialize_uncompressed_ring_element.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -935,7 +935,7 @@ def serialize.serialize_uncompressed_ring_element.pre
   ok (i = i1)
 
 /-- [libcrux_iot_ml_kem::serialize::serialize_uncompressed_ring_element::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 45:0-45:69 -/
+    Source: 'ml-kem/src/serialize.rs', lines 46:0-46:69 -/
 @[reducible]
 def serialize.serialize_uncompressed_ring_element.post
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -967,7 +967,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_to_uncompressed_ring_element::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 65:0-65:64 -/
+    Source: 'ml-kem/src/serialize.rs', lines 67:0-67:64 -/
 @[reducible]
 def serialize.deserialize_to_uncompressed_ring_element.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -996,7 +996,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_to_reduced_ring_element::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 81:0-83:2 -/
+    Source: 'ml-kem/src/serialize.rs', lines 83:0-85:2 -/
 @[reducible]
 def serialize.deserialize_to_reduced_ring_element.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1024,7 +1024,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_ring_elements_reduced::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 101:0-101:98 -/
+    Source: 'ml-kem/src/serialize.rs', lines 103:0-103:98 -/
 @[reducible]
 def serialize.deserialize_ring_elements_reduced.pre
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -1042,7 +1042,7 @@ def serialize.deserialize_ring_elements_reduced.pre
   else ok false
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_ring_elements_reduced::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 102:0-102:79 -/
+    Source: 'ml-kem/src/serialize.rs', lines 104:0-104:79 -/
 @[reducible]
 def serialize.deserialize_ring_elements_reduced.post
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -1075,7 +1075,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 131:0-131:96 -/
+    Source: 'ml-kem/src/serialize.rs', lines 134:0-134:96 -/
 @[reducible]
 def serialize.compress_then_serialize_10.pre
   {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
@@ -1093,7 +1093,7 @@ def serialize.compress_then_serialize_10.pre
   else ok false
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_10::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 132:0-132:69 -/
+    Source: 'ml-kem/src/serialize.rs', lines 135:0-135:69 -/
 @[reducible]
 def serialize.compress_then_serialize_10.post
   {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
@@ -1126,7 +1126,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 151:0-151:96 -/
+    Source: 'ml-kem/src/serialize.rs', lines 155:0-155:96 -/
 @[reducible]
 def serialize.compress_then_serialize_11.pre
   {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
@@ -1144,7 +1144,7 @@ def serialize.compress_then_serialize_11.pre
   else ok false
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_11::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 152:0-152:69 -/
+    Source: 'ml-kem/src/serialize.rs', lines 156:0-156:69 -/
 @[reducible]
 def serialize.compress_then_serialize_11.post
   {Vector : Type} (BLOCK_LEN : Std.Usize) (vectortraitsOperationsInst :
@@ -1177,7 +1177,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_u::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 172:0-176:2 -/
+    Source: 'ml-kem/src/serialize.rs', lines 177:0-181:2 -/
 @[reducible]
 def serialize.compress_then_serialize_ring_element_u.pre
   {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize) (BLOCK_LEN : Std.Usize)
@@ -1214,7 +1214,7 @@ def serialize.compress_then_serialize_ring_element_u.pre
     else ok false
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_u::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 177:0-177:69 -/
+    Source: 'ml-kem/src/serialize.rs', lines 182:0-182:69 -/
 @[reducible]
 def serialize.compress_then_serialize_ring_element_u.post
   {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize) (BLOCK_LEN : Std.Usize)
@@ -1251,7 +1251,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 195:0-195:45 -/
+    Source: 'ml-kem/src/serialize.rs', lines 200:0-200:45 -/
 @[reducible]
 def serialize.compress_then_serialize_4.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1263,7 +1263,7 @@ def serialize.compress_then_serialize_4.pre
   ok (i = 128#usize)
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_4::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 196:0-196:69 -/
+    Source: 'ml-kem/src/serialize.rs', lines 201:0-201:69 -/
 @[reducible]
 def serialize.compress_then_serialize_4.post
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1295,7 +1295,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 213:0-213:45 -/
+    Source: 'ml-kem/src/serialize.rs', lines 219:0-219:45 -/
 @[reducible]
 def serialize.compress_then_serialize_5.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1307,7 +1307,7 @@ def serialize.compress_then_serialize_5.pre
   ok (i = 160#usize)
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_5::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 214:0-214:69 -/
+    Source: 'ml-kem/src/serialize.rs', lines 220:0-220:69 -/
 @[reducible]
 def serialize.compress_then_serialize_5.post
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1339,7 +1339,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_v::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 231:0-234:53 -/
+    Source: 'ml-kem/src/serialize.rs', lines 238:0-241:53 -/
 @[reducible]
 def serialize.compress_then_serialize_ring_element_v.pre
   {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize) (C2_LEN :
@@ -1366,7 +1366,7 @@ def serialize.compress_then_serialize_ring_element_v.pre
   else ok false
 
 /-- [libcrux_iot_ml_kem::serialize::compress_then_serialize_ring_element_v::post]:
-    Source: 'ml-kem/src/serialize.rs', lines 235:0-235:55 -/
+    Source: 'ml-kem/src/serialize.rs', lines 242:0-242:55 -/
 @[reducible]
 def serialize.compress_then_serialize_ring_element_v.post
   {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize) (C2_LEN :
@@ -1404,7 +1404,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_10::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 254:0-256:2 -/
+    Source: 'ml-kem/src/serialize.rs', lines 261:0-263:2 -/
 @[reducible]
 def serialize.deserialize_then_decompress_10.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1430,7 +1430,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_11::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 270:0-272:2 -/
+    Source: 'ml-kem/src/serialize.rs', lines 277:0-279:2 -/
 @[reducible]
 def serialize.deserialize_then_decompress_11.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1456,7 +1456,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_ring_element_u::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 286:0-289:2 -/
+    Source: 'ml-kem/src/serialize.rs', lines 293:0-296:2 -/
 @[reducible]
 def serialize.deserialize_then_decompress_ring_element_u.pre
   {Vector : Type} (U_COMPRESSION_FACTOR : Std.Usize)
@@ -1497,7 +1497,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_4::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 306:0-308:2 -/
+    Source: 'ml-kem/src/serialize.rs', lines 313:0-315:2 -/
 @[reducible]
 def serialize.deserialize_then_decompress_4.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1523,7 +1523,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_5::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 321:0-323:2 -/
+    Source: 'ml-kem/src/serialize.rs', lines 328:0-330:2 -/
 @[reducible]
 def serialize.deserialize_then_decompress_5.pre
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
@@ -1549,7 +1549,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::serialize::deserialize_then_decompress_ring_element_v::pre]:
-    Source: 'ml-kem/src/serialize.rs', lines 337:0-339:51 -/
+    Source: 'ml-kem/src/serialize.rs', lines 344:0-346:51 -/
 @[reducible]
 def serialize.deserialize_then_decompress_ring_element_v.pre
   {Vector : Type} (K : Std.Usize) (V_COMPRESSION_FACTOR : Std.Usize)

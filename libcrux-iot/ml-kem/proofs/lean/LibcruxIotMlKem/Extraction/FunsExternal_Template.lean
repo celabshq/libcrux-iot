@@ -35,7 +35,7 @@ axiom matrix.sample_matrix_entry
     Std.Usize → RustM (polynomial.PolynomialRingElement Vector)
 
 /-- [libcrux_iot_ml_kem::matrix::sample_matrix_A]:
-    Source: 'ml-kem/src/matrix.rs', lines 325:0-359:1 -/
+    Source: 'ml-kem/src/matrix.rs', lines 325:0-362:1 -/
 axiom matrix.sample_matrix_A
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector) (hash_functionsHashInst :

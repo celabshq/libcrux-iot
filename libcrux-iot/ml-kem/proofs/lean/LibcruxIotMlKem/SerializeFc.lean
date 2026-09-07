@@ -3923,7 +3923,7 @@ private theorem deser_pk_loop_fc (K : Std.Usize) (public_key : Slice Std.U8)
     (h_out_len : deserialized_pk.length = K.val) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop
-      (vectortraitsOperationsInst := portable_ops_inst) K
+      (vectortraitsOperationsInst := portable_ops_inst)
       { iter := { cs := 384#usize, elements := public_key }, count := 0#usize } deserialized_pk
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (pkInv public_key K K.val p)).holds ⌝ ⦄ := by
   have h384 : ((384#usize : Std.Usize)).val = 384 := rfl
@@ -3967,7 +3967,7 @@ private theorem deser_pk_loop_fc (K : Std.Usize) (public_key : Slice Std.U8)
       (v := .cont ({ iter := { cs := 384#usize, elements := drop }, count := cnt' },
                    Aeneas.Std.Slice.set acc cnt te1)) ?_ ?_
     · show libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
-        K portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
+        portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
       unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
             (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
@@ -4024,7 +4024,7 @@ private theorem deser_pk_loop_fc (K : Std.Usize) (public_key : Slice Std.U8)
     have hrest0 : rest.length = 0 := by rw [hrest, hkK]; simp
     refine triple_of_ok_fc (v := .done acc) ?_ ?_
     · show libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
-        K portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
+        portable_ops_inst { iter := { cs := 384#usize, elements := rest }, count := cnt } acc = _
       unfold libcrux_iot_ml_kem.serialize.deserialize_ring_elements_reduced_loop.body
       rw [show (CoreModels.core.iter.adapters.enumerate.Enumerate.Insts.CoreIterTraitsIteratorIteratorPairUsizeClause0_Item.next
             (CoreModels.core.slice.iter.ChunksExact.Insts.CoreIterTraitsIteratorIteratorSharedASlice Std.U8)
@@ -11890,20 +11890,17 @@ private theorem Le_loop_10_fc
     (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
       ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
     (serialized : Slice Std.U8) (h_len : serialized.val.length = 320)
-    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    -- hax v0.4.0-rc.1 gave the extracted loop a leading explicit `BLOCK_LEN` that is
-    -- DEAD in its body; quantified here so the spec matches the real call sites.
-    (BLOCK_LEN : Std.Usize) :
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop
-      (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN
+      (vectortraitsOperationsInst := portable_ops_inst)
       { start := 0#usize, «end» := 16#usize } re serialized scratch
     ⦃ ⇓ p => ⌜ (cInv re 10 320 16#usize p).holds ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop
   refine libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
     (fun (iter1, serialized1, scratch1) =>
       libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
-        (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re iter1 serialized1
+        (vectortraitsOperationsInst := portable_ops_inst) re iter1 serialized1
           scratch1)
     (serialized, scratch) 0#usize 16#usize (cInv re 10 320) (by scalar_tac) ?_ ?_
   · show (pure _ : RustM Prop).holds
@@ -11960,7 +11957,7 @@ private theorem Le_loop_10_fc
         (v := .cont (({ start := s, «end» := 16#usize }
                 : CoreModels.core.ops.range.Range Std.Usize), (wb sres, sc2))) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
+          (vectortraitsOperationsInst := portable_ops_inst) re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -12020,7 +12017,7 @@ private theorem Le_loop_10_fc
       refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
         (v := .done acc) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
+          (vectortraitsOperationsInst := portable_ops_inst) re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_10_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -12062,7 +12059,7 @@ private theorem Le_impl_10_fc (BLOCK_LEN : Std.Usize)
   rw [hlen]
   simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
   rw [vectors_in_ring_element_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  exact Le_loop_10_fc re hbnd serialized h_len scratch _
+  exact Le_loop_10_fc re hbnd serialized h_len scratch
 
 
 set_option maxHeartbeats 4000000 in
@@ -12077,20 +12074,17 @@ private theorem Le_loop_11_fc
     (hbnd : ∀ c : Nat, c < 16 → ∀ l : Nat, l < 16 →
       ((re.coefficients.val[c]!).elements.val[l]!).val.natAbs ≤ 3328)
     (serialized : Slice Std.U8) (h_len : serialized.val.length = 352)
-    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
-    -- hax v0.4.0-rc.1 gave the extracted loop a leading explicit `BLOCK_LEN` that is
-    -- DEAD in its body; quantified here so the spec matches the real call sites.
-    (BLOCK_LEN : Std.Usize) :
+    (scratch : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop
-      (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN
+      (vectortraitsOperationsInst := portable_ops_inst)
       { start := 0#usize, «end» := 16#usize } re serialized scratch
     ⦃ ⇓ p => ⌜ (cInv re 11 352 16#usize p).holds ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop
   refine libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
     (fun (iter1, serialized1, scratch1) =>
       libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
-        (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re iter1 serialized1
+        (vectortraitsOperationsInst := portable_ops_inst) re iter1 serialized1
           scratch1)
     (serialized, scratch) 0#usize 16#usize (cInv re 11 352) (by scalar_tac) ?_ ?_
   · show (pure _ : RustM Prop).holds
@@ -12147,7 +12141,7 @@ private theorem Le_loop_11_fc
         (v := .cont (({ start := s, «end» := 16#usize }
                 : CoreModels.core.ops.range.Range Std.Usize), (wb sres, sc2))) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
+          (vectortraitsOperationsInst := portable_ops_inst) re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -12208,7 +12202,7 @@ private theorem Le_loop_11_fc
       refine libcrux_iot_ml_kem.Vector.Portable.Arithmetic.PerElement.triple_of_ok_fc
         (v := .done acc) ?_ ?_
       · show libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
-          (vectortraitsOperationsInst := portable_ops_inst) BLOCK_LEN re
+          (vectortraitsOperationsInst := portable_ops_inst) re
           { start := k, «end» := 16#usize } acc.1 acc.2 = _
         unfold libcrux_iot_ml_kem.serialize.compress_then_serialize_11_loop.body
         rw [show (core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
@@ -12250,7 +12244,7 @@ private theorem Le_impl_11_fc (BLOCK_LEN : Std.Usize)
   rw [hlen]
   simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
   rw [vectors_in_ring_element_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  exact Le_loop_11_fc re hbnd serialized h_len scratch _
+  exact Le_loop_11_fc re hbnd serialized h_len scratch
 
 /-! ### SPEC side. `byte_encode_gen_eq` is already generic in `d ∈ [4, 12]`, so the only
     new statement is the `byte_encode_into` slice wrapper at the two new widths — the

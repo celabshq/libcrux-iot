@@ -290,8 +290,7 @@ private theorem compute_vector_u_loop0_step_lemma_fc
                 k acc cache).holds) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
       { start := k, «end» := K } matrix_entry cache acc
     ⦃ ⇓ r => ⌜ Row0FillFC.row0_step_post (lift_matrix_from_seed seed K).val[0]! r_arr cache_init
                 acc_init k r ⌝ ⦄ := by
@@ -391,8 +390,7 @@ private theorem compute_vector_u_loop0_step_lemma_fc
     -- (7) Body equation.
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
           { start := k, «end» := K } matrix_entry cache acc
         = .ok (ControlFlow.cont (({ start := s_iter, «end» := K }
                         : CoreModels.core.ops.range.Range Std.Usize), me1, cache1, acc1)) := by
@@ -623,8 +621,7 @@ private theorem compute_vector_u_loop0_step_lemma_fc
     obtain ⟨v_iter, hv_iter_eq, hv_iter_post⟩ := triple_exists_ok_fc h_iter_none
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
           { start := k, «end» := K } matrix_entry cache acc
         = .ok (ControlFlow.done (matrix_entry, cache, acc)) := by
       unfold libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
@@ -736,8 +733,8 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
     (h_acc_bnd : ∀ n : Fin 256, (accumulator.val[n.val]!).val.natAbs + K.val * 2^25 ≤ 2^30) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop0
-      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
-      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache accumulator
+      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
+      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache accumulator
     ⦃ ⇓ p => ⌜ (Row0FillFC.row0_inv (lift_matrix_from_seed seed K).val[0]! r_arr cache accumulator
                   K p.2.2 p.2.1).holds ⌝ ⦄ := by
   set lm0 : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
@@ -758,8 +755,7 @@ theorem compute_vector_u_loop0_fc {K : Std.Usize} {Hasher : Type}
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, p) =>
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
           iter1 p.1 p.2.1 p.2.2)
       (β := (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) ×
@@ -887,8 +883,8 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
     (h_acc_bnd : ∀ n : Fin 256, (accumulator.val[n.val]!).val.natAbs + K.val * 2^25 ≤ 2^30) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop0
-      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
-      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache accumulator
+      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
+      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache accumulator
     ⦃ ⇓ p => ⌜ p.2.1.length = K.val ⌝ ⦄ := by
   set lm0 : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
     (lift_matrix_from_seed seed K).val[0]! with hlm0_def
@@ -905,8 +901,7 @@ theorem compute_vector_u_loop0_cache_len_fc {K : Std.Usize} {Hasher : Type}
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, p) =>
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
           iter1 p.1 p.2.1 p.2.2)
       (β := (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) ×
@@ -1272,8 +1267,7 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
                 k acc).holds) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
       cache i { start := k, «end» := K } matrix_entry acc
     ⦃ ⇓ r => ⌜ RowIFillFC.row_i_step_post (lift_matrix_from_seed seed K).val[i.val]! r_arr
                 acc_init k r ⌝ ⦄ := by
@@ -1351,8 +1345,7 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
     -- (6) Body equation.
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
           cache i { start := k, «end» := K } matrix_entry acc
         = .ok (ControlFlow.cont (({ start := s_iter, «end» := K }
                         : CoreModels.core.ops.range.Range Std.Usize), me1, acc1)) := by
@@ -1551,8 +1544,7 @@ private theorem compute_vector_u_loop1_loop0_step_lemma_fc
     obtain ⟨v_iter, hv_iter_eq, hv_iter_post⟩ := triple_exists_ok_fc h_iter_none
     have h_body :
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
           cache i { start := k, «end» := K } matrix_entry acc
         = .ok (ControlFlow.done (matrix_entry, acc)) := by
       unfold libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
@@ -1656,8 +1648,8 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
         accumulating_ntt_multiply_poly_cache_post (r_as_ntt.val[c]!) (cache.val[c]!)) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0
-      (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
-      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache accumulator i
+      (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
+      { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache accumulator i
     ⦃ ⇓ p => ⌜ (RowIFillFC.row_i_inv (lift_matrix_from_seed seed K).val[i.val]! r_arr accumulator
                   K p.2).holds ⌝ ⦄ := by
   set lm_i : Std.Array (Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize) K :=
@@ -1676,8 +1668,7 @@ theorem compute_vector_u_loop1_loop0_fc {K : Std.Usize} {Hasher : Type}
     (libcrux_iot_ml_kem.Util.LoopSpecs.loop_range_spec_usize
       (fun (iter1, p) =>
         libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0.body
-          (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst seed r_as_ntt
-          result
+          (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst seed r_as_ntt
           cache i iter1 p.1 p.2)
       (β := (libcrux_iot_ml_kem.polynomial.PolynomialRingElement
                 libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector) ×
@@ -2294,8 +2285,8 @@ private theorem compute_vector_u_loop1_step_lemma_fc {K : Std.Usize} {Hasher : T
       show ((do
               let (matrix_entry1, accumulator2) ←
                 libcrux_iot_ml_kem.matrix.compute_vector_u_loop1_loop0
-                  (vectortraitsOperationsInst := portable_ops_inst) K hash_functionsHashInst
-                  { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt result cache
+                  (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
+                  { start := 0#usize, «end» := K } matrix_entry seed r_as_ntt cache
                   (Aeneas.Std.Array.repeat 256#usize i_zero) k
               let s ← Aeneas.Std.lift (Aeneas.Std.Array.to_slice accumulator2)
               let (pre, index_mut_back) ← Aeneas.Std.Slice.index_mut_usize result k

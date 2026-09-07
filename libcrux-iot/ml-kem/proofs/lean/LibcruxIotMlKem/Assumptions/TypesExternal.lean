@@ -8,6 +8,8 @@ import CoreModels
 -- `Extraction/Types.lean`) name `hacspec_ml_kem.parameters.FieldElement`. Bring the
 -- hacspec types into scope here (this flows into `Extraction/Types.lean`).
 import HacspecMlKem.Extraction.Types
+-- `hax_lib_1.*` (duplicate hax-lib crate name under hax v0.4.0) → `hax_lib.*` aliases.
+import LibcruxIotMlKem.Assumptions.HaxLibAlias
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow Error

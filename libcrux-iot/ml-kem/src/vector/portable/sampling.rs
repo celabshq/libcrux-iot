@@ -7,6 +7,7 @@ pub(crate) fn rej_sample(a: &[u8], out: &mut [i16]) -> usize {
     let mut sampled = 0;
     for i in 0..a.len() / 3 {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| { out.len() == 16 && sampled <= 2 * i });
 
         let b1 = a[i * 3 + 0] as i16;

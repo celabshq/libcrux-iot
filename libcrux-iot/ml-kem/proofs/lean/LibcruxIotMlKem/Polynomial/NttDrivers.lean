@@ -3016,7 +3016,7 @@ private theorem ntt_at_layer_4_plus_inner_step_lemma
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
       libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-      zeta_i layer round a_offset b_offset { start := j, «end» := step_vec } acc.1 acc.2
+      zeta_i a_offset b_offset { start := j, «end» := step_vec } acc.1 acc.2
     ⦃ ⇓ r => ⌜ Layer4PlusInner.step_post re a_offset b_offset step_vec bnd j r ⌝ ⦄ := by
   obtain ⟨h_a_disj, h_b_le_16⟩ := h_ranges
   -- The 5 invariant conjuncts.
@@ -3075,7 +3075,7 @@ private theorem ntt_at_layer_4_plus_inner_step_lemma
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-          zeta_i layer round a_offset b_offset { start := j, «end» := step_vec } acc.1 acc.2
+          zeta_i a_offset b_offset { start := j, «end» := step_vec } acc.1 acc.2
         = .ok (cont (({ start := s, «end» := step_vec }
                         : CoreModels.core.ops.range.Range Std.Usize),
                      acc')) := by
@@ -3199,7 +3199,7 @@ private theorem ntt_at_layer_4_plus_inner_step_lemma
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-          zeta_i layer round a_offset b_offset { start := j, «end» := step_vec } acc.1 acc.2
+          zeta_i a_offset b_offset { start := j, «end» := step_vec } acc.1 acc.2
         = .ok (done (acc.1, acc.2)) := by
       unfold libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
       conv_lhs =>
@@ -3249,7 +3249,7 @@ private theorem ntt_at_layer_4_plus_inner_loop_lemma
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0
       libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-      { start := 0#usize, «end» := step_vec } zeta_i acc_in.1 layer acc_in.2 round a_offset
+      { start := 0#usize, «end» := step_vec } zeta_i acc_in.1 acc_in.2 a_offset
       b_offset
     ⦃ ⇓ p => ⌜ -- Both a-zone and b-zone fully processed.
               (∀ ℓ' : Nat, ℓ' < step_vec.val → ∀ ℓ : Nat, ℓ < 16 →
@@ -3269,7 +3269,7 @@ private theorem ntt_at_layer_4_plus_inner_loop_lemma
       (fun (iter1, acc1) =>
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0.body
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-          zeta_i layer round a_offset b_offset iter1 acc1.1 acc1.2)
+          zeta_i a_offset b_offset iter1 acc1.1 acc1.2)
       (β := Layer4PlusInner.Acc)
       acc_in
       0#usize step_vec
@@ -3388,7 +3388,7 @@ private theorem ntt_at_layer_4_plus_outer_step_lemma
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
       libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-      layer step_vec { start := round, «end» := outer_count } acc.1 acc.2.1 acc.2.2
+      step_vec { start := round, «end» := outer_count } acc.1 acc.2.1 acc.2.2
     ⦃ ⇓ r => ⌜ Layer4PlusOuter.step_post re zeta_i_init step_vec outer_count bnd round r ⌝ ⦄ := by
   obtain ⟨h_zeta_acc, h_done, h_undone⟩ := of_pure_prop_holds_l3 hinv
   unfold libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
@@ -3495,7 +3495,7 @@ private theorem ntt_at_layer_4_plus_outer_step_lemma
         ⦃ ⌜ True ⌝ ⦄
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0_loop0
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-          { start := 0#usize, «end» := step_vec } zi1 acc.2.1 layer acc.2.2 round a_off b_off
+          { start := 0#usize, «end» := step_vec } zi1 acc.2.1 acc.2.2 a_off b_off
         ⦃ ⇓ p => ⌜
           (∀ ℓ' : Nat, ℓ' < step_vec.val → ∀ ℓ : Nat, ℓ < 16 →
               ((p.1.coefficients.val[a_off.val + ℓ']!).elements.val[ℓ]!).val.natAbs
@@ -3519,7 +3519,7 @@ private theorem ntt_at_layer_4_plus_outer_step_lemma
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-          layer step_vec { start := round, «end» := outer_count } acc.1 acc.2.1 acc.2.2
+          step_vec { start := round, «end» := outer_count } acc.1 acc.2.1 acc.2.2
         = .ok (cont (({ start := s, «end» := outer_count }
                         : CoreModels.core.ops.range.Range Std.Usize),
                      acc')) := by
@@ -3627,7 +3627,7 @@ private theorem ntt_at_layer_4_plus_outer_step_lemma
     have h_body :
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-          layer step_vec { start := round, «end» := outer_count } acc.1 acc.2.1 acc.2.2
+          step_vec { start := round, «end» := outer_count } acc.1 acc.2.1 acc.2.2
         = .ok (done (acc.1, acc.2.1, acc.2.2)) := by
       unfold libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
       conv_lhs =>
@@ -3672,7 +3672,7 @@ private theorem ntt_at_layer_4_plus_outer_loop_lemma
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0
       libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-      { start := 0#usize, «end» := outer_count } zeta_i_init re layer scratch step_vec
+      { start := 0#usize, «end» := outer_count } zeta_i_init re scratch step_vec
     ⦃ ⇓ p => ⌜ p.1.val = zeta_i_init.val + outer_count.val
               ∧ ∀ i : Nat, i < 16 → ∀ ℓ : Nat, ℓ < 16 →
                   ((p.2.1.coefficients.val[i]!).elements.val[ℓ]!).val.natAbs ≤ bnd + 3328 ⌝ ⦄ := by
@@ -3682,7 +3682,7 @@ private theorem ntt_at_layer_4_plus_outer_loop_lemma
       (fun (iter1, acc1) =>
         libcrux_iot_ml_kem.ntt.ntt_at_layer_4_plus_loop0.body
           libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector.Insts.Libcrux_iot_ml_kemVectorTraitsOperations
-          layer step_vec iter1 acc1.1 acc1.2.1 acc1.2.2)
+          step_vec iter1 acc1.1 acc1.2.1 acc1.2.2)
       (β := Layer4PlusOuter.Acc)
       (zeta_i_init, re, scratch)
       0#usize outer_count
