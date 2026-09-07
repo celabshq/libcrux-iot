@@ -24,12 +24,17 @@
     # aeneas + charon are prebuilt binaries that `cargo hax` now downloads
     # itself: as of 0.4.0 the old root `pins.toml` + `install-aeneas.sh` are
     # gone, replaced by versions embedded from `cli/cargo-hax/defaults.toml`
-    # and fetched by `cargo hax tools install` (see the devShell below). Keep
-    # this revision in sync with `libcrux-iot/*/hax_aeneas.py` and the Lean
-    # projects' `{lean-toolchain,lakefile.toml}`.
+    # and fetched by `cargo hax tools install` (see the devShell below). The
+    # tool versions this pins to are also declared in each crate's `hax.toml`;
+    # keep them and the Lean projects' `{lean-toolchain,lakefile.toml}` in sync.
     #
-    # cargo-hax v0.4.0-rc.1.
-    hax-main.url = "github:cryspen/hax/4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800";
+    # cargo-hax v0.4.0 (release). This is the first version that (a) fills the
+    # `PartialEq.ne`/`Clone.clone_from` record fields and fixes the `lane`
+    # namespace shadowing itself, and (b) sets the `hax_backend_lean` cfg for the
+    # Lean backend on its own — so the per-crate `hax_aeneas.py` post-processing
+    # driver is no longer needed for `sha3` (extraction is a plain
+    # `cargo hax into lean`, configured by `sha3/hax.toml`).
+    hax-main.url = "github:cryspen/hax/f8fe69339b69e48a01b8a6a6bcb2ab5e5c5e424d";
   };
 
   outputs =

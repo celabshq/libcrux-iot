@@ -1,0 +1,21 @@
+# hax configuration for the `libcrux-iot-sha3` crate.
+#
+# Replaces the former `hax_aeneas.py` post-processing driver. With hax v0.4.0
+# the Lean extraction is a plain
+#
+#     cargo hax into lean
+#
+# and needs no post-processing: hax sets the `hax_backend_lean` cfg itself (so
+# the `#[cfg(not(hax_backend_lean))]`-gated `loop_invariant!` calls are dropped
+# and no undeclared marker is emitted), fills the `PartialEq.ne`/`Clone.clone_from`
+# record fields, fixes the `lane` namespace shadowing, and no longer imports the
+# (sorry-filled) generated `Extraction.ProofObligations` from the aggregator.
+# `Extraction/ProofObligations.lean` is therefore left on disk but kept out of the
+# build by the import-tree-driven `proofs/lean/lakefile.toml` (no module glob).
+#
+# Pin the external tools so the extraction is reproducible regardless of hax's
+# evolving built-in defaults. These are the versions the committed proofs were
+# checked against (and, currently, hax v0.4.0's own defaults).
+[tools]
+aeneas = "nightly-2026.09.03-6852e64"
+charon = "nightly-2026.09.02"

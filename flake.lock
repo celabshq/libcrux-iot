@@ -676,17 +676,17 @@
         "rust-overlay": "rust-overlay_5"
       },
       "locked": {
-        "lastModified": 1788182542,
-        "narHash": "sha256-ExzcfSHt1/c4enCxXtZ9lLglfKPVtSZOBFRa+EWpZgA=",
+        "lastModified": 1788782856,
+        "narHash": "sha256-9UhrMXGRe8TK27jQq+uThGcz8wojbV1t3Hhx/dP7FgI=",
         "owner": "cryspen",
         "repo": "hax",
-        "rev": "4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800",
+        "rev": "f8fe69339b69e48a01b8a6a6bcb2ab5e5c5e424d",
         "type": "github"
       },
       "original": {
         "owner": "cryspen",
         "repo": "hax",
-        "rev": "4c9e2b7c75ab1e2b645a4a8361ae86c4504f9800",
+        "rev": "f8fe69339b69e48a01b8a6a6bcb2ab5e5c5e424d",
         "type": "github"
       }
     },
