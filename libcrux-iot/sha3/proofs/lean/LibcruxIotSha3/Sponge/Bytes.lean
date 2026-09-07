@@ -410,9 +410,10 @@ theorem state.KeccakState.store_block_spec
     rw [h_div_val]; omega
   obtain ⟨r, h_r_eq, h_r_len, h_r_bytes⟩ :=
     triple_exists_ok_bytes
-      -- `RATE` and the (unused) `_out_len` are extra parameters of the loop as
-      -- of the 0.4 extraction; the loop's behaviour is unchanged.
-      (state.store_block_2u32_loop_spec RATE ⟨0#usize, i_div⟩ s out i_div
+      -- The loop's `loop_invariant!` is cfg-gated out of the Lean extraction, so
+      -- the vestigial `RATE`/`_out_len` parameters it referenced are gone; the
+      -- loop's behaviour is unchanged.
+      (state.store_block_2u32_loop_spec ⟨0#usize, i_div⟩ s out
         h_loop_le h_loop_bnd h_loop_off h_loop_blk (by rfl))
   -- The loop's strong post gives `r.val[b]! = store_block_byte_at s b`
   -- for `b < 8 * i_div.val = 8 * (RATE.val / 8) = RATE.val` (when RATE.val%8=0).

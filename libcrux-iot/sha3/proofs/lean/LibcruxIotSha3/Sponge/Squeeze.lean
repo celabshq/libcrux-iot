@@ -236,9 +236,9 @@ def squeeze_fold (s_init : state.KeccakState) (k : Nat) :
 
 @[spec]
 theorem keccak.keccak_loop1_invariant
-    (RATE : Std.Usize) (DELIM : Std.U8) (blocks : Std.Usize)
+    (RATE : Std.Usize) (blocks : Std.Usize)
     (s : state.KeccakState)
-    (out : Slice Std.U8) (outlen : Std.Usize) (offset : Std.Usize)
+    (out : Slice Std.U8) (offset : Std.Usize)
     (h_i : s.i.val = 0)
     (h_RATE_mod : RATE.val % 8 = 0)
     (h_RATE_bnd : RATE.val ≤ 200)
@@ -247,7 +247,7 @@ theorem keccak.keccak_loop1_invariant
     (h_offset : offset.val + (blocks.val - 1) * RATE.val ≤ out.val.length)
     (h_offset_max : offset.val + (blocks.val - 1) * RATE.val ≤ Std.Usize.max) :
     ⦃ ⌜ True ⌝ ⦄
-    keccak.keccak_loop1 RATE DELIM { start := 1#usize, «end» := blocks } out outlen s offset
+    keccak.keccak_loop1 RATE { start := 1#usize, «end» := blocks } out s offset
     ⦃ ⇓ r => ⌜
         let (out_final, s_final, offset_final) := r
         out_final.val.length = out.val.length
@@ -264,7 +264,7 @@ theorem keccak.keccak_loop1_invariant
   apply Std.Do.Triple.of_entails_right _
     (loop_range_spec_usize
       (fun (iter1, out1, s1, offset1) =>
-        keccak.keccak_loop1.body RATE DELIM outlen iter1 out1 s1 offset1)
+        keccak.keccak_loop1.body RATE iter1 out1 s1 offset1)
       (out, s, offset) 1#usize blocks
       (fun k acc => pure (
           acc.1.val.length = out.val.length

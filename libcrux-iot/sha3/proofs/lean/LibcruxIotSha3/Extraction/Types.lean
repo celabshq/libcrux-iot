@@ -44,36 +44,6 @@ structure keccak.KeccakXofState (RATE : Std.Usize) where
   buf_len : Std.Usize
   sponge : Bool
 
-/-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::absorb_full::closure]
-    Source: 'sha3/src/keccak.rs', lines 118:37-118:73 -/
-def keccak.KeccakXofState.absorb_full.closure (RATE : Std.Usize) :=
-  Std.Usize × Std.Usize
-
-/-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::store::closure]
-    Source: 'sha3/src/state.rs', lines 100:37-100:69 -/
-def state.KeccakState.store.closure (RATE : Std.Usize) :=
-  Slice Std.U8 × Std.Usize
-
-/-- [libcrux_iot_sha3::keccak::_squeeze::closure]
-    Source: 'sha3/src/keccak.rs', lines 233:33-235:9 -/
-def keccak._squeeze.closure (RATE : Std.Usize) :=
-  Slice Std.U8 × Std.Usize × Std.Usize
-
-/-- [libcrux_iot_sha3::state::store_block_2u32::closure]
-    Source: 'sha3/src/state.rs', lines 164:33-164:65 -/
-def state.store_block_2u32.closure (RATE : Std.Usize) :=
-  Slice Std.U8 × Std.Usize
-
-/-- [libcrux_iot_sha3::keccak::keccak::closure#1]
-    Source: 'sha3/src/keccak.rs', lines 2726:37-2728:13 -/
-def keccak.keccak.closure_1 (RATE : Std.Usize) (DELIM : Std.U8) :=
-  Slice Std.U8 × Std.Usize × Std.Usize
-
-/-- [libcrux_iot_sha3::keccak::keccak::closure]
-    Source: 'sha3/src/keccak.rs', lines 2711:33-2711:94 -/
-@[reducible]
-def keccak.keccak.closure (RATE : Std.Usize) (DELIM : Std.U8) := Std.Usize
-
 /-- [libcrux_iot_sha3::Algorithm]
     Source: 'sha3/src/lib.rs', lines 92:0-104:1
     Visibility: public -/

@@ -97,6 +97,7 @@ impl KeccakState {
 
         for i in 0..num_full_blocks {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|i: usize| out.len() == _out_len);
             let keccak_lane = self.get_lane(i / 5, i % 5).deinterleave();
             out[i * 8..i * 8 + 4].copy_from_slice(&keccak_lane[0].to_le_bytes());
@@ -161,6 +162,7 @@ fn store_block_2u32<const RATE: usize>(s: &KeccakState, out: &mut [U8]) {
     let _out_len = out.len();
     for i in 0..RATE / 8 {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|i: usize| out.len() == _out_len);
         let keccak_lane = s.get_lane(i / 5, i % 5).deinterleave();
         out[8 * i..8 * i + 4].copy_from_slice(&keccak_lane[0].to_le_bytes());

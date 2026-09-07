@@ -115,6 +115,7 @@ impl<const RATE: usize> KeccakXofState<RATE> {
         let _buf_len = self.buf_len;
         for i in 0..num_blocks {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|_i: usize| self.buf_len == _buf_len);
 
             // We only get in here if `input_len / RATE > 0`.
@@ -230,6 +231,7 @@ fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakXofState<RATE>, out: &mu
     let mut offset = mid;
     for _k in 1..blocks {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|_k: usize| {
             out.len() == out_len && offset.to_int() == _k.to_int() * RATE.to_int()
         });
@@ -2708,6 +2710,7 @@ pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut 
     let mut start = 0;
     for _i in 0..n {
         #[cfg(hax)]
+        #[cfg(not(hax_backend_lean))]
         hax_lib::loop_invariant!(|_i: usize| { start.to_int() == _i.to_int() * RATE.to_int() });
 
         absorb_block::<RATE>(&mut s, &data, start);
@@ -2723,6 +2726,7 @@ pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut 
         let mut offset = RATE;
         for _i in 1..blocks {
             #[cfg(hax)]
+            #[cfg(not(hax_backend_lean))]
             hax_lib::loop_invariant!(|_i: usize| {
                 out.len() == outlen && offset.to_int() == _i.to_int() * RATE.to_int()
             });

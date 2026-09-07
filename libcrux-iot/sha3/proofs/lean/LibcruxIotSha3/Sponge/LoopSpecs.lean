@@ -614,16 +614,15 @@ private theorem deinterleave_bv_hi_toLEBytes_byte (e o : BitVec 32) (i : Nat) (h
     threads `iter.start.val = 0` (`h_zero`) so the entire range is touched. -/
 @[spec]
 theorem state.store_block_2u32_loop_spec
-    (RATE : Std.Usize)
     (iter : CoreModels.core.ops.range.Range Std.Usize)
-    (s : state.KeccakState) (out : Slice Std.U8) (out_len : Std.Usize)
+    (s : state.KeccakState) (out : Slice Std.U8)
     (h_le : iter.start.val ≤ iter.end.val)
     (h_bnd : iter.end.val ≤ 25)
     (h_off : 8 * iter.end.val ≤ Std.Usize.max)
     (h_blk : 8 * iter.end.val ≤ out.val.length)
     (h_zero : iter.start.val = 0) :
     ⦃ ⌜ True ⌝ ⦄
-    state.store_block_2u32_loop RATE iter s out out_len
+    state.store_block_2u32_loop iter s out
     ⦃ ⇓ r => ⌜
         r.val.length = out.val.length
         ∧ (∀ b : Nat, b < 8 * iter.end.val → b < 8 * 25 →
@@ -634,7 +633,7 @@ theorem state.store_block_2u32_loop_spec
   unfold state.store_block_2u32_loop
   apply Std.Do.Triple.of_entails_right _
     (loop_range_spec_usize
-      (fun (iter1, out1) => state.store_block_2u32_loop.body RATE s out_len iter1 out1)
+      (fun (iter1, out1) => state.store_block_2u32_loop.body s iter1 out1)
       out iter_start iter_end
       (fun k out1 => pure (
           out1.val.length = out.val.length

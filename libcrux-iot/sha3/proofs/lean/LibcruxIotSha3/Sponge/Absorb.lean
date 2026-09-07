@@ -493,7 +493,7 @@ theorem absorb_fold_eq_spec
 
 @[spec]
 theorem keccak.keccak_loop0_spec
-    (RATE : Std.Usize) (DELIM : Std.U8) (s : state.KeccakState) (data : Slice Std.U8)
+    (RATE : Std.Usize) (s : state.KeccakState) (data : Slice Std.U8)
     (n : Std.Usize)
     (h_i : s.i.val = 0)
     (h_RATE_mod : RATE.val % 8 = 0)
@@ -501,7 +501,7 @@ theorem keccak.keccak_loop0_spec
     (h_n_RATE : n.val * RATE.val ≤ data.val.length)
     (h_off : n.val * RATE.val ≤ Std.Usize.max) :
     ⦃ ⌜ True ⌝ ⦄
-    keccak.keccak_loop0 RATE DELIM { start := 0#usize, «end» := n } data s 0#usize
+    keccak.keccak_loop0 RATE { start := 0#usize, «end» := n } data s 0#usize
     ⦃ ⇓ r => ⌜ r.i.val = 0
               ∧ absorb_fold s data RATE n.val = .ok (Foundation.lift r) ⌝ ⦄ := by
   unfold keccak.keccak_loop0
