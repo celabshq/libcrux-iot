@@ -3,6 +3,11 @@
 -- This is a template file: rename it to "TypesExternal.lean" and fill the holes.
 import Aeneas
 import CoreModels
+-- The matching-predicate helpers (`poly_matches`/`vec_matches`) capture a hacspec
+-- `Polynomial`/`Vector` spec value, so their extracted closure state types (in
+-- `Extraction/Types.lean`) name `hacspec_ml_kem.parameters.FieldElement`. Bring the
+-- hacspec types into scope here (this flows into `Extraction/Types.lean`).
+import HacspecMlKem.Extraction.Types
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow Error

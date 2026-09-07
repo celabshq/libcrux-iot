@@ -116,6 +116,50 @@ pub(crate) fn cache_matches<const K: usize, Vector: Operations>(
         == lift_vec_slice::<Vector, K>(&compute_cache::<K, Vector>(r_as_ntt))
 }
 
+/// One output lane matches a spec field element: the impl lane `x` is the
+/// **centered Barrett representative** (`|x| ≤ 1664`) and its canonical residue is
+/// `f`. The Rust image of the proof-side `LaneMatches` (PR #190 auditability form):
+/// the `#[ensures]` states the result matches the hacspec output lane-wise, rather
+/// than through the `lift_poly`/`lift_vec` bijection.
+#[cfg(hax)]
+pub(crate) fn lane_matches(x: i16, f: hacspec_ml_kem::parameters::FieldElement) -> bool {
+    -1664 <= x && x <= 1664 && hacspec_ml_kem::parameters::FieldElement::from_i16(x) == f
+}
+
+/// A ring element matches a spec polynomial lane-wise (Rust image of `PolyMatches`).
+#[cfg(hax)]
+pub(crate) fn poly_matches<Vector: Operations>(
+    result: &PolynomialRingElement<Vector>,
+    spec: &hacspec_ml_kem::parameters::Polynomial,
+) -> hax_lib::prop::Prop {
+    hax_lib::forall(|l: usize| {
+        if l < 256 {
+            lane_matches(Vector::repr(&result.coefficients[l / 16])[l % 16], spec[l])
+        } else {
+            true
+        }
+    })
+}
+
+/// A vector output matches a spec vector, lane-wise over all `K` rows (Rust image
+/// of `VecMatches`). Flattened index `i = r*256 + l` keeps it a single quantifier.
+#[cfg(hax)]
+pub(crate) fn vec_matches<Vector: Operations, const K: usize>(
+    result: &[PolynomialRingElement<Vector>],
+    spec: &hacspec_ml_kem::parameters::Vector<K>,
+) -> hax_lib::prop::Prop {
+    hax_lib::forall(|i: usize| {
+        if i < K * 256 {
+            lane_matches(
+                Vector::repr(&result[i / 256].coefficients[(i % 256) / 16])[(i % 256) % 16],
+                spec[i / 256][i % 256],
+            )
+        } else {
+            true
+        }
+    })
+}
+
 /// One lane's centred bound (ordinary fn: the `&&` here is fine, unlike inside a
 /// `Prop` quantifier closure).
 #[cfg(hax)]
@@ -328,9 +372,9 @@ pub(crate) fn sample_matrix_A<const K: usize, Vector: Operations, Hasher: Hash>(
         .and(vec_bnd(u_as_ntt, 3328))
         .and(poly_bnd(v, 3328))))]
 #[cfg_attr(hax, hax_lib::ensures(|_|
-    hacspec_ml_kem::matrix::compute_message(
-        &lift_poly(v), &lift_vec(secret_as_ntt), &lift_vec(u_as_ntt))
-        == lift_poly(future(result))))]
+    poly_matches(future(result),
+        &hacspec_ml_kem::matrix::compute_message(
+            &lift_poly(v), &lift_vec(secret_as_ntt), &lift_vec(u_as_ntt)))))]
 #[inline(always)]
 pub(crate) fn compute_message<const K: usize, Vector: Operations>(
     v: &PolynomialRingElement<Vector>,
@@ -368,11 +412,11 @@ pub(crate) fn compute_message<const K: usize, Vector: Operations>(
         .and(poly_bnd(message, 3328))
         .and(cache_matches::<K, Vector>(r_as_ntt, cache))))]
 #[cfg_attr(hax, hax_lib::ensures(|_|
-    hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
-        &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
-        &lift_vec_slice::<Vector, K>(r_as_ntt),
-        &lift_poly(error_2), &lift_poly(message))
-        == lift_poly(future(result))))]
+    poly_matches(future(result),
+        &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
+            &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
+            &lift_vec_slice::<Vector, K>(r_as_ntt),
+            &lift_poly(error_2), &lift_poly(message)))))]
 #[inline(always)]
 pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
     public_key: &[u8],
@@ -410,11 +454,11 @@ pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
         .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
         .and(vec_slice_bnd::<Vector, K>(error_1, 29439))))]
 #[cfg_attr(hax, hax_lib::ensures(|_|
-    hacspec_ml_kem::matrix::compute_vector_u::<K>(
-        &lift_matrix_from_seed::<Vector, Hasher, K>(seed),
-        &lift_vec_slice::<Vector, K>(r_as_ntt),
-        &lift_vec_slice::<Vector, K>(error_1))
-        == lift_vec_slice::<Vector, K>(future(result))))]
+    vec_matches::<Vector, K>(future(result),
+        &hacspec_ml_kem::matrix::compute_vector_u::<K>(
+            &lift_matrix_from_seed::<Vector, Hasher, K>(seed),
+            &lift_vec_slice::<Vector, K>(r_as_ntt),
+            &lift_vec_slice::<Vector, K>(error_1)))))]
 #[inline(always)]
 pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>(
     matrix_entry: &mut PolynomialRingElement<Vector>,
@@ -471,10 +515,10 @@ pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>
         .and(vec_bnd(error_as_ntt, 29439))
         .and(acc_zero(accumulator))))]
 #[cfg_attr(hax, hax_lib::ensures(|_|
-    hacspec_ml_kem::matrix::compute_As_plus_e::<K>(
-        &lift_matrix_from_slice::<Vector, K>(matrix_A),
-        &lift_vec(s_as_ntt), &lift_vec(error_as_ntt))
-        == lift_vec(future(t_as_ntt))))]
+    vec_matches::<Vector, K>(future(t_as_ntt),
+        &hacspec_ml_kem::matrix::compute_As_plus_e::<K>(
+            &lift_matrix_from_slice::<Vector, K>(matrix_A),
+            &lift_vec(s_as_ntt), &lift_vec(error_as_ntt)))))]
 #[inline(always)]
 #[allow(non_snake_case)]
 pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
@@ -533,11 +577,11 @@ pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
         .and(poly_bnd(error_2, 3328))
         .and(poly_bnd(message, 3328))))]
 #[cfg_attr(hax, hax_lib::ensures(|_|
-    hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
-        &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
-        &lift_vec_slice::<Vector, K>(r_as_ntt),
-        &lift_poly(error_2), &lift_poly(message))
-        == lift_poly(future(result_v))))]
+    poly_matches(future(result_v),
+        &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
+            &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
+            &lift_vec_slice::<Vector, K>(r_as_ntt),
+            &lift_poly(error_2), &lift_poly(message)))))]
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_u_and_v<const K: usize, Vector: Operations, Hasher: Hash>(

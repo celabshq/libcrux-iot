@@ -16,6 +16,7 @@
 -/
 import LibcruxIotMlKem.Extraction
 import LibcruxIotMlKem.Matrix.PreDecode
+import LibcruxIotMlKem.Matrix.MatchesBridge
 import LibcruxIotMlKem.Matrix.ComputeMessage.FC
 import LibcruxIotMlKem.Matrix.ComputeVectorU.FC
 import LibcruxIotMlKem.Matrix.ComputeRingElementV.FC
@@ -29,6 +30,7 @@ open libcrux_iot_ml_kem.Spec
 open libcrux_iot_ml_kem.Spec.Lift
 open libcrux_iot_ml_kem.Matrix.LiftAgree
 open libcrux_iot_ml_kem.Matrix.PreDecode
+open libcrux_iot_ml_kem.Matrix.MatchesBridge
 
 set_option linter.unusedVariables false
 
@@ -71,6 +73,17 @@ private theorem holds_final {x : RustM Bool} {Q : Prop}
   | fail e => exfalso; simp [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] at h
   | div => exfalso; simp [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] at h
 
+/-- Row getter for `lift_vec_slice` (no such lemma in `Spec/Lift`; the `lift_vec`
+    analogue is `lift_vec_getElem`). -/
+private theorem lift_vec_slice_getElem
+    (v : Slice (polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector))
+    (K : Std.Usize) (r : Nat) (hr : r < K.val) :
+    (lift_vec_slice v K).val[r]! = lift_poly (v.val[r]!) := by
+  unfold lift_vec_slice
+  show ((List.range K.val).map (fun i => lift_poly v.val[i]!))[r]! = lift_poly (v.val[r]!)
+  have h_len : ((List.range K.val).map (fun i => lift_poly v.val[i]!)).length = K.val := by simp
+  rw [getElem!_pos _ r (by rw [h_len]; exact hr), List.getElem_map, List.getElem_range]
+
 set_option maxRecDepth 4000 in
 theorem compute_message_spec_proof {K : Std.Usize}
     (v : polynomial.PolynomialRingElement vector.portable.vector_type.PortableVector)
@@ -96,22 +109,15 @@ theorem compute_message_spec_proof {K : Std.Usize}
   refine triple_mono hfc ?_
   intro res hP
   obtain ⟨rf, sc2, ac2⟩ := res
-  obtain ⟨heq, _hbnd⟩ := hP
-  -- FieldElement `==` is reflexive lane-wise, so the array `==` on `lift_poly rf`
-  -- against itself is `ok true`.
-  have hrefl : ∀ j : Nat, j < (256#usize : Std.Usize).val →
-      hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq
-        ((lift_poly rf).val[j]!) ((lift_poly rf).val[j]!) = .ok true := by
-    intro j hj
-    simp [hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq]
-  have harr := PreDecode.array_eq_self
-    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement
-    (lift_poly rf) hrefl
-  have hpost : matrix.compute_message.post portable_ops_inst v secret_as_ntt u_as_ntt
-      result scratch accumulator (rf, sc2, ac2) = .ok true := by
-    simp only [matrix.compute_message.post, lift_poly_ok, lift_vec_ok, bind_tc_ok, heq]
-    exact harr
-  exact holds_post_of_ok hpost
+  obtain ⟨⟨spec_out, _h_hac, h_pm⟩, h_lift⟩ := hP
+  -- the `PolyMatches` conjunct gives the tight per-lane bound on the result
+  have h_bnd : ∀ l : Nat, l < 256 →
+      ((rf.coefficients.val[l / 16]!).elements.val[l % 16]!).val.natAbs ≤ 1664 := by
+    intro l hl; exact (h_pm l hl).1
+  show (matrix.compute_message.post portable_ops_inst v secret_as_ntt u_as_ntt
+        result scratch accumulator (rf, sc2, ac2)).holds
+  simp only [matrix.compute_message.post, lift_poly_ok, lift_vec_ok, bind_tc_ok, h_lift]
+  exact poly_matches_self rf h_bnd
 
 set_option maxRecDepth 4000 in
 theorem compute_As_plus_e_spec_proof {K : Std.Usize}
@@ -181,27 +187,27 @@ theorem compute_As_plus_e_spec_proof {K : Std.Usize}
         h_matrix_bnd h_s_bnd h_error_bnd h_acc_bnd h_acc_zero hKpos) ?_
       intro res hP
       obtain ⟨tf, r2, r3⟩ := res
-      -- lane-wise FieldElement reflexivity → inner (256) `==` → outer (K) `==`
-      have hFErefl : ∀ (p : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize),
-          ∀ jj : Nat, jj < (256#usize : Std.Usize).val →
-            hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq
-              (p.val[jj]!) (p.val[jj]!) = .ok true := by
-        intro p jj hjj
-        simp [hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq]
-      have harr : CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq
-          (CoreModels.core.Array.Insts.CoreCmpPartialEqArray 256#usize
-            hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement)
-          (lift_vec tf) (lift_vec tf) = .ok true :=
-        PreDecode.array_eq_self _ (lift_vec tf)
-          (fun k hk => PreDecode.array_eq_self _ ((lift_vec tf).val[k]!)
-            (fun jj hjj => hFErefl _ jj hjj))
-      have hpost : matrix.compute_As_plus_e.post portable_ops_inst t_as_ntt matrix_A s_as_ntt
-          error_as_ntt s_cache accumulator (tf, r2, r3) = .ok true := by
-        simp only [matrix.compute_As_plus_e.post,
-          lift_matrix_from_slice_ok matrix_A (le_of_eq hAlen.symm),
-          lift_vec_ok, bind_tc_ok, hP]
-        exact harr
-      exact holds_post_of_ok hpost
+      obtain ⟨⟨spec_out, _h_hac, h_vm⟩, h_lift⟩ := hP
+      -- per (row, lane): tight bound from `VecMatches`; spec = `lift_fe` of the impl
+      -- lane through the `lift_vec`/`lift_poly` getters.
+      have hmatch : ∀ r : Nat, r < K.val → ∀ l : Nat, l < 256 →
+          ((tf.to_slice.val[r]!.coefficients.val[l / 16]!).elements.val[l % 16]!).val.natAbs ≤ 1664 ∧
+          (lift_vec tf).val[r]!.val[l]!
+            = lift_fe ((tf.to_slice.val[r]!.coefficients.val[l / 16]!).elements.val[l % 16]!) := by
+        intro r hr l hl
+        rw [Array.val_to_slice]
+        exact ⟨(h_vm r hr l hl).1,
+               by rw [lift_vec_getElem tf r hr, lift_poly_getElem (tf.val[r]!) l hl]⟩
+      have hKmax : K.val * 256 ≤ Aeneas.Std.Usize.max := by
+        have hmx : (1024 : Nat) ≤ Aeneas.Std.Usize.max := by scalar_tac
+        omega
+      show (matrix.compute_As_plus_e.post portable_ops_inst t_as_ntt matrix_A s_as_ntt
+            error_as_ntt s_cache accumulator (tf, r2, r3)).holds
+      simp only [matrix.compute_As_plus_e.post,
+        lift_matrix_from_slice_ok matrix_A (le_of_eq hAlen.symm),
+        lift_vec_ok, Aeneas.Std.lift, bind_tc_ok, h_lift]
+      exact vec_matches_self tf.to_slice (lift_vec tf) hKmax
+        (by rw [Array.val_to_slice]; exact tf.property) hmatch
     · rw [if_neg hK4] at hbx; simp at hbx
   · rw [if_neg hK0] at hbx; simp at hbx
 
@@ -345,39 +351,25 @@ theorem compute_vector_u_spec_proof {K : Std.Usize} {Hasher : Type}
                 (fun c hc a b => h_err_bnd c hc a.val a.isLt b.val b.isLt)) ?_
               intro res hP
               obtain ⟨me, rf, sc, cf, af⟩ := res
-              obtain ⟨heq, h_rf_len, _h_cache, _h_cache_len⟩ := hP
-              have hFErefl : ∀ (q : Std.Array hacspec_ml_kem.parameters.FieldElement 256#usize),
-                  ∀ jj : Nat, jj < (256#usize : Std.Usize).val →
-                    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq
-                      (q.val[jj]!) (q.val[jj]!) = .ok true := by
-                intro q jj hjj
-                simp [hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq]
-              have harr : CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq
-                  (CoreModels.core.Array.Insts.CoreCmpPartialEqArray 256#usize
-                    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement)
-                  (lift_vec_slice rf K) (lift_vec_slice rf K) = .ok true :=
-                PreDecode.array_eq_self _ (lift_vec_slice rf K)
-                  (fun k hk => PreDecode.array_eq_self _ ((lift_vec_slice rf K).val[k]!)
-                    (fun jj hjj => hFErefl _ jj hjj))
-              have hpost : matrix.compute_vector_u.post K portable_ops_inst hasherInst matrix_entry
-                  seed r_as_ntt error_1 result scratch cache accumulator (me, rf, sc, cf, af)
-                  = .ok true := by
-                simp only [matrix.compute_vector_u.post,
-                  lift_matrix_from_seed_ok hasherInst seed h_seed_len,
-                  lift_vec_slice_ok r_as_ntt (le_of_eq h_r_len.symm),
-                  lift_vec_slice_ok error_1 (le_of_eq h_err_len.symm),
-                  bind_tc_ok, heq]
-                -- the post's `let (_, result_future, _, _, _) := (me,rf,…)` reduces defeq
-                show (do
-                    let a4 ← matrix.lift_vec_slice K portable_ops_inst rf
-                    core.Array.Insts.CoreCmpPartialEqArray.eq
-                      (core.Array.Insts.CoreCmpPartialEqArray 256#usize
-                        hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement)
-                      (lift_vec_slice rf K) a4) = .ok true
-                rw [lift_vec_slice_ok rf (le_of_eq h_rf_len.symm)]
-                simp only [bind_tc_ok]
-                exact harr
-              exact holds_post_of_ok hpost
+              obtain ⟨⟨spec_out, _h_hac, h_vm⟩, h_lift, h_rf_len, _h_cache, _h_cache_len⟩ := hP
+              have hmatch : ∀ r : Nat, r < K.val → ∀ l : Nat, l < 256 →
+                  ((rf.val[r]!.coefficients.val[l / 16]!).elements.val[l % 16]!).val.natAbs ≤ 1664 ∧
+                  (lift_vec_slice rf K).val[r]!.val[l]!
+                    = lift_fe ((rf.val[r]!.coefficients.val[l / 16]!).elements.val[l % 16]!) := by
+                intro r hr l hl
+                exact ⟨(h_vm r hr l hl).1,
+                       by rw [lift_vec_slice_getElem rf K r hr, lift_poly_getElem (rf.val[r]!) l hl]⟩
+              have hKmax : K.val * 256 ≤ Aeneas.Std.Usize.max := by
+                have hmx : (1024 : Nat) ≤ Aeneas.Std.Usize.max := by scalar_tac
+                omega
+              show (matrix.compute_vector_u.post K portable_ops_inst hasherInst matrix_entry
+                  seed r_as_ntt error_1 result scratch cache accumulator (me, rf, sc, cf, af)).holds
+              simp only [matrix.compute_vector_u.post,
+                lift_matrix_from_seed_ok hasherInst seed h_seed_len,
+                lift_vec_slice_ok r_as_ntt (le_of_eq h_r_len.symm),
+                lift_vec_slice_ok error_1 (le_of_eq h_err_len.symm),
+                bind_tc_ok, h_lift]
+              exact vec_matches_self rf (lift_vec_slice rf K) hKmax h_rf_len hmatch
             · exfalso; rw [if_pos hs, if_pos hr, if_pos he, if_pos hres, if_pos hca, if_neg hkp] at hbx; simp at hbx
           · exfalso; rw [if_pos hs, if_pos hr, if_pos he, if_pos hres, if_neg hca] at hbx; simp at hbx
         · exfalso; rw [if_pos hs, if_pos hr, if_pos he, if_neg hres] at hbx; simp at hbx
@@ -644,7 +636,8 @@ theorem compute_u_and_v_spec_proof {K : Std.Usize} {Hasher : Type}
                 have h_r_bnd := vec_slice_natAbs_3328 r_as_ntt (le_of_eq h_r_len.symm) hr_bnd
                 have h_err_bnd := vec_slice_natAbs_29439 error_1 (le_of_eq h_err_len.symm) herr_bnd
                 -- Step A: run compute_vector_u; get its cache-correctness + length.
-                obtain ⟨⟨me1, ru1, sc1, cf1, ac1⟩, h_cvu_eq, _h_u, _h_ru_len, h_cache_char, h_cf1_len⟩ :=
+                obtain ⟨⟨me1, ru1, sc1, cf1, ac1⟩, h_cvu_eq,
+                        _h_vm_ex, _h_u, _h_ru_len, h_cache_char, h_cf1_len⟩ :=
                   triple_exists_ok (ComputeVectorU.FC.compute_vector_u_fc K hasherInst matrix_entry
                     seed r_as_ntt error_1 result_u scratch cache accumulator hK4v hKpos h_seed_len
                     h_r_len h_err_len h_result_len h_cache_len
@@ -675,25 +668,20 @@ theorem compute_u_and_v_spec_proof {K : Std.Usize} {Hasher : Type}
                   rw [h_crv_eq]; simp only [bind_tc_ok]
                 rw [h_uv_eq]
                 apply triple_ok_intro
-                -- post: v-correctness as a reflexive array `==` (result_v is a Polynomial).
-                have hrefl : ∀ jj : Nat, jj < (256#usize : Std.Usize).val →
-                    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq
-                      ((lift_poly rv1).val[jj]!) ((lift_poly rv1).val[jj]!) = .ok true := by
-                  intro jj hjj
-                  simp [hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq]
-                have harr := PreDecode.array_eq_self
-                  hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement
-                  (lift_poly rv1) hrefl
-                have hpost : matrix.compute_u_and_v.post K portable_ops_inst hasherInst seed
+                -- post: v-correctness as `poly_matches` (result_v is a Polynomial).
+                obtain ⟨⟨spec_v, _h_hac_v, h_pm_v⟩, h_lift_v⟩ := h_v_correct
+                have h_bnd : ∀ l : Nat, l < 256 →
+                    ((rv1.coefficients.val[l / 16]!).elements.val[l % 16]!).val.natAbs ≤ 1664 := by
+                  intro l hl; exact (h_pm_v l hl).1
+                show (matrix.compute_u_and_v.post K portable_ops_inst hasherInst seed
                     public_key r_as_ntt error_1 error_2 message matrix_entry t_as_ntt_entry
                     result_u result_v scratch cache accumulator
-                    (me1, te1, ru1, rv1, sc2, cf1, ac2) = .ok true := by
-                  simp only [matrix.compute_u_and_v.post,
-                    lift_t_as_ntt_from_public_key_ok public_key h_pk_len,
-                    lift_vec_slice_ok r_as_ntt (le_of_eq h_r_len.symm),
-                    lift_poly_ok, bind_tc_ok, h_v_correct]
-                  exact harr
-                exact holds_post_of_ok hpost
+                    (me1, te1, ru1, rv1, sc2, cf1, ac2)).holds
+                simp only [matrix.compute_u_and_v.post,
+                  lift_t_as_ntt_from_public_key_ok public_key h_pk_len,
+                  lift_vec_slice_ok r_as_ntt (le_of_eq h_r_len.symm),
+                  lift_poly_ok, bind_tc_ok, h_lift_v]
+                exact poly_matches_self rv1 h_bnd
               · exfalso; rw [if_neg hres] at hbx; simp at hbx
             · exfalso; rw [if_neg he] at hbx; simp at hbx
           · exfalso; rw [if_neg hr] at hbx; simp at hbx
@@ -958,23 +946,18 @@ theorem compute_ring_element_v_spec_proof {K : Std.Usize}
             (fun chunk hchunk ℓ hℓ => h_msg_bnd chunk hchunk ℓ hℓ))
         rw [h_crv_eq]
         apply triple_ok_intro
-        have hrefl : ∀ jj : Nat, jj < (256#usize : Std.Usize).val →
-            hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq
-              ((lift_poly rv1).val[jj]!) ((lift_poly rv1).val[jj]!) = .ok true := by
-          intro jj hjj
-          simp [hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement.eq]
-        have harr := PreDecode.array_eq_self
-          hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement
-          (lift_poly rv1) hrefl
-        have hpost : matrix.compute_ring_element_v.post K portable_ops_inst public_key
+        obtain ⟨⟨spec_v, _h_hac_v, h_pm_v⟩, h_lift_v⟩ := h_v_correct
+        have h_bnd : ∀ l : Nat, l < 256 →
+            ((rv1.coefficients.val[l / 16]!).elements.val[l % 16]!).val.natAbs ≤ 1664 := by
+          intro l hl; exact (h_pm_v l hl).1
+        show (matrix.compute_ring_element_v.post K portable_ops_inst public_key
             t_as_ntt_entry r_as_ntt error_2 message result scratch cache accumulator
-            (te1, rv1, sc2, ac2) = .ok true := by
-          simp only [matrix.compute_ring_element_v.post,
-            lift_t_as_ntt_from_public_key_ok public_key h_pk_len,
-            lift_vec_slice_ok r_as_ntt (le_of_eq h_r_len.symm),
-            lift_poly_ok, bind_tc_ok, h_v_correct]
-          exact harr
-        exact holds_post_of_ok hpost
+            (te1, rv1, sc2, ac2)).holds
+        simp only [matrix.compute_ring_element_v.post,
+          lift_t_as_ntt_from_public_key_ok public_key h_pk_len,
+          lift_vec_slice_ok r_as_ntt (le_of_eq h_r_len.symm),
+          lift_poly_ok, bind_tc_ok, h_lift_v]
+        exact poly_matches_self rv1 h_bnd
       · exfalso; rw [if_neg hr] at hbx; simp at hbx
     · exfalso; rw [if_neg hpkc] at hbx; simp at hbx
   · exfalso; rw [if_neg hK4] at hbx; simp at hbx

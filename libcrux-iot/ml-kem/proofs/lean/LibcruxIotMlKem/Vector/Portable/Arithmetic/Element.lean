@@ -238,7 +238,7 @@ theorem sub_spec
 private def barrett_per_elem_P (x y : Std.I16) : Prop :=
   x.val.natAbs ≤ 32767 →
     libcrux_iot_ml_kem.Spec.ModularArith.modq_eq y.val x.val 3329
-      ∧ y.val.natAbs ≤ 3328
+      ∧ y.val.natAbs ≤ 1664
 
 /-- Per-element Triple: an unconditional Triple over
     `barrett_reduce_element` with the guarded post. The function is
@@ -280,7 +280,7 @@ theorem barrett_reduce_spec
     ⦃ ⇓ r => ⌜ ∀ i : Nat, i < 16 →
               libcrux_iot_ml_kem.Spec.ModularArith.modq_eq
                 (r.elements.val[i]!).val (vec.elements.val[i]!).val 3329
-              ∧ (r.elements.val[i]!).val.natAbs ≤ 3328 ⌝ ⦄ := by
+              ∧ (r.elements.val[i]!).val.natAbs ≤ 1664 ⌝ ⦄ := by
   unfold libcrux_iot_ml_kem.vector.portable.arithmetic.barrett_reduce
   unfold libcrux_iot_ml_kem.vector.portable.arithmetic.barrett_reduce_loop
   have h_field : libcrux_iot_ml_kem.vector.traits.FIELD_ELEMENTS_IN_VECTOR
@@ -1998,7 +1998,9 @@ theorem lift_fe_barrett_pure_eq
   rw [barrett_pure_lift_fe]
   exact lift_fe_eq_of_modq r a h
 
-/-- L1.3 — `barrett_reduce` on a chunk. -/
+/-- L1.3 — `barrett_reduce` on a chunk. The output lanes are the **centered
+    Barrett representatives** `|r[i]| ≤ 1664 = ⌊3329/2⌋` (the tight bound the tail
+    poly ops need for the L7 uniqueness guarantee). -/
 @[spec high]
 theorem barrett_reduce_fc
     (vec : libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector)
@@ -2006,14 +2008,14 @@ theorem barrett_reduce_fc
       (vec.elements.val[i]!).val.natAbs ≤ 32767) :
     ⦃ ⌜ True ⌝ ⦄
     libcrux_iot_ml_kem.vector.portable.arithmetic.barrett_reduce vec
-    ⦃ ⇓ r => ⌜ (∀ i : Nat, i < 16 → (r.elements.val[i]!).val.natAbs ≤ 3328)
+    ⦃ ⇓ r => ⌜ (∀ i : Nat, i < 16 → (r.elements.val[i]!).val.natAbs ≤ 1664)
                 ∧ lift_chunk r = Spec.chunk_barrett_reduce_pure (lift_chunk vec) ⌝ ⦄ := by
-  -- 1. Extract per-element legacy fact: modq_eq r[i] vec[i] 3329 ∧ |r[i]| ≤ 3328.
+  -- 1. Extract per-element legacy fact: modq_eq r[i] vec[i] 3329 ∧ |r[i]| ≤ 1664.
   have h_legacy := libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element.barrett_reduce_spec vec hpre
   obtain ⟨r0, h_eq, h_per⟩ := triple_exists_ok_fc h_legacy
   apply triple_of_ok_fc (v := r0) h_eq
   refine ⟨?_, ?_⟩
-  · -- Bound conjunct: extract `r[i].natAbs ≤ 3328` from per-element legacy.
+  · -- Bound conjunct: the centered `r[i].natAbs ≤ 1664` from the per-element spec.
     intro i hi
     exact (h_per i hi).2
   · -- 2. Reduce array equality to list equality, then to per-index lift_fe equality.

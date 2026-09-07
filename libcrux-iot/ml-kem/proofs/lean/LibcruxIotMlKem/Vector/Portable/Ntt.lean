@@ -2354,9 +2354,12 @@ theorem inv_ntt_step_spec_B
     have h := h_add_eq_val.2
     omega
   -- Step 5: L0.2 barrett_reduce_element on a_plus_b.
-  obtain ⟨o0, h_o0_eq_ok, _h_o0_mod, h_o0_bd⟩ :=
+  obtain ⟨o0, h_o0_eq_ok, _h_o0_mod, h_o0_bd_t⟩ :=
     triple_exists_ok_l2 (barrett_reduce_element_spec a_plus_b
       (Nat.le_trans h_apb_bd (by decide : 28296 ≤ 32767)))
+  -- `barrett_reduce_element_spec` gives the centered `≤ 1664`; the NTT layer
+  -- invariants only need the looser `≤ 3328`, so weaken here.
+  have h_o0_bd : o0.val.natAbs ≤ 3328 := Nat.le_trans h_o0_bd_t (by decide)
   -- Step 6: classify ζ.
   have h_classify : libcrux_secrets.traits.Classify.Blanket.classify zeta = .ok zeta :=
     classify_ok_eq zeta

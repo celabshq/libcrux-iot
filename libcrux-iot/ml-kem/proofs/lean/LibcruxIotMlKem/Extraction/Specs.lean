@@ -346,7 +346,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::entry::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 241:0-241:71 -/
+    Source: 'ml-kem/src/matrix.rs', lines 285:0-285:71 -/
 @[reducible]
 def matrix.entry.pre
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -380,7 +380,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 325:16-329:32 -/
+    Source: 'ml-kem/src/matrix.rs', lines 369:16-373:32 -/
 @[reducible]
 def matrix.compute_message.pre
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -406,7 +406,7 @@ def matrix.compute_message.pre
     hax_lib.prop.Prop.Insts.CoreConvertFromBool) p4 b
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 330:0-333:39 -/
+    Source: 'ml-kem/src/matrix.rs', lines 374:0-377:77 -/
 @[reducible]
 def matrix.compute_message.post
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -418,17 +418,14 @@ def matrix.compute_message.post
   (accumulator : Array Std.I32 256#usize)
   (t : ((polynomial.PolynomialRingElement Vector) × Vector × (Array Std.I32
   256#usize))) :
-  RustM Bool
+  RustM hax_lib.prop.Prop
   := do
   let (result_future, _, _) := t
   let a ← matrix.lift_poly vectortraitsOperationsInst v
   let a1 ← matrix.lift_vec vectortraitsOperationsInst secret_as_ntt
   let a2 ← matrix.lift_vec vectortraitsOperationsInst u_as_ntt
   let a3 ← hacspec_ml_kem.matrix.compute_message a a1 a2
-  let a4 ← matrix.lift_poly vectortraitsOperationsInst result_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq
-    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement
-    a3 a4
+  matrix.poly_matches vectortraitsOperationsInst result_future a3
 
 def
   matrix.compute_message.spec {Vector : Type} {K : Std.Usize}
@@ -451,7 +448,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 360:16-369:58 -/
+    Source: 'ml-kem/src/matrix.rs', lines 404:16-413:58 -/
 @[reducible]
 def matrix.compute_ring_element_v.pre
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -504,7 +501,7 @@ def matrix.compute_ring_element_v.pre
     hax_lib.prop.Prop.Insts.CoreConvertFromBool) p6 b3
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 370:0-375:39 -/
+    Source: 'ml-kem/src/matrix.rs', lines 414:0-419:57 -/
 @[reducible]
 def matrix.compute_ring_element_v.post
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -519,7 +516,7 @@ def matrix.compute_ring_element_v.post
   (t : ((polynomial.PolynomialRingElement Vector) ×
   (polynomial.PolynomialRingElement Vector) × Vector × (Array Std.I32
   256#usize))) :
-  RustM Bool
+  RustM hax_lib.prop.Prop
   := do
   let (_, result_future, _, _) := t
   let a ← matrix.lift_t_as_ntt_from_public_key K vectortraitsOperationsInst public_key
@@ -527,10 +524,7 @@ def matrix.compute_ring_element_v.post
   let a2 ← matrix.lift_poly vectortraitsOperationsInst error_2
   let a3 ← matrix.lift_poly vectortraitsOperationsInst message
   let a4 ← hacspec_ml_kem.matrix.compute_ring_element_v a a1 a2 a3
-  let a5 ← matrix.lift_poly vectortraitsOperationsInst result_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq
-    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement
-    a4 a5
+  matrix.poly_matches vectortraitsOperationsInst result_future a4
 
 def
   matrix.compute_ring_element_v.spec {Vector : Type} (K : Std.Usize)
@@ -558,7 +552,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 406:16-411:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 450:16-455:57 -/
 @[reducible]
 def matrix.compute_vector_u.pre
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -609,7 +603,7 @@ def matrix.compute_vector_u.pre
     hax_lib.prop.Prop)) p2 p3
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 412:0-417:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 456:0-461:54 -/
 @[reducible]
 def matrix.compute_vector_u.post
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -625,18 +619,14 @@ def matrix.compute_vector_u.post
   (t : ((polynomial.PolynomialRingElement Vector) × (Slice
   (polynomial.PolynomialRingElement Vector)) × Vector × (Slice
   (polynomial.PolynomialRingElement Vector)) × (Array Std.I32 256#usize))) :
-  RustM Bool
+  RustM hax_lib.prop.Prop
   := do
   let (_, result_future, _, _, _) := t
   let a ← matrix.lift_matrix_from_seed K vectortraitsOperationsInst hash_functionsHashInst seed
   let a1 ← matrix.lift_vec_slice K vectortraitsOperationsInst r_as_ntt
   let a2 ← matrix.lift_vec_slice K vectortraitsOperationsInst error_1
   let a3 ← hacspec_ml_kem.matrix.compute_vector_u a a1 a2
-  let a4 ← matrix.lift_vec_slice K vectortraitsOperationsInst result_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq
-    (core.Array.Insts.CoreCmpPartialEqArray 256#usize
-    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement)
-    a3 a4
+  matrix.vec_matches vectortraitsOperationsInst result_future a3
 
 def
   matrix.compute_vector_u.spec {Vector : Type} {Hasher : Type} (K : Std.Usize)
@@ -665,7 +655,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 467:16-472:36 -/
+    Source: 'ml-kem/src/matrix.rs', lines 511:16-516:36 -/
 @[reducible]
 def matrix.compute_As_plus_e.pre
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -708,7 +698,7 @@ def matrix.compute_As_plus_e.pre
     hax_lib.prop.Prop)) p6 p7
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 473:0-477:40 -/
+    Source: 'ml-kem/src/matrix.rs', lines 517:0-521:61 -/
 @[reducible]
 def matrix.compute_As_plus_e.post
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -721,18 +711,15 @@ def matrix.compute_As_plus_e.post
   (accumulator : Array Std.I32 256#usize)
   (t : ((Array (polynomial.PolynomialRingElement Vector) K) × (Array
   (polynomial.PolynomialRingElement Vector) K) × (Array Std.I32 256#usize))) :
-  RustM Bool
+  RustM hax_lib.prop.Prop
   := do
   let (t_as_ntt_future, _, _) := t
+  let s ← lift (Array.to_slice t_as_ntt_future)
   let a ← matrix.lift_matrix_from_slice K vectortraitsOperationsInst matrix_A
   let a1 ← matrix.lift_vec vectortraitsOperationsInst s_as_ntt
   let a2 ← matrix.lift_vec vectortraitsOperationsInst error_as_ntt
   let a3 ← hacspec_ml_kem.matrix.compute_As_plus_e a a1 a2
-  let a4 ← matrix.lift_vec vectortraitsOperationsInst t_as_ntt_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq
-    (core.Array.Insts.CoreCmpPartialEqArray 256#usize
-    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement)
-    a3 a4
+  matrix.vec_matches vectortraitsOperationsInst s a3
 
 def
   matrix.compute_As_plus_e.spec {Vector : Type} {K : Std.Usize}
@@ -756,7 +743,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_u_and_v::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 525:16-534:38 -/
+    Source: 'ml-kem/src/matrix.rs', lines 569:16-578:38 -/
 @[reducible]
 def matrix.compute_u_and_v.pre
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -825,7 +812,7 @@ def matrix.compute_u_and_v.pre
     hax_lib.prop.Prop.Insts.CoreConvertFromBool) p5 b2
 
 /-- [libcrux_iot_ml_kem::matrix::compute_u_and_v::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 535:0-540:41 -/
+    Source: 'ml-kem/src/matrix.rs', lines 579:0-584:57 -/
 @[reducible]
 def matrix.compute_u_and_v.post
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -846,7 +833,7 @@ def matrix.compute_u_and_v.post
   (polynomial.PolynomialRingElement Vector)) ×
   (polynomial.PolynomialRingElement Vector) × Vector × (Slice
   (polynomial.PolynomialRingElement Vector)) × (Array Std.I32 256#usize))) :
-  RustM Bool
+  RustM hax_lib.prop.Prop
   := do
   let (_, _, _, result_v_future, _, _, _) := t
   let a ← matrix.lift_t_as_ntt_from_public_key K vectortraitsOperationsInst public_key
@@ -854,10 +841,7 @@ def matrix.compute_u_and_v.post
   let a2 ← matrix.lift_poly vectortraitsOperationsInst error_2
   let a3 ← matrix.lift_poly vectortraitsOperationsInst message
   let a4 ← hacspec_ml_kem.matrix.compute_ring_element_v a a1 a2 a3
-  let a5 ← matrix.lift_poly vectortraitsOperationsInst result_v_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq
-    hacspec_ml_kem.parameters.FieldElement.Insts.CoreCmpPartialEqFieldElement
-    a4 a5
+  matrix.poly_matches vectortraitsOperationsInst result_v_future a4
 
 def
   matrix.compute_u_and_v.spec {Vector : Type} {Hasher : Type} (K : Std.Usize)

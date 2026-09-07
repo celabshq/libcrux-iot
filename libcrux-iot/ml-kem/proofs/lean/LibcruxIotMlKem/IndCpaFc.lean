@@ -3754,11 +3754,22 @@ theorem decrypt_unpacked_fc
     intro k hk i hi j hj
     rw [Aeneas.Std.Array.from_slice_val A pu.1 hpu_len']
     exact hpu_bnd k hk i hi j hj
-  obtain ⟨pm, hpm_eq, hpm_spec, hpm_bnd⟩ :=
+  obtain ⟨pm, hpm_eq, ⟨spec_out_m, _h_hac_m, h_pm_match⟩, hpm_spec⟩ :=
     triple_exists_ok_fc
       (Matrix.ComputeMessage.FC.compute_message_fc pv secret_key.secret_as_ntt
         (Aeneas.Std.Array.from_slice A pu.1) zp pu.2 accumulator hK4 h_secret_bnd h_u_bnd
         hpv_bnd)
+  -- `compress_then_serialize_message` needs a `≤ 3328` chunk/lane bound; the new
+  -- `PolyMatches` conjunct gives the tighter `≤ 1664` (flat index), so weaken + reindex.
+  have hpm_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+      ((pm.1.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328 := by
+    intro chunk hchunk ℓ hℓ
+    have hl : chunk * 16 + ℓ < 256 := by omega
+    have hb := (h_pm_match (chunk * 16 + ℓ) hl).1
+    have hdiv : (chunk * 16 + ℓ) / 16 = chunk := by omega
+    have hmod : (chunk * 16 + ℓ) % 16 = ℓ := by omega
+    rw [hdiv, hmod] at hb
+    omega
   -- ═══ 7. `serialize::compress_then_serialize_message` (L5.2) — consumes the `≤ 3328`. ═══
   obtain ⟨pd, hpd_eq, out, hout_spec, hpd_len, hpd_bytes⟩ :=
     triple_exists_ok_fc

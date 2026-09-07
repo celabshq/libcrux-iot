@@ -172,9 +172,11 @@ private theorem poly_barrett_reduce_step_lemma
       rw [h_t_eq]; exact h_pre k.val hk_16 ℓ hℓ
     obtain ⟨t1, h_t1_eq, h_t1_P⟩ :=
       triple_exists_ok_l6 (barrett_reduce_spec t h_t_bd)
-    -- h_t1_P : ∀ i : Nat, i < 16 → modq_eq … ∧ (t1.elements[i]).val.natAbs ≤ 3328
+    -- h_t1_P : ∀ i : Nat, i < 16 → modq_eq … ∧ (t1.elements[i]).val.natAbs ≤ 1664
+    -- (centered); this L6.1 wrapper keeps the looser `≤ 3328`, so weaken.
     have h_t1_bd : ∀ ℓ : Nat, ℓ < 16 →
-        (t1.elements.val[ℓ]!).val.natAbs ≤ 3328 := fun ℓ hℓ => (h_t1_P ℓ hℓ).2
+        (t1.elements.val[ℓ]!).val.natAbs ≤ 3328 :=
+      fun ℓ hℓ => Nat.le_trans (h_t1_P ℓ hℓ).2 (by decide)
     -- Set the next-state accumulator.
     set a : Std.Array
         libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector 16#usize :=
