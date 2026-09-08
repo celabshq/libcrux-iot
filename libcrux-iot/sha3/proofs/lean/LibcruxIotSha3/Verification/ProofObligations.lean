@@ -681,4 +681,51 @@ theorem keccak_spec_proof (RATE : Std.Usize) (DELIM : Std.U8) (data out : Slice 
   · rw [if_neg hpos] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
+
+/-! ## Axiom guards
+    Pinned by `#guard_msgs`: the build fails if a result comes to depend on any axiom
+    beyond Lean's standard three (an admitted `sorry`, or `Lean.ofReduceBool` from
+    `bv_decide`/`native_decide`). -/
+/--
+info: 'libcrux_iot_sha3.Verification.shake128_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake128_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.shake256_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake256_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha224_ema_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha224_ema_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha256_ema_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha256_ema_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha384_ema_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha384_ema_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha512_ema_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha512_ema_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.keccak_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms keccak_spec_proof
+
 end libcrux_iot_sha3.Verification

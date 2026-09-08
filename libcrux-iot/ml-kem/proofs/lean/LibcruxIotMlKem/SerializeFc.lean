@@ -16,8 +16,9 @@
   statement on every rung. Six are axiom-clean `[propext, Classical.choice, Quot.sound]`;
   `deserialize_ring_elements_reduced_fc` additionally rests on the A2 axiom
   `Serialize.deserialize_to_reduced_ring_element_fc` BY DESIGN (retiring it is item M-A),
-  and that is its declared allowlist, not a gap. `AxiomCheck.lean` asserts the
-  sorry-freedom of each, so a regression fails the build rather than being noticed later.
+  and that is its declared allowlist, not a gap. `#guard_msgs` guards at the end of this
+  file pin the axiom set of each, so a regression fails the build rather than being
+  noticed later.
 
   Shape follows the tree's established convention (see `Matrix/ComputeAsPlusE.lean`,
   `Serialize.lean`): an mvcgen Triple whose post equates the hacspec model applied
@@ -12494,5 +12495,111 @@ theorem compress_then_serialize_ring_element_u_fc
     · intro ℓ hℓ
       refine Aeneas.Std.UScalar.eq_of_val_eq ?_
       rw [hpget ℓ (by rw [h_block, h11] at hℓ; scalar_tac), hencget ℓ hℓ]
+
+
+/-! ## Axiom guards
+    Pinned by `#guard_msgs` (replacing the former `AxiomCheck.lean`, which only asserted
+    sorry-freedom): the build fails if a result's axiom set drifts. Beyond Lean's standard
+    three, only the documented deferred leaves A1 (`sample_matrix_entry_fc` with the opaque
+    `matrix.sample_matrix_entry`) and A2 (`deserialize_to_reduced_ring_element_fc`) may
+    appear, and only where listed. -/
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.deserialize_to_uncompressed_ring_element_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms deserialize_to_uncompressed_ring_element_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.deserialize_then_decompress_message_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms deserialize_then_decompress_message_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.deserialize_ring_elements_reduced_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound,
+ Serialize.deserialize_to_reduced_ring_element_fc]
+-/
+#guard_msgs in
+#print axioms deserialize_ring_elements_reduced_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.serialize_uncompressed_ring_element_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms serialize_uncompressed_ring_element_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.compress_then_serialize_message_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms compress_then_serialize_message_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.deserialize_then_decompress_ring_element_v_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms deserialize_then_decompress_ring_element_v_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.compress_then_serialize_ring_element_v_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms compress_then_serialize_ring_element_v_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.deserialize_then_decompress_ring_element_u_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms deserialize_then_decompress_ring_element_u_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.compress_then_serialize_ring_element_u_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms compress_then_serialize_ring_element_u_fc
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.byte_encode_12_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms byte_encode_12_eq
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.byte_encode_into_12_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms byte_encode_into_12_eq
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.compress_message_coefficient_eq' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms compress_message_coefficient_eq
+
+/--
+info: 'libcrux_iot_ml_kem.SerializeFc.compress_1_threshold_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms compress_1_threshold_eq
 
 end libcrux_iot_ml_kem.SerializeFc

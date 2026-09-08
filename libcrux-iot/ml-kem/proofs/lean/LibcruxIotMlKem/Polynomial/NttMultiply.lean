@@ -11550,4 +11550,27 @@ theorem accumulating_ntt_multiply_use_cache_poly_fc
 end L6_3c_use_irreducible
 
 
+
+/-! ## Axiom guards
+    Pinned by `#guard_msgs` (replacing the former `AxiomCheck.lean`, which only asserted
+    sorry-freedom): the build fails if a result's axiom set drifts. Beyond Lean's standard
+    three, only the documented deferred leaves A1 (`sample_matrix_entry_fc` with the opaque
+    `matrix.sample_matrix_entry`) and A2 (`deserialize_to_reduced_ring_element_fc`) may
+    appear, and only where listed. -/
+/--
+info: 'libcrux_iot_ml_kem.Polynomial.NttMultiply.accumulating_ntt_multiply_binomials_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms accumulating_ntt_multiply_binomials_fc
+
+/--
+info: 'libcrux_iot_ml_kem.Polynomial.NttMultiply.accumulating_ntt_multiply_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms accumulating_ntt_multiply_fc
+
 end libcrux_iot_ml_kem.Polynomial.NttMultiply

@@ -4076,4 +4076,55 @@ theorem decrypt_fc
     simp only [Aeneas.Std.bind_tc_ok]
     exact hout_spec
 
+
+/-! ## Axiom guards
+    Pinned by `#guard_msgs` (replacing the former `AxiomCheck.lean`, which only asserted
+    sorry-freedom): the build fails if a result's axiom set drifts. Beyond Lean's standard
+    three, only the documented deferred leaves A1 (`sample_matrix_entry_fc` with the opaque
+    `matrix.sample_matrix_entry`) and A2 (`deserialize_to_reduced_ring_element_fc`) may
+    appear, and only where listed. -/
+/--
+info: 'libcrux_iot_ml_kem.IndCpaFc.deserialize_vector_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms deserialize_vector_fc
+
+/--
+info: 'libcrux_iot_ml_kem.IndCpaFc.serialize_vector_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms serialize_vector_fc
+
+/--
+info: 'libcrux_iot_ml_kem.IndCpaFc.serialize_public_key_mut_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms serialize_public_key_mut_fc
+
+/--
+info: 'libcrux_iot_ml_kem.IndCpaFc.compress_then_serialize_u_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms compress_then_serialize_u_fc
+
+/--
+info: 'libcrux_iot_ml_kem.IndCpaFc.deserialize_then_decompress_u_fc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms deserialize_then_decompress_u_fc
+
+/--
+info: 'libcrux_iot_ml_kem.IndCpaFc.decrypt_unpacked_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms decrypt_unpacked_fc
+
+/--
+info: 'libcrux_iot_ml_kem.IndCpaFc.decrypt_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms decrypt_fc
+
 end libcrux_iot_ml_kem.IndCpaFc

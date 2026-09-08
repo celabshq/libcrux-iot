@@ -28,7 +28,6 @@ import LibcruxIotMlKem.Matrix.ComputeRingElementV.FC
 import LibcruxIotMlKem.Util.Shared
 import LibcruxIotMlKem.SerializeFc
 import LibcruxIotMlKem.IndCpaFc
-import LibcruxIotMlKem.AxiomCheck
 -- Import-DAG sinks: with no lakefile glob, the root's import tree is what builds.
 import LibcruxIotMlKem.Matrix.SpecDischarge
 import LibcruxIotMlKem.Verification.ProofObligations

@@ -1370,4 +1370,15 @@ theorem keccak.keccak_keccak_spec
     exact keccak.keccak_keccak_spec_blocks_nonzero RATE DELIM data out
       h_RATE_mod h_RATE_ge_1 h_RATE_le_200 h
 
+
+/-! ## Axiom guards
+    Pinned by `#guard_msgs`: the build fails if a result comes to depend on any axiom
+    beyond Lean's standard three (an admitted `sorry`, or `Lean.ofReduceBool` from
+    `bv_decide`/`native_decide`). -/
+/--
+info: 'libcrux_iot_sha3.Sponge.keccak.keccak_keccak_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms keccak.keccak_keccak_spec
+
 end libcrux_iot_sha3.Sponge

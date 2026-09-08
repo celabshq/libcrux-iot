@@ -664,4 +664,45 @@ theorem sha512_ema_spec
     show r_out.val[k]! = spec_out_kk.val[k]!
     exact h_byte
 
+
+/-! ## Axiom guards
+    Pinned by `#guard_msgs`: the build fails if a result comes to depend on any axiom
+    beyond Lean's standard three (an admitted `sorry`, or `Lean.ofReduceBool` from
+    `bv_decide`/`native_decide`). -/
+/--
+info: 'libcrux_iot_sha3.Sponge.shake128_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake128_spec
+
+/--
+info: 'libcrux_iot_sha3.Sponge.shake256_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake256_spec
+
+/--
+info: 'libcrux_iot_sha3.Sponge.sha224_ema_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha224_ema_spec
+
+/--
+info: 'libcrux_iot_sha3.Sponge.sha256_ema_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha256_ema_spec
+
+/--
+info: 'libcrux_iot_sha3.Sponge.sha384_ema_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha384_ema_spec
+
+/--
+info: 'libcrux_iot_sha3.Sponge.sha512_ema_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha512_ema_spec
+
 end libcrux_iot_sha3.Sponge

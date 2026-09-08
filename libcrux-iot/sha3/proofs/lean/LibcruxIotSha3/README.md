@@ -143,14 +143,16 @@ definition failed, so `False` was derivable from it at `s = ⟨[], _⟩`, `r = �
 deliberate citation. The ML-KEM and ML-DSA trees carried the same three and close
 them on the same fix.
 
-The axiom set is enforced on every build by
-[`AxiomCheck.lean`](AxiomCheck.lean): it runs an `#assert_std_axioms` command on
-each of the six digest specs, on `keccak_keccak_spec`, and on the contract
-discharges `keccak_spec_proof` / `sha256_ema_spec_proof`, failing the build if
-any of them comes to depend on an axiom outside the standard three (an admitted
-`sorry` anywhere in the proof tree, including the hand-written Aeneas stdlib
-models, or a reintroduced `bv_decide`/`native_decide`). To inspect the axioms
-of any declaration manually, use `#print axioms <name>`.
+The axiom set is enforced on every build by `#guard_msgs` guards next to the
+theorems (the same mechanism ml-dsa uses): each of the six digest specs
+([`Sponge/Shake.lean`](Sponge/Shake.lean)), `keccak_keccak_spec`
+([`Sponge/Keccak.lean`](Sponge/Keccak.lean)) and the seven contract discharges
+([`Verification/ProofObligations.lean`](Verification/ProofObligations.lean))
+is followed by a `#print axioms` whose output is pinned to exactly
+`[propext, Classical.choice, Quot.sound]`, so the build fails if any of them
+comes to depend on an admitted `sorry` anywhere in its proof tree (including the
+hand-written Aeneas stdlib models) or on a reintroduced `bv_decide`/`native_decide`.
+To inspect the axioms of any other declaration, use `#print axioms <name>`.
 
 
 ## Proof architecture

@@ -8,8 +8,8 @@ name = "LibcruxIotSha3"
 # tree (below) rather than by globbing every file on disk. This keeps the
 # generated `Extraction/ProofObligations.lean` (sorry-filled, @[spec]-tagged, and
 # imported by nothing) OUT of the build while leaving the file on disk. The root
-# imports the two import-DAG sinks — `AxiomCheck` and `Verification.ProofObligations`
-# — which transitively pull in every real proof module.
+# imports the import-DAG sink `Verification.ProofObligations`, which transitively
+# pulls in every real proof module.
 globs = ["LibcruxIotSha3"]
 
 [[require]]
