@@ -81,8 +81,8 @@ pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
 
 ```rust
 #[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
-#[cfg_attr(hax, hax_lib::ensures(|out| (&out[..]).declassify_ref()
-    == &hacspec_sha3::shake128::<BYTES>(data.declassify_ref())[..]))]
+#[cfg_attr(hax, hax_lib::ensures(|out| out.declassify()
+    == hacspec_sha3::shake128::<BYTES>(data.declassify_ref())))]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES]
 ```
 
@@ -104,7 +104,9 @@ described above, `keccak`'s own contract from `keccak_keccak_spec` itself):
 
 All six require `payload.len() <= u32::MAX as usize` (resp. `BYTES <= u32::MAX
 as usize`), and the `_ema` variants a correctly sized `digest` buffer. The
-`declassify_ref` calls only strip the secret-independence wrapper `U8`.
+`declassify`/`declassify_ref` calls only strip the secret-independence wrapper `U8`. The
+`_ema` variants compare through `[..]` because their `digest` is a slice while the hacspec
+returns an array, and CoreModels models `==` only between two slices or two arrays.
 
 The incremental API is not part of this verification.
 

@@ -66,6 +66,8 @@ use libcrux_secrets::{Classify, U8};
 // unused-import warning in normal builds.
 #[cfg(hax)]
 use libcrux_secrets::DeclassifyRef as _;
+#[cfg(hax)]
+use libcrux_secrets::Declassify as _;
 
 mod keccak;
 mod lane;
@@ -344,11 +346,8 @@ pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
 /// Preconditions:
 /// - `BYTES` is at most `u32::MAX as usize`
 #[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
-// `out` is an array here, so take `&out[..]` and declassify the SLICE: that
-// reuses the `&[T]` `DeclassifyRef` instance already modelled in
-// Assumptions/FunsExternal.lean rather than needing the `&[T; N]` one too.
-#[cfg_attr(hax, hax_lib::ensures(|out| (&out[..]).declassify_ref()
-    == &hacspec_sha3::shake128::<BYTES>(data.declassify_ref())[..]))]
+#[cfg_attr(hax, hax_lib::ensures(|out| out.declassify()
+    == hacspec_sha3::shake128::<BYTES>(data.declassify_ref())))]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 
@@ -378,11 +377,8 @@ pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
 /// Preconditions:
 /// - `BYTES` is at most `u32::MAX as usize`
 #[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
-// `out` is an array here, so take `&out[..]` and declassify the SLICE: that
-// reuses the `&[T]` `DeclassifyRef` instance already modelled in
-// Assumptions/FunsExternal.lean rather than needing the `&[T; N]` one too.
-#[cfg_attr(hax, hax_lib::ensures(|out| (&out[..]).declassify_ref()
-    == &hacspec_sha3::shake256::<BYTES>(data.declassify_ref())[..]))]
+#[cfg_attr(hax, hax_lib::ensures(|out| out.declassify()
+    == hacspec_sha3::shake256::<BYTES>(data.declassify_ref())))]
 pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 

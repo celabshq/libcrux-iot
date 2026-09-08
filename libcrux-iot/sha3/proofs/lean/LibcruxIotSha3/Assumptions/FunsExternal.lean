@@ -47,5 +47,10 @@ def SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify
     {T : Type} (_inst : traits.Scalar T) (a : Aeneas.Std.Slice T) :
     Aeneas.Std.RustM (Aeneas.Std.Slice T) := ok a
 
+/-- `declassify` by value through the blanket `impl<T> Declassify for T` (public
+    integers: `U8 = u8`), used by the `shake128`/`shake256` contracts on their
+    `[U8; BYTES]` result. No-op identity, like `declassify_ref` above. -/
+def traits.Declassify.Blanket.declassify {T : Type} (x : T) : Aeneas.Std.RustM T := ok x
+
 end libcrux_secrets
 end

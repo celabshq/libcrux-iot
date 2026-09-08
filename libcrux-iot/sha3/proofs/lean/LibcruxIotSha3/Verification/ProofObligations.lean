@@ -206,16 +206,87 @@ private theorem slice_eq_true {a b : Slice Std.U8} (h : a.val = b.val) :
       Composition.lawful_partialEq_u8 a b)
   rw [hr_eq, hr_iff.mpr h]
 
+/-- `declassify` by value (blanket instance) is the identity (Assumptions/FunsExternal). -/
+private theorem decl_blanket_eq {T : Type} (x : T) :
+    libcrux_secrets.traits.Declassify.Blanket.declassify x = .ok x := rfl
+
+/-- In-range `Slice.index_usize` as an equation (array-equality helper). -/
+private theorem slice_index_ok_arr {T : Type} [Inhabited T] (s : Aeneas.Std.Slice T)
+    (i : Std.Usize) (h : i.val < s.val.length) :
+    Aeneas.Std.Slice.index_usize s i = .ok (s.val[i.val]!) := by
+  unfold Aeneas.Std.Slice.index_usize
+  rw [Aeneas.Std.Slice.getElem?_Usize_eq, List.getElem?_eq_getElem h,
+    List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]
+  rfl
+
+private theorem array_index_self_ok {T : Type} [Inhabited T] {N : Std.Usize}
+    (x : Std.Array T N) (i : Std.Usize) (h : i.val < N.val) :
+    CoreModels.rust_primitives.slice.array_index x i = .ok (x.val[i.val]!) := by
+  have hlen : (Aeneas.Std.Array.to_slice x).val.length = N.val := by
+    rw [Aeneas.Std.Array.val_to_slice]; exact x.property
+  unfold CoreModels.rust_primitives.slice.array_index
+  rw [slice_index_ok_arr (Aeneas.Std.Array.to_slice x) i (by rw [hlen]; exact h),
+    Aeneas.Std.Array.val_to_slice]
+
+/-- The element-wise `==` loop of CoreModels' array `PartialEq` on equal arrays
+    returns `ok true` (downward induction on the remaining `fuel = N - i`; the
+    ml-kem tree carries the same lemma). -/
+private theorem array_eq_loop_self {T : Type} [Inhabited T] {N : Std.Usize}
+    (inst : CoreModels.core.cmp.PartialEq T T) (x : Std.Array T N)
+    (hrefl : ∀ j : Nat, j < N.val → inst.eq (x.val[j]!) (x.val[j]!) = .ok true) :
+    ∀ (fuel : Nat) (i : Std.Usize), i.val + fuel = N.val →
+      CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop inst x x i = .ok true := by
+  intro fuel
+  induction fuel with
+  | zero =>
+      intro i hi
+      unfold CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+      rw [Aeneas.Std.loop.eq_1]
+      simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body]
+      have hnlt : ¬ (i < N) := by scalar_tac
+      simp only [hnlt, if_false, reduceIte]
+  | succ f ih =>
+      intro i hi
+      have hlt : i.val < N.val := by omega
+      have hltB : (i < N) := by scalar_tac
+      have hNmax : N.val ≤ Aeneas.Std.UScalar.max .Usize := by
+        have := N.hBounds; scalar_tac
+      have hadd : ∃ i1 : Std.Usize,
+          (i + 1#usize : RustM Std.Usize) = .ok i1 ∧ i1.val = i.val + 1 := by
+        obtain ⟨i1, h1, h2, _⟩ :=
+          Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.UScalar.add_bv_spec (x := i) (y := 1#usize)
+            (by show i.val + 1 ≤ Aeneas.Std.UScalar.max .Usize; omega))
+        exact ⟨i1, h1, by simp [h2]⟩
+      obtain ⟨i1, hi1_eq, hi1_val⟩ := hadd
+      unfold CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop
+      rw [Aeneas.Std.loop.eq_1]
+      simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
+        if_pos hltB, array_index_self_ok x i hlt, bind_tc_ok, hrefl i.val hlt, hi1_eq,
+        if_true]
+      show CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop inst x x i1 = .ok true
+      exact ih i1 (by omega)
+
+/-- Rust `==` on two `U8` arrays with equal contents is `ok true`. -/
+private theorem array_eq_true {N : Std.Usize} {a b : Std.Array Std.U8 N} (h : a.val = b.val) :
+    CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq
+      CoreModels.core.U8.Insts.CoreCmpPartialEqU8 a b = .ok true := by
+  have hab : a = b := Subtype.ext h
+  subst hab
+  unfold CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq
+  exact array_eq_loop_self _ a (fun j _ => by
+      simp [CoreModels.core.U8.Insts.CoreCmpPartialEqU8]) N.val 0#usize (by simp)
+
 /-! ## SHAKE128 / SHAKE256
 
     Discharged OUTRIGHT with the full functional-correctness post. The generated
     `pre` bounds `BYTES` by `u32::MAX`; the correctness theorems do not need it,
     so it is introduced and dropped.
 
-    As of hax v0.4.0-rc.2 the generated `post` binds `BYTES` implicitly AND
-    `spec` applies it implicitly, so the two agree as emitted (rc.1 needed a
-    driver fix-up here; `hax_aeneas.py` keeps a tripwire). `post` is therefore
-    applied as `post data v` below, `BYTES` inferred from `v`'s type. -/
+    The contract compares the `[U8; BYTES]` result to the hacspec array directly
+    (`out.declassify() == hacspec_sha3::shake128::<BYTES>(…)`), so the post ends in
+    CoreModels' array `==`, closed by `array_eq_true` once the two arrays are
+    shown equal from the per-byte agreement. `post` is applied as `post data v`,
+    `BYTES` inferred from `v`'s type. -/
 
 theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     libcrux_iot_sha3.shake128.spec BYTES data := by
@@ -225,11 +296,12 @@ theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
   refine triple_of_ok hv_eq ?_
   have hpost : libcrux_iot_sha3.shake128.post data v = .ok true := by
     simp only [libcrux_iot_sha3.shake128.post]
-    rw [range_full_index_eq v, Aeneas.Std.bind_tc_ok,
-      decl_ref_eq (Aeneas.Std.Array.to_slice v), Aeneas.Std.bind_tc_ok,
-      decl_ref_eq data, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
-      range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
-    exact slice_eq_true (to_slice_val_eq_of_bytes hv_bytes)
+    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
+      hspec_eq, Aeneas.Std.bind_tc_ok]
+    have hval : v.val = spec_out.val := by
+      have h := to_slice_val_eq_of_bytes hv_bytes
+      rwa [Aeneas.Std.Array.val_to_slice, Aeneas.Std.Array.val_to_slice] at h
+    exact array_eq_true hval
   rw [hpost]
   exact holds_map_ok_of_bool rfl
 
@@ -241,11 +313,12 @@ theorem shake256_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
   refine triple_of_ok hv_eq ?_
   have hpost : libcrux_iot_sha3.shake256.post data v = .ok true := by
     simp only [libcrux_iot_sha3.shake256.post]
-    rw [range_full_index_eq v, Aeneas.Std.bind_tc_ok,
-      decl_ref_eq (Aeneas.Std.Array.to_slice v), Aeneas.Std.bind_tc_ok,
-      decl_ref_eq data, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
-      range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
-    exact slice_eq_true (to_slice_val_eq_of_bytes hv_bytes)
+    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
+      hspec_eq, Aeneas.Std.bind_tc_ok]
+    have hval : v.val = spec_out.val := by
+      have h := to_slice_val_eq_of_bytes hv_bytes
+      rwa [Aeneas.Std.Array.val_to_slice, Aeneas.Std.Array.val_to_slice] at h
+    exact array_eq_true hval
   rw [hpost]
   exact holds_map_ok_of_bool rfl
 

@@ -50,7 +50,7 @@ def keccak.keccak_matches.closure :=
   Slice Std.U8 × Std.Usize × Std.U8 × Slice Std.U8
 
 /-- [libcrux_iot_sha3::Algorithm]
-    Source: 'sha3/src/lib.rs', lines 92:0-104:1
+    Source: 'sha3/src/lib.rs', lines 94:0-106:1
     Visibility: public -/
 @[discriminant u32 [1,2,3,4]]
 inductive Algorithm where
@@ -60,24 +60,24 @@ inductive Algorithm where
 | Sha512 : Algorithm
 
 /-- Trait declaration: [libcrux_iot_sha3::incremental::private::Sealed]
-    Source: 'sha3/src/lib.rs', lines 431:8-431:27
+    Source: 'sha3/src/lib.rs', lines 427:8-427:27
     Visibility: public -/
 structure incremental.private.Sealed (Self : Type) where
 
 /-- [libcrux_iot_sha3::incremental::Shake128Xof]
-    Source: 'sha3/src/lib.rs', lines 438:4-440:5
+    Source: 'sha3/src/lib.rs', lines 434:4-436:5
     Visibility: public -/
 structure incremental.Shake128Xof where
   state : keccak.KeccakXofState 168#usize
 
 /-- [libcrux_iot_sha3::incremental::Shake256Xof]
-    Source: 'sha3/src/lib.rs', lines 443:4-445:5
+    Source: 'sha3/src/lib.rs', lines 439:4-441:5
     Visibility: public -/
 structure incremental.Shake256Xof where
   state : keccak.KeccakXofState 136#usize
 
 /-- Trait declaration: [libcrux_iot_sha3::incremental::Xof]
-    Source: 'sha3/src/lib.rs', lines 450:4-489:5
+    Source: 'sha3/src/lib.rs', lines 446:4-485:5
     Visibility: public -/
 structure incremental.Xof (Self : Type) (RATE : Std.Usize) where
   privateSealedInst : incremental.private.Sealed Self
