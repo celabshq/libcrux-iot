@@ -467,7 +467,7 @@ impl crate::platform::AesCipherState for State {
 
     #[inline]
     fn load_block(&mut self, b: &[u8]) {
-        assert!(b.len() == 16);
+        assert!(b.len() == AES_BLOCK_LEN);
 
         transpose_u8x16(b.try_into().unwrap(), self);
     }
