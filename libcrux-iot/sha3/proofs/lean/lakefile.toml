@@ -19,13 +19,11 @@ rev = "v0.3.17"
 
 # The machine-extracted FIPS-202 hacspec (crate `hacspec_sha3`, specs/sha3 in
 # celabshq/libcrux); the proofs reference `hacspec_sha3.*`.
-# Pinned by COMMIT SHA, not by branch name: daba41a6 is the specs/sha3
-# hax v0.4.0-rc.2 bump (hax-lean v0.3.17), the same commit Cargo.toml pins for
-# the `hacspec_sha3` crate. NOT YET PUSHED to celabshq/libcrux: until it is,
-# lake cannot fetch this rev on a fresh machine -- use the local-path form
-# (scratchpad lakepath.py) there, as this working tree does between commits.
+# Pinned by COMMIT SHA, not by branch name: 6e39ccd9 is the specs commit that
+# replaced the specs' hax_aeneas.py drivers with hax.toml (hax v0.4.0,
+# hax-lean v0.3.17), the same commit Cargo.toml pins for the `hacspec_sha3` crate.
 [[require]]
 name = "HacspecSha3"
 git = "https://github.com/celabshq/libcrux"
-rev = "daba41a6bffa3bbdbb0e3f5710590086f95da1d0"
+rev = "6e39ccd988c1ea61d8d5da591ffeb33ce3a64b45"
 subDir = "specs/sha3/proofs/lean"

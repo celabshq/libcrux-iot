@@ -3255,13 +3255,13 @@ theorem slice_len_384 (sl : Slice Std.U8) (h : sl.val.length = 384) :
     `bitSum` here. The residue never sees a bit-vector equality — `dec12` enters
     only at the apex, through `bitSum_sliceBit_eq_dec12`. -/
 
-private theorem bvb_loop_fc {N Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.Usize)
+private theorem bvb_loop_fc {Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : Std.Usize)
     (hd : d.val ≤ 16)
     (hmul : j.val * d.val + d.val ≤ Std.Usize.max)
     (hbd : j.val * d.val + d.val ≤ Nd.val) :
     ⦃ ⌜ True ⌝ ⦄
     hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop
-      (Nd := Nd) N { start := 0#usize, «end» := d } d a j 0#u16
+      (Nd := Nd) { start := 0#usize, «end» := d } d a j 0#u16
     ⦃ ⇓ c => ⌜ c.val = bitSum (fun t => a.val[j.val * d.val + t]!) d.val ⌝ ⦄ := by
   have halen : a.val.length = Nd.val := a.property
   unfold
@@ -3270,7 +3270,7 @@ private theorem bvb_loop_fc {N Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : St
     (loop_range_spec_usize
       (fun (iter1, c1) =>
         hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-          (Nd := Nd) N d a j iter1 c1)
+          (Nd := Nd) d a j iter1 c1)
       (β := Std.U16) 0#u16 0#usize d
       (fun i c => .ok (c.val = bitSum (fun t => a.val[j.val * d.val + t]!) i.val))
       (by scalar_tac)
@@ -3301,7 +3301,7 @@ private theorem bvb_loop_fc {N Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : St
       -- machine-generated `call_mut_loop.body` (skill §4.1 pitfall).
       have hbody :
           hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-              (Nd := Nd) N d a j ({ start := i, «end» := d } :
+              (Nd := Nd) d a j ({ start := i, «end» := d } :
                 CoreModels.core.ops.range.Range Std.Usize) acc
             = (if a.val[q.val]! = true then do
                   let i4 ← (1#u16 : Std.U16) <<< i
@@ -3339,7 +3339,7 @@ private theorem bvb_loop_fc {N Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : St
                           CoreModels.core.ops.range.Range Std.Usize), c2)) ?_ ?_
         · show
             hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-              (Nd := Nd) N d a j ({ start := i, «end» := d } :
+              (Nd := Nd) d a j ({ start := i, «end» := d } :
                 CoreModels.core.ops.range.Range Std.Usize) acc = _
           rw [hbody]; simp only [hb, if_true]
           rw [hw]; simp only [Aeneas.Std.bind_tc_ok]
@@ -3356,7 +3356,7 @@ private theorem bvb_loop_fc {N Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : St
                           CoreModels.core.ops.range.Range Std.Usize), acc)) ?_ ?_
         · show
             hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-              (Nd := Nd) N d a j ({ start := i, «end» := d } :
+              (Nd := Nd) d a j ({ start := i, «end» := d } :
                 CoreModels.core.ops.range.Range Std.Usize) acc = _
           rw [hbody]; simp only [hbf, Bool.false_eq_true, if_false]
         · refine ⟨hlt, rfl, hs, (holds_ok _).mpr ?_⟩
@@ -3367,7 +3367,7 @@ private theorem bvb_loop_fc {N Nd : Std.Usize} (a : Std.Array Bool Nd) (d j : St
       refine triple_of_ok_fc (v := .done acc) ?_ ?_
       · show
           hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
-            (Nd := Nd) N d a j ({ start := i, «end» := d } :
+            (Nd := Nd) d a j ({ start := i, «end» := d } :
               CoreModels.core.ops.range.Range Std.Usize) acc = _
         unfold
           hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop.body
@@ -3415,7 +3415,7 @@ private theorem bvb_closure_eq {N Nd : Std.Usize} (a : Std.Array Bool Nd)
   show (do
       let coefficient ←
         hacspec_ml_kem.serialize.bitvector_to_bounded_ints.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU16.call_mut_loop
-          (Nd := Nd) N { start := 0#usize, «end» := d } d a ⟨BitVec.ofNat _ k⟩ 0#u16
+          (Nd := Nd) { start := 0#usize, «end» := d } d a ⟨BitVec.ofNat _ k⟩ 0#u16
       RustM.ok (coefficient, ((d, a) : Std.Usize × Std.Array Bool Nd))) = _
   rw [hz]; simp only [Aeneas.Std.bind_tc_ok, hzeq]; rfl
 

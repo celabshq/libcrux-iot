@@ -21,15 +21,13 @@ bench = false # so libtest doesn't eat the arguments to criterion
 # `decompose_element`'s `#[ensures]` names `hacspec_ml_dsa::arithmetic::decompose`
 # directly, so it must be in scope for the hax build.
 #
-# 962ac24d is the specs/ml-dsa commit that exposes the polynomial and ntt
-# layers (poly_infinity_norm, poly_add/sub/pointwise_mul, ntt, intt)
-# (so this crate's #[ensures] can name polynomial::poly_infinity_norm), on
-# top of the hax v0.4.0-rc.2 bump ee9bfe56 -- and the SAME commit
-# `proofs/lean/lakefile.toml` pins for the `HacspecMlDsa` Lean package, so the
-# Rust side and the Lean side check the same spec content. It descends from ee9bfe56 and d8f55146.
-# NOT YET PUSHED to celabshq/libcrux: until it is, a fresh checkout must use
-# the local-path form (scratchpad dep2.py) to build or extract.
-hacspec_ml_dsa = { git = "https://github.com/celabshq/libcrux.git", rev = "962ac24d92c229cae810398869f52eb85f6fc823" }
+# 6e39ccd9 is the specs commit that replaced the specs' hax_aeneas.py drivers
+# with hax.toml (hax v0.4.0); it contains the polynomial/ntt-layer exposure
+# (poly_infinity_norm, poly_add/sub/pointwise_mul, ntt, intt) this crate's
+# #[ensures] name. The SAME commit is pinned in `proofs/lean/lakefile.toml`
+# for the `HacspecMlDsa` Lean package, so the Rust side and the Lean side
+# check the same spec content.
+hacspec_ml_dsa = { git = "https://github.com/celabshq/libcrux.git", rev = "6e39ccd988c1ea61d8d5da591ffeb33ce3a64b45" }
 libcrux-iot-sha3 = { path = "../sha3", features = ["unbuffered-xof"] }
 libcrux-macros.workspace = true
 hax-lib.workspace = true
