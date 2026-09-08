@@ -1,0 +1,14 @@
+{
+    "challenge_module": "LibcruxIotSha3.Extraction.ProofObligations",
+    "solution_module": "LibcruxIotSha3.Verification.Solution",
+    "theorem_names": [
+        "libcrux_iot_sha3.sha224_ema.spec.proof",
+        "libcrux_iot_sha3.sha256_ema.spec.proof",
+        "libcrux_iot_sha3.sha384_ema.spec.proof",
+        "libcrux_iot_sha3.sha512_ema.spec.proof",
+        "libcrux_iot_sha3.shake128.spec.proof",
+        "libcrux_iot_sha3.shake256.spec.proof",
+        "libcrux_iot_sha3.keccak.keccak.spec.proof"
+    ],
+    "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"]
+}

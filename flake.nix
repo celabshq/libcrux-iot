@@ -169,6 +169,14 @@
             pkgs.rustup
             pkgs.python3 # runs libcrux-iot/hax_mlkem.py
 
+            # Landlock sandbox used by leanprover/comparator (sha3/proofs/lean/comparator.sh)
+            # to run lean/lake/lean4export while judging the proofs against hax's generated
+            # proof obligations. nixpkgs' release is older than the main-branch build
+            # comparator asks for; `comparator-landrun-compat.sh` next to the script bridges
+            # the difference. comparator and lean4export themselves are Lean projects;
+            # build them as that script's header says.
+            pkgs.landrun
+
             # Proving: elan provisions the pinned Lean toolchain (from the
             # lean-toolchain file) and provides `lake`.
             pkgs.elan

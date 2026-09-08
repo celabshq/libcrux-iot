@@ -155,6 +155,34 @@ hand-written Aeneas stdlib models) or on a reintroduced `bv_decide`/`native_deci
 To inspect the axioms of any other declaration, use `#print axioms <name>`.
 
 
+### Independent check with `comparator`
+
+[`comparator`](https://github.com/leanprover/comparator) (Lean FRO) judges a proof
+development against a *challenge* file whose theorems are stated with `sorry`: from a
+fresh `lean4export` of both modules, replayed through the kernel, it certifies that the
+listed solution theorems have exactly the challenge's statements and use only the
+permitted axioms. Here the challenge is hax's own output, the generated
+[`Extraction/ProofObligations.lean`](Extraction/ProofObligations.lean) (one
+`<fn>.spec.proof : <fn>.spec …` per Rust contract), and the solution is
+[`Verification/Solution.lean`](Verification/Solution.lean), which restates the seven
+discharged obligations under the challenge's names and proves each by the discharge in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean).
+[`comparator.json`](../comparator.json) lists them with the standard three axioms as
+the only permitted ones; run
+
+```bash
+./comparator.sh      # from libcrux-iot/sha3/proofs/lean, after `lake build`
+```
+
+with `comparator`, `lean4export` (tag `v4.31.0`) and `landrun` on `PATH` (the script's
+header says where each comes from; the flake's `lean` shell provides `landrun`, and
+[`comparator-landrun-compat.sh`](../comparator-landrun-compat.sh) adapts comparator's
+invocation to that older release). Unlike the `#guard_msgs` guards, this check does not
+trust anything this repository elaborated: it re-exports and re-checks the statements
+from the generated file itself. A negative control is easy: adding one of the
+not-yet-discharged obligations (say `libcrux_iot_sha3.hash.spec.proof`) to
+`theorem_names` makes the run fail.
+
 ## Proof architecture
 
 The proof has two major stages: first establishing Keccak-f[1600]
