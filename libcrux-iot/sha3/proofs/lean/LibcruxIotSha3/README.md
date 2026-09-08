@@ -175,9 +175,10 @@ the only permitted ones; run
 ```
 
 with `comparator`, `lean4export` (tag `v4.31.0`) and `landrun` on `PATH` (the script's
-header says where each comes from; the flake's `lean` shell provides `landrun`, and
-[`comparator-landrun-compat.sh`](../comparator-landrun-compat.sh) adapts comparator's
-invocation to that older release). Unlike the `#guard_msgs` guards, this check does not
+header says where each comes from; the flake's `lean` shell provides `landrun` built
+from its main branch as comparator requires, and
+[`comparator-landrun-compat.sh`](../comparator-landrun-compat.sh) is a fallback if
+comparator's stock sandbox invocation fails on your system). Unlike the `#guard_msgs` guards, this check does not
 trust anything this repository elaborated: it re-exports and re-checks the statements
 from the generated file itself. A negative control is easy: adding one of the
 not-yet-discharged obligations (say `libcrux_iot_sha3.hash.spec.proof`) to

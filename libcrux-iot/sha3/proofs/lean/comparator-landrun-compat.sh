@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Compatibility shim for comparator + an older `landrun` release (e.g. the 0.1.x in
-# nixpkgs). comparator invokes landrun with `-ldd` (auto-detect shared-library
-# dependencies of the command), which those releases treat as fatal when the command
-# is a script or a static binary -- and both the elan proxies and the toolchain's
-# `lake` are exactly that -- and it grants exec permission only to the Lean prefix, so
-# the dynamic loader itself (under /nix/store on NixOS, /lib64 elsewhere) cannot run.
+# Fallback shim between comparator and landrun. comparator invokes landrun with `-ldd`
+# (auto-detect the command's shared-library dependencies) and grants exec permission
+# only to the Lean prefix. Two things can go wrong with that:
+#   * landrun 0.1.x releases (e.g. nixpkgs') treat `-ldd` as fatal when the command is a
+#     script or a static binary -- the elan proxies and the toolchain's `lake` wrapper
+#     script are exactly that. landrun's main branch (what the `lean` devShell
+#     provides) resolves dependencies in-process and skips non-ELF commands instead.
+#   * the toolchain's `lake` is a shell script, so its interpreter (bash, `/usr/bin/env`,
+#     the dynamic loader) must be executable inside the sandbox; comparator's flags
+#     grant read-only access to `/`, not exec.
 # This shim drops `-ldd` and grants read+exec on the system directories, then defers
 # to the real landrun; the Landlock sandbox is otherwise unchanged. Use it as
 #
 #     COMPARATOR_LANDRUN=./comparator-landrun-compat.sh ./comparator.sh
 #
-# Not needed with landrun built from its main branch, which comparator documents as
-# its requirement.
+# only if the plain `./comparator.sh` fails for one of those reasons.
 set -euo pipefail
 args=()
 for a in "$@"; do [ "$a" = "-ldd" ] || args+=("$a"); done

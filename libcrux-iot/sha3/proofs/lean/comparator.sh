@@ -9,10 +9,12 @@
 #                   (builds fine with this project's Lean toolchain)
 #   lean4export  -- https://github.com/leanprover/lean4export at the tag matching
 #                   `lean-toolchain` (v4.31.0), `lake build`
-#   landrun      -- the Landlock sandbox comparator runs lean/lake in. comparator wants
-#                   landrun built from its main branch; with an older release (such as
-#                   the one the `lean` devShell provides from nixpkgs) its `-ldd`
-#                   detection aborts on the elan/lake wrapper scripts -- use
+#   landrun      -- the Landlock sandbox comparator runs lean/lake in, built from its
+#                   main branch as comparator requires; the `lean` devShell provides
+#                   that build (`landrunMain` in flake.nix). If comparator's stock landrun
+#                   invocation fails on your system (an older landrun release aborting
+#                   on `-ldd`, or "permission denied" executing the toolchain's `lake`
+#                   wrapper script because its shell has no exec permission), run
 #                   `COMPARATOR_LANDRUN=./comparator-landrun-compat.sh ./comparator.sh`.
 # The challenge module (Extraction/ProofObligations.lean) is imported by nothing, so it
 # is built here on demand; `lake build` must have succeeded first so the solution is
