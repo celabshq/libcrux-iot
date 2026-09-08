@@ -110,15 +110,18 @@ The incremental API is not part of this verification.
 
 ### Axiom hygiene
 
-Each of the six top-level digest specs reports 44 axioms, in two groups:
-
-- **Standard Lean (3):** `propext`, `Classical.choice`, `Quot.sound` — the
-  usual classical-logic foundation shared by all Mathlib-based proofs.
-- **`bv_decide` certificates (41):** hygienically-named `…._native.bv_decide.ax_*`
-  axioms, one per `bv_decide` invocation (the θ/χ/ι bit-op lemmas, the 25 ρ
-  rotation constants, and the interleave/deinterleave lane-encoding facts). Each
-  is backed by an externally-checked LRAT proof, so it is sound in the same
-  sense as a verified SAT result.
+Every top-level digest spec, `keccak_keccak_spec` itself and the discharges of
+the Rust contracts depend on exactly Lean's three standard axioms `propext`,
+`Classical.choice`, `Quot.sound` — the usual classical-logic foundation shared
+by all Mathlib-based proofs — and nothing else. In particular no
+`Lean.ofReduceBool` (the axiom behind `bv_decide` and `native_decide`): the
+bit-vector identities of the interleaved lane representation (the 26 rotation
+lemmas, XOR/AND/NOT distributivity, the interleave/deinterleave bridges, the
+LE-byte split) used to be closed by `bv_decide`, one hygienically-named axiom
+per call, and are now proved bit by bit from a single per-bit
+characterisation of the lift ([`Foundation/Lift.lean`](Foundation/Lift.lean),
+`spread_to_even_getLsbD` / `lift_lane_bv_getLsbD`) with the core
+`BitVec.getLsbD_*` lemmas.
 
 There are **no hand-introduced, domain-specific assumptions left.** The three
 sub-slice `≤`-specs (`Slice.subslice_le_eq`, `Slice.update_subslice_le_eq`,
@@ -140,14 +143,14 @@ definition failed, so `False` was derivable from it at `s = ⟨[], _⟩`, `r = �
 deliberate citation. The ML-KEM and ML-DSA trees carried the same three and close
 them on the same fix.
 
-Absence of `sorry` is enforced on every build by
-[`AxiomCheck.lean`](AxiomCheck.lean): it runs an `#assert_no_sorry` command on
-each of the six digest specs that fails the build if any of them comes to
-depend on `sorryAx` (an admitted `sorry` anywhere in the proof tree, including
-the hand-written Aeneas stdlib models). It checks only the soundness-critical
-`sorry` property, not the full axiom set (whose `bv_decide` axioms have
-hygienic names that are not stable enough to pin exactly). To inspect the
-axioms of any declaration manually, use `#print axioms <name>`.
+The axiom set is enforced on every build by
+[`AxiomCheck.lean`](AxiomCheck.lean): it runs an `#assert_std_axioms` command on
+each of the six digest specs, on `keccak_keccak_spec`, and on the contract
+discharges `keccak_spec_proof` / `sha256_ema_spec_proof`, failing the build if
+any of them comes to depend on an axiom outside the standard three (an admitted
+`sorry` anywhere in the proof tree, including the hand-written Aeneas stdlib
+models, or a reintroduced `bv_decide`/`native_decide`). To inspect the axioms
+of any declaration manually, use `#print axioms <name>`.
 
 
 ## Proof architecture

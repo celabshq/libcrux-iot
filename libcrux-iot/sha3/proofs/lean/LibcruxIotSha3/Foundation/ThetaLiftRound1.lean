@@ -677,7 +677,7 @@ private theorem lift_perm_getElem_bv_24_1 (s : state.KeccakState) :
       - `impl_swap_k_one` to align swap-tracking
       - Direct unfolding of `lift_lane_maybe_swap`/`impl_perm`/`impl_swap`
       - `← lift_xor`, `← lift_td` to fold spec-side back to canonical lifts
-      - `BitVec.rotateLeft_xor` + `bv_decide` to close XOR-AC residuals. -/
+      - `rotateLeft1_xor_bv32` + `ac_rfl` to close XOR-AC residuals. -/
 
 
 set_option maxHeartbeats 2000000 in
@@ -736,7 +736,7 @@ theorem theta_lift_spec_1 (s : state.KeccakState) :
   all_goals simp only [Std.UScalarTy.U64_numBits_eq, ← lift_xor, ← lift_td]
   -- Each cell is now `lift_lane_bv X Y = lift_lane_bv X' Y'` where X, X', Y, Y'
   -- are pure XOR chains over `s.st[K]!.val[J]!.bv` plus optional `.rotateLeft 1`,
-  -- equal modulo XOR-AC. Split into two BV-32 sub-equalities, then close via bv_decide.
+  -- equal modulo XOR-AC. Split into two BV-32 sub-equalities, then close via `ac_rfl`.
   all_goals first
     | rfl
     | apply congrArg₂ lift_lane_bv
@@ -747,10 +747,10 @@ theorem theta_lift_spec_1 (s : state.KeccakState) :
   -- remaining 25 cells are stuck at the form
   --   `<lane> ^^^ (<col5> ^^^ (<col5_rot>).rotateLeft 1) = <lane> ^^^ (<col5'> ^^^ (<col5_rot'>).rotateLeft 1)`
   -- where col5/col5_rot vs col5'/col5_rot' differ only by XOR-AC reordering.
-  -- `bv_decide` proves this in isolation (verified via `test_cell0_z0`) but
-  -- inside the main proof's mvcgen-polluted context the SAT abstraction
-  -- treats the whole BV-32 side as one opaque variable. The standard fix is
-  -- 25 per-cell `bv_decide`-discharged BV-32 lemmas (see comment block above).
+  -- (Historical note: `bv_decide` proved such a cell in isolation but not
+  -- inside the mvcgen-polluted context, where the SAT abstraction treated the
+  -- whole BV-32 side as one opaque variable; the development no longer uses
+  -- `bv_decide` at all -- the cells are closed by XOR-AC reasoning below.)
   -- Distribute `.rotateLeft 1` over XOR on BOTH sides. Iterate twice if needed.
   -- Distribute `.rotateLeft 1` over XOR on BOTH sides via iterated rewriting:
   -- `simp only` fully flattens both sides into pure XOR chains over BV-32 atoms.

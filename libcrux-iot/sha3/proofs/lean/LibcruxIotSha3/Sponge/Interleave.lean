@@ -14,7 +14,7 @@
   byte-bridge layer in `Sponge/Bytes.lean`.
 
   Technique: a pure `hax_mvcgen` walk through ~30 `Std.U32`/`Std.U64` ops,
-  finishing with a single `BitVec` equality closed by `bv_decide` (after
+  finishing with a single `BitVec` equality closed bit by bit (after
   exposing the underlying `.bv` content through `Std.U32.bv_eq_imp_eq` /
   `Std.U64.bv_eq_imp_eq` + `UScalar.bv_*`).
 
@@ -51,14 +51,14 @@ Three pure-BitVec identities anchor the byte ↔ interleaved-lane bridge:
 3. **`deinterleave_bv_lift_eq`** — the dual: deinterleave's two output
    halves equal the LE-byte split of `lift_lane_bv even_bits odd_bits`.
 
-All three are discharged purely by `bv_decide` after the relevant unfold. -/
+All three are pure bit-vector identities, discharged per bit from the
+`lift_lane_bv_getLsbD` characterisation (no `bv_decide`, no extra axioms). -/
 
-/-- `lift_lane_bv` distributes over per-half XOR.  Pure `bv_decide`. -/
+/-- `lift_lane_bv` distributes over per-half XOR (`Foundation.lift_xor`, flipped). -/
 theorem lift_lane_bv_xor (z0 z1 w0 w1 : BitVec 32) :
     lift_lane_bv z0 z1 ^^^ lift_lane_bv w0 w1 =
-      lift_lane_bv (z0 ^^^ w0) (z1 ^^^ w1) := by
-  unfold lift_lane_bv spread_to_even
-  bv_decide
+      lift_lane_bv (z0 ^^^ w0) (z1 ^^^ w1) :=
+  (lift_xor z0 z1 w0 w1).symm
 
 /-- Pure-BitVec model of the impl's `Lane2U32.interleave` body
     (Extraction/Funs.lean:116-163), expressed as a function from
@@ -147,28 +147,39 @@ def deinterleave_bv (even_bits odd_bits : BitVec 32) : BitVec 32 × BitVec 32 :=
   let hi_out := evhi5 ||| (odhi5 <<< 1)
   (lo_out, hi_out)
 
+set_option maxHeartbeats 4000000 in
 /-- Load-bearing bit-level bridge: lifting the two halves produced by
     `interleave_bv lo hi` recovers the LE-concatenated 64-bit form
-    `(hi << 32) ||| lo`.  Discharged by `bv_decide`. -/
+    `(hi << 32) ||| lo`.  Discharged bit by bit: each of the 64 positions is a
+    closed Boolean identity once the masks are evaluated. -/
 theorem interleave_bv_lift_eq (lo hi : BitVec 32) :
     let (e, o) := interleave_bv lo hi
     lift_lane_bv e o = (hi.zeroExtend 64) <<< 32 ||| lo.zeroExtend 64 := by
-  simp only [interleave_bv, lift_lane_bv, spread_to_even]
-  bv_decide
+  simp only [interleave_bv]
+  apply BitVec.eq_of_getLsbD_eq; intro i hi'
+  rw [lift_lane_bv_getLsbD _ _ i hi']
+  simp only [BitVec.getLsbD_or, BitVec.getLsbD_shiftLeft, BitVec.zeroExtend, BitVec.getLsbD_setWidth,
+    BitVec.getLsbD_and, BitVec.getLsbD_xor, BitVec.getLsbD_ushiftRight]
+  rcases nat_lt_64_cases i hi' with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h <;> subst h <;> simp (config := {decide := true})
 
+set_option maxHeartbeats 4000000 in
 /-- Load-bearing bit-level bridge: lifting two interleaved halves equals
-    the LE-concatenated form of the deinterleave halves.  Discharged by
-    `bv_decide`. -/
+    the LE-concatenated form of the deinterleave halves.  Discharged bit by
+    bit, as `interleave_bv_lift_eq`. -/
 theorem deinterleave_bv_lift_eq (even_bits odd_bits : BitVec 32) :
     let (lo, hi) := deinterleave_bv even_bits odd_bits
     (hi.zeroExtend 64) <<< 32 ||| lo.zeroExtend 64 =
       lift_lane_bv even_bits odd_bits := by
-  simp only [deinterleave_bv, lift_lane_bv, spread_to_even]
-  bv_decide
+  simp only [deinterleave_bv]
+  apply BitVec.eq_of_getLsbD_eq; intro i hi'
+  rw [lift_lane_bv_getLsbD _ _ i hi']
+  simp only [BitVec.getLsbD_or, BitVec.getLsbD_shiftLeft, BitVec.zeroExtend, BitVec.getLsbD_setWidth,
+    BitVec.getLsbD_and, BitVec.getLsbD_xor]
+  rcases nat_lt_64_cases i hi' with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h <;> subst h <;> simp (config := {decide := true})
 
 /-- Bridge: `0#32 ++ x` (BV64) equals `x.setWidth 64`. Used to feed
-    the impl's `as_u64` cast (which Lean computes as `0#32 ++ x`) into
-    `bv_decide` (which doesn't natively destructure `BitVec.append`). -/
+    the impl's `as_u64` cast (which Lean computes as `0#32 ++ x`) into the
+    `setWidth` form the bit-level lemmas are stated in. -/
 private theorem zero_append_eq_setWidth_32 (x : BitVec 32) :
     (0#32 ++ x : BitVec 64) = x.setWidth 64 := by
   apply BitVec.eq_of_toNat_eq

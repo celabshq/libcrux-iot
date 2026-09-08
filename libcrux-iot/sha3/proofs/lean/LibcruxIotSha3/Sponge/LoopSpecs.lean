@@ -482,24 +482,51 @@ private theorem u8_bv_inj (x y : BitVec 8) :
   · intro h; cases h; rfl
   · intro h; rw [h]
 
-/-- Pure-BV byte-bridges in `setWidth 8` form, one general lemma per half.
-    The four byte indices `i < 4` are dispatched by `omega` + `bv_decide`
-    (the case-split is needed because `bv_decide` cannot quantify over the
-    shift amount). -/
+/-- Byte `i < 4` of the low half of a `(hi << 32) ||| lo` concatenation. -/
+private theorem concat_lo_byte (lo hi : BitVec 32) (i : Nat) (hi4 : i < 4) :
+    (((hi.zeroExtend 64) <<< 32 ||| lo.zeroExtend 64) >>> (8 * i)).setWidth 8
+      = (lo >>> (8 * i)).setWidth 8 := by
+  apply BitVec.eq_of_getLsbD_eq; intro j hj
+  simp only [BitVec.getLsbD_setWidth, BitVec.getLsbD_ushiftRight, BitVec.getLsbD_or,
+    BitVec.getLsbD_shiftLeft, BitVec.zeroExtend]
+  have h1 : 8 * i + j < 32 := by omega
+  simp [h1, show 8 * i + j < 64 by omega, hj]
+
+/-- Byte `i < 4` of the high half of a `(hi << 32) ||| lo` concatenation. -/
+private theorem concat_hi_byte (lo hi : BitVec 32) (i : Nat) (hi4 : i < 4) :
+    (((hi.zeroExtend 64) <<< 32 ||| lo.zeroExtend 64) >>> (8 * (i + 4))).setWidth 8
+      = (hi >>> (8 * i)).setWidth 8 := by
+  apply BitVec.eq_of_getLsbD_eq; intro j hj
+  simp only [BitVec.getLsbD_setWidth, BitVec.getLsbD_ushiftRight, BitVec.getLsbD_or,
+    BitVec.getLsbD_shiftLeft, BitVec.zeroExtend]
+  have h1 : ¬ 8 * (i + 4) + j < 32 := by omega
+  have h2 : 8 * (i + 4) + j - 32 = 8 * i + j := by omega
+  have h3 : lo.getLsbD (8 * (i + 4) + j) = false := BitVec.getLsbD_of_ge _ _ (by omega)
+  simp [h1, h2, h3, show 8 * (i + 4) + j < 64 by omega, show 8 * i + j < 64 by omega, hj]
+
+/-- Pure-BV byte-bridges in `setWidth 8` form, one general lemma per half:
+    corollaries of `deinterleave_bv_lift_eq` (the deinterleave halves ARE the
+    LE split of the lifted lane) and the two concatenation byte lemmas above. -/
 private theorem deinterleave_bv_lo_setWidth_eq (e o : BitVec 32) (i : Nat) (hi : i < 4) :
     ((deinterleave_bv e o).1 >>> (8 * i)).setWidth 8
       = ((lift_lane_bv e o) >>> (8 * i)).setWidth 8 := by
-  rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 from by omega) with h | h | h | h <;>
-    subst h <;> simp only [deinterleave_bv, lift_lane_bv, spread_to_even] <;> bv_decide
+  have h := deinterleave_bv_lift_eq e o
+  rcases hde : deinterleave_bv e o with ⟨lo, hi'⟩
+  rw [hde] at h
+  simp only at h ⊢
+  rw [← h, concat_lo_byte lo hi' i hi]
 
 private theorem deinterleave_bv_hi_setWidth_eq (e o : BitVec 32) (i : Nat) (hi : i < 4) :
     ((deinterleave_bv e o).2 >>> (8 * i)).setWidth 8
       = ((lift_lane_bv e o) >>> (8 * (i + 4))).setWidth 8 := by
-  rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 from by omega) with h | h | h | h <;>
-    subst h <;> simp only [deinterleave_bv, lift_lane_bv, spread_to_even] <;> bv_decide
+  have h := deinterleave_bv_lift_eq e o
+  rcases hde : deinterleave_bv e o with ⟨lo, hi'⟩
+  rw [hde] at h
+  simp only at h ⊢
+  rw [← h, concat_hi_byte lo hi' i hi]
 
 /-- Convert `BitVec.ofNat 8 (b.toNat >>> off &&& 0xff)` to a pure-BitVec
-    `(b >>> off).setWidth 8` form (the latter is `bv_decide`-friendly). -/
+    `(b >>> off).setWidth 8` form (the form the bit-level lemmas use). -/
 private theorem bv_ofNat_byte_shift_and_eq_setWidth (b : BitVec 64) (off : Nat) :
     BitVec.ofNat 8 ((b.toNat >>> off) &&& 0xff) = (b >>> off).setWidth 8 := by
   apply BitVec.eq_of_toNat_eq
@@ -522,7 +549,7 @@ private theorem nat_lt_4_cases (i : Nat) (hi : i < 4) :
 /-- Equality of two 8-bit BitVecs reduces to `Nat.testBit`-equality of their
     `toNat`s for every bit in `[0,8)`. Combined with
     `BitVec.toLEBytes_getElem!_testBit`, this lets us discharge `lo`/`hi`
-    byte equalities by `bv_decide` per bit. -/
+    byte equalities per bit. -/
 private theorem bv8_eq_of_testBit_eq (x y : BitVec 8)
     (h : ∀ j : Nat, j < 8 → x.toNat.testBit j = y.toNat.testBit j) :
     x = y := by

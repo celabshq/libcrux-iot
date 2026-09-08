@@ -1,8 +1,8 @@
 /-
   Projection simp-lemma bridge between `Lane.fromAeneas l .zζ` and
   `l.val[ζ]!.bv` for `ζ ∈ {0, 1}`. After applying these as `simp`, the
-  per-lane equalities reduce to pure `BitVec 32` equations closable by
-  `bv_decide`.
+  per-lane equalities reduce to pure `BitVec 32` equations closable by the
+  per-bit `lift_lane_bv` lemmas of `Foundation/Lift.lean`.
 -/
 import LibcruxIotSha3.BitSpec.StateIso
 import LibcruxIotSha3.Foundation.Lift

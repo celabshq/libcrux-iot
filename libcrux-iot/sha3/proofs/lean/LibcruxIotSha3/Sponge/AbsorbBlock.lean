@@ -30,7 +30,7 @@
 
   Bridge infrastructure:
 
-    - `fromLEBytes_8_split_4_4`         — pure BV identity (bv_decide).
+    - `fromLEBytes_8_split_4_4`         — pure BV identity (per bit).
     - `padded4_eq_explicit` /
       `padded8_eq_explicit`             — list-shape: padded-window of
                                           4/8 bytes equals explicit
@@ -94,15 +94,18 @@ different bit-vector shapes:
 Both BVs are the same 8 LE-loaded bytes — bridge lemma:
 `load_block_to_xor_block_bridge` below. -/
 
+set_option maxHeartbeats 1000000 in
 /-- Pure BV identity: splitting an 8-byte LE-load into hi/lo 4-byte halves.
-    Closed by `bv_decide` once `BitVec.fromLEBytes` is unfolded. -/
+    Closed bit by bit once `BitVec.fromLEBytes` is unfolded to appends. -/
 theorem fromLEBytes_8_split_4_4
     (b0 b1 b2 b3 b4 b5 b6 b7 : BitVec 8) :
     BitVec.fromLEBytes [b0, b1, b2, b3, b4, b5, b6, b7]
       = ((BitVec.fromLEBytes [b4, b5, b6, b7]).zeroExtend 64) <<< 32
           ||| (BitVec.fromLEBytes [b0, b1, b2, b3]).zeroExtend 64 := by
   simp only [BitVec.fromLEBytes, List.length_cons, List.length_nil]
-  bv_decide
+  apply BitVec.eq_of_getLsbD_eq; intro i hi'
+  simp only [BitVec.getLsbD_or, BitVec.getLsbD_shiftLeft, BitVec.zeroExtend, BitVec.getLsbD_setWidth]
+  rcases nat_lt_64_cases i hi' with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h <;> subst h <;> simp (config := {decide := true})
 
 /-- List-shape: under `n + 4 ≤ L.length`, the padded 4-byte window
     `((L.drop n).take 4) ++ replicate ...` reduces to the explicit
