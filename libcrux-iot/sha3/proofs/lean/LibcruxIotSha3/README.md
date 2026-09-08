@@ -110,50 +110,11 @@ The incremental API is not part of this verification.
 
 ### Axiom hygiene
 
-Every top-level digest spec, `keccak_keccak_spec` itself and the discharges of
-the Rust contracts depend on exactly Lean's three standard axioms `propext`,
-`Classical.choice`, `Quot.sound` — the usual classical-logic foundation shared
-by all Mathlib-based proofs — and nothing else. In particular no
-`Lean.ofReduceBool` (the axiom behind `bv_decide` and `native_decide`): the
-bit-vector identities of the interleaved lane representation (the 26 rotation
-lemmas, XOR/AND/NOT distributivity, the interleave/deinterleave bridges, the
-LE-byte split) used to be closed by `bv_decide`, one hygienically-named axiom
-per call, and are now proved bit by bit from a single per-bit
-characterisation of the lift ([`Foundation/Lift.lean`](Foundation/Lift.lean),
-`spread_to_even_getLsbD` / `lift_lane_bv_getLsbD`) with the core
-`BitVec.getLsbD_*` lemmas.
-
-There are **no hand-introduced, domain-specific assumptions left.** The three
-sub-slice `≤`-specs (`Slice.subslice_le_eq`, `Slice.update_subslice_le_eq`,
-`Array.update_subslice_le_eq`, in
-[`Sponge/SliceSpecs.lean`](Sponge/SliceSpecs.lean)) used to be the only ones, and
-they are now **theorems**. They existed because Aeneas's `Slice.subslice` /
-`update_subslice` required a *strict* `start < end` and failed on an empty range
-(`start = end`), whereas Rust's `&xs[i..i]` is a valid empty slice that the
-extracted code produces. As of aeneas nightly-2026.08.24 those primitives guard on
-`start ≤ end`, so the intended `≤` behaviour follows from the definitions
-(`if_pos`/`dif_pos` + `rfl`); the statements are kept verbatim so no use site
-changed.
-
-That also closed a soundness gap rather than just a bookkeeping one: while the
-model was strict, `Slice.subslice_le_eq` asserted success exactly where the
-definition failed, so `False` was derivable from it at `s = ⟨[], _⟩`, `r = ⟨0,0⟩`
-— and because the `@[spec]`-tagged range-index specs are selected automatically by
-`hax_mvcgen` on any slice-range subscript, it could be inherited without a
-deliberate citation. The ML-KEM and ML-DSA trees carried the same three and close
-them on the same fix.
-
-The axiom set is enforced on every build by `#guard_msgs` guards next to the
-theorems (the same mechanism ml-dsa uses): each of the six digest specs
-([`Sponge/Shake.lean`](Sponge/Shake.lean)), `keccak_keccak_spec`
-([`Sponge/Keccak.lean`](Sponge/Keccak.lean)) and the seven contract discharges
-([`Verification/ProofObligations.lean`](Verification/ProofObligations.lean))
-is followed by a `#print axioms` whose output is pinned to exactly
-`[propext, Classical.choice, Quot.sound]`, so the build fails if any of them
-comes to depend on an admitted `sorry` anywhere in its proof tree (including the
-hand-written Aeneas stdlib models) or on a reintroduced `bv_decide`/`native_decide`.
-To inspect the axioms of any other declaration, use `#print axioms <name>`.
-
+All of the main theorems presented above are proved using only
+Lean's three standard axioms `propext`,
+`Classical.choice`, and `Quot.sound`.
+This set of axioms is checked on every build by `#guard_msgs` guards in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean).
 
 ### Independent check with `comparator`
 
