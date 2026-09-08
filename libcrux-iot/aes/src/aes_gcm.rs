@@ -2,6 +2,7 @@
 
 use crate::{
     aes::AES_BLOCK_LEN,
+    constants,
     ctr::{AesCtrContext, GcmInit, AES_GCM_CTR_LEN, AES_GCM_NONCE_START},
     gf128::GF128State,
     platform::{AesCipherState, GF128FieldElement},
@@ -49,7 +50,7 @@ where
     }
 
     fn encrypt(&mut self, aad: Aad, plaintext: &mut [u8], tag: &mut [u8]) {
-        assert!(plaintext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
+        assert!(plaintext.len() <= constants::limits::GCM_PTXT_MAX_LEN);
         assert!(tag.len() == TAG_LEN);
 
         self.aes_state.aes_ctr_update(2, plaintext);
@@ -71,7 +72,8 @@ where
     }
 
     fn decrypt(&mut self, aad: Aad, ciphertext: &mut [u8], tag: &[u8]) -> Result<(), DecryptError> {
-        assert!(ciphertext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
+        // We store the tag separately, so the max ciphertext length is equal to the ptxt length
+        assert!(ciphertext.len() <= constants::limits::GCM_PTXT_MAX_LEN);
         assert!(tag.len() == TAG_LEN);
 
         let aad_len = aad.len();
