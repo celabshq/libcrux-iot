@@ -95,8 +95,11 @@ impl<T: AesCipherState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE
     }
 
     #[inline]
+    /// NOTE: Assumes that `ctr` previous blocks have been encrypted
+    /// already, so will only encrypt at most `u32::MAX - ctr`
+    /// additional blocks.
     pub(crate) fn aes_ctr_update(&self, ctr: u32, input: &mut [u8]) {
-        assert!(input.len() / AES_BLOCK_LEN < u32::MAX as usize);
+        assert!(input.len() / AES_BLOCK_LEN < (u32::MAX as usize).saturating_sub(ctr as usize));
 
         let blocks = input.len() / AES_BLOCK_LEN;
         self.aes_ctr_xor_blocks(ctr, &mut input[0..blocks * AES_BLOCK_LEN]);
