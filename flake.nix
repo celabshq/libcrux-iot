@@ -103,28 +103,6 @@
           doCheck = false;
         };
 
-        # landrun (Landlock sandbox) from its main branch, as leanprover/comparator
-        # requires: unlike the 0.1.x release in nixpkgs, main resolves the command's
-        # shared-library dependencies in-process (non-ELF commands such as the
-        # toolchain's `lake` wrapper script are skipped instead of aborting, and the
-        # ELF interpreter is granted exec). nixpkgs' `postPatch` rewrites the 0.1.15
-        # test script, which no longer matches, so it is dropped together with the
-        # tests. Pinned by commit; bump both hashes together.
-        landrunMain = pkgs.landrun.overrideAttrs (_old: {
-          version = "0.1.18-unstable-2026-07-23";
-          src = pkgs.fetchFromGitHub {
-            owner = "Zouuup";
-            repo = "landrun";
-            rev = "811cfff51cea";
-            hash = "sha256-cPwNNVeJ4CCivCB/NHdzOY9pQVwPd0UYUvTimKuZIS0=";
-          };
-          vendorHash = "sha256-gmmXTffuHFPbPKNY2DrFApXT2xazwnvmM4/aQiepMuY=";
-          postPatch = "";
-          doCheck = false;
-          doInstallCheck = false;
-          nativeInstallCheckInputs = [ ];
-        });
-
         # --- Lean toolchain (used by devShells.lean) ------------------------
         # cargo-hax with the `lean` backend, built from the flake-locked
         # `hax-main` rev. (Built from a Nix source tree it reports its commit as
@@ -191,12 +169,6 @@
             pkgs.rustup
             pkgs.python3 # runs libcrux-iot/hax_mlkem.py
 
-            # Landlock sandbox used by leanprover/comparator (sha3/proofs/lean/comparator.sh)
-            # to run lean/lake/lean4export while judging the proofs against hax's generated
-            # proof obligations; the main-branch build comparator asks for (see `landrunMain`
-            # above). comparator and lean4export themselves are Lean projects; build them as
-            # that script's header says.
-            landrunMain
 
             # Proving: elan provisions the pinned Lean toolchain (from the
             # lean-toolchain file) and provides `lake`.

@@ -5,5 +5,4 @@
 -- deliberately NOT imported, so it stays on disk but out of the build.
 import LibcruxIotSha3.Extraction.Funs
 import LibcruxIotSha3.Verification.ProofObligations
-import LibcruxIotSha3.Verification.Solution
 import HacspecSha3
