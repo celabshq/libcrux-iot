@@ -12,37 +12,13 @@ code is AI-generated.
 ## Main theorems
 
 The top-level results are the Keccak equivalence theorem and its corollaries, 
-which state equivalence of the SHA-3 and SHAKE functions. The Keccak
-equivalence is stated as follows:
+which state equivalence of the SHA-3 and SHAKE functions.
 
-[`Sponge/Keccak.lean`](Sponge/Keccak.lean) — `keccak.keccak_keccak_spec`:
+### Keccak
 
-```lean
-theorem keccak.keccak_keccak_spec
-    (RATE : Std.Usize) (DELIM : Std.U8)
-    (data : Slice Std.U8) (out : Slice Std.U8)
-    (h_RATE_mod : RATE.val % 8 = 0)
-    (h_RATE_ge_1 : 1 ≤ RATE.val)
-    (h_RATE_le_200 : RATE.val ≤ 200) :
-    ⦃ ⌜ True ⌝ ⦄
-    keccak.keccak RATE DELIM data out
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 (Std.Slice.len out),
-                sponge.keccak (Std.Slice.len out) RATE DELIM data
-                  = .ok spec_out
-                ∧ r.val.length = out.val.length
-                ∧ ∀ k : Nat, k < out.val.length →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄
-```
-
-Informally: the IOT-friendly implementation `keccak.keccak` (for some rate `RATE`,
-delimiter `DELIM`, input `data`, output buffer `out`) produces the same
-byte sequence as the hacspec-style specification `sponge.keccak`.
-
-The same statement is carried in Rust by the contract of a body-less, proof-only
-function next to `keccak` in [`src/keccak.rs`](../../../src/keccak.rs):
+The functional correctness property of the `keccak` function is stated as follows in [`src/keccak.rs`](../../../../src/keccak.rs):
 
 ```rust
-#[cfg(hax)]
 #[hax_lib::requires(RATE > 0 && RATE % 8 == 0 && RATE <= 168)]
 #[hax_lib::ensures(|_| {
     let mut result = out;
@@ -55,27 +31,28 @@ pub(crate) fn keccak_fc<const RATE: usize, const DELIM: u8, const OUT_LEN: usize
 ) {
 }
 ```
+Informally: the IOT-friendly implementation `keccak` (for some rate `RATE`,
+delimiter `DELIM`, input `data`, output buffer `out`) produces the same
+byte sequence as the hacspec-style specification `hacspec_sha3::sponge::keccak`.
+The preconditions are that `RATE` is a multiple of 8 and that `0 < RATE <= 168`;
+if these are not fulfilled, our verification makes no claims about what the implementation might do.
+The signatures of `keccak` and `hacspec_sha3::sponge::keccak` are slighty different: The
+`keccak` function expects an externally allocated array for the result and it used a custom
+integer type `U8` instead of `u8`, which is why we must call `declassify()` before comparing with
+with `hacspec_sha3::sponge::keccak`.
 
-Since the body does nothing, the generated `keccak_fc.spec` says exactly that for
-every `data` and every `out` of any length `OUT_LEN`, running `keccak` on `out`
-yields the hacspec `sponge::keccak::<OUT_LEN>`. The statement lives on a separate
-function because the hacspec takes the output length as a const generic, which
-`keccak`'s own `out: &mut [U8]` cannot supply (the Lean theorem passes `out.len`
-as a term). `keccak` itself carries no contract. The obligation is discharged by
+We would prefer to state the property directly as annotations on the `keccak` function,
+but this is not possible in this case because the hacspec-variant expects `OUT_LEN` as a const
+generic, which is not part of `keccak`'s signature.
+
+The corresponding Lean theorem is
 `keccak_fc_spec_proof` in
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean) directly
-from `keccak_keccak_spec`.
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean).
 
-The public SHA-3 and SHAKE functions in [`src/lib.rs`](../../../src/lib.rs), in
-contrast, carry their equivalence with the hacspec as hax contracts. For example:
+### SHA-3 and SHAKE
 
-```rust
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE))]
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
-    && future(digest).declassify_ref()
-        == &hacspec_sha3::sha3_256(payload.declassify_ref())[..]))]
-pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
-```
+The functional correctness of the SHA-3 and SHAKE functions in [`src/lib.rs`](../../../../src/lib.rs)
+is specified using Rust annotations directly on the functions. For example:
 
 ```rust
 #[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
@@ -83,6 +60,21 @@ pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
     == hacspec_sha3::shake128::<BYTES>(data.declassify_ref())))]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES]
 ```
+Informally: the IOT-friendly implementation `shake128` yields the same result as
+`hacspec_sha3::shake128`. The only precondition is that the number of requested output bytes
+must can be at most `u32::MAX`; otherwise, our verification makes no claims about how the
+function might behave. Again, we must call `declassify()` to convert between the implementation's
+custom integer type `U8` and Rust's integers `u8`.
+
+
+```rust
+#[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE)]
+#[hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
+    && future(digest).declassify_ref()
+        == &hacspec_sha3::sha3_256(payload.declassify_ref())[..])]
+pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
+```
+
 
 hax generates a `<fn>.spec` from each contract in
 [`Extraction/Specs.lean`](Extraction/Specs.lean), and
