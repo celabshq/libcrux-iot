@@ -14,7 +14,8 @@ proofs/fstar/extraction/.cache
 __pycache__
 kyber-crate/
 *.llbc
-.cargo/
+/.cargo/
+.bin
 
 # When using sed
 *.bak

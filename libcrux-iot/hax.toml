@@ -1,20 +1,106 @@
-# Workspace-wide hax configuration for the `libcrux-iot` crates.
-#
-# Pins the external tools `cargo hax` drives for the Lean extraction, so it is
-# reproducible regardless of hax's evolving built-in defaults. These are the
-# versions the committed proofs were checked against (and, currently, hax
-# v0.4.0's own defaults; the flake pins hax itself, see `flake.nix`). hax wants a
-# single workspace-wide pin: do not repeat `[tools]` in the member crates.
-#
-# Each member declares its extraction as a `[scenario.<package>]` in its own
-# `hax.toml`. From this directory
-#
-#     cargo hax extract                    # all three crates
-#     cargo hax extract libcrux-iot-sha3   # one of them
-#
-# runs them (ml-kem additionally needs `./hax_mlkem.py`, which runs its scenario
-# and then applies the residual fix-ups; see that file). Tool binaries
-# are fetched on first use, or eagerly with `cargo hax tools install`.
-[tools]
-aeneas = "nightly-2026.09.03-6852e64"
-charon = "nightly-2026.09.02"
+[scenario.libcrux-iot-sha3]
+backend = "lean"
+package = "libcrux-iot-sha3"
+output-dir = "proofs/lean"
+
+[scenario.libcrux-iot-ml-dsa]
+backend = "lean"
+package = "libcrux-iot-ml-dsa"
+output-dir = "proofs/lean"
+charon-args = [
+    "--start-from",
+    "crate::ntt::*",
+    "--start-from",
+    "crate::polynomial::*",
+    "--start-from",
+    "crate::arithmetic::*",
+    "--start-from",
+    "crate::simd::portable::ntt::*",
+    "--start-from",
+    "crate::simd::portable::invntt::*",
+    "--start-from",
+    "crate::simd::portable::arithmetic::*",
+    "--start-from",
+    "crate::simd::portable::vector_type::*",
+    "--start-from",
+    "{impl crate::simd::traits::Operations for crate::simd::portable::vector_type::Coefficients}",
+    "--start-from",
+    "crate::polynomial::PolynomialRingElement::add",
+    "--start-from",
+    "crate::polynomial::PolynomialRingElement::subtract",
+    "--start-from",
+    "crate::simd::traits::*",
+    "--start-from",
+    "crate::matrix::compute_as1_plus_s2",
+    "--start-from",
+    "crate::matrix::compute_matrix_x_mask",
+    "--opaque",
+    "crate::hash_functions::*",
+    "--opaque",
+    "crate::sample::*",
+    "--opaque",
+    "crate::samplex4::*",
+    "--opaque",
+    "crate::encoding::*",
+    "--opaque",
+    "crate::ml_dsa_generic::*",
+    "--opaque",
+    "crate::pre_hash::*",
+    "--opaque",
+    "crate::simd::portable::encoding::*",
+    "--opaque",
+    "crate::simd::portable::sample::*",
+    "--opaque",
+    "crate::arithmetic::power2round_vector",
+    "--opaque",
+    "crate::arithmetic::decompose_vector",
+    "--opaque",
+    "crate::matrix::compute_as1_plus_s2",
+    "--opaque",
+    "crate::matrix::compute_matrix_x_mask",
+]
+
+# The ML-KEM package currently needs a patch-up python script: `hax_mlkem.py`, which
+# runs its scenario and then applies the residual fix-ups; see that file
+[scenario.libcrux-iot-ml-kem]
+backend = "lean"
+package = "libcrux-iot-ml-kem"
+output-dir = "proofs/lean"
+charon-args = [
+    "--start-from",
+    "crate::vector::*",
+    "--start-from",
+    "crate::polynomial::*",
+    "--start-from",
+    "crate::ntt::*",
+    "--start-from",
+    "crate::invert_ntt::*",
+    "--start-from",
+    "crate::matrix::*",
+    "--start-from",
+    "crate::serialize::*",
+    "--start-from",
+    "crate::ind_cpa::serialize_vector",
+    "--start-from",
+    "crate::ind_cpa::serialize_unpacked_secret_key",
+    "--start-from",
+    "crate::ind_cpa::compress_then_serialize_u",
+    "--start-from",
+    "crate::ind_cpa::deserialize_then_decompress_u",
+    "--start-from",
+    "crate::ind_cpa::deserialize_vector",
+    "--start-from",
+    "crate::ind_cpa::encrypt_c2",
+    "--start-from",
+    "crate::ind_cpa::decrypt_unpacked",
+    "--start-from",
+    "crate::ind_cpa::decrypt",
+    "--opaque",
+    "crate::hash_functions::portable::*",
+    "--opaque",
+    "crate::sampling::*",
+    "--opaque",
+    "crate::matrix::sample_matrix_A",
+    "--opaque",
+    "crate::matrix::sample_matrix_entry",
+]

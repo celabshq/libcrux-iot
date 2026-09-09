@@ -39,3 +39,7 @@ libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "c4253
 inherits = "release"
 debug = true
 strip = false
+
+[workspace.metadata.bin]
+# The version of hax to use, matching the `hax-lib` the project depends on.
+cargo-hax = { version = "0.4.0", bins = ["cargo-hax"], locked = true }
