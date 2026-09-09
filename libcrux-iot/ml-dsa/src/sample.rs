@@ -564,10 +564,7 @@ pub(crate) fn sample_challenge_ring_element<SIMDUnit: Operations, Shake256: shak
 
 #[cfg(test)]
 mod tests {
-    use libcrux_secrets::ClassifyRef as _;
-
     use super::*;
-
     use crate::{constants::COEFFICIENTS_IN_RING_ELEMENT, simd::traits::Operations};
 
     fn sample_ring_element_uniform<SIMDUnit: Operations, Shake128: shake128::XofX4>(
@@ -877,9 +874,8 @@ mod tests {
     }
 
     mod portable {
-        use crate::{hash_functions, simd};
-
         use super::*;
+        use crate::{hash_functions, simd};
 
         #[test]
         fn test_sample_ring_element_uniform() {
