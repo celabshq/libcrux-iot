@@ -149,26 +149,18 @@ theorem shake128_spec
   -- Impl chain: `shake128 BYTES data = .ok out_arr`.
   have h_impl_eq : shake128 BYTES data = .ok out_arr := by
     unfold shake128
-    -- 0.4 takes the mutable slice as `&mut out[..]` (`index_mut` at `RangeFull`).
-    -- One `simp` pass: reducing the `IndexMut` record exposes a literal pair, and
-    -- simp reduces its destructure -- separate `unfold`/`rw` steps leave it in
-    -- place (see Sponge/SqueezeBlock.lean).
     -- `unfold` re-introduces the raw `Array.repeat BYTES 0#u8`; fold it back to
     -- `a` so the helpers below (all stated about `a`) apply.
     rw [← ha_def]
-    unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-    -- CoreModels v0.3.17: the (native) Array `index_mut` write-back at
-    -- `RangeFull` is literally `Array.from_slice a`, so `h_from_slice` lands
-    -- directly -- no `update_subslice` bridge any more.
-    -- `+zetaDelta`: `s`/`out_arr` are `set`-bound local definitions, and the
-    -- helpers below are stated in terms of them while the goal carries the
-    -- unfolded `a.to_slice`.
-    simp +zetaDelta [CoreModels.core.array.Array.as_mut_slice,
-      CoreModels.rust_primitives.slice.array_as_mut_slice,
-      Std.Array.to_slice_mut,
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
-      CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-      h_classify, keccakx1_eq_keccak, h_s1_eq, h_from_slice]
+    -- `&mut out` on the array is `Array.to_slice_mut`, which is definitionally the
+    -- pair `(to_slice a, from_slice a)` (`h_to_slice_mut`), so the write-back is
+    -- exactly `h_from_slice` -- no `index_mut`/`RangeFull` record to unfold.
+    simp only [h_classify, h_to_slice_mut, bind_tc_ok, keccakx1_eq_keccak]
+    -- simp leaves the pair destructure in place, so state the reduced body.
+    change (do
+      let s1 ← keccak.keccak 168#usize 31#u8 data s
+      ok (Std.Array.from_slice a s1)) = .ok out_arr
+    rw [h_s1_eq, bind_tc_ok, h_from_slice]
   -- Spec chain: `sha3.shake128 BYTES data = sponge.keccak BYTES 168 31 data`.
   -- We bridge `(Std.Slice.len s)` to `BYTES` by direct subtype construction.
   set spec_out : Std.Array Std.U8 BYTES :=
@@ -247,23 +239,16 @@ theorem shake256_spec
     with hout_arr_def
   have h_impl_eq : shake256 BYTES data = .ok out_arr := by
     unfold shake256
-    -- as in shake128 above: 0.4 takes `&mut out[..]` via `index_mut`/`RangeFull`
+    -- as in shake128 above.
     -- `unfold` re-introduces the raw `Array.repeat BYTES 0#u8`; fold it back to
     -- `a` so the helpers below (all stated about `a`) apply.
     rw [← ha_def]
-    unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-    -- CoreModels v0.3.17: the (native) Array `index_mut` write-back at
-    -- `RangeFull` is literally `Array.from_slice a`, so `h_from_slice` lands
-    -- directly -- no `update_subslice` bridge any more.
-    -- `+zetaDelta`: `s`/`out_arr` are `set`-bound local definitions, and the
-    -- helpers below are stated in terms of them while the goal carries the
-    -- unfolded `a.to_slice`.
-    simp +zetaDelta [CoreModels.core.array.Array.as_mut_slice,
-      CoreModels.rust_primitives.slice.array_as_mut_slice,
-      Std.Array.to_slice_mut,
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
-      CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-      h_classify, keccakx1_eq_keccak, h_s1_eq, h_from_slice]
+    simp only [h_classify, h_to_slice_mut, bind_tc_ok, keccakx1_eq_keccak]
+    -- simp leaves the pair destructure in place, so state the reduced body.
+    change (do
+      let s1 ← keccak.keccak 136#usize 31#u8 data s
+      ok (Std.Array.from_slice a s1)) = .ok out_arr
+    rw [h_s1_eq, bind_tc_ok, h_from_slice]
   set spec_out : Std.Array Std.U8 BYTES :=
     ⟨spec_out_kk.val, by
       have h_prop := spec_out_kk.property

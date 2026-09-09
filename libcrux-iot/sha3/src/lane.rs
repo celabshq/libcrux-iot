@@ -96,8 +96,11 @@ impl From<[U32; 2]> for Lane2U32 {
     }
 }
 
-// XXX: This impl will panic Charon at rev 667d2fc98984ff7f3df989c2367e6c1fa4a000e7, so the derivations of
-//      `Debug` which build on it have to be switched off for Eurydice.
+// Kept out of the proof surface: `charon::exclude` (Lean) and `hax_lib::opaque`
+// (F*). Charon no longer panics on this impl -- tested 2026-09-09 -- but
+// extracting it adds a `core.fmt.Debug` instance plus an external `fmt` axiom
+// that no proof uses, so the exclusion stays. `cfg(not(eurydice))` additionally
+// keeps it, and the `Debug` derivations built on it, out of the C extraction.
 #[cfg(not(eurydice))]
 #[cfg_attr(hax, hax_lib::opaque)]
 #[cfg_attr(hax_backend_lean, charon::exclude)]

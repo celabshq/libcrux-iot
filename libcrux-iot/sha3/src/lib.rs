@@ -43,9 +43,6 @@
 //! assumptions about the safety of operations like multiplication do not
 //! apply, such as e.g. ARM Cortex-M3.
 
-// Below, some arrays are explicitly converted into slices by writing `out[..]`
-// instead of `out` as a workaround for https://github.com/cryspen/hax/issues/1983
-
 #![no_std]
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
@@ -56,9 +53,11 @@
 // either here as well is a hard error ("tool `charon` was already registered",
 // "the feature `register_tool` has already been enabled").
 //
-// The old `not(hax_compilation)` gate no longer distinguishes anything: 0.4 does
-// not set `hax_compilation` at all (rustc lists the crate's known cfgs and it is
-// absent), so the gate was always true and both attributes always applied.
+// The old `not(hax_compilation)` gate is unnecessary for a different reason:
+// every `charon::` attribute in this crate is itself `cfg_attr(hax_backend_lean,
+// ..)` gated, so a normal build emits no charon tool attribute and needs no
+// `register_tool` at all. (0.4 does still define `hax_compilation` when it runs
+// charon -- see `rustc_args` in the generated `llbc`.)
 
 use libcrux_secrets::{Classify, U8};
 // Only the `#[ensures]` on `sha256_ema` uses this, and hax-lib's attribute
@@ -156,17 +155,6 @@ pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN]
 
     let mut out = [0u8; LEN].classify();
 
-    // We have to work around a hax issue with implicit array
-    // conversion here.
-    // cf. https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    match algorithm {
-        Algorithm::Sha224 => sha224_ema(&mut out[..], payload),
-        Algorithm::Sha256 => sha256_ema(&mut out[..], payload),
-        Algorithm::Sha384 => sha384_ema(&mut out[..], payload),
-        Algorithm::Sha512 => sha512_ema(&mut out[..], payload),
-    }
-    #[cfg(not(hax))]
     match algorithm {
         Algorithm::Sha224 => sha224_ema(&mut out, payload),
         Algorithm::Sha256 => sha256_ema(&mut out, payload),
@@ -186,12 +174,6 @@ pub use hash as sha3;
 pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_224_DIGEST_SIZE].classify();
 
-    // We have to work around a hax issue with implicit array
-    // conversion here.
-    // cf. https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    sha224_ema(&mut out[..], payload);
-    #[cfg(not(hax))]
     sha224_ema(&mut out, payload);
     out
 }
@@ -222,12 +204,6 @@ pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
 pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_256_DIGEST_SIZE].classify();
 
-    // We have to work around a hax issue with implicit array
-    // conversion here.
-    // cf. https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    sha256_ema(&mut out[..], payload);
-    #[cfg(not(hax))]
     sha256_ema(&mut out, payload);
     out
 }
@@ -258,12 +234,6 @@ pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
 pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_384_DIGEST_SIZE].classify();
 
-    // We have to work around a hax issue with implicit array
-    // conversion here.
-    // cf. https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    sha384_ema(&mut out[..], payload);
-    #[cfg(not(hax))]
     sha384_ema(&mut out, payload);
     out
 }
@@ -294,12 +264,6 @@ pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
 pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_512_DIGEST_SIZE].classify();
 
-    // We have to work around a hax issue with implicit array
-    // conversion here.
-    // cf. https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    sha512_ema(&mut out[..], payload);
-    #[cfg(not(hax))]
     sha512_ema(&mut out, payload);
     out
 }
@@ -332,12 +296,6 @@ pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 
-    // We have to work around a hax issue with implicit array
-    // conversion here.
-    // cf. https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    keccakx1::<168, 0x1fu8>(data, &mut out[..]);
-    #[cfg(not(hax))]
     keccakx1::<168, 0x1fu8>(data, &mut out);
     out
 }
@@ -363,12 +321,6 @@ pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
 pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 
-    // We have to work around a hax issue with implicit array
-    // conversion here.
-    // cf. https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    keccakx1::<136, 0x1fu8>(data, &mut out[..]);
-    #[cfg(not(hax))]
     keccakx1::<136, 0x1fu8>(data, &mut out);
     out
 }

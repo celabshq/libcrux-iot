@@ -148,7 +148,7 @@ def lane.Lane2U32.interleave (self : lane.Lane2U32) : RustM lane.Lane2U32 := do
   lane.Lane2U32.from_ints (Array.make 2#usize [ i26, i27 ])
 
 /-- [libcrux_iot_sha3::state::load_block_2u32]: loop body 0:
-    Source: 'sha3/src/state.rs', lines 133:4-145:5 -/
+    Source: 'sha3/src/state.rs', lines 136:4-148:5 -/
 @[rust_loop_body]
 def state.load_block_2u32_loop.body
   (blocks : Slice Std.U8) (start : Std.Usize)
@@ -208,7 +208,7 @@ def state.load_block_2u32_loop.body
     ok (cont (iter1, keccak_state1))
 
 /-- [libcrux_iot_sha3::state::load_block_2u32]: loop 0:
-    Source: 'sha3/src/state.rs', lines 133:4-145:5 -/
+    Source: 'sha3/src/state.rs', lines 136:4-148:5 -/
 @[rust_loop]
 def state.load_block_2u32_loop
   (iter : core.ops.range.Range Std.Usize) (keccak_state : state.KeccakState)
@@ -221,7 +221,7 @@ def state.load_block_2u32_loop
     (iter, keccak_state)
 
 /-- [libcrux_iot_sha3::state::load_block_2u32]:
-    Source: 'sha3/src/state.rs', lines 130:0-146:1 -/
+    Source: 'sha3/src/state.rs', lines 133:0-149:1 -/
 def state.load_block_2u32
   (RATE : Std.Usize) (keccak_state : state.KeccakState) (blocks : Slice Std.U8)
   (start : Std.Usize) :
@@ -236,7 +236,7 @@ def state.load_block_2u32
     blocks start
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::load_block]:
-    Source: 'sha3/src/state.rs', lines 61:4-63:5 -/
+    Source: 'sha3/src/state.rs', lines 64:4-66:5 -/
 def state.KeccakState.load_block
   (RATE : Std.Usize) (self : state.KeccakState) (blocks : Slice Std.U8)
   (start : Std.Usize) :
@@ -271,7 +271,7 @@ def state.KeccakState.get_with_zeta
   lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index lu zeta
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y4_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 2518:0-2549:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2506:0-2537:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
@@ -321,7 +321,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y4_zeta1
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y4_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 2483:0-2514:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2471:0-2502:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
@@ -371,7 +371,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y4_zeta0
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y3_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 2448:0-2479:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2436:0-2467:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
@@ -421,7 +421,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y3_zeta1
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y3_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 2413:0-2444:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2401:0-2432:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
@@ -471,7 +471,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y3_zeta0
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y2_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 2378:0-2409:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2366:0-2397:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
@@ -521,7 +521,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y2_zeta1
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y2_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 2343:0-2374:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2331:0-2362:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
@@ -571,7 +571,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y2_zeta0
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_2]:
-    Source: 'sha3/src/keccak.rs', lines 2553:0-2560:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2541:0-2548:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_2
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round3_pi_rho_chi_y2_zeta0 s
@@ -582,7 +582,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_2
   keccak.keccakf1600_round3_pi_rho_chi_y4_zeta1 s5
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y1_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 2299:0-2330:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2287:0-2318:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
@@ -632,7 +632,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y1_zeta1
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y1_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 2264:0-2295:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2252:0-2283:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
@@ -682,7 +682,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y1_zeta0
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::RC_INTERLEAVED_1]
-    Source: 'sha3/src/keccak.rs', lines 316:0-349:2 -/
+    Source: 'sha3/src/keccak.rs', lines 308:0-341:2 -/
 @[global_simps, irreducible]
 def keccak.RC_INTERLEAVED_1 : Array Std.U32 255#usize :=
   Array.make 255#usize [
@@ -736,7 +736,7 @@ def keccak.RC_INTERLEAVED_1 : Array Std.U32 255#usize :=
     ]
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y0_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 2219:0-2260:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2207:0-2248:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y0_zeta1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -793,7 +793,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y0_zeta1
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::RC_INTERLEAVED_0]
-    Source: 'sha3/src/keccak.rs', lines 270:0-303:2 -/
+    Source: 'sha3/src/keccak.rs', lines 266:0-299:2 -/
 @[global_simps, irreducible]
 def keccak.RC_INTERLEAVED_0 : Array Std.U32 255#usize :=
   Array.make 255#usize [
@@ -826,7 +826,7 @@ def keccak.RC_INTERLEAVED_0 : Array Std.U32 255#usize :=
     ]
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_y0_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 2175:0-2215:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2163:0-2203:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_y0_zeta0
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -880,7 +880,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_y0_zeta0
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_pi_rho_chi_1]:
-    Source: 'sha3/src/keccak.rs', lines 2334:0-2339:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2322:0-2327:1 -/
 def keccak.keccakf1600_round3_pi_rho_chi_1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -891,7 +891,7 @@ def keccak.keccakf1600_round3_pi_rho_chi_1
   keccak.keccakf1600_round3_pi_rho_chi_y1_zeta1 s3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_d]:
-    Source: 'sha3/src/keccak.rs', lines 2124:0-2155:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2112:0-2143:1 -/
 def keccak.keccakf1600_round3_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
@@ -967,7 +967,7 @@ def keccak.keccakf1600_round3_theta_d
   ok { s with d := a19 }
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::set_lane_value]:
-    Source: 'sha3/src/state.rs', lines 54:4-57:5 -/
+    Source: 'sha3/src/state.rs', lines 54:4-60:5 -/
 def state.KeccakState.set_lane_value
   (self : state.KeccakState) (i : Std.Usize) (j : Std.Usize) (value : Std.U32)
   :
@@ -979,7 +979,7 @@ def state.KeccakState.set_lane_value
   ok { self with c := a1 }
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x4_z1]:
-    Source: 'sha3/src/keccak.rs', lines 2113:0-2120:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2101:0-2108:1 -/
 def keccak.keccakf1600_round3_theta_c_x4_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_3 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 0#usize
@@ -994,7 +994,7 @@ def keccak.keccakf1600_round3_theta_c_x4_z1
   state.KeccakState.set_lane_value s 4#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x4_z0]:
-    Source: 'sha3/src/keccak.rs', lines 2102:0-2109:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2090:0-2097:1 -/
 def keccak.keccakf1600_round3_theta_c_x4_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_3 ← state.KeccakState.get_with_zeta s 3#usize 4#usize 1#usize
@@ -1009,7 +1009,7 @@ def keccak.keccakf1600_round3_theta_c_x4_z0
   state.KeccakState.set_lane_value s 4#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x3_z1]:
-    Source: 'sha3/src/keccak.rs', lines 2091:0-2098:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2079:0-2086:1 -/
 def keccak.keccakf1600_round3_theta_c_x3_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_1 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 1#usize
@@ -1024,7 +1024,7 @@ def keccak.keccakf1600_round3_theta_c_x3_z1
   state.KeccakState.set_lane_value s 3#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x3_z0]:
-    Source: 'sha3/src/keccak.rs', lines 2080:0-2087:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2068:0-2075:1 -/
 def keccak.keccakf1600_round3_theta_c_x3_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_1 ← state.KeccakState.get_with_zeta s 1#usize 3#usize 0#usize
@@ -1039,7 +1039,7 @@ def keccak.keccakf1600_round3_theta_c_x3_z0
   state.KeccakState.set_lane_value s 3#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x2_z1]:
-    Source: 'sha3/src/keccak.rs', lines 2069:0-2076:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2057:0-2064:1 -/
 def keccak.keccakf1600_round3_theta_c_x2_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_4 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 1#usize
@@ -1054,7 +1054,7 @@ def keccak.keccakf1600_round3_theta_c_x2_z1
   state.KeccakState.set_lane_value s 2#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x2_z0]:
-    Source: 'sha3/src/keccak.rs', lines 2058:0-2065:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2046:0-2053:1 -/
 def keccak.keccakf1600_round3_theta_c_x2_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_4 ← state.KeccakState.get_with_zeta s 4#usize 2#usize 0#usize
@@ -1069,7 +1069,7 @@ def keccak.keccakf1600_round3_theta_c_x2_z0
   state.KeccakState.set_lane_value s 2#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x1_z1]:
-    Source: 'sha3/src/keccak.rs', lines 2047:0-2054:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2035:0-2042:1 -/
 def keccak.keccakf1600_round3_theta_c_x1_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_2 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 0#usize
@@ -1084,7 +1084,7 @@ def keccak.keccakf1600_round3_theta_c_x1_z1
   state.KeccakState.set_lane_value s 1#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x1_z0]:
-    Source: 'sha3/src/keccak.rs', lines 2036:0-2043:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2024:0-2031:1 -/
 def keccak.keccakf1600_round3_theta_c_x1_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_2 ← state.KeccakState.get_with_zeta s 2#usize 1#usize 1#usize
@@ -1099,7 +1099,7 @@ def keccak.keccakf1600_round3_theta_c_x1_z0
   state.KeccakState.set_lane_value s 1#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x0_z1]:
-    Source: 'sha3/src/keccak.rs', lines 2025:0-2032:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2013:0-2020:1 -/
 def keccak.keccakf1600_round3_theta_c_x0_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
@@ -1114,7 +1114,7 @@ def keccak.keccakf1600_round3_theta_c_x0_z1
   state.KeccakState.set_lane_value s 0#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta_c_x0_z0]:
-    Source: 'sha3/src/keccak.rs', lines 2014:0-2021:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2002:0-2009:1 -/
 def keccak.keccakf1600_round3_theta_c_x0_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
@@ -1129,7 +1129,7 @@ def keccak.keccakf1600_round3_theta_c_x0_z0
   state.KeccakState.set_lane_value s 0#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round3_theta]:
-    Source: 'sha3/src/keccak.rs', lines 2159:0-2171:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2147:0-2159:1 -/
 def keccak.keccakf1600_round3_theta
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round3_theta_c_x0_z0 s
@@ -1145,7 +1145,7 @@ def keccak.keccakf1600_round3_theta
   keccak.keccakf1600_round3_theta_d s10
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y4_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1964:0-1995:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1956:0-1987:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
@@ -1195,7 +1195,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y4_zeta1
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y4_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1929:0-1960:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1921:0-1952:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
@@ -1245,7 +1245,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y4_zeta0
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y3_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1894:0-1925:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1886:0-1917:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
@@ -1295,7 +1295,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y3_zeta1
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y3_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1859:0-1890:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1851:0-1882:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
@@ -1345,7 +1345,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y3_zeta0
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y2_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1824:0-1855:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1816:0-1847:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
@@ -1395,7 +1395,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y2_zeta1
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y2_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1789:0-1820:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1781:0-1812:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
@@ -1445,7 +1445,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y2_zeta0
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_2]:
-    Source: 'sha3/src/keccak.rs', lines 1999:0-2006:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1991:0-1998:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_2
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round2_pi_rho_chi_y2_zeta0 s
@@ -1456,7 +1456,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_2
   keccak.keccakf1600_round2_pi_rho_chi_y4_zeta1 s5
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y1_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1745:0-1776:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1737:0-1768:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
@@ -1506,7 +1506,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y1_zeta1
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y1_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1710:0-1741:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1702:0-1733:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
@@ -1556,7 +1556,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y1_zeta0
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y0_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1665:0-1706:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1657:0-1698:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y0_zeta1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -1613,7 +1613,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y0_zeta1
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_y0_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1621:0-1661:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1613:0-1653:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_y0_zeta0
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -1667,7 +1667,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_y0_zeta0
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_pi_rho_chi_1]:
-    Source: 'sha3/src/keccak.rs', lines 1780:0-1785:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1772:0-1777:1 -/
 def keccak.keccakf1600_round2_pi_rho_chi_1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -1678,7 +1678,7 @@ def keccak.keccakf1600_round2_pi_rho_chi_1
   keccak.keccakf1600_round2_pi_rho_chi_y1_zeta1 s3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_d]:
-    Source: 'sha3/src/keccak.rs', lines 1570:0-1601:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1562:0-1593:1 -/
 def keccak.keccakf1600_round2_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
@@ -1754,7 +1754,7 @@ def keccak.keccakf1600_round2_theta_d
   ok { s with d := a19 }
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x4_z1]:
-    Source: 'sha3/src/keccak.rs', lines 1559:0-1566:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1551:0-1558:1 -/
 def keccak.keccakf1600_round2_theta_c_x4_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_2 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 0#usize
@@ -1769,7 +1769,7 @@ def keccak.keccakf1600_round2_theta_c_x4_z1
   state.KeccakState.set_lane_value s 4#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x4_z0]:
-    Source: 'sha3/src/keccak.rs', lines 1548:0-1555:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1540:0-1547:1 -/
 def keccak.keccakf1600_round2_theta_c_x4_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_2 ← state.KeccakState.get_with_zeta s 2#usize 4#usize 1#usize
@@ -1784,7 +1784,7 @@ def keccak.keccakf1600_round2_theta_c_x4_z0
   state.KeccakState.set_lane_value s 4#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x3_z1]:
-    Source: 'sha3/src/keccak.rs', lines 1537:0-1544:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1529:0-1536:1 -/
 def keccak.keccakf1600_round2_theta_c_x3_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_4 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 0#usize
@@ -1799,7 +1799,7 @@ def keccak.keccakf1600_round2_theta_c_x3_z1
   state.KeccakState.set_lane_value s 3#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x3_z0]:
-    Source: 'sha3/src/keccak.rs', lines 1526:0-1533:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1518:0-1525:1 -/
 def keccak.keccakf1600_round2_theta_c_x3_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_4 ← state.KeccakState.get_with_zeta s 4#usize 3#usize 1#usize
@@ -1814,7 +1814,7 @@ def keccak.keccakf1600_round2_theta_c_x3_z0
   state.KeccakState.set_lane_value s 3#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x2_z1]:
-    Source: 'sha3/src/keccak.rs', lines 1515:0-1522:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1507:0-1514:1 -/
 def keccak.keccakf1600_round2_theta_c_x2_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_1 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 0#usize
@@ -1829,7 +1829,7 @@ def keccak.keccakf1600_round2_theta_c_x2_z1
   state.KeccakState.set_lane_value s 2#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x2_z0]:
-    Source: 'sha3/src/keccak.rs', lines 1504:0-1511:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1496:0-1503:1 -/
 def keccak.keccakf1600_round2_theta_c_x2_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_1 ← state.KeccakState.get_with_zeta s 1#usize 2#usize 1#usize
@@ -1844,7 +1844,7 @@ def keccak.keccakf1600_round2_theta_c_x2_z0
   state.KeccakState.set_lane_value s 2#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x1_z1]:
-    Source: 'sha3/src/keccak.rs', lines 1493:0-1500:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1485:0-1492:1 -/
 def keccak.keccakf1600_round2_theta_c_x1_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_3 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 0#usize
@@ -1859,7 +1859,7 @@ def keccak.keccakf1600_round2_theta_c_x1_z1
   state.KeccakState.set_lane_value s 1#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x1_z0]:
-    Source: 'sha3/src/keccak.rs', lines 1482:0-1489:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1474:0-1481:1 -/
 def keccak.keccakf1600_round2_theta_c_x1_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_3 ← state.KeccakState.get_with_zeta s 3#usize 1#usize 1#usize
@@ -1874,7 +1874,7 @@ def keccak.keccakf1600_round2_theta_c_x1_z0
   state.KeccakState.set_lane_value s 1#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x0_z1]:
-    Source: 'sha3/src/keccak.rs', lines 1471:0-1478:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1463:0-1470:1 -/
 def keccak.keccakf1600_round2_theta_c_x0_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
@@ -1889,7 +1889,7 @@ def keccak.keccakf1600_round2_theta_c_x0_z1
   state.KeccakState.set_lane_value s 0#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta_c_x0_z0]:
-    Source: 'sha3/src/keccak.rs', lines 1460:0-1467:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1452:0-1459:1 -/
 def keccak.keccakf1600_round2_theta_c_x0_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
@@ -1904,7 +1904,7 @@ def keccak.keccakf1600_round2_theta_c_x0_z0
   state.KeccakState.set_lane_value s 0#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round2_theta]:
-    Source: 'sha3/src/keccak.rs', lines 1605:0-1617:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1597:0-1609:1 -/
 def keccak.keccakf1600_round2_theta
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round2_theta_c_x0_z0 s
@@ -1920,7 +1920,7 @@ def keccak.keccakf1600_round2_theta
   keccak.keccakf1600_round2_theta_d s10
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y4_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1414:0-1445:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1406:0-1437:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
@@ -1970,7 +1970,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y4_zeta1
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y4_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1379:0-1410:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1371:0-1402:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
@@ -2020,7 +2020,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y4_zeta0
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y3_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1344:0-1375:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1336:0-1367:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
@@ -2070,7 +2070,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y3_zeta1
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y3_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1309:0-1340:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1301:0-1332:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
@@ -2120,7 +2120,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y3_zeta0
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y2_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1274:0-1305:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1266:0-1297:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
@@ -2170,7 +2170,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y2_zeta1
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y2_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1239:0-1270:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1231:0-1262:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
@@ -2220,7 +2220,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y2_zeta0
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_2]:
-    Source: 'sha3/src/keccak.rs', lines 1449:0-1456:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1441:0-1448:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_2
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round1_pi_rho_chi_y2_zeta0 s
@@ -2231,7 +2231,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_2
   keccak.keccakf1600_round1_pi_rho_chi_y4_zeta1 s5
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y1_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1195:0-1226:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1187:0-1218:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
@@ -2281,7 +2281,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y1_zeta1
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y1_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1160:0-1191:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1152:0-1183:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
@@ -2331,7 +2331,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y1_zeta0
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y0_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 1115:0-1156:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1107:0-1148:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y0_zeta1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -2388,7 +2388,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y0_zeta1
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_y0_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 1071:0-1111:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1063:0-1103:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_y0_zeta0
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -2442,7 +2442,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_y0_zeta0
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_pi_rho_chi_1]:
-    Source: 'sha3/src/keccak.rs', lines 1230:0-1235:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1222:0-1227:1 -/
 def keccak.keccakf1600_round1_pi_rho_chi_1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -2453,7 +2453,7 @@ def keccak.keccakf1600_round1_pi_rho_chi_1
   keccak.keccakf1600_round1_pi_rho_chi_y1_zeta1 s3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_d]:
-    Source: 'sha3/src/keccak.rs', lines 1020:0-1051:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1012:0-1043:1 -/
 def keccak.keccakf1600_round1_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
@@ -2529,7 +2529,7 @@ def keccak.keccakf1600_round1_theta_d
   ok { s with d := a19 }
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x4_z1]:
-    Source: 'sha3/src/keccak.rs', lines 1009:0-1016:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1001:0-1008:1 -/
 def keccak.keccakf1600_round1_theta_c_x4_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 1#usize
@@ -2544,7 +2544,7 @@ def keccak.keccakf1600_round1_theta_c_x4_z1
   state.KeccakState.set_lane_value s 4#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x4_z0]:
-    Source: 'sha3/src/keccak.rs', lines 998:0-1005:1 -/
+    Source: 'sha3/src/keccak.rs', lines 990:0-997:1 -/
 def keccak.keccakf1600_round1_theta_c_x4_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_4 ← state.KeccakState.get_with_zeta s 4#usize 4#usize 0#usize
@@ -2559,7 +2559,7 @@ def keccak.keccakf1600_round1_theta_c_x4_z0
   state.KeccakState.set_lane_value s 4#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x3_z1]:
-    Source: 'sha3/src/keccak.rs', lines 987:0-994:1 -/
+    Source: 'sha3/src/keccak.rs', lines 979:0-986:1 -/
 def keccak.keccakf1600_round1_theta_c_x3_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 0#usize
@@ -2574,7 +2574,7 @@ def keccak.keccakf1600_round1_theta_c_x3_z1
   state.KeccakState.set_lane_value s 3#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x3_z0]:
-    Source: 'sha3/src/keccak.rs', lines 976:0-983:1 -/
+    Source: 'sha3/src/keccak.rs', lines 968:0-975:1 -/
 def keccak.keccakf1600_round1_theta_c_x3_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_3 ← state.KeccakState.get_with_zeta s 3#usize 3#usize 1#usize
@@ -2589,7 +2589,7 @@ def keccak.keccakf1600_round1_theta_c_x3_z0
   state.KeccakState.set_lane_value s 3#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x2_z1]:
-    Source: 'sha3/src/keccak.rs', lines 965:0-972:1 -/
+    Source: 'sha3/src/keccak.rs', lines 957:0-964:1 -/
 def keccak.keccakf1600_round1_theta_c_x2_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 0#usize
@@ -2604,7 +2604,7 @@ def keccak.keccakf1600_round1_theta_c_x2_z1
   state.KeccakState.set_lane_value s 2#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x2_z0]:
-    Source: 'sha3/src/keccak.rs', lines 954:0-961:1 -/
+    Source: 'sha3/src/keccak.rs', lines 946:0-953:1 -/
 def keccak.keccakf1600_round1_theta_c_x2_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_2 ← state.KeccakState.get_with_zeta s 2#usize 2#usize 1#usize
@@ -2619,7 +2619,7 @@ def keccak.keccakf1600_round1_theta_c_x2_z0
   state.KeccakState.set_lane_value s 2#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x1_z1]:
-    Source: 'sha3/src/keccak.rs', lines 943:0-950:1 -/
+    Source: 'sha3/src/keccak.rs', lines 935:0-942:1 -/
 def keccak.keccakf1600_round1_theta_c_x1_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 1#usize
@@ -2634,7 +2634,7 @@ def keccak.keccakf1600_round1_theta_c_x1_z1
   state.KeccakState.set_lane_value s 1#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x1_z0]:
-    Source: 'sha3/src/keccak.rs', lines 932:0-939:1 -/
+    Source: 'sha3/src/keccak.rs', lines 924:0-931:1 -/
 def keccak.keccakf1600_round1_theta_c_x1_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_1 ← state.KeccakState.get_with_zeta s 1#usize 1#usize 0#usize
@@ -2649,7 +2649,7 @@ def keccak.keccakf1600_round1_theta_c_x1_z0
   state.KeccakState.set_lane_value s 1#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x0_z1]:
-    Source: 'sha3/src/keccak.rs', lines 921:0-928:1 -/
+    Source: 'sha3/src/keccak.rs', lines 913:0-920:1 -/
 def keccak.keccakf1600_round1_theta_c_x0_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
@@ -2664,7 +2664,7 @@ def keccak.keccakf1600_round1_theta_c_x0_z1
   state.KeccakState.set_lane_value s 0#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta_c_x0_z0]:
-    Source: 'sha3/src/keccak.rs', lines 910:0-917:1 -/
+    Source: 'sha3/src/keccak.rs', lines 902:0-909:1 -/
 def keccak.keccakf1600_round1_theta_c_x0_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
@@ -2679,7 +2679,7 @@ def keccak.keccakf1600_round1_theta_c_x0_z0
   state.KeccakState.set_lane_value s 0#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round1_theta]:
-    Source: 'sha3/src/keccak.rs', lines 1055:0-1067:1 -/
+    Source: 'sha3/src/keccak.rs', lines 1047:0-1059:1 -/
 def keccak.keccakf1600_round1_theta
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round1_theta_c_x0_z0 s
@@ -2695,7 +2695,7 @@ def keccak.keccakf1600_round1_theta
   keccak.keccakf1600_round1_theta_d s10
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y4_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 864:0-895:1 -/
+    Source: 'sha3/src/keccak.rs', lines 856:0-887:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y4_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 0#usize
@@ -2745,7 +2745,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y4_zeta1
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y4_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 829:0-860:1 -/
+    Source: 'sha3/src/keccak.rs', lines 821:0-852:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y4_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 3#usize 0#usize 1#usize
@@ -2795,7 +2795,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y4_zeta0
   state.KeccakState.set_with_zeta s4 2#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y3_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 794:0-825:1 -/
+    Source: 'sha3/src/keccak.rs', lines 786:0-817:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y3_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 1#usize
@@ -2845,7 +2845,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y3_zeta1
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y3_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 759:0-790:1 -/
+    Source: 'sha3/src/keccak.rs', lines 751:0-782:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y3_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 1#usize 0#usize 0#usize
@@ -2895,7 +2895,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y3_zeta0
   state.KeccakState.set_with_zeta s4 0#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y2_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 724:0-755:1 -/
+    Source: 'sha3/src/keccak.rs', lines 716:0-747:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y2_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 1#usize
@@ -2945,7 +2945,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y2_zeta1
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y2_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 689:0-720:1 -/
+    Source: 'sha3/src/keccak.rs', lines 681:0-712:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y2_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 4#usize 0#usize 0#usize
@@ -2995,7 +2995,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y2_zeta0
   state.KeccakState.set_with_zeta s4 3#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_2]:
-    Source: 'sha3/src/keccak.rs', lines 899:0-906:1 -/
+    Source: 'sha3/src/keccak.rs', lines 891:0-898:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_2
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round0_pi_rho_chi_y2_zeta0 s
@@ -3006,7 +3006,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_2
   keccak.keccakf1600_round0_pi_rho_chi_y4_zeta1 s5
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y1_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 645:0-676:1 -/
+    Source: 'sha3/src/keccak.rs', lines 637:0-668:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y1_zeta1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 0#usize
@@ -3056,7 +3056,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y1_zeta1
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y1_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 610:0-641:1 -/
+    Source: 'sha3/src/keccak.rs', lines 602:0-633:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y1_zeta0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let a0 ← state.KeccakState.get_with_zeta s 2#usize 0#usize 1#usize
@@ -3106,7 +3106,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y1_zeta0
   state.KeccakState.set_with_zeta s4 1#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y0_zeta1]:
-    Source: 'sha3/src/keccak.rs', lines 565:0-606:1 -/
+    Source: 'sha3/src/keccak.rs', lines 557:0-598:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y0_zeta1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -3163,7 +3163,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y0_zeta1
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 1#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_y0_zeta0]:
-    Source: 'sha3/src/keccak.rs', lines 521:0-561:1 -/
+    Source: 'sha3/src/keccak.rs', lines 513:0-553:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_y0_zeta0
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -3217,7 +3217,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_y0_zeta0
   state.KeccakState.set_with_zeta s4 4#usize 4#usize 0#usize ax4
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_pi_rho_chi_1]:
-    Source: 'sha3/src/keccak.rs', lines 680:0-685:1 -/
+    Source: 'sha3/src/keccak.rs', lines 672:0-677:1 -/
 def keccak.keccakf1600_round0_pi_rho_chi_1
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -3228,7 +3228,7 @@ def keccak.keccakf1600_round0_pi_rho_chi_1
   keccak.keccakf1600_round0_pi_rho_chi_y1_zeta1 s3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_d]:
-    Source: 'sha3/src/keccak.rs', lines 467:0-499:1 -/
+    Source: 'sha3/src/keccak.rs', lines 459:0-491:1 -/
 def keccak.keccakf1600_round0_theta_d
   (s : state.KeccakState) : RustM state.KeccakState := do
   let lu ← Array.index_usize s.c 4#usize
@@ -3304,7 +3304,7 @@ def keccak.keccakf1600_round0_theta_d
   ok { s with d := a19 }
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x4_z1]:
-    Source: 'sha3/src/keccak.rs', lines 456:0-463:1 -/
+    Source: 'sha3/src/keccak.rs', lines 448:0-455:1 -/
 def keccak.keccakf1600_round0_theta_c_x4_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 1#usize
@@ -3319,7 +3319,7 @@ def keccak.keccakf1600_round0_theta_c_x4_z1
   state.KeccakState.set_lane_value s 4#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x4_z0]:
-    Source: 'sha3/src/keccak.rs', lines 445:0-452:1 -/
+    Source: 'sha3/src/keccak.rs', lines 437:0-444:1 -/
 def keccak.keccakf1600_round0_theta_c_x4_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 4#usize 0#usize
@@ -3334,7 +3334,7 @@ def keccak.keccakf1600_round0_theta_c_x4_z0
   state.KeccakState.set_lane_value s 4#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x3_z1]:
-    Source: 'sha3/src/keccak.rs', lines 434:0-441:1 -/
+    Source: 'sha3/src/keccak.rs', lines 426:0-433:1 -/
 def keccak.keccakf1600_round0_theta_c_x3_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 1#usize
@@ -3349,7 +3349,7 @@ def keccak.keccakf1600_round0_theta_c_x3_z1
   state.KeccakState.set_lane_value s 3#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x3_z0]:
-    Source: 'sha3/src/keccak.rs', lines 423:0-430:1 -/
+    Source: 'sha3/src/keccak.rs', lines 415:0-422:1 -/
 def keccak.keccakf1600_round0_theta_c_x3_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 3#usize 0#usize
@@ -3364,7 +3364,7 @@ def keccak.keccakf1600_round0_theta_c_x3_z0
   state.KeccakState.set_lane_value s 3#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x2_z1]:
-    Source: 'sha3/src/keccak.rs', lines 412:0-419:1 -/
+    Source: 'sha3/src/keccak.rs', lines 404:0-411:1 -/
 def keccak.keccakf1600_round0_theta_c_x2_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 1#usize
@@ -3379,7 +3379,7 @@ def keccak.keccakf1600_round0_theta_c_x2_z1
   state.KeccakState.set_lane_value s 2#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x2_z0]:
-    Source: 'sha3/src/keccak.rs', lines 401:0-408:1 -/
+    Source: 'sha3/src/keccak.rs', lines 393:0-400:1 -/
 def keccak.keccakf1600_round0_theta_c_x2_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 2#usize 0#usize
@@ -3394,7 +3394,7 @@ def keccak.keccakf1600_round0_theta_c_x2_z0
   state.KeccakState.set_lane_value s 2#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x1_z1]:
-    Source: 'sha3/src/keccak.rs', lines 390:0-397:1 -/
+    Source: 'sha3/src/keccak.rs', lines 382:0-389:1 -/
 def keccak.keccakf1600_round0_theta_c_x1_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 1#usize
@@ -3409,7 +3409,7 @@ def keccak.keccakf1600_round0_theta_c_x1_z1
   state.KeccakState.set_lane_value s 1#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x1_z0]:
-    Source: 'sha3/src/keccak.rs', lines 379:0-386:1 -/
+    Source: 'sha3/src/keccak.rs', lines 371:0-378:1 -/
 def keccak.keccakf1600_round0_theta_c_x1_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 1#usize 0#usize
@@ -3424,7 +3424,7 @@ def keccak.keccakf1600_round0_theta_c_x1_z0
   state.KeccakState.set_lane_value s 1#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x0_z1]:
-    Source: 'sha3/src/keccak.rs', lines 368:0-375:1 -/
+    Source: 'sha3/src/keccak.rs', lines 360:0-367:1 -/
 def keccak.keccakf1600_round0_theta_c_x0_z1
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 1#usize
@@ -3439,7 +3439,7 @@ def keccak.keccakf1600_round0_theta_c_x0_z1
   state.KeccakState.set_lane_value s 0#usize 1#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta_c_x0_z0]:
-    Source: 'sha3/src/keccak.rs', lines 357:0-364:1 -/
+    Source: 'sha3/src/keccak.rs', lines 349:0-356:1 -/
 def keccak.keccakf1600_round0_theta_c_x0_z0
   (s : state.KeccakState) : RustM state.KeccakState := do
   let ax_0 ← state.KeccakState.get_with_zeta s 0#usize 0#usize 0#usize
@@ -3454,7 +3454,7 @@ def keccak.keccakf1600_round0_theta_c_x0_z0
   state.KeccakState.set_lane_value s 0#usize 0#usize i3
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_round0_theta]:
-    Source: 'sha3/src/keccak.rs', lines 503:0-517:1 -/
+    Source: 'sha3/src/keccak.rs', lines 495:0-509:1 -/
 def keccak.keccakf1600_round0_theta
   (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_round0_theta_c_x0_z0 s
@@ -3470,7 +3470,7 @@ def keccak.keccakf1600_round0_theta
   keccak.keccakf1600_round0_theta_d s10
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600_4rounds]:
-    Source: 'sha3/src/keccak.rs', lines 2570:0-2583:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2558:0-2571:1 -/
 def keccak.keccakf1600_4rounds
   (BASE_ROUND : Std.Usize) (s : state.KeccakState) :
   RustM state.KeccakState
@@ -3489,7 +3489,7 @@ def keccak.keccakf1600_4rounds
   keccak.keccakf1600_round3_pi_rho_chi_2 s11
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600]: loop body 0:
-    Source: 'sha3/src/keccak.rs', lines 2589:4-2592:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2577:4-2580:5 -/
 @[rust_loop_body]
 def keccak.keccakf1600_loop.body
   (iter : core.ops.range.Range Std.I32) (s : state.KeccakState) :
@@ -3506,7 +3506,7 @@ def keccak.keccakf1600_loop.body
     ok (cont (iter1, s1))
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600]: loop 0:
-    Source: 'sha3/src/keccak.rs', lines 2589:4-2592:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2577:4-2580:5 -/
 @[rust_loop]
 def keccak.keccakf1600_loop
   (iter : core.ops.range.Range Std.I32) (s : state.KeccakState) :
@@ -3517,7 +3517,7 @@ def keccak.keccakf1600_loop
     (iter, s)
 
 /-- [libcrux_iot_sha3::keccak::keccakf1600]:
-    Source: 'sha3/src/keccak.rs', lines 2587:0-2603:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2575:0-2591:1 -/
 def keccak.keccakf1600 (s : state.KeccakState) : RustM state.KeccakState := do
   let s1 ← keccak.keccakf1600_loop { start := 0#i32, «end» := 6#i32 } s
   ok { s1 with i := 0#usize }
@@ -3651,7 +3651,7 @@ def keccak.KeccakXofState.absorb
   else ok self1
 
 /-- [libcrux_iot_sha3::state::load_block_full_2u32]:
-    Source: 'sha3/src/state.rs', lines 150:0-156:1 -/
+    Source: 'sha3/src/state.rs', lines 153:0-159:1 -/
 def state.load_block_full_2u32
   (RATE : Std.Usize) (keccak_state : state.KeccakState)
   (blocks : Array Std.U8 200#usize) (start : Std.Usize) :
@@ -3661,7 +3661,7 @@ def state.load_block_full_2u32
   state.load_block_2u32 RATE keccak_state s start
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::load_block_full]:
-    Source: 'sha3/src/state.rs', lines 73:4-75:5 -/
+    Source: 'sha3/src/state.rs', lines 76:4-78:5 -/
 def state.KeccakState.load_block_full
   (RATE : Std.Usize) (self : state.KeccakState)
   (blocks : Array Std.U8 200#usize) (start : Std.Usize) :
@@ -3806,7 +3806,7 @@ def lane.Lane2U32.deinterleave
   ok (Array.make 2#usize [ i41, i43 ])
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::store]: loop body 0:
-    Source: 'sha3/src/state.rs', lines 98:8-105:9 -/
+    Source: 'sha3/src/state.rs', lines 101:8-108:9 -/
 @[rust_loop_body]
 def state.KeccakState.store_loop.body
   (self : state.KeccakState) (iter : core.ops.range.Range Std.Usize)
@@ -3853,7 +3853,7 @@ def state.KeccakState.store_loop.body
     ok (cont (iter1, out2))
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::store]: loop 0:
-    Source: 'sha3/src/state.rs', lines 98:8-105:9 -/
+    Source: 'sha3/src/state.rs', lines 101:8-108:9 -/
 @[rust_loop]
 def state.KeccakState.store_loop
   (iter : core.ops.range.Range Std.Usize) (self : state.KeccakState)
@@ -3865,7 +3865,7 @@ def state.KeccakState.store_loop
     (iter, out)
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::store]:
-    Source: 'sha3/src/state.rs', lines 88:4-125:5 -/
+    Source: 'sha3/src/state.rs', lines 91:4-128:5 -/
 def state.KeccakState.store
   (RATE : Std.Usize) (self : state.KeccakState) (out : Slice Std.U8) :
   RustM (Slice Std.U8)
@@ -4030,7 +4030,7 @@ def keccak.KeccakXofState.squeeze
   keccak._squeeze self out
 
 /-- [libcrux_iot_sha3::keccak::absorb_block]:
-    Source: 'sha3/src/keccak.rs', lines 2611:0-2614:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2599:0-2602:1 -/
 def keccak.absorb_block
   (RATE : Std.Usize) (s : state.KeccakState) (blocks : Slice Std.U8)
   (start : Std.Usize) :
@@ -4040,7 +4040,7 @@ def keccak.absorb_block
   keccak.keccakf1600 s1
 
 /-- [libcrux_iot_sha3::keccak::absorb_final]:
-    Source: 'sha3/src/keccak.rs', lines 2623:0-2640:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2611:0-2628:1 -/
 def keccak.absorb_final
   (RATE : Std.Usize) (DELIM : Std.U8) (s : state.KeccakState)
   (last : Slice Std.U8) (start : Std.Usize) (len : Std.Usize) :
@@ -4077,7 +4077,7 @@ def keccak.absorb_final
   keccak.keccakf1600 s1
 
 /-- [libcrux_iot_sha3::state::store_block_2u32]: loop body 0:
-    Source: 'sha3/src/state.rs', lines 163:4-170:5 -/
+    Source: 'sha3/src/state.rs', lines 166:4-173:5 -/
 @[rust_loop_body]
 def state.store_block_2u32_loop.body
   (s : state.KeccakState) (iter : core.ops.range.Range Std.Usize)
@@ -4124,7 +4124,7 @@ def state.store_block_2u32_loop.body
     ok (cont (iter1, out2))
 
 /-- [libcrux_iot_sha3::state::store_block_2u32]: loop 0:
-    Source: 'sha3/src/state.rs', lines 163:4-170:5 -/
+    Source: 'sha3/src/state.rs', lines 166:4-173:5 -/
 @[rust_loop]
 def state.store_block_2u32_loop
   (iter : core.ops.range.Range Std.Usize) (s : state.KeccakState)
@@ -4136,7 +4136,7 @@ def state.store_block_2u32_loop
     (iter, out)
 
 /-- [libcrux_iot_sha3::state::store_block_2u32]:
-    Source: 'sha3/src/state.rs', lines 160:0-171:1 -/
+    Source: 'sha3/src/state.rs', lines 163:0-174:1 -/
 def state.store_block_2u32
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
   RustM (Slice Std.U8)
@@ -4146,7 +4146,7 @@ def state.store_block_2u32
   state.store_block_2u32_loop { start := 0#usize, «end» := i } s out
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::store_block]:
-    Source: 'sha3/src/state.rs', lines 67:4-69:5 -/
+    Source: 'sha3/src/state.rs', lines 70:4-72:5 -/
 def state.KeccakState.store_block
   (RATE : Std.Usize) (self : state.KeccakState) (out : Slice Std.U8) :
   RustM (Slice Std.U8)
@@ -4154,7 +4154,7 @@ def state.KeccakState.store_block
   state.store_block_2u32 RATE self out
 
 /-- [libcrux_iot_sha3::keccak::squeeze_first_block]:
-    Source: 'sha3/src/keccak.rs', lines 2645:0-2647:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2633:0-2635:1 -/
 def keccak.squeeze_first_block
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
   RustM (Slice Std.U8)
@@ -4162,7 +4162,7 @@ def keccak.squeeze_first_block
   state.KeccakState.store_block RATE s out
 
 /-- [libcrux_iot_sha3::keccak::squeeze_next_block]:
-    Source: 'sha3/src/keccak.rs', lines 2652:0-2655:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2640:0-2643:1 -/
 def keccak.squeeze_next_block
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
   RustM (state.KeccakState × (Slice Std.U8))
@@ -4172,21 +4172,17 @@ def keccak.squeeze_next_block
   ok (s1, out1)
 
 /-- [libcrux_iot_sha3::state::store_block_full_2u32]:
-    Source: 'sha3/src/state.rs', lines 175:0-181:1 -/
+    Source: 'sha3/src/state.rs', lines 178:0-180:1 -/
 def state.store_block_full_2u32
   (RATE : Std.Usize) (s : state.KeccakState) (out : Array Std.U8 200#usize) :
   RustM (Array Std.U8 200#usize)
   := do
-  let (s1, index_mut_back) ←
-    core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (core.Slice.Insts.CoreOpsIndexIndexMut
-      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-      Std.U8)) out ()
+  let (s1, to_slice_mut_back) ← lift (Array.to_slice_mut out)
   let s2 ← state.store_block_2u32 RATE s s1
-  ok (index_mut_back s2)
+  ok (to_slice_mut_back s2)
 
 /-- [libcrux_iot_sha3::state::{libcrux_iot_sha3::state::KeccakState}::store_block_full]:
-    Source: 'sha3/src/state.rs', lines 79:4-81:5 -/
+    Source: 'sha3/src/state.rs', lines 82:4-84:5 -/
 def state.KeccakState.store_block_full
   (RATE : Std.Usize) (self : state.KeccakState) (out : Array Std.U8 200#usize)
   :
@@ -4195,7 +4191,7 @@ def state.KeccakState.store_block_full
   state.store_block_full_2u32 RATE self out
 
 /-- [libcrux_iot_sha3::keccak::squeeze_last]:
-    Source: 'sha3/src/keccak.rs', lines 2679:0-2684:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2667:0-2672:1 -/
 def keccak.squeeze_last
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
   RustM (Slice Std.U8)
@@ -4213,7 +4209,7 @@ def keccak.squeeze_last
   core.slice.Slice.copy_from_slice core.U8.Insts.CoreMarkerCopy out s2
 
 /-- [libcrux_iot_sha3::keccak::squeeze_first_and_last]:
-    Source: 'sha3/src/keccak.rs', lines 2688:0-2692:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2676:0-2680:1 -/
 def keccak.squeeze_first_and_last
   (RATE : Std.Usize) (s : state.KeccakState) (out : Slice Std.U8) :
   RustM (Slice Std.U8)
@@ -4230,11 +4226,11 @@ def keccak.squeeze_first_and_last
   core.slice.Slice.copy_from_slice core.U8.Insts.CoreMarkerCopy out s1
 
 /-- [libcrux_iot_sha3::keccak::WIDTH]
-    Source: 'sha3/src/keccak.rs', lines 2695:0-2695:25 -/
+    Source: 'sha3/src/keccak.rs', lines 2683:0-2683:25 -/
 @[global_simps, irreducible] def keccak.WIDTH : Std.Usize := 200#usize
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop body 0:
-    Source: 'sha3/src/keccak.rs', lines 2732:4-2739:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2720:4-2727:5 -/
 @[rust_loop_body]
 def keccak.keccak_loop0.body
   (RATE : Std.Usize) (data : Slice Std.U8)
@@ -4254,7 +4250,7 @@ def keccak.keccak_loop0.body
     ok (cont (iter1, s1, start1))
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop 0:
-    Source: 'sha3/src/keccak.rs', lines 2732:4-2739:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2720:4-2727:5 -/
 @[rust_loop]
 def keccak.keccak_loop0
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4267,7 +4263,7 @@ def keccak.keccak_loop0
     (iter, s, start)
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop body 1:
-    Source: 'sha3/src/keccak.rs', lines 2748:8-2756:9 -/
+    Source: 'sha3/src/keccak.rs', lines 2736:8-2744:9 -/
 @[rust_loop_body]
 def keccak.keccak_loop1.body
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4292,7 +4288,7 @@ def keccak.keccak_loop1.body
     ok (cont (iter1, out1, s2, offset1))
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop 1:
-    Source: 'sha3/src/keccak.rs', lines 2748:8-2756:9 -/
+    Source: 'sha3/src/keccak.rs', lines 2736:8-2744:9 -/
 @[rust_loop]
 def keccak.keccak_loop1
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4305,7 +4301,7 @@ def keccak.keccak_loop1
     (iter, out, s, offset)
 
 /-- [libcrux_iot_sha3::keccak::keccak]:
-    Source: 'sha3/src/keccak.rs', lines 2721:0-2762:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2709:0-2750:1 -/
 def keccak.keccak
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
   (out : Slice Std.U8) :
@@ -4343,7 +4339,7 @@ def keccak.keccak
     else ok out2
 
 /-- [libcrux_iot_sha3::keccak::keccak_fc]:
-    Source: 'sha3/src/keccak.rs', lines 2714:0-2718:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2702:0-2706:1 -/
 def keccak.keccak_fc
   (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
   (data : Slice Std.U8) (out : Array Std.U8 OUT_LEN) :
@@ -4392,34 +4388,34 @@ def lane.Lane2U32.Insts.CoreConvertFromArrayU322 : core.convert.From
 }
 
 /-- [libcrux_iot_sha3::SHA3_224_DIGEST_SIZE]
-    Source: 'sha3/src/lib.rs', lines 77:0-77:43
+    Source: 'sha3/src/lib.rs', lines 74:0-74:43
     Visibility: public -/
 @[global_simps, irreducible] def SHA3_224_DIGEST_SIZE : Std.Usize := 28#usize
 
 /-- [libcrux_iot_sha3::SHA3_256_DIGEST_SIZE]
-    Source: 'sha3/src/lib.rs', lines 79:0-79:43
+    Source: 'sha3/src/lib.rs', lines 76:0-76:43
     Visibility: public -/
 @[global_simps, irreducible] def SHA3_256_DIGEST_SIZE : Std.Usize := 32#usize
 
 /-- [libcrux_iot_sha3::SHA3_384_DIGEST_SIZE]
-    Source: 'sha3/src/lib.rs', lines 81:0-81:43
+    Source: 'sha3/src/lib.rs', lines 78:0-78:43
     Visibility: public -/
 @[global_simps, irreducible] def SHA3_384_DIGEST_SIZE : Std.Usize := 48#usize
 
 /-- [libcrux_iot_sha3::SHA3_512_DIGEST_SIZE]
-    Source: 'sha3/src/lib.rs', lines 83:0-83:43
+    Source: 'sha3/src/lib.rs', lines 80:0-80:43
     Visibility: public -/
 @[global_simps, irreducible] def SHA3_512_DIGEST_SIZE : Std.Usize := 64#usize
 
 /-- [libcrux_iot_sha3::{impl core::clone::Clone for libcrux_iot_sha3::Algorithm}::clone]:
-    Source: 'sha3/src/lib.rs', lines 91:39-91:44
+    Source: 'sha3/src/lib.rs', lines 88:39-88:44
     Visibility: public -/
 def Algorithm.Insts.CoreCloneClone.clone
   (self : Algorithm) : RustM Algorithm := do
   ok self
 
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::clone::Clone for libcrux_iot_sha3::Algorithm}]
-    Source: 'sha3/src/lib.rs', lines 91:39-91:44 -/
+    Source: 'sha3/src/lib.rs', lines 88:39-88:44 -/
 @[reducible]
 impl_def Algorithm.Insts.CoreCloneClone : core.clone.Clone Algorithm := {
   clone := Algorithm.Insts.CoreCloneClone.clone
@@ -4428,21 +4424,21 @@ impl_def Algorithm.Insts.CoreCloneClone : core.clone.Clone Algorithm := {
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::marker::Copy for libcrux_iot_sha3::Algorithm}]
-    Source: 'sha3/src/lib.rs', lines 91:33-91:37 -/
+    Source: 'sha3/src/lib.rs', lines 88:33-88:37 -/
 @[reducible]
 def Algorithm.Insts.CoreMarkerCopy : core.marker.Copy Algorithm := {
   cloneCloneInst := Algorithm.Insts.CoreCloneClone
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::marker::StructuralPartialEq for libcrux_iot_sha3::Algorithm}]
-    Source: 'sha3/src/lib.rs', lines 91:46-91:55 -/
+    Source: 'sha3/src/lib.rs', lines 88:46-88:55 -/
 @[reducible]
 def Algorithm.Insts.CoreMarkerStructuralPartialEq :
   core.marker.StructuralPartialEq Algorithm := {
 }
 
 /-- [libcrux_iot_sha3::{impl core::cmp::PartialEq<libcrux_iot_sha3::Algorithm> for libcrux_iot_sha3::Algorithm}::eq]:
-    Source: 'sha3/src/lib.rs', lines 91:46-91:55
+    Source: 'sha3/src/lib.rs', lines 88:46-88:55
     Visibility: public -/
 def Algorithm.Insts.CoreCmpPartialEqAlgorithm.eq
   (self : Algorithm) (other : Algorithm) : RustM Bool := do
@@ -4451,7 +4447,7 @@ def Algorithm.Insts.CoreCmpPartialEqAlgorithm.eq
   ok (self1 = other1)
 
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::cmp::PartialEq<libcrux_iot_sha3::Algorithm> for libcrux_iot_sha3::Algorithm}]
-    Source: 'sha3/src/lib.rs', lines 91:46-91:55 -/
+    Source: 'sha3/src/lib.rs', lines 88:46-88:55 -/
 @[reducible]
 impl_def Algorithm.Insts.CoreCmpPartialEqAlgorithm : core.cmp.PartialEq
   Algorithm Algorithm := {
@@ -4460,7 +4456,7 @@ impl_def Algorithm.Insts.CoreCmpPartialEqAlgorithm : core.cmp.PartialEq
 }
 
 /-- [libcrux_iot_sha3::{impl core::convert::From<u32> for libcrux_iot_sha3::Algorithm}::from]:
-    Source: 'sha3/src/lib.rs', lines 110:4-118:5
+    Source: 'sha3/src/lib.rs', lines 107:4-115:5
     Visibility: public -/
 def Algorithm.Insts.CoreConvertFromU32.from
   (v : Std.U32) : RustM Algorithm := do
@@ -4472,7 +4468,7 @@ def Algorithm.Insts.CoreConvertFromU32.from
   | _ => fail panic
 
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::convert::From<u32> for libcrux_iot_sha3::Algorithm}]
-    Source: 'sha3/src/lib.rs', lines 109:0-119:1 -/
+    Source: 'sha3/src/lib.rs', lines 106:0-116:1 -/
 @[reducible]
 def Algorithm.Insts.CoreConvertFromU32 : core.convert.From Algorithm Std.U32
   := {
@@ -4480,7 +4476,7 @@ def Algorithm.Insts.CoreConvertFromU32 : core.convert.From Algorithm Std.U32
 }
 
 /-- [libcrux_iot_sha3::{impl core::convert::From<libcrux_iot_sha3::Algorithm> for u32}::from]:
-    Source: 'sha3/src/lib.rs', lines 122:4-129:5
+    Source: 'sha3/src/lib.rs', lines 119:4-126:5
     Visibility: public -/
 def U32.Insts.CoreConvertFromAlgorithm.from
   (v : Algorithm) : RustM Std.U32 := do
@@ -4491,7 +4487,7 @@ def U32.Insts.CoreConvertFromAlgorithm.from
   | Algorithm.Sha512 => ok 4#u32
 
 /-- Trait implementation: [libcrux_iot_sha3::{impl core::convert::From<libcrux_iot_sha3::Algorithm> for u32}]
-    Source: 'sha3/src/lib.rs', lines 121:0-130:1 -/
+    Source: 'sha3/src/lib.rs', lines 118:0-127:1 -/
 @[reducible]
 def U32.Insts.CoreConvertFromAlgorithm : core.convert.From Std.U32 Algorithm
   := {
@@ -4499,7 +4495,7 @@ def U32.Insts.CoreConvertFromAlgorithm : core.convert.From Std.U32 Algorithm
 }
 
 /-- [libcrux_iot_sha3::digest_size]:
-    Source: 'sha3/src/lib.rs', lines 133:0-140:1
+    Source: 'sha3/src/lib.rs', lines 130:0-137:1
     Visibility: public -/
 def digest_size (mode : Algorithm) : RustM Std.Usize := do
   match mode with
@@ -4509,7 +4505,7 @@ def digest_size (mode : Algorithm) : RustM Std.Usize := do
   | Algorithm.Sha512 => ok SHA3_512_DIGEST_SIZE
 
 /-- [libcrux_iot_sha3::keccakx1]:
-    Source: 'sha3/src/lib.rs', lines 616:0-618:1 -/
+    Source: 'sha3/src/lib.rs', lines 547:0-549:1 -/
 def keccakx1
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
   (out : Slice Std.U8) :
@@ -4518,7 +4514,7 @@ def keccakx1
   keccak.keccak RATE DELIM data out
 
 /-- [libcrux_iot_sha3::sha512_ema]:
-    Source: 'sha3/src/lib.rs', lines 335:0-342:1
+    Source: 'sha3/src/lib.rs', lines 278:0-285:1
     Visibility: public -/
 def sha512_ema
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM (Slice Std.U8) := do
@@ -4530,7 +4526,7 @@ def sha512_ema
   keccakx1 72#usize 6#u8 payload digest
 
 /-- [libcrux_iot_sha3::sha384_ema]:
-    Source: 'sha3/src/lib.rs', lines 293:0-300:1
+    Source: 'sha3/src/lib.rs', lines 248:0-255:1
     Visibility: public -/
 def sha384_ema
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM (Slice Std.U8) := do
@@ -4542,7 +4538,7 @@ def sha384_ema
   keccakx1 104#usize 6#u8 payload digest
 
 /-- [libcrux_iot_sha3::sha256_ema]:
-    Source: 'sha3/src/lib.rs', lines 251:0-258:1
+    Source: 'sha3/src/lib.rs', lines 218:0-225:1
     Visibility: public -/
 def sha256_ema
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM (Slice Std.U8) := do
@@ -4554,7 +4550,7 @@ def sha256_ema
   keccakx1 136#usize 6#u8 payload digest
 
 /-- [libcrux_iot_sha3::sha224_ema]:
-    Source: 'sha3/src/lib.rs', lines 214:0-221:1
+    Source: 'sha3/src/lib.rs', lines 188:0-195:1
     Visibility: public -/
 def sha224_ema
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM (Slice Std.U8) := do
@@ -4566,7 +4562,7 @@ def sha224_ema
   keccakx1 144#usize 6#u8 payload digest
 
 /-- [libcrux_iot_sha3::hash]:
-    Source: 'sha3/src/lib.rs', lines 153:0-177:1
+    Source: 'sha3/src/lib.rs', lines 150:0-163:1
     Visibility: public -/
 def hash
   (LEN : Std.Usize) (algorithm : Algorithm) (payload : Slice Std.U8) :
@@ -4579,154 +4575,114 @@ def hash
   let out ← libcrux_secrets.traits.Classify.Blanket.classify a
   match algorithm with
   | Algorithm.Sha224 =>
-    let (s, index_mut_back) ←
-      core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.Slice.Insts.CoreOpsIndexIndexMut
-        (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8)) out ()
+    let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
     let s1 ← sha224_ema s payload
-    ok (index_mut_back s1)
+    ok (to_slice_mut_back s1)
   | Algorithm.Sha256 =>
-    let (s, index_mut_back) ←
-      core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.Slice.Insts.CoreOpsIndexIndexMut
-        (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8)) out ()
+    let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
     let s1 ← sha256_ema s payload
-    ok (index_mut_back s1)
+    ok (to_slice_mut_back s1)
   | Algorithm.Sha384 =>
-    let (s, index_mut_back) ←
-      core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.Slice.Insts.CoreOpsIndexIndexMut
-        (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8)) out ()
+    let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
     let s1 ← sha384_ema s payload
-    ok (index_mut_back s1)
+    ok (to_slice_mut_back s1)
   | Algorithm.Sha512 =>
-    let (s, index_mut_back) ←
-      core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-        (core.Slice.Insts.CoreOpsIndexIndexMut
-        (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-        Std.U8)) out ()
+    let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
     let s1 ← sha512_ema s payload
-    ok (index_mut_back s1)
+    ok (to_slice_mut_back s1)
 
 /-- [libcrux_iot_sha3::sha224]:
-    Source: 'sha3/src/lib.rs', lines 186:0-197:1
+    Source: 'sha3/src/lib.rs', lines 172:0-177:1
     Visibility: public -/
 def sha224 (payload : Slice Std.U8) : RustM (Array Std.U8 28#usize) := do
   let a := Array.repeat 28#usize 0#u8
   let out ← libcrux_secrets.traits.Classify.Blanket.classify a
-  let (s, index_mut_back) ←
-    core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (core.Slice.Insts.CoreOpsIndexIndexMut
-      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-      Std.U8)) out ()
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
   let s1 ← sha224_ema s payload
-  ok (index_mut_back s1)
+  ok (to_slice_mut_back s1)
 
 /-- [libcrux_iot_sha3::sha256]:
-    Source: 'sha3/src/lib.rs', lines 228:0-239:1
+    Source: 'sha3/src/lib.rs', lines 202:0-207:1
     Visibility: public -/
 def sha256 (payload : Slice Std.U8) : RustM (Array Std.U8 32#usize) := do
   let a := Array.repeat 32#usize 0#u8
   let out ← libcrux_secrets.traits.Classify.Blanket.classify a
-  let (s, index_mut_back) ←
-    core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (core.Slice.Insts.CoreOpsIndexIndexMut
-      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-      Std.U8)) out ()
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
   let s1 ← sha256_ema s payload
-  ok (index_mut_back s1)
+  ok (to_slice_mut_back s1)
 
 /-- [libcrux_iot_sha3::sha384]:
-    Source: 'sha3/src/lib.rs', lines 265:0-276:1
+    Source: 'sha3/src/lib.rs', lines 232:0-237:1
     Visibility: public -/
 def sha384 (payload : Slice Std.U8) : RustM (Array Std.U8 48#usize) := do
   let a := Array.repeat 48#usize 0#u8
   let out ← libcrux_secrets.traits.Classify.Blanket.classify a
-  let (s, index_mut_back) ←
-    core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (core.Slice.Insts.CoreOpsIndexIndexMut
-      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-      Std.U8)) out ()
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
   let s1 ← sha384_ema s payload
-  ok (index_mut_back s1)
+  ok (to_slice_mut_back s1)
 
 /-- [libcrux_iot_sha3::sha512]:
-    Source: 'sha3/src/lib.rs', lines 307:0-318:1
+    Source: 'sha3/src/lib.rs', lines 262:0-267:1
     Visibility: public -/
 def sha512 (payload : Slice Std.U8) : RustM (Array Std.U8 64#usize) := do
   let a := Array.repeat 64#usize 0#u8
   let out ← libcrux_secrets.traits.Classify.Blanket.classify a
-  let (s, index_mut_back) ←
-    core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (core.Slice.Insts.CoreOpsIndexIndexMut
-      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-      Std.U8)) out ()
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
   let s1 ← sha512_ema s payload
-  ok (index_mut_back s1)
+  ok (to_slice_mut_back s1)
 
 /-- [libcrux_iot_sha3::shake128]:
-    Source: 'sha3/src/lib.rs', lines 351:0-362:1
+    Source: 'sha3/src/lib.rs', lines 294:0-299:1
     Visibility: public -/
 def shake128
   (BYTES : Std.Usize) (data : Slice Std.U8) : RustM (Array Std.U8 BYTES) := do
   let a := Array.repeat BYTES 0#u8
   let out ← libcrux_secrets.traits.Classify.Blanket.classify a
-  let (s, index_mut_back) ←
-    core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (core.Slice.Insts.CoreOpsIndexIndexMut
-      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-      Std.U8)) out ()
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
   let s1 ← keccakx1 168#usize 31#u8 data s
-  ok (index_mut_back s1)
+  ok (to_slice_mut_back s1)
 
 /-- [libcrux_iot_sha3::shake128_ema]:
-    Source: 'sha3/src/lib.rs', lines 371:0-373:1
+    Source: 'sha3/src/lib.rs', lines 308:0-310:1
     Visibility: public -/
 def shake128_ema
   (out : Slice Std.U8) (data : Slice Std.U8) : RustM (Slice Std.U8) := do
   keccakx1 168#usize 31#u8 data out
 
 /-- [libcrux_iot_sha3::shake256]:
-    Source: 'sha3/src/lib.rs', lines 382:0-393:1
+    Source: 'sha3/src/lib.rs', lines 319:0-324:1
     Visibility: public -/
 def shake256
   (BYTES : Std.Usize) (data : Slice Std.U8) : RustM (Array Std.U8 BYTES) := do
   let a := Array.repeat BYTES 0#u8
   let out ← libcrux_secrets.traits.Classify.Blanket.classify a
-  let (s, index_mut_back) ←
-    core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-      (core.Slice.Insts.CoreOpsIndexIndexMut
-      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
-      Std.U8)) out ()
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
   let s1 ← keccakx1 136#usize 31#u8 data s
-  ok (index_mut_back s1)
+  ok (to_slice_mut_back s1)
 
 /-- [libcrux_iot_sha3::shake256_ema]:
-    Source: 'sha3/src/lib.rs', lines 402:0-404:1
+    Source: 'sha3/src/lib.rs', lines 333:0-335:1
     Visibility: public -/
 def shake256_ema
   (out : Slice Std.U8) (data : Slice Std.U8) : RustM (Slice Std.U8) := do
   keccakx1 136#usize 31#u8 data out
 
 /-- Trait implementation: [libcrux_iot_sha3::incremental::private::{impl libcrux_iot_sha3::incremental::private::Sealed for libcrux_iot_sha3::incremental::Shake128Xof}]
-    Source: 'sha3/src/lib.rs', lines 429:8-429:45 -/
+    Source: 'sha3/src/lib.rs', lines 360:8-360:45 -/
 @[reducible]
 def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalPrivateSealed :
   incremental.private.Sealed incremental.Shake128Xof := {
 }
 
 /-- Trait implementation: [libcrux_iot_sha3::incremental::private::{impl libcrux_iot_sha3::incremental::private::Sealed for libcrux_iot_sha3::incremental::Shake256Xof}]
-    Source: 'sha3/src/lib.rs', lines 430:8-430:45 -/
+    Source: 'sha3/src/lib.rs', lines 361:8-361:45 -/
 @[reducible]
 def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalPrivateSealed :
   incremental.private.Sealed incremental.Shake256Xof := {
 }
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::squeeze]:
-    Source: 'sha3/src/lib.rs', lines 510:8-512:9
+    Source: 'sha3/src/lib.rs', lines 441:8-443:9
     Visibility: public -/
 def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.squeeze
   (self : incremental.Shake128Xof) (out : Slice Std.U8) :
@@ -4736,7 +4692,7 @@ def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.squeeze
   ok ({ state := kxs }, out1)
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::absorb_final]:
-    Source: 'sha3/src/lib.rs', lines 506:8-508:9
+    Source: 'sha3/src/lib.rs', lines 437:8-439:9
     Visibility: public -/
 def
   incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.absorb_final
@@ -4747,7 +4703,7 @@ def
   ok { state := kxs }
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::absorb]:
-    Source: 'sha3/src/lib.rs', lines 498:8-500:9
+    Source: 'sha3/src/lib.rs', lines 429:8-431:9
     Visibility: public -/
 def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.absorb
   (self : incremental.Shake128Xof) (input : Slice Std.U8) :
@@ -4757,7 +4713,7 @@ def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.absorb
   ok { state := kxs }
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::new]:
-    Source: 'sha3/src/lib.rs', lines 489:8-493:9
+    Source: 'sha3/src/lib.rs', lines 420:8-424:9
     Visibility: public -/
 def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.new
   : RustM incremental.Shake128Xof := do
@@ -4765,7 +4721,7 @@ def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.new
   ok { state := kxs }
 
 /-- Trait implementation: [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}]
-    Source: 'sha3/src/lib.rs', lines 488:4-513:5 -/
+    Source: 'sha3/src/lib.rs', lines 419:4-444:5 -/
 @[reducible]
 def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168 :
   incremental.Xof incremental.Shake128Xof 168#usize := {
@@ -4781,7 +4737,7 @@ def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168 :
 }
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::squeeze]:
-    Source: 'sha3/src/lib.rs', lines 540:8-542:9
+    Source: 'sha3/src/lib.rs', lines 471:8-473:9
     Visibility: public -/
 def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.squeeze
   (self : incremental.Shake256Xof) (out : Slice Std.U8) :
@@ -4791,7 +4747,7 @@ def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.squeeze
   ok ({ state := kxs }, out1)
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::absorb_final]:
-    Source: 'sha3/src/lib.rs', lines 535:8-537:9
+    Source: 'sha3/src/lib.rs', lines 466:8-468:9
     Visibility: public -/
 def
   incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.absorb_final
@@ -4802,7 +4758,7 @@ def
   ok { state := kxs }
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::absorb]:
-    Source: 'sha3/src/lib.rs', lines 527:8-529:9
+    Source: 'sha3/src/lib.rs', lines 458:8-460:9
     Visibility: public -/
 def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.absorb
   (self : incremental.Shake256Xof) (input : Slice Std.U8) :
@@ -4812,7 +4768,7 @@ def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.absorb
   ok { state := kxs }
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::new]:
-    Source: 'sha3/src/lib.rs', lines 517:8-521:9
+    Source: 'sha3/src/lib.rs', lines 448:8-452:9
     Visibility: public -/
 def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.new
   : RustM incremental.Shake256Xof := do
@@ -4820,7 +4776,7 @@ def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.new
   ok { state := kxs }
 
 /-- Trait implementation: [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}]
-    Source: 'sha3/src/lib.rs', lines 516:4-543:5 -/
+    Source: 'sha3/src/lib.rs', lines 447:4-474:5 -/
 @[reducible]
 def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136 :
   incremental.Xof incremental.Shake256Xof 136#usize := {

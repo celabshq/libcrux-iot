@@ -256,10 +256,6 @@ fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakXofState<RATE>, out: &mu
 }
 //// From here, everything is generic
 
-#[cfg_attr(
-    hax_backend_lean,
-    hax_lib::legacy_lean::before("set_option maxRecDepth 1000 in")
-)]
 // NOT opaque for the Lean backend: the round-constant tables must extract with
 // their values, because the Lean proofs unfold them and `decide` the
 // interleaved-vs-spec equivalence (Foundation/RcEquiv.lean, BitSpec/Spec.lean).
@@ -302,10 +298,6 @@ const RC_INTERLEAVED_0: [u32; 255] = [
     0x00000000, 0x00000001, 0x00000001, 0x00000001, 0x00000000, 0x00000000, 0x00000000,
 ];
 
-#[cfg_attr(
-    hax_backend_lean,
-    hax_lib::legacy_lean::before("set_option maxRecDepth 1000 in")
-)]
 // NOT opaque for the Lean backend: the round-constant tables must extract with
 // their values, because the Lean proofs unfold them and `decide` the
 // interleaved-vs-spec equivalence (Foundation/RcEquiv.lean, BitSpec/Spec.lean).
@@ -2006,10 +1998,6 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_2(s: &mut KeccakState) {
 }
 
 #[inline(always)]
-#[cfg_attr(
-    hax_backend_lean,
-    hax_lib::legacy_lean::before("set_option maxRecDepth 1000 in")
-)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
 pub(crate) fn keccakf1600_round3_theta_c_x0_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 0);

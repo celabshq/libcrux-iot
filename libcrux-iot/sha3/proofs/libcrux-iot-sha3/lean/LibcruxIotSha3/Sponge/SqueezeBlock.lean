@@ -195,29 +195,25 @@ theorem state.KeccakState.store_block_full_spec
   have h_impl_eq :
       state.KeccakState.store_block_full RATE s out = .ok r_arr := by
     unfold state.KeccakState.store_block_full state.store_block_full_2u32
-    -- Body: the mutable slice is taken as `&mut out[..]` -- `index_mut` at
-    -- `RangeFull`. Under CoreModels v0.3.17 the (now-native) Array `index_mut` is
-    --   let (s1, back_a) ← array.Array.as_mut_slice out    -- ok (to_slice_mut out)
-    --   let (s2, back_s) ← inst.index_mut s1 ()            -- RangeFull: ok (s1, id)
-    --   ok (s2, back_a ∘ back_s)
+    -- Body: `store_block_2u32(s, &mut out)`. The `&mut` on the array is
+    -- `Array.to_slice_mut`, which is definitionally `(to_slice out, from_slice out)`,
     -- so the read is the whole `to_slice out` and the write-back is literally
-    -- `Array.from_slice out` -- which is `r_arr`'s own definition, no
-    -- `update_subslice` bridge needed any more.
-    unfold CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
+    -- `Array.from_slice out` -- which is `r_arr`'s own definition.
+    have h_to_slice_mut :
+        lift (Std.Array.to_slice_mut out)
+          = .ok (Std.Array.to_slice out, Std.Array.from_slice out) := rfl
     -- `state.store_block_2u32` unfolds to `state.KeccakState.store_block`.
     have h_inner_unfold :
         state.store_block_2u32 RATE s (Std.Array.to_slice out) = .ok s_inner := by
       have := h_s_inner_eq
       unfold state.KeccakState.store_block at this
       exact this
-    -- `simp` rather than `rw`: the `let (s1, index_mut_back) := (..)` destructure
-    -- sits between the goal and the inner call, and `simp` rewrites underneath it.
-    simp [CoreModels.core.array.Array.as_mut_slice,
-      CoreModels.rust_primitives.slice.array_as_mut_slice,
-      Std.Array.to_slice_mut,
-      CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
-      CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-      h_inner_unfold, hr_def]
+    rw [h_to_slice_mut, bind_tc_ok]
+    -- The pair destructure does not reduce under `rw`, so state the reduced body.
+    change (do
+      let s2 ← state.store_block_2u32 RATE s (Std.Array.to_slice out)
+      ok (Std.Array.from_slice out s2)) = .ok r_arr
+    rw [h_inner_unfold, bind_tc_ok, hr_def]
   apply triple_of_ok_sb (v := r_arr) h_impl_eq ⟨hr_len, hr_bytes⟩
 
 /-! ### Helper Triple: Array index by `Range Usize`.

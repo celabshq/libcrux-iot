@@ -52,7 +52,10 @@ impl KeccakState {
     #[inline(always)]
     #[hax_lib::requires(i < 5 && j < 2)]
     pub(crate) fn set_lane_value(&mut self, i: usize, j: usize, value: U32) {
-        // XXX: We can't implement IndexMut for `Lane2U32` because of hax
+        // Written as a nested field access rather than through `IndexMut`: hax
+        // extracts an `IndexMut` impl fine these days, but it turns this line
+        // into an `index_mut`/write-back round trip through a trait instance,
+        // which the Lean proofs would then have to unfold.
         self.c[i].0[j] = value
     }
 
@@ -173,10 +176,6 @@ fn store_block_2u32<const RATE: usize>(s: &KeccakState, out: &mut [U8]) {
 #[hax_lib::requires(RATE % 8 == 0 && RATE <= 168)]
 #[inline(always)]
 fn store_block_full_2u32<const RATE: usize>(s: &KeccakState, out: &mut [U8; 200]) {
-    // `out[..]` is a workaround for https://github.com/cryspen/hax/issues/1983
-    #[cfg(hax)]
-    store_block_2u32::<RATE>(s, &mut out[..]);
-    #[cfg(not(hax))]
     store_block_2u32::<RATE>(s, out);
 }
 
