@@ -2694,7 +2694,6 @@ pub(crate) fn squeeze_first_and_last<const RATE: usize>(s: &KeccakState, out: &m
 // in bytes; this is the 1600 (in bits) in keccak-f[1600]
 const WIDTH: usize = 200;
 
-#[inline(always)]
 /// Functional correctness of `keccak` against the hacspec, stated as the contract of
 /// a body-less function. hax turns the `#[ensures]` into `keccak_fc.spec`, and since
 /// the body does nothing that spec says exactly: for every `data` and every `out`
@@ -2718,6 +2717,7 @@ pub(crate) fn keccak_fc<const RATE: usize, const DELIM: u8, const OUT_LEN: usize
 ) {
 }
 
+#[inline(always)]
 pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut [U8]) {
     let n = data.len() / RATE;
     let rem = data.len() % RATE;
