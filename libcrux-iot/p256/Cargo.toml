@@ -1,0 +1,38 @@
+[package]
+name = "libcrux-iot-p256"
+description = "Formally verified P-256 implementation"
+readme = "Readme.md"
+
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+libcrux-macros.workspace = true
+libcrux-traits.workspace = true
+libcrux-hacl-rs.workspace = true
+libcrux-secrets.workspace = true
+libcrux-sha2 = { workspace = true, features = [
+    "expose-hacl",
+] }
+
+[features]
+expose-hacl = []
+
+# Checking secret independence
+check-secret-independence = [
+    "libcrux-secrets/check-secret-independence",
+    "libcrux-traits/check-secret-independence",
+]
+
+
+[dev-dependencies]
+der = "0.8.0"
+libcrux-iot-p256 = { path = ".", features = ["expose-hacl"] }
+libcrux-traits = { workspace = true, features = [
+    "generic-tests",
+] }
+libcrux-kats = { workspace = true, features = ["ecdh", "ecdsa"] }
