@@ -13,7 +13,7 @@ import LibcruxIotMlDsa.Spec.Validation
 -- The poly-layer spec-bridge lemmas prove the hand `Spec.Pure.*`
 -- equals these `hacspec_ml_dsa.*` defs, so the extracted spec — not the hand
 -- spec — is the trusted reference.
-import HacspecMlDsa.Extraction.Funs
+import HacspecMlDsa.Extraction
 
 -- Extraction + generic Util specs.
 import LibcruxIotMlDsa.Extraction.Funs

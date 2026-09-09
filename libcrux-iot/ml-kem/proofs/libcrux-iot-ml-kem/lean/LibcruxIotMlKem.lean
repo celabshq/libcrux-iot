@@ -1,4 +1,4 @@
-import LibcruxIotMlKem.Extraction.Funs
+import LibcruxIotMlKem.Extraction
 import LibcruxIotMlKem.Util.SliceSpecs
 import LibcruxIotMlKem.Util.LoopSpecs
 import LibcruxIotMlKem.Util.CreateI

@@ -1,12 +1,10 @@
 [scenario.libcrux-iot-sha3]
-backend = "lean"
 package = "libcrux-iot-sha3"
-output-dir = "proofs/lean"
+backend = "lean"
 
 [scenario.libcrux-iot-ml-dsa]
-backend = "lean"
 package = "libcrux-iot-ml-dsa"
-output-dir = "proofs/lean"
+backend = "lean"
 charon-args = [
     "--start-from",
     "crate::ntt::*",
@@ -63,9 +61,8 @@ charon-args = [
 # The ML-KEM package currently needs a patch-up python script: `hax_mlkem.py`, which
 # runs its scenario and then applies the residual fix-ups; see that file
 [scenario.libcrux-iot-ml-kem]
-backend = "lean"
 package = "libcrux-iot-ml-kem"
-output-dir = "proofs/lean"
+backend = "lean"
 charon-args = [
     "--start-from",
     "crate::vector::*",

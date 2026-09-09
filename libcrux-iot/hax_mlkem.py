@@ -63,7 +63,7 @@ from pathlib import Path
 WORKSPACE = Path(__file__).resolve().parent          # libcrux-iot/, has hax.toml
 CRATE = WORKSPACE / "ml-kem"
 SCENARIO = "libcrux-iot-ml-kem"
-LEAN = CRATE / "proofs" / "lean" / "LibcruxIotMlKem"
+LEAN = CRATE / "proofs"  / "libcrux-iot-ml-kem" / "lean" / "LibcruxIotMlKem"
 SPECS = LEAN / "Extraction" / "Specs.lean"
 FUNS = LEAN / "Extraction" / "Funs.lean"
 FUNS_EXTERNAL = LEAN / "Assumptions" / "FunsExternal.lean"

@@ -3,6 +3,6 @@
 -- module is reached (`Verification.ProofObligations` imports `Sponge.Shake`, which
 -- imports the whole proof); the generated `Extraction.ProofObligations` (sorries) is
 -- deliberately NOT imported, so it stays on disk but out of the build.
-import LibcruxIotSha3.Extraction.Funs
+import LibcruxIotSha3.Extraction
 import LibcruxIotSha3.Verification.ProofObligations
 import HacspecSha3
