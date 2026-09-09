@@ -841,7 +841,7 @@ pub(crate) fn encrypt<Aad: core::iter::ExactSizeIterator<Item = u8>, S: AeadStat
     plaintext: &mut [u8],
     tag: &mut [u8],
 ) -> Result<(), EncryptError> {
-    // This should only be reachable via the arrayref trait API which
+    // This should only be reachable via APIs which
     // checks the lengths.
 
     let mut st = S::init(key);
@@ -859,7 +859,7 @@ pub(crate) fn decrypt<Aad: core::iter::ExactSizeIterator<Item = u8>, S: AeadStat
     ciphertext: &mut [u8],
     tag: &[u8],
 ) -> Result<(), DecryptError> {
-    // This should only be reachable via the arrayref trait API which
+    // This should only be reachable via APIs which
     // checks the lengths.
 
     let mut st = S::init(key);
