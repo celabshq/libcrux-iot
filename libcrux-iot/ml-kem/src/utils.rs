@@ -7,9 +7,9 @@ use libcrux_secrets::{Classify as _, U8};
 
 /// Pad the `slice` with `0`s at the end.
 #[inline(always)]
-#[cfg_attr(hax, hax_lib::requires(
+#[hax_lib::requires(
     slice.len() <= LEN
-))]
+)]
 pub(crate) fn into_padded_array<const LEN: usize>(slice: &[U8]) -> [U8; LEN] {
     let mut out = [0u8.classify(); LEN];
     out[0..slice.len()].copy_from_slice(slice);

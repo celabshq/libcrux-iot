@@ -149,7 +149,7 @@ pub const fn digest_size(mode: Algorithm) -> usize {
 /// let payload = b"Kecak is a Balinese dance.";
 /// let digest: [u8; digest_size(Algorithm::Sha256)] = hash(Algorithm::Sha256, payload);
 /// ```
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && LEN == digest_size(algorithm)))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize && LEN == digest_size(algorithm))]
 pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN] {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -182,7 +182,7 @@ pub use hash as sha3;
 ///
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize)]
 pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_224_DIGEST_SIZE].classify();
 
@@ -201,16 +201,16 @@ pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_224_DIGEST_SIZE`] bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_224_DIGEST_SIZE))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_224_DIGEST_SIZE)]
 // The Lean theorem `Sponge.sha224_ema_spec` proves the digest is exactly
 // SHA3_224_DIGEST_SIZE bytes and matches the hacspec; the length half of that
 // post is expressible here, so state it and let hax generate it.
 // Names the hacspec directly, so the generated post is full functional
 // correctness rather than a length claim. See `sha256_ema` and the note in
 // proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_224_DIGEST_SIZE
+#[hax_lib::ensures(|_| future(digest).len() == SHA3_224_DIGEST_SIZE
     && future(digest).declassify_ref()
-        == &hacspec_sha3::sha3_224(payload.declassify_ref())[..]))]
+        == &hacspec_sha3::sha3_224(payload.declassify_ref())[..])]
 pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -224,7 +224,7 @@ pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
 ///
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize)]
 pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_256_DIGEST_SIZE].classify();
 
@@ -243,11 +243,11 @@ pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_256_DIGEST_SIZE`] bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE)]
 // EXPERIMENT: name the hacspec directly in the post, not just its length.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
+#[hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
     && future(digest).declassify_ref()
-        == &hacspec_sha3::sha3_256(payload.declassify_ref())[..]))]
+        == &hacspec_sha3::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -261,7 +261,7 @@ pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
 ///
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize)]
 pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_384_DIGEST_SIZE].classify();
 
@@ -280,16 +280,16 @@ pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_384_DIGEST_SIZE`] bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_384_DIGEST_SIZE))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_384_DIGEST_SIZE)]
 // The Lean theorem `Sponge.sha384_ema_spec` proves the digest is exactly
 // SHA3_384_DIGEST_SIZE bytes and matches the hacspec; the length half of that
 // post is expressible here, so state it and let hax generate it.
 // Names the hacspec directly, so the generated post is full functional
 // correctness rather than a length claim. See `sha256_ema` and the note in
 // proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_384_DIGEST_SIZE
+#[hax_lib::ensures(|_| future(digest).len() == SHA3_384_DIGEST_SIZE
     && future(digest).declassify_ref()
-        == &hacspec_sha3::sha3_384(payload.declassify_ref())[..]))]
+        == &hacspec_sha3::sha3_384(payload.declassify_ref())[..])]
 pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -303,7 +303,7 @@ pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
 ///
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize)]
 pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_512_DIGEST_SIZE].classify();
 
@@ -322,16 +322,16 @@ pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
 /// Preconditions:
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_512_DIGEST_SIZE`] bytes long
-#[cfg_attr(hax, hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_512_DIGEST_SIZE))]
+#[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_512_DIGEST_SIZE)]
 // The Lean theorem `Sponge.sha512_ema_spec` proves the digest is exactly
 // SHA3_512_DIGEST_SIZE bytes and matches the hacspec; the length half of that
 // post is expressible here, so state it and let hax generate it.
 // Names the hacspec directly, so the generated post is full functional
 // correctness rather than a length claim. See `sha256_ema` and the note in
 // proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
-#[cfg_attr(hax, hax_lib::ensures(|_| future(digest).len() == SHA3_512_DIGEST_SIZE
+#[hax_lib::ensures(|_| future(digest).len() == SHA3_512_DIGEST_SIZE
     && future(digest).declassify_ref()
-        == &hacspec_sha3::sha3_512(payload.declassify_ref())[..]))]
+        == &hacspec_sha3::sha3_512(payload.declassify_ref())[..])]
 pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= u32::MAX as usize);
@@ -345,9 +345,9 @@ pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
 ///
 /// Preconditions:
 /// - `BYTES` is at most `u32::MAX as usize`
-#[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
-#[cfg_attr(hax, hax_lib::ensures(|out| out.declassify()
-    == hacspec_sha3::shake128::<BYTES>(data.declassify_ref())))]
+#[hax_lib::requires(BYTES <= u32::MAX as usize)]
+#[hax_lib::ensures(|out| out.declassify()
+    == hacspec_sha3::shake128::<BYTES>(data.declassify_ref()))]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 
@@ -367,7 +367,7 @@ pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
 ///
 /// Preconditions:
 /// - `out` is at most `u32::MAX` bytes long
-#[cfg_attr(hax, hax_lib::requires(out.len() <= u32::MAX as usize))]
+#[hax_lib::requires(out.len() <= u32::MAX as usize)]
 pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
     keccakx1::<168, 0x1fu8>(data, out);
 }
@@ -376,9 +376,9 @@ pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
 ///
 /// Preconditions:
 /// - `BYTES` is at most `u32::MAX as usize`
-#[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
-#[cfg_attr(hax, hax_lib::ensures(|out| out.declassify()
-    == hacspec_sha3::shake256::<BYTES>(data.declassify_ref())))]
+#[hax_lib::requires(BYTES <= u32::MAX as usize)]
+#[hax_lib::ensures(|out| out.declassify()
+    == hacspec_sha3::shake256::<BYTES>(data.declassify_ref()))]
 pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
     let mut out = [0u8; BYTES].classify();
 
@@ -398,7 +398,7 @@ pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
 ///
 /// Preconditions:
 /// - `out` is at most `u32::MAX` bytes long
-#[cfg_attr(hax, hax_lib::requires(out.len() <= u32::MAX as usize))]
+#[hax_lib::requires(out.len() <= u32::MAX as usize)]
 pub fn shake256_ema(out: &mut [U8], data: &[U8]) {
     keccakx1::<136, 0x1fu8>(data, out);
 }
@@ -491,18 +491,18 @@ pub mod incremental {
                 state: KeccakXofState::<168>::new(),
             }
         }
-        #[cfg_attr(hax, hax_lib::requires(
+        #[hax_lib::requires(
             self.state.buf_len < 168
             && input.len().to_int() + self.state.buf_len.to_int() <= usize::MAX.to_int()
-        ))]
+        )]
         fn absorb(&mut self, input: &[U8]) {
             self.state.absorb(input);
         }
 
-        #[cfg_attr(hax, hax_lib::requires(
+        #[hax_lib::requires(
             self.state.buf_len < 168
             && input.len().to_int() + self.state.buf_len.to_int() <= usize::MAX.to_int()
-        ))]
+        )]
         fn absorb_final(&mut self, input: &[U8]) {
             self.state.absorb_final::<0x1fu8>(input);
         }
@@ -520,18 +520,18 @@ pub mod incremental {
             }
         }
 
-        #[cfg_attr(hax, hax_lib::requires(
+        #[hax_lib::requires(
             self.state.buf_len < 136
             && input.len().to_int() + self.state.buf_len.to_int() <= usize::MAX.to_int()
-        ))]
+        )]
         fn absorb(&mut self, input: &[U8]) {
             self.state.absorb(input);
         }
 
-        #[cfg_attr(hax, hax_lib::requires(
+        #[hax_lib::requires(
             self.state.buf_len < 136
             && input.len().to_int() + self.state.buf_len.to_int() <= usize::MAX.to_int()
-        ))]
+        )]
         fn absorb_final(&mut self, input: &[U8]) {
             self.state.absorb_final::<0x1fu8>(input);
         }
@@ -553,28 +553,28 @@ pub mod incremental {
 
     /// Absorb
     #[cfg(feature = "unbuffered-xof")]
-    #[cfg_attr(hax, hax_lib::requires(data0.len() < 168))]
+    #[hax_lib::requires(data0.len() < 168)]
     pub fn shake128_absorb_final(s: &mut UnbufferedXofState, data0: &[U8]) {
         absorb_final::<168, 0x1fu8>(&mut s.state, data0, 0, data0.len());
     }
 
     /// Squeeze three blocks
     #[cfg(feature = "unbuffered-xof")]
-    #[cfg_attr(hax, hax_lib::requires(out0.len() >= 3 * 168))]
+    #[hax_lib::requires(out0.len() >= 3 * 168)]
     pub fn shake128_squeeze_first_three_blocks(s: &mut UnbufferedXofState, out0: &mut [U8]) {
         squeeze_first_three_blocks::<168>(&mut s.state, out0)
     }
 
     /// Squeeze five blocks
     #[cfg(feature = "unbuffered-xof")]
-    #[cfg_attr(hax, hax_lib::requires(out0.len() >= 5 * 168))]
+    #[hax_lib::requires(out0.len() >= 5 * 168)]
     pub fn shake128_squeeze_first_five_blocks(s: &mut UnbufferedXofState, out0: &mut [U8]) {
         squeeze_first_five_blocks::<168>(&mut s.state, out0)
     }
 
     /// Squeeze another block
     #[cfg(feature = "unbuffered-xof")]
-    #[cfg_attr(hax, hax_lib::requires(out0.len() >= 168))]
+    #[hax_lib::requires(out0.len() >= 168)]
     pub fn shake128_squeeze_next_block(s: &mut UnbufferedXofState, out0: &mut [U8]) {
         squeeze_next_block::<168>(&mut s.state, out0)
     }
@@ -590,29 +590,29 @@ pub mod incremental {
 
     /// Absorb some data for SHAKE-256 for the last time
     #[cfg(feature = "unbuffered-xof")]
-    #[cfg_attr(hax, hax_lib::requires(data.len() < 136))]
+    #[hax_lib::requires(data.len() < 136)]
     pub fn shake256_absorb_final(s: &mut UnbufferedXofState, data: &[U8]) {
         absorb_final::<136, 0x1fu8>(&mut s.state, data, 0, data.len());
     }
 
     /// Squeeze the first SHAKE-256 block
     #[cfg(feature = "unbuffered-xof")]
-    #[cfg_attr(hax, hax_lib::requires(out.len() >= 136))]
+    #[hax_lib::requires(out.len() >= 136)]
     pub fn shake256_squeeze_first_block(s: &mut UnbufferedXofState, out: &mut [U8]) {
         squeeze_first_block::<136>(&s.state, out)
     }
 
     /// Squeeze the next SHAKE-256 block
     #[cfg(feature = "unbuffered-xof")]
-    #[cfg_attr(hax, hax_lib::requires(out.len() >= 136))]
+    #[hax_lib::requires(out.len() >= 136)]
     pub fn shake256_squeeze_next_block(s: &mut UnbufferedXofState, out: &mut [U8]) {
         squeeze_next_block::<136>(&mut s.state, out)
     }
 }
 
-#[cfg_attr(hax, hax_lib::requires(
+#[hax_lib::requires(
     RATE > 0 && RATE % 8 == 0 && RATE <= 168
-))]
+)]
 pub(crate) fn keccakx1<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut [U8]) {
     keccak::keccak::<RATE, DELIM>(data, out)
 }

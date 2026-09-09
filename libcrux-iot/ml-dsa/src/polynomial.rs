@@ -362,7 +362,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     // `zero_fc` at the Rust level: every RAW lane of the result is literally
     // `0` (strictly stronger than "the residues are zero", which would also
     // admit lanes of ±q; the Lean FC states both, and this implies the other).
-    #[cfg_attr(hax, hax_lib::ensures(|result| raw_gather(&result) == [0i32; 256]))]
+    #[hax_lib::ensures(|result| raw_gather(&result) == [0i32; 256])]
     pub(crate) fn zero() -> Self {
         Self {
             simd_units: [SIMDUnit::zero(); SIMD_UNITS_IN_RING_ELEMENT],
@@ -374,7 +374,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     // `to_i32_array_fc` at the Rust level: the output is exactly the raw lane
     // gather (array equality = the FC's per-index `.val` equality, `.val`
     // being injective).
-    #[cfg_attr(hax, hax_lib::ensures(|result| result == raw_gather(self)))]
+    #[hax_lib::ensures(|result| result == raw_gather(self))]
     pub(crate) fn to_i32_array(&self) -> [i32; 256] {
         let mut result = [0i32; 256];
 
@@ -391,9 +391,9 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     // (declassified) input values. The FC's length hypothesis becomes the
     // `requires`; the comparison is slice-shaped, so the discharge rides the
     // slice-eq machinery rather than the array-eq one.
-    #[cfg_attr(hax, hax_lib::requires(array.len() == 256))]
-    #[cfg_attr(hax, hax_lib::ensures(|_|
-        &raw_gather(future(result))[..] == array.declassify_ref()))]
+    #[hax_lib::requires(array.len() == 256)]
+    #[hax_lib::ensures(|_|
+        &raw_gather(future(result))[..] == array.declassify_ref())]
     pub(crate) fn from_i32_array(array: &[I32], result: &mut Self) {
         #[cfg(not(eurydice))]
         debug_assert!(array.len() >= 256);
@@ -423,9 +423,9 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     // `canon_raw`, not `lift_poly_res`: the norm theorem is the one place the
     // RAW (Montgomery-domain-agnostic) lift is the right one; see the note at
     // `canon_raw`'s definition.
-    #[cfg_attr(hax, hax_lib::requires(coefficients_centered(self)))]
-    #[cfg_attr(hax, hax_lib::ensures(|result| result
-        == (bound <= hacspec_ml_dsa::polynomial::poly_infinity_norm(&canon_raw(self)))))]
+    #[hax_lib::requires(coefficients_centered(self))]
+    #[hax_lib::ensures(|result| result
+        == (bound <= hacspec_ml_dsa::polynomial::poly_infinity_norm(&canon_raw(self))))]
     pub(crate) fn infinity_norm_exceeds(&self, bound: i32) -> bool {
         let mut result = false;
         for i in 0..self.simd_units.len() {
@@ -441,10 +441,10 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     // impl `add` and spec `poly_add` agree through the Montgomery-stripping
     // lift `lift_poly_res`. `self` in the `ensures` is the INPUT value,
     // `future(self)` the output.
-    #[cfg_attr(hax, hax_lib::requires(poly_add_in_range(self, rhs)))]
-    #[cfg_attr(hax, hax_lib::ensures(|_|
+    #[hax_lib::requires(poly_add_in_range(self, rhs))]
+    #[hax_lib::ensures(|_|
         hacspec_ml_dsa::polynomial::poly_add(&lift_poly_res(self), &lift_poly_res(rhs))
-            == lift_poly_res(future(self))))]
+            == lift_poly_res(future(self)))]
     pub(crate) fn add(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::add(&mut self.simd_units[i], &rhs.simd_units[i]);
@@ -455,10 +455,10 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
 
     #[inline(always)]
     // `poly_sub_hacspec_fc` at the Rust level; see `add` above.
-    #[cfg_attr(hax, hax_lib::requires(poly_sub_in_range(self, rhs)))]
-    #[cfg_attr(hax, hax_lib::ensures(|_|
+    #[hax_lib::requires(poly_sub_in_range(self, rhs))]
+    #[hax_lib::ensures(|_|
         hacspec_ml_dsa::polynomial::poly_sub(&lift_poly_res(self), &lift_poly_res(rhs))
-            == lift_poly_res(future(self))))]
+            == lift_poly_res(future(self)))]
     pub(crate) fn subtract(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::subtract(&mut self.simd_units[i], &rhs.simd_units[i]);

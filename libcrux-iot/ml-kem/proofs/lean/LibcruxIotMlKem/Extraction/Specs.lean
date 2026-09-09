@@ -380,7 +380,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 376:16-380:32 -/
+    Source: 'ml-kem/src/matrix.rs', lines 376:0-380:33 -/
 @[reducible]
 def matrix.compute_message.pre
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -406,7 +406,7 @@ def matrix.compute_message.pre
     hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p4 b
 
 /-- [libcrux_iot_ml_kem::matrix::compute_message::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 381:0-384:77 -/
+    Source: 'ml-kem/src/matrix.rs', lines 381:0-384:76 -/
 @[reducible]
 def matrix.compute_message.post
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -448,7 +448,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 411:16-420:58 -/
+    Source: 'ml-kem/src/matrix.rs', lines 411:0-420:59 -/
 @[reducible]
 def matrix.compute_ring_element_v.pre
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -501,7 +501,7 @@ def matrix.compute_ring_element_v.pre
     hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p6 b3
 
 /-- [libcrux_iot_ml_kem::matrix::compute_ring_element_v::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 421:0-426:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 421:0-426:56 -/
 @[reducible]
 def matrix.compute_ring_element_v.post
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -552,7 +552,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 457:16-462:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 457:0-462:58 -/
 @[reducible]
 def matrix.compute_vector_u.pre
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -603,7 +603,7 @@ def matrix.compute_vector_u.pre
     hax_lib_1.prop.Prop)) p2 p3
 
 /-- [libcrux_iot_ml_kem::matrix::compute_vector_u::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 463:0-468:54 -/
+    Source: 'ml-kem/src/matrix.rs', lines 463:0-468:53 -/
 @[reducible]
 def matrix.compute_vector_u.post
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -655,7 +655,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 521:16-526:36 -/
+    Source: 'ml-kem/src/matrix.rs', lines 521:0-526:37 -/
 @[reducible]
 def matrix.compute_As_plus_e.pre
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -698,7 +698,7 @@ def matrix.compute_As_plus_e.pre
     hax_lib_1.prop.Prop)) p6 p7
 
 /-- [libcrux_iot_ml_kem::matrix::compute_As_plus_e::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 527:0-531:61 -/
+    Source: 'ml-kem/src/matrix.rs', lines 527:0-531:60 -/
 @[reducible]
 def matrix.compute_As_plus_e.post
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
@@ -743,7 +743,7 @@ def
 
 
 /-- [libcrux_iot_ml_kem::matrix::compute_u_and_v::pre]:
-    Source: 'ml-kem/src/matrix.rs', lines 579:16-588:38 -/
+    Source: 'ml-kem/src/matrix.rs', lines 579:0-588:39 -/
 @[reducible]
 def matrix.compute_u_and_v.pre
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :
@@ -812,7 +812,7 @@ def matrix.compute_u_and_v.pre
     hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) p5 b2
 
 /-- [libcrux_iot_ml_kem::matrix::compute_u_and_v::post]:
-    Source: 'ml-kem/src/matrix.rs', lines 589:0-594:57 -/
+    Source: 'ml-kem/src/matrix.rs', lines 589:0-594:56 -/
 @[reducible]
 def matrix.compute_u_and_v.post
   {Vector : Type} {Hasher : Type} (K : Std.Usize) (vectortraitsOperationsInst :

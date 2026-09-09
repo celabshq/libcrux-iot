@@ -373,15 +373,15 @@ pub(crate) fn sample_matrix_A<const K: usize, Vector: Operations, Hasher: Hash>(
 // Top-level FC (README L7.4, axiom-clean) stated at the Rust level: impl
 // `compute_message`, lifted, equals the hacspec `compute_message`. Pre = the
 // FC theorem's per-lane bounds (secret ≤ 4095, u ≤ 3328, v ≤ 3328) and K ≤ 4.
-#[cfg_attr(hax, hax_lib::requires(
+#[hax_lib::requires(
     hax_lib::prop::Prop::from_bool(K <= 4)
         .and(vec_bnd(secret_as_ntt, 4095))
         .and(vec_bnd(u_as_ntt, 3328))
-        .and(poly_bnd(v, 3328))))]
-#[cfg_attr(hax, hax_lib::ensures(|_|
+        .and(poly_bnd(v, 3328)))]
+#[hax_lib::ensures(|_|
     poly_matches(future(result),
         &hacspec_ml_kem::matrix::compute_message(
-            &lift_poly(v), &lift_vec(secret_as_ntt), &lift_vec(u_as_ntt)))))]
+            &lift_poly(v), &lift_vec(secret_as_ntt), &lift_vec(u_as_ntt))))]
 #[inline(always)]
 pub(crate) fn compute_message<const K: usize, Vector: Operations>(
     v: &PolynomialRingElement<Vector>,
@@ -408,7 +408,7 @@ pub(crate) fn compute_message<const K: usize, Vector: Operations>(
 // `cache_post` relation (which has no Rust surface) but the equivalent Rust-stateable
 // pair: `vec_slice_bnd(cache)` (the natAbs half) + `cache_matches` (the Montgomery-lift
 // half, pinning `cache` to the canonical `compute_cache(r̂)`).
-#[cfg_attr(hax, hax_lib::requires(
+#[hax_lib::requires(
     hax_lib::prop::Prop::from_bool(
         K <= 4
         && public_key.len() == BYTES_PER_RING_ELEMENT * K
@@ -417,13 +417,13 @@ pub(crate) fn compute_message<const K: usize, Vector: Operations>(
         .and(vec_slice_bnd::<Vector, K>(cache, 3328))
         .and(poly_bnd(error_2, 3328))
         .and(poly_bnd(message, 3328))
-        .and(cache_matches::<K, Vector>(r_as_ntt, cache))))]
-#[cfg_attr(hax, hax_lib::ensures(|_|
+        .and(cache_matches::<K, Vector>(r_as_ntt, cache)))]
+#[hax_lib::ensures(|_|
     poly_matches(future(result),
         &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
             &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
             &lift_vec_slice::<Vector, K>(r_as_ntt),
-            &lift_poly(error_2), &lift_poly(message)))))]
+            &lift_poly(error_2), &lift_poly(message))))]
 #[inline(always)]
 pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
     public_key: &[u8],
@@ -454,18 +454,18 @@ pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
 // hacspec `compute_vector_u` on the seed-sampled matrix. Rests on A1 (sampling leaf).
 // Pre = the FC theorem's lengths, `0 < K ≤ 4`, and the bounds `|r| ≤ 3328`,
 // `|error_1| ≤ 29439`.
-#[cfg_attr(hax, hax_lib::requires(
+#[hax_lib::requires(
     hax_lib::prop::Prop::from_bool(
         seed.len() == 32 && r_as_ntt.len() == K && error_1.len() == K
         && result.len() == K && cache.len() == K && K > 0 && K <= 4)
         .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
-        .and(vec_slice_bnd::<Vector, K>(error_1, 29439))))]
-#[cfg_attr(hax, hax_lib::ensures(|_|
+        .and(vec_slice_bnd::<Vector, K>(error_1, 29439)))]
+#[hax_lib::ensures(|_|
     vec_matches::<Vector, K>(future(result),
         &hacspec_ml_kem::matrix::compute_vector_u::<K>(
             &lift_matrix_from_seed::<Vector, Hasher, K>(seed),
             &lift_vec_slice::<Vector, K>(r_as_ntt),
-            &lift_vec_slice::<Vector, K>(error_1)))))]
+            &lift_vec_slice::<Vector, K>(error_1))))]
 #[inline(always)]
 pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>(
     matrix_entry: &mut PolynomialRingElement<Vector>,
@@ -518,17 +518,17 @@ pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>
 // `compute_As_plus_e`, lifted, equals the hacspec `compute_As_plus_e`. Pre = the
 // FC theorem's bounds (matrix_A ≤ 3328, s ≤ 3328, error ≤ 29439), a zeroed
 // accumulator, and 0 < K ≤ 4 with matrix_A a K×K slice.
-#[cfg_attr(hax, hax_lib::requires(
+#[hax_lib::requires(
     hax_lib::prop::Prop::from_bool(K > 0 && K <= 4 && matrix_A.len() == K * K)
         .and(matrix_slice_bnd::<Vector, K>(matrix_A, 3328))
         .and(vec_bnd(s_as_ntt, 3328))
         .and(vec_bnd(error_as_ntt, 29439))
-        .and(acc_zero(accumulator))))]
-#[cfg_attr(hax, hax_lib::ensures(|_|
+        .and(acc_zero(accumulator)))]
+#[hax_lib::ensures(|_|
     vec_matches::<Vector, K>(future(t_as_ntt),
         &hacspec_ml_kem::matrix::compute_As_plus_e::<K>(
             &lift_matrix_from_slice::<Vector, K>(matrix_A),
-            &lift_vec(s_as_ntt), &lift_vec(error_as_ntt)))))]
+            &lift_vec(s_as_ntt), &lift_vec(error_as_ntt))))]
 #[inline(always)]
 #[allow(non_snake_case)]
 pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
@@ -576,7 +576,7 @@ pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
 /// `#[ensures]` names the hacspec `compute_ring_element_v` on the seed/pk-derived
 /// operands; it rests on A1 (the `u` step samples the matrix) and A2 (the `v`
 /// step deserializes `t`).
-#[cfg_attr(hax, hax_lib::requires(
+#[hax_lib::requires(
     hax_lib::prop::Prop::from_bool(
         K > 0 && K <= 4 && seed.len() == 32
         && public_key.len() == BYTES_PER_RING_ELEMENT * K
@@ -585,13 +585,13 @@ pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
         .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
         .and(vec_slice_bnd::<Vector, K>(error_1, 29439))
         .and(poly_bnd(error_2, 3328))
-        .and(poly_bnd(message, 3328))))]
-#[cfg_attr(hax, hax_lib::ensures(|_|
+        .and(poly_bnd(message, 3328)))]
+#[hax_lib::ensures(|_|
     poly_matches(future(result_v),
         &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
             &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
             &lift_vec_slice::<Vector, K>(r_as_ntt),
-            &lift_poly(error_2), &lift_poly(message)))))]
+            &lift_poly(error_2), &lift_poly(message))))]
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_u_and_v<const K: usize, Vector: Operations, Hasher: Hash>(
