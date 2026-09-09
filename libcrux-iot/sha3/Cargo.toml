@@ -22,15 +22,7 @@ hax-lib.workspace = true
 # The machine-extracted FIPS-202 hacspec. A NORMAL (not dev-) dependency
 # because `sha256_ema`'s `#[ensures]` names `hacspec_sha3::sha3_256` directly,
 # so it must be in scope for the hax build; `cargo test` sees it too.
-#
-# 6e39ccd9 is the specs commit that replaced the specs' hax_aeneas.py drivers
-# with hax.toml (hax v0.4.0), and the SAME commit `proofs/lean/lakefile.toml`
-# pins for the `HacspecSha3` Lean package, so the Rust side and the Lean side
-# check the same spec content. It also pins specs/sha3's own hax-lib to the
-# rc.2 rev; without that, cargo resolves two different hax-libs and the
-# extraction breaks (see the note in
-# proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean).
-hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "6e39ccd988c1ea61d8d5da591ffeb33ce3a64b45" }
+hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "15a52a974fea3c632748148cc9fb11d88d7fd8c0" }
 
 # XXX: Unfortunately, it's not possible to use certain hax attributes
 # with `cfg_attr`, which means we can't have hax-lib as a `cfg(hax)`

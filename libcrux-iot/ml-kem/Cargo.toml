@@ -33,11 +33,8 @@ libcrux-iot-sha3 = { path = "../sha3", features = [
 hax-lib.workspace = true
 # NORMAL (not dev-) dependency: the matrix top-level `#[ensures]` name
 # `hacspec_ml_kem::matrix::*` directly, so the hacspec must be in scope for
-# the hax build. Pinned to the specs/ml-kem commit (6e39ccd9: specs drivers
-# replaced by hax.toml) whose hax-lib matches libcrux-iot (rc.2); a mismatch
-# makes charon emit `hax_lib_1`. The same commit is pinned in
-# proofs/lean/lakefile.toml for the HacspecMlKem Lean package.
-hacspec_ml_kem = { git = "https://github.com/celabshq/libcrux", rev = "6e39ccd988c1ea61d8d5da591ffeb33ce3a64b45" }
+# the hax build.
+hacspec_ml_kem = { git = "https://github.com/celabshq/libcrux", rev = "15a52a974fea3c632748148cc9fb11d88d7fd8c0" }
 libcrux-secrets.workspace = true
 libcrux-traits = { version = "0.0.7", features = ["generic-tests"] }
 tls_codec = { version = "0.4.2", features = [

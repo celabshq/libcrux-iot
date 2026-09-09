@@ -3619,10 +3619,10 @@ def matrix.poly_matches
   {Vector : Type} (vectortraitsOperationsInst : vector.traits.Operations
   Vector) (result : polynomial.PolynomialRingElement Vector)
   (spec : Array hacspec_ml_kem.parameters.FieldElement 256#usize) :
-  RustM hax_lib_1.prop.Prop
+  RustM hax_lib_2.prop.Prop
   := do
-  hax_lib_1.prop.forall (core.convert.Into.Blanket
-    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
+  hax_lib_2.prop.forall (core.convert.Into.Blanket
+    hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
     (matrix.poly_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool
     vectortraitsOperationsInst) (result, spec)
 
@@ -3727,10 +3727,10 @@ def matrix.vec_matches
   vector.traits.Operations Vector)
   (result : Slice (polynomial.PolynomialRingElement Vector))
   (spec : Array (Array hacspec_ml_kem.parameters.FieldElement 256#usize) K) :
-  RustM hax_lib_1.prop.Prop
+  RustM hax_lib_2.prop.Prop
   := do
-  hax_lib_1.prop.forall (core.convert.Into.Blanket
-    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
+  hax_lib_2.prop.forall (core.convert.Into.Blanket
+    hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
     (matrix.vec_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool K
     vectortraitsOperationsInst) (result, spec)
 
@@ -4012,10 +4012,10 @@ def matrix.vec_bnd
   {Vector : Type} {K : Std.Usize} (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
   (v : Array (polynomial.PolynomialRingElement Vector) K) (b : Std.I16) :
-  RustM hax_lib_1.prop.Prop
+  RustM hax_lib_2.prop.Prop
   := do
-  hax_lib_1.prop.forall (core.convert.Into.Blanket
-    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
+  hax_lib_2.prop.forall (core.convert.Into.Blanket
+    hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
     (matrix.vec_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool K
     vectortraitsOperationsInst) (v, b)
 
@@ -4110,10 +4110,10 @@ def matrix.vec_slice_bnd
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
   (v : Slice (polynomial.PolynomialRingElement Vector)) (b : Std.I16) :
-  RustM hax_lib_1.prop.Prop
+  RustM hax_lib_2.prop.Prop
   := do
-  hax_lib_1.prop.forall (core.convert.Into.Blanket
-    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
+  hax_lib_2.prop.forall (core.convert.Into.Blanket
+    hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
     (matrix.vec_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool K
     vectortraitsOperationsInst) (v, b)
 
@@ -4209,10 +4209,10 @@ def matrix.matrix_slice_bnd
   {Vector : Type} (K : Std.Usize) (vectortraitsOperationsInst :
   vector.traits.Operations Vector)
   (slice : Slice (polynomial.PolynomialRingElement Vector)) (b : Std.I16) :
-  RustM hax_lib_1.prop.Prop
+  RustM hax_lib_2.prop.Prop
   := do
-  hax_lib_1.prop.forall (core.convert.Into.Blanket
-    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
+  hax_lib_2.prop.forall (core.convert.Into.Blanket
+    hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
     (matrix.matrix_slice_bnd.closure.Insts.CoreOpsFunctionFnTupleUsizeBool K
     vectortraitsOperationsInst) (slice, b)
 
@@ -4279,9 +4279,9 @@ def matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool :
 /-- [libcrux_iot_ml_kem::matrix::acc_zero]:
     Source: 'ml-kem/src/matrix.rs', lines 269:0-277:1 -/
 def matrix.acc_zero
-  (accumulator : Array Std.I32 256#usize) : RustM hax_lib_1.prop.Prop := do
-  hax_lib_1.prop.forall (core.convert.Into.Blanket
-    hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
+  (accumulator : Array Std.I32 256#usize) : RustM hax_lib_2.prop.Prop := do
+  hax_lib_2.prop.forall (core.convert.Into.Blanket
+    hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
     matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool accumulator
 
 /-- [libcrux_iot_ml_kem::matrix::entry]:

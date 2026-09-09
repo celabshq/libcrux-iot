@@ -20,14 +20,7 @@ bench = false # so libtest doesn't eat the arguments to criterion
 # The machine-extracted FIPS-204 hacspec. A NORMAL dependency because
 # `decompose_element`'s `#[ensures]` names `hacspec_ml_dsa::arithmetic::decompose`
 # directly, so it must be in scope for the hax build.
-#
-# 6e39ccd9 is the specs commit that replaced the specs' hax_aeneas.py drivers
-# with hax.toml (hax v0.4.0); it contains the polynomial/ntt-layer exposure
-# (poly_infinity_norm, poly_add/sub/pointwise_mul, ntt, intt) this crate's
-# #[ensures] name. The SAME commit is pinned in `proofs/lean/lakefile.toml`
-# for the `HacspecMlDsa` Lean package, so the Rust side and the Lean side
-# check the same spec content.
-hacspec_ml_dsa = { git = "https://github.com/celabshq/libcrux.git", rev = "6e39ccd988c1ea61d8d5da591ffeb33ce3a64b45" }
+hacspec_ml_dsa = { git = "https://github.com/celabshq/libcrux.git", rev = "15a52a974fea3c632748148cc9fb11d88d7fd8c0" }
 libcrux-iot-sha3 = { path = "../sha3", features = ["unbuffered-xof"] }
 libcrux-macros.workspace = true
 hax-lib.workspace = true
@@ -39,8 +32,8 @@ hex = { version = "0.4.3", features = ["serde"] }
 serde_json = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
 criterion = "0.5"
-pqcrypto-dilithium = { version = "0.5.0" }         #, default-features = false
-libcrux-kats = { workspace = true, features = [ "mldsa"] }
+pqcrypto-dilithium = { version = "0.5.0" }                #, default-features = false
+libcrux-kats = { workspace = true, features = ["mldsa"] }
 
 [features]
 default = ["mldsa44", "mldsa65", "mldsa87"]
@@ -58,7 +51,10 @@ stack = []
 # std support
 std = []
 
-check-secret-independence = ["libcrux-secrets/check-secret-independence", "libcrux-iot-sha3/check-secret-independence"]
+check-secret-independence = [
+    "libcrux-secrets/check-secret-independence",
+    "libcrux-iot-sha3/check-secret-independence",
+]
 
 [[bench]]
 name = "manual44"

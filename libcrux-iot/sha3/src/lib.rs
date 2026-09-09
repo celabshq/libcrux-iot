@@ -65,9 +65,9 @@ use libcrux_secrets::{Classify, U8};
 // macros are identity macros when `hax` is off, so gate it to avoid an
 // unused-import warning in normal builds.
 #[cfg(hax)]
-use libcrux_secrets::DeclassifyRef as _;
-#[cfg(hax)]
 use libcrux_secrets::Declassify as _;
+#[cfg(hax)]
+use libcrux_secrets::DeclassifyRef as _;
 
 mod keccak;
 mod lane;
@@ -202,12 +202,6 @@ pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_224_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_224_DIGEST_SIZE)]
-// The Lean theorem `Sponge.sha224_ema_spec` proves the digest is exactly
-// SHA3_224_DIGEST_SIZE bytes and matches the hacspec; the length half of that
-// post is expressible here, so state it and let hax generate it.
-// Names the hacspec directly, so the generated post is full functional
-// correctness rather than a length claim. See `sha256_ema` and the note in
-// proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
 #[hax_lib::ensures(|_| future(digest).len() == SHA3_224_DIGEST_SIZE
     && future(digest).declassify_ref()
         == &hacspec_sha3::sha3_224(payload.declassify_ref())[..])]
@@ -244,7 +238,6 @@ pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_256_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE)]
-// EXPERIMENT: name the hacspec directly in the post, not just its length.
 #[hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
     && future(digest).declassify_ref()
         == &hacspec_sha3::sha3_256(payload.declassify_ref())[..])]
@@ -281,12 +274,6 @@ pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_384_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_384_DIGEST_SIZE)]
-// The Lean theorem `Sponge.sha384_ema_spec` proves the digest is exactly
-// SHA3_384_DIGEST_SIZE bytes and matches the hacspec; the length half of that
-// post is expressible here, so state it and let hax generate it.
-// Names the hacspec directly, so the generated post is full functional
-// correctness rather than a length claim. See `sha256_ema` and the note in
-// proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
 #[hax_lib::ensures(|_| future(digest).len() == SHA3_384_DIGEST_SIZE
     && future(digest).declassify_ref()
         == &hacspec_sha3::sha3_384(payload.declassify_ref())[..])]
@@ -323,12 +310,6 @@ pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_512_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_512_DIGEST_SIZE)]
-// The Lean theorem `Sponge.sha512_ema_spec` proves the digest is exactly
-// SHA3_512_DIGEST_SIZE bytes and matches the hacspec; the length half of that
-// post is expressible here, so state it and let hax generate it.
-// Names the hacspec directly, so the generated post is full functional
-// correctness rather than a length claim. See `sha256_ema` and the note in
-// proofs/lean/LibcruxIotSha3/Verification/ProofObligations.lean.
 #[hax_lib::ensures(|_| future(digest).len() == SHA3_512_DIGEST_SIZE
     && future(digest).declassify_ref()
         == &hacspec_sha3::sha3_512(payload.declassify_ref())[..])]

@@ -3,6 +3,7 @@
 -- (no external types needed)
 import Aeneas
 import CoreModels
+import LibcruxIotSha3.Assumptions.HaxLibAlias
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow Error
@@ -16,4 +17,3 @@ set_option maxHeartbeats 1000000
 
 /- You can set the `maxRecDepth` value with the `-max-recdepth` CLI option -/
 set_option maxRecDepth 2048
-
