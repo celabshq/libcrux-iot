@@ -64,20 +64,20 @@ theorem core_models_Slice_Insts_index_RangeFromUsize_spec
                 ∧ r'.val.length = s.val.length - r.start.val ⌝ ⦄ := by
   obtain ⟨ns, hns_eq, hns_val⟩ :=
     Slice.subslice_le_eq s ⟨r.start, s.len⟩ (by simpa [Std.Slice.len_val] using h)
-      (by simp [Std.Slice.len_val])
+      (by simp)
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
          CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
          CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
          CoreModels.rust_primitives.slice.slice_slice
          CoreModels.rust_primitives.slice.slice_length
   simp only [Triple, WP.wp, PredTrans.apply]
-  simp [hns_eq, h, Std.Slice.len_val, Std.Slice.len, Std.Slice.length, hns_val]
+  simp [hns_eq, h,Std.Slice.len,hns_val]
   refine ⟨?_, ?_⟩
   · unfold List.slice
-    exact List.take_of_length_le (by simp [Std.Slice.len_val])
+    exact List.take_of_length_le (by simp)
   · unfold List.slice
     rw [List.length_take, List.length_drop]
-    simp [Std.Slice.len_val]
+    simp
 
 /-! ### Local helpers (re-derived from `AbsorbBlock.lean`'s private versions). -/
 
@@ -286,7 +286,7 @@ theorem sponge_absorb_rec_unfold_long
     = .ok (tail_after message rate h_ge) := by
     obtain ⟨ns, hns_eq, hns_val⟩ :=
       Slice.subslice_le_eq message ⟨rate, message.len⟩ (by simpa [Std.Slice.len_val] using h_ge)
-        (by simp [Std.Slice.len_val])
+        (by simp)
     unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
            CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
            CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get
@@ -298,7 +298,7 @@ theorem sponge_absorb_rec_unfold_long
       rw [hns_val]
       show List.slice rate.val (Std.Slice.len message).val message.val = message.val.drop rate.val
       unfold List.slice
-      rw [show (Std.Slice.len message).val = message.val.length from by simp [Std.Slice.len_val]]
+      rw [show (Std.Slice.len message).val = message.val.length from by simp]
       rw [List.take_of_length_le (by rw [List.length_drop])]
     · exfalso; scalar_tac
   -- The remaining goal: do { state1 ← absorb_block ...; let s1 ← .ok tail; absorb_rec state1 rate delim s1 }

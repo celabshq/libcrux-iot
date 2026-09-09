@@ -247,8 +247,7 @@ theorem core_models_Array_Insts_index_RangeUsize_spec
       (core_models_Slice_Insts_index_RangeUsize_spec (Std.Array.to_slice arr) r h0 h1')
   refine triple_of_ok_sb (v := v) ?_ ?_
   · simp only [CoreModels.core.array.Array.as_slice,
-               CoreModels.rust_primitives.slice.array_as_slice,
-               CoreModels.core.Slice.Insts.CoreOpsIndexIndex, bind_tc_ok, hv_eq]
+               CoreModels.rust_primitives.slice.array_as_slice,bind_tc_ok, hv_eq]
   · exact ⟨by rw [hv_val, h_slice_val], hv_len⟩
 
 /-! ### Triple 3: `keccak.squeeze_last`. -/

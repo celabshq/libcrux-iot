@@ -25,10 +25,10 @@ theorem holds_chain_eq_ok {α : Type} {C : Aeneas.Std.RustM α} {X : α}
     exact congrArg _ (h trivial)
   | fail e =>
     simp_all [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
-              Functor.map, Std.Do.SPred.down_pure]
+              Functor.map]
   | div =>
     simp_all [Aeneas.Std.RustM.holds, Std.Do.Triple, WP.wp, Std.Do.PredTrans.apply,
-              Functor.map, Std.Do.SPred.down_pure]
+              Functor.map]
 
 /-! ## Spec-side one-round step (theta + rho + pi + chi + iota)
 

@@ -167,8 +167,7 @@ theorem core_models_slice_Slice_len_spec {T : Type} (s : Slice T) :
   -- so unfolding `Slice.len` alone leaves the body untouched.
   unfold CoreModels.core.slice.Slice.len
     CoreModels.rust_primitives.slice.slice_length
-  simp [Triple, WP.wp, PredTrans.apply, pure, Pure.pure, Aeneas.Std.Slice.len_val,
-        Aeneas.Std.Slice.length]
+  simp [Triple, WP.wp, PredTrans.apply]
 
 /-! ### `Aeneas.Std.massert` -/
 
@@ -246,7 +245,7 @@ theorem core_models_Slice_Insts_index_RangeUsize_spec
          CoreModels.rust_primitives.slice.slice_slice
          CoreModels.rust_primitives.slice.slice_length
   simp only [Triple, WP.wp, PredTrans.apply]
-  simp [hns_eq, h0, h1, Aeneas.Std.Slice.len, Aeneas.Std.Slice.length,
+  simp [hns_eq, h0, h1, Aeneas.Std.Slice.len,
         hns_val, List.slice_length]
   omega
 
@@ -522,7 +521,7 @@ theorem core_models_array_try_from_slice_spec
     simp [hlen]
   -- Reduce the array_from_fn call to .ok.
   have h_afn := array_from_fn_try_from_eq_ok (T := T) (N := N) cpy s hlen
-  simp only [Triple, WP.wp, pure, Pure.pure, bind_tc_ok, hi_eq, if_true, h_afn]
+  simp only [Triple, WP.wp, bind_tc_ok, hi_eq, if_true, h_afn]
   intro _
   trivial
 

@@ -298,7 +298,7 @@ theorem finalize_loop_fc (re8 : FinAcc) :
             have : (0#usize : Std.Usize).val = 0 := by decide
             rw [this] at hu; exact absurd hu (Nat.not_lt_zero u)
           · intro u _; rfl
-        simpa [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow] using h_init_pure)
+        simp [Aeneas.Std.RustM.holds, pure, Pure.pure, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.PostCond.noThrow])
       ?_)
   · -- Post-entailment: inv at k = 32 yields the per-unit post.
     rw [PostCond.entails_noThrow]

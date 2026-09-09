@@ -306,7 +306,7 @@ theorem mod_q_eq (x : Std.I64) :
       Aeneas.Std.WP.spec_imp_exists
         (Aeneas.Std.WP.spec_of_partialSpec
           (@Std.IScalar.add_spec _ r0 hacspec_ml_dsa.parameters.Q)
-          (fun e => by cases e <;> simp_all <;> omega) (by simp))
+          (fun e => by cases e <;> simp_all) (by simp))
     refine ⟨r, hr_eq, ?_, ?_, ?_⟩
     · rw [hr_val, hQval, hr0_val]
       push_cast
@@ -430,7 +430,7 @@ theorem poly_add_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
         simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
           IScalarTy.I64_numBits_eq, hwa_val, hwb_val]; omega
       obtain ⟨s, hs_eq, hs_val⟩ :=
-        Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ wa wb) (fun e => by cases e <;> simp_all <;> omega) (by simp))
+        Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ wa wb) (fun e => by cases e <;> simp_all) (by simp))
       exact ⟨s, hs_eq, hs_val⟩
     obtain ⟨s, hs_eq, hs_val⟩ := hsum
     obtain ⟨r, hr_eq, hr_res, hr_lo, hr_hi⟩ := mod_q_eq s
@@ -506,7 +506,7 @@ theorem poly_sub_bridge (a b : Aeneas.Std.Array Std.I32 256#usize) :
         simp only [IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
           IScalarTy.I64_numBits_eq, hwa_val, hwb_val]; omega
       obtain ⟨s, hs_eq, hs_val⟩ :=
-        Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ wa wb) (fun e => by cases e <;> simp_all <;> omega) (by simp))
+        Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ wa wb) (fun e => by cases e <;> simp_all) (by simp))
       exact ⟨s, hs_eq, hs_val⟩
     obtain ⟨s, hs_eq, hs_val⟩ := hdiff
     obtain ⟨r, hr_eq, hr_res, hr_lo, hr_hi⟩ := mod_q_eq s

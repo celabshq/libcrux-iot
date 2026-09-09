@@ -1784,7 +1784,7 @@ theorem elementwise_two_src_count_output_step
     obtain ⟨count1, h_add_eq, h_count1_val⟩ :=
       Aeneas.Std.WP.spec_imp_exists
         (Std.WP.spec_of_partialSpec (@Std.UScalar.add_spec _ count rc)
-          (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp))
+          (fun e => by cases e <;> simp_all) (by simp))
     have h_body :
         (do
           let (o, iter1) ←

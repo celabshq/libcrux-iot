@@ -51,7 +51,7 @@ private theorem i32_fits_i64 (x : Std.I32) :
   scalar_tac
 
 /-- `modPm` on a NON-NEGATIVE argument: the double reduction collapses. -/
-private theorem modPm_of_nonneg (a m : Int) (ha : 0 ≤ a) (hm : 0 < m) :
+private theorem modPm_of_nonneg (a m : Int) (_ha : 0 ≤ a) (_hm : 0 < m) :
     modPm a m = (if a % m > m / 2 then a % m - m else a % m) := by
   unfold modPm
   have hcollapse : ((a % m) + m) % m = a % m := by
@@ -96,7 +96,7 @@ theorem mod_pm_eq (a m : Std.I32) (ha : 0 ≤ a.val) (hm0 : 0 < m.val)
             simp_all [Aeneas.Std.IScalar.min_IScalarTy_I64_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I64_eq, Aeneas.Std.I64.min,
               Aeneas.Std.I64.max, Aeneas.Std.I64.numBits,
-              Aeneas.Std.IScalarTy.I64_numBits_eq] <;> omega)
+              Aeneas.Std.IScalarTy.I64_numBits_eq]; omega)
         (by simp))
   rw [hi1_eq]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hm64_val] at hi1_val
@@ -142,7 +142,7 @@ theorem mod_pm_eq (a m : Std.I32) (ha : 0 ≤ a.val) (hm0 : 0 < m.val)
               simp_all [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
                 Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
                 Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-                Aeneas.Std.IScalarTy.I32_numBits_eq] <;> omega)
+                Aeneas.Std.IScalarTy.I32_numBits_eq]; omega)
           (by simp))
     exact ⟨r2, hr2_eq, by rw [hr2_val, hr1_val]⟩
   · rw [if_neg (fun h => hgt (hiff.mp h)), if_neg hgt]
@@ -219,7 +219,7 @@ theorem decompose_eq (rc gamma2 : Std.I32)
             (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, not_or, not_lt]) <;>
             first | exact not_false | omega)
         (by simp))
   rw [hd_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -234,7 +234,7 @@ theorem decompose_eq (rc gamma2 : Std.I32)
             (try simp only [hQval, Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v1, not_or, not_lt]) <;>
             first | exact not_false | omega)
         (by simp))
   rw [hqm1_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -260,7 +260,7 @@ theorem decompose_eq (rc gamma2 : Std.I32)
             (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v1, not_or, not_lt]) <;>
             first | exact not_false | omega)
           (by simp))
     rw [hr0m1_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -280,7 +280,7 @@ theorem decompose_eq (rc gamma2 : Std.I32)
       have h1 : 0 ≤ rc.val % (2 * gamma2.val) := Int.emod_nonneg _ (by omega)
       have h2 : rc.val % (2 * gamma2.val) < 2 * gamma2.val := Int.emod_lt_of_pos _ (by omega)
       have h3 : rc.val % (2 * gamma2.val) ≤ rc.val := by
-        have h4 := Int.emod_add_ediv rc.val (2 * gamma2.val)
+        have h4 := Int.emod_add_mul_ediv rc.val (2 * gamma2.val)
         have h5 : 0 ≤ (2 * gamma2.val) * (rc.val / (2 * gamma2.val)) :=
           mul_nonneg (by omega) (Int.ediv_nonneg hlo (by omega))
         omega
@@ -325,7 +325,7 @@ theorem power2round_eq (rc : Std.I32)
   -- two_d = 1 <<< D = 8192, a closed term
   rw [show ((1#i32 : Std.I32) <<< hacspec_ml_dsa.parameters.D : RustM Std.I32)
         = ok (8192#i32 : Std.I32) from by
-      unfold hacspec_ml_dsa.parameters.D; first | rfl | decide]
+      unfold hacspec_ml_dsa.parameters.D; rfl]
   simp only [Aeneas.Std.bind_tc_ok]
   have htwod : ((8192#i32 : Std.I32)).val = 8192 := by decide
   -- r0 = mod_pm r_plus two_d
@@ -348,7 +348,7 @@ theorem power2round_eq (rc : Std.I32)
             (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, not_or, not_lt]) <;>
             first | exact not_false | omega)
         (by simp))
   rw [hd_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -446,7 +446,7 @@ theorem use_hint_eq (b : Bool) (rc gamma2 : Std.I32)
             (try simp only [hQval, Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v1, not_or, not_lt]) <;>
             first | exact not_false | omega)
         (by simp))
   rw [hi_eq]; simp only [Aeneas.Std.bind_tc_ok]
@@ -514,7 +514,7 @@ theorem use_hint_eq (b : Bool) (rc gamma2 : Std.I32)
             (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v1, not_or, not_lt]) <;>
             first | exact not_false | omega)
               (by simp))
         rw [v1] at hz1_val
@@ -522,7 +522,7 @@ theorem use_hint_eq (b : Bool) (rc gamma2 : Std.I32)
           Aeneas.Std.WP.spec_imp_exists
             (Aeneas.Std.IScalar.rem_spec (y := m) z1 hm_ne
               (by simp only [not_and]; intro _; exact hm_ne1))
-        refine ⟨z, by simp [hsc, hz1_eq, hz_eq] <;> omega, ?_⟩
+        refine ⟨z, by simp [hz1_eq, hz_eq]; omega, ?_⟩
         rw [if_pos (show (true = true) ∧ r0.val > 0 from ⟨rfl, hpos⟩)]
         rw [hz_val, hz1_val]
         exact Int.tmod_eq_emod_of_nonneg (by omega)
@@ -541,7 +541,7 @@ theorem use_hint_eq (b : Bool) (rc gamma2 : Std.I32)
             (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, v1, not_or, not_lt]) <;>
             first | exact not_false | omega)
               (by simp))
         rw [v1] at hy1_val
@@ -564,7 +564,7 @@ theorem use_hint_eq (b : Bool) (rc gamma2 : Std.I32)
                   (try simp only [Aeneas.Std.IScalar.min_IScalarTy_I32_eq,
               Aeneas.Std.IScalar.max_IScalarTy_I32_eq, Aeneas.Std.I32.min,
               Aeneas.Std.I32.max, Aeneas.Std.I32.numBits,
-              Aeneas.Std.IScalarTy.I32_numBits_eq, v0, v1, not_or, not_lt, not_le]) <;>
+              Aeneas.Std.IScalarTy.I32_numBits_eq, not_or, not_lt]) <;>
                   first | exact not_false | omega)
               (by simp))
         obtain ⟨z, hz_eq, hz_val⟩ :=

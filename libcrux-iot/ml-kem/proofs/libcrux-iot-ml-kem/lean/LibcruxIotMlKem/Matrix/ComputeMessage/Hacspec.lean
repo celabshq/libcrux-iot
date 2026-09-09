@@ -1009,21 +1009,21 @@ private theorem zetas_bridge_zmod (i : Nat) (hi : i < 128) :
 private theorem umul_ok' (a b : Std.Usize) (h : a.val * b.val ≤ Std.Usize.max) :
     ∃ c : Std.Usize, (a * b : RustM Std.Usize) = .ok c ∧ c.val = a.val * b.val := by
   have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.mul_spec a b)
-    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
   exact ⟨v, h_eq, h_v⟩
 
 private theorem uadd_ok' (a b : Std.Usize) (h : a.val + b.val ≤ Std.Usize.max) :
     ∃ c : Std.Usize, (a + b : RustM Std.Usize) = .ok c ∧ c.val = a.val + b.val := by
   have hspec := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec a b)
-    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨v, h_eq, h_v⟩ := Std.WP.spec_imp_exists hspec
   exact ⟨v, h_eq, h_v⟩
 
 private theorem usub_ok' (a b : Std.Usize) (h : b.val ≤ a.val) :
     ∃ c : Std.Usize, (a - b : RustM Std.Usize) = .ok c ∧ c.val = a.val - b.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec a b)
-    (fun e => by cases e <;> simp_all <;> omega) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨c, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨c, h_eq, h_v.1⟩
 

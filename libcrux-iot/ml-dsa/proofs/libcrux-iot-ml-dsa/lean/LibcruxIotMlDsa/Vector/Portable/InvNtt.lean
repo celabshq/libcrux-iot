@@ -1000,7 +1000,7 @@ abbrev Acc := Aeneas.Std.Array libcrux_iot_ml_dsa.simd.portable.vector_type.Coef
 theorem usize_add_ok_eq (x y : Std.Usize) (h_max : x.val + y.val ≤ Std.Usize.max) :
     ∃ z : Std.Usize, (x + y : RustM Std.Usize) = .ok z ∧ z.val = x.val + y.val := by
   have hT := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec x y)
-    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v⟩
 

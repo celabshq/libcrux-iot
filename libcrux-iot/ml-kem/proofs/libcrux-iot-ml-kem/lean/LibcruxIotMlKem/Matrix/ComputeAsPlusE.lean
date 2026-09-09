@@ -3691,8 +3691,7 @@ theorem multiply_matrix_by_column_eq
         = (do let a ← hacspec_ml_kem.matrix.multiply_matrix_by_column_at
                 (lift_matrix_from_slice matrix_A K) (lift_vec s_as_ntt) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
               RustM.ok (a, (lift_matrix_from_slice matrix_A K, lift_vec s_as_ntt))) := by
-      simp [hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256,
-            hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut,
+      simp [hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut,
             hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut_loop,
             hacspec_ml_kem.matrix.multiply_matrix_by_column.closure.Insts.CoreOpsFunctionFnMutTupleUsizeArrayFieldElement256.call_mut_loop.body,
             hacspec_ml_kem.matrix.multiply_matrix_by_column_at,

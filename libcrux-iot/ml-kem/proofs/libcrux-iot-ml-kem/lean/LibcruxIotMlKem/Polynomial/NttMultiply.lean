@@ -554,8 +554,7 @@ theorem multiply_ntts_eq_pure_array
             256#usize).call_mut (s, p1, p2) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
         = (ntt_multiply_n_at p1 p2 s (⟨BitVec.ofNat _ k⟩ : Std.Usize)
             >>= fun fe => RustM.ok (fe, (s, p1, p2))) := by
-      simp [hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement,
-            hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut,
+      simp [hacspec_ml_kem.ntt.ntt_multiply_n.closure.Insts.CoreOpsFunctionFnMutTupleUsizeFieldElement.call_mut,
             ntt_multiply_n_at, bind_assoc, apply_ite, ite_apply]
       try rfl
     rw [hconn]

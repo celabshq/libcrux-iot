@@ -194,29 +194,29 @@ theorem core_models_Slice_Insts_index_mut_RangeFromUsize_spec
                   (p.2 s').val = s.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
   obtain ⟨ns, hns_eq, hns_val⟩ :=
     Slice.subslice_le_eq s ⟨r.start, s.len⟩ (by simpa [Std.Slice.len_val] using h)
-      (by simp [Std.Slice.len_val])
+      (by simp)
   -- CoreModels v0.3.12 supplies this instance: `index_mut` delegates to the
   -- `SliceIndex`'s `get_unchecked_mut`, which for `RangeFrom<usize>` is
   -- `slice_slice_mut slice self.start len`.
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-  simp only [CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut,
-             CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+  simp only [CoreModels.core.ops.range.RangeFromUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
              CoreModels.rust_primitives.slice.slice_slice_mut,
              CoreModels.rust_primitives.slice.slice_length, bind_tc_ok, hns_eq]
-  simp only [Triple, WP.wp, PredTrans.apply, bind_tc_ok, hns_eq,
+  simp only [Triple, WP.wp, PredTrans.apply,
              Std.Do.SPred.pure, Std.Do.SPred.entails]
   intro _
   have hns_drop : (↑ns : List T) = (↑s : List T).drop r.start.val := by
-    rw [hns_val]; unfold List.slice; exact List.take_of_length_le (by simp [Std.Slice.len_val])
+    rw [hns_val]; unfold List.slice; exact List.take_of_length_le (by simp)
   refine ⟨hns_drop, ?_, ?_⟩
   · rw [hns_drop, List.length_drop]
   · intro s' hs'
     obtain ⟨nu, hnu_eq, hnu_val⟩ :=
       Slice.update_subslice_le_eq s ⟨r.start, s.len⟩ s' (by simpa [Std.Slice.len_val] using h)
-        (by simp [Std.Slice.len_val]) (by rw [hs']; simp [Std.Slice.len_val])
+        (by simp) (by rw [hs']; simp)
     -- CoreModels v0.3.12's `slice_slice_mut` write-back is directly
-    -- `setSlice!`, so the simp above closes this outright.
-    simp only [HaxToRange.toRange, hnu_eq]
+    -- `setSlice!`, so the goal needs no rewriting at all -- `simp only` with an
+    -- empty lemma set discharges it.
+    simp only
 
 /-! ### Theorem 3: `keccak.keccak_loop1_invariant`.
 

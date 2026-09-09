@@ -106,8 +106,7 @@ theorem slice_range_index_ok {T : Type} [Inhabited T]
     have : (Aeneas.Std.Slice.len s).val = s.val.length := Aeneas.Std.Slice.len_val s
     scalar_tac
   unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-    CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
+  simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
   rw [if_pos hle]
   unfold CoreModels.rust_primitives.slice.slice_length
   simp only [Aeneas.Std.bind_tc_ok]
@@ -180,9 +179,8 @@ theorem slice_index_mut_range_strict {T : Type} [Inhabited T]
             have := s.val.slice_length_le a.val b.val; scalar_tac⟩,
           (fun ss => ⟨s.val.setSlice! a.val ss.val, by scalar_tac⟩), ?_, ?_, ?_⟩
   · unfold CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut.index_mut
-    simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice,
-      CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-      CoreModels.rust_primitives.slice.slice_slice_mut, hsub, Aeneas.Std.bind_tc_ok]
+    simp only [CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
+               CoreModels.rust_primitives.slice.slice_slice_mut, hsub, Aeneas.Std.bind_tc_ok]
   · show (List.slice a.val b.val s.val).length = b.val - a.val
     rw [List.slice_length]; omega
   · intro s' _

@@ -148,7 +148,7 @@ namespace libcrux_iot_ml_kem.Verification
     and does not diverge", so any stronger post implies it. -/
 private theorem triple_true_of_triple {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
-    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ True ⌝ ⦄ := by
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ _r => ⌜ True ⌝ ⦄ := by
   match hx : x with
   | .ok v => simp [Std.Do.Triple, WP.wp, PredTrans.apply]
   | .fail e =>
@@ -231,13 +231,13 @@ private theorem lane_abs_le_true {x bound negb : Std.I16} {B : Nat}
 private theorem lane_abs_le_9984 {x : Std.I16}
     (h : libcrux_iot_ml_kem.vector.portable.ntt.lane_abs_le x 9984#i16 = .ok true) : x.val.natAbs ≤ 3 * 3328 :=
   lane_abs_le_true (negb := (-9984)#i16) (B := 3 * 3328)
-    (by first | rfl | decide) (by first | rfl | decide) (by first | rfl | decide) h
+    (by rfl) (by rfl) (by rfl) h
 
 /-- `|x| <= 4 * 3328`, the bound `inv_ntt_step_spec` wants. -/
 private theorem lane_abs_le_13312 {x : Std.I16}
     (h : libcrux_iot_ml_kem.vector.portable.ntt.lane_abs_le x 13312#i16 = .ok true) : x.val.natAbs ≤ 4 * 3328 :=
   lane_abs_le_true (negb := (-13312)#i16) (B := 4 * 3328)
-    (by first | rfl | decide) (by first | rfl | decide) (by first | rfl | decide) h
+    (by rfl) (by rfl) (by rfl) h
 
 /-- All sixteen lanes of `elements_abs_le` pass. `bound` stays abstract, so this
     serves both the `ntt_step` and the `inv_ntt_step` bound. -/

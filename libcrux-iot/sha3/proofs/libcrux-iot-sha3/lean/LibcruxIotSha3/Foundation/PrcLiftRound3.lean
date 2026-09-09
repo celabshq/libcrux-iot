@@ -68,7 +68,6 @@ private theorem pi_rho_chi_y0_zeta0_spec_fc_3
     all_goals (
       casesm* ∃ _, _
       simp_all only [
-        hRC, hb,
         Std.UScalar.bv_xor, Std.UScalar.bv_and, Std.UScalar.bv_not, rot32]
       norm_num)
 
@@ -116,7 +115,6 @@ private theorem pi_rho_chi_y0_zeta1_spec_fc_3
     all_goals (
       casesm* ∃ _, _
       simp_all only [
-        hRC, hb,
         Std.UScalar.bv_xor, Std.UScalar.bv_and, Std.UScalar.bv_not, rot32]
       norm_num)
 

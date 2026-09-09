@@ -230,7 +230,7 @@ theorem bit_round3_i (s : KState) (hi : s.i.val < 24) :
 private theorem triple_imp_prop {α : Type} {C : Aeneas.Std.RustM α} {P : Prop}
     (h : ⦃⌜True⌝⦄ C ⦃⇓ _ => ⌜P⌝⦄) : P := by
   cases C
-  all_goals simp_all [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply, Std.Do.SPred.down_pure]
+  all_goals simp_all [Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply]
 
 /-! ### Round-0 chain Triple (bit-side equivalence over the 3-step impl) -/
 

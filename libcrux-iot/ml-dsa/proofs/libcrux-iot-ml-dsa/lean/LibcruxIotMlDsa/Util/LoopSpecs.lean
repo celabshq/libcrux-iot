@@ -326,7 +326,7 @@ theorem IteratorRange_next_spec_i32 (i e : Std.I32)
             CoreModels.core.I32.Insts.CoreIterRangeStep.forward_checked,
             CoreModels.core.num.I32.wrapping_add,
             CoreModels.rust_primitives.arithmetic.wrapping_add_i32,
-            Aeneas.Std.lift, hcmp, htry, h1val, hbmod]
+            Aeneas.Std.lift, hcmp, htry, hbmod]
     rw [h_eq]
     simp [Triple, WP.wp, PredTrans.apply]
     exact h_lt hlt _ hwval

@@ -1202,7 +1202,7 @@ theorem power2round_element_eq_ok (t : Std.I32) :
     rw [h_d]
     have hs := Aeneas.Std.WP.spec_of_partialSpec
       (@Std.Usize.sub_spec (13#usize : Std.Usize) (1#usize : Std.Usize))
-      (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+      (fun e => by cases e <;> simp_all) (by simp)
     obtain ⟨v', hveq, hPv'⟩ := Aeneas.Std.WP.spec_imp_exists hs
     refine ⟨v', hveq, ?_⟩
     have hPv'1 := hPv'.1

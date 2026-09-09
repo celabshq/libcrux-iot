@@ -419,7 +419,7 @@ private theorem set_lane_value_spec
     apply hpost <;> first
       | rfl
       | scalar_tac
-      | (rw [h_eq]; simp_all [WP.uncurry']))
+      | (rw [h_eq]; simp_all))
 
 /-- `Lane2U32` array-index returns the indexed element when in bounds. Used by
     `theta_d` to read `s.c`. -/
@@ -433,7 +433,7 @@ private theorem lane_index_spec
     ⦃ Q ⦄ := by
   unfold lane.Lane2U32.Insts.CoreOpsIndexIndexUsizeU32.index
   mvcgen
-  all_goals first | scalar_tac | (try intros; apply hpost; simp_all)
+  all_goals first | scalar_tac | (apply hpost; simp_all)
 
 @[spec]
 private theorem get_with_zeta_spec

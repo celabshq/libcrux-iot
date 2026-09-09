@@ -65,7 +65,7 @@ namespace libcrux_iot_sha3.Verification
     and does not diverge", so any stronger post implies it. -/
 private theorem triple_true_of_triple {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
-    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ True ⌝ ⦄ := by
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ _r => ⌜ True ⌝ ⦄ := by
   -- `match hx : x` already rewrites `x` inside `h`, so no `rw [hx] at h` is needed.
   match hx : x with
   | .ok v => simp [Std.Do.Triple, WP.wp, PredTrans.apply]
@@ -244,7 +244,7 @@ private theorem array_eq_loop_self {T : Type} [Inhabited T] {N : Std.Usize}
       rw [Aeneas.Std.loop.eq_1]
       simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body]
       have hnlt : ¬ (i < N) := by scalar_tac
-      simp only [hnlt, if_false, reduceIte]
+      simp only [hnlt, if_false]
   | succ f ih =>
       intro i hi
       have hlt : i.val < N.val := by omega

@@ -47,7 +47,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_sub_ok_eq (x y : Std.Usize)
     (h_ge : y.val ≤ x.val) :
     ∃ z : Std.Usize, (x - y : RustM Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
-  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all <;> omega) (by simp)
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v.1⟩
 
@@ -547,7 +547,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_sub_ok_eq (x y : Std.Usize)
     (h_ge : y.val ≤ x.val) :
     ∃ z : Std.Usize, (x - y : RustM Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
-  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all <;> omega) (by simp)
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v.1⟩
 
@@ -997,7 +997,7 @@ open libcrux_iot_ml_kem.Spec.ModularArith libcrux_iot_ml_kem.Spec.Montgomery lib
 theorem usize_sub_ok_eq (x y : Std.Usize)
     (h_ge : y.val ≤ x.val) :
     ∃ z : Std.Usize, (x - y : RustM Std.Usize) = .ok z ∧ z.val = x.val - y.val := by
-  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all <;> omega) (by simp)
+  have hT := Std.WP.spec_of_partialSpec (@Std.Usize.sub_spec x y) (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨z, h_eq, h_v⟩ := Std.WP.spec_imp_exists hT
   exact ⟨z, h_eq, h_v.1⟩
 

@@ -121,7 +121,7 @@ theorem usize_add (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b
     have := usize_pow16_le; omega
   obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists
     (Std.WP.spec_of_partialSpec (@Std.UScalar.add_spec _ x y)
-      (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp))
+      (fun e => by cases e <;> simp_all) (by simp))
   exact ⟨z, hz_eq, by rw [hz_val, hx, hy]⟩
 
 /-- `x - y` as a `usize` (`y.val ≤ x.val`). -/
@@ -130,7 +130,7 @@ theorem usize_sub (x y : Std.Usize) (a b : Nat) (hx : x.val = a) (hy : y.val = b
   have hle : y.val ≤ x.val := by rw [hx, hy]; exact hba
   obtain ⟨z, hz_eq, hz_val⟩ := Aeneas.Std.WP.spec_imp_exists
     (Std.WP.spec_of_partialSpec (@Std.UScalar.sub_spec _ x y)
-      (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp))
+      (fun e => by cases e <;> simp_all) (by simp))
   exact ⟨z, hz_eq, by rw [hz_val.1, hx, hy]⟩
 
 /-! ## (0c) Per-lane helpers (private copies of the `HacspecBridge` privates). -/
@@ -234,7 +234,7 @@ private theorem i64_add_canon_ok (a b : Std.I64) (za : Std.I32)
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ a b)
-      (fun e => by cases e <;> simp_all <;> omega) (by simp))
+      (fun e => by cases e <;> simp_all) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The difference of an i64 holding an i32 value and an i64 holding a `[0,Q)` value fits. -/
@@ -252,7 +252,7 @@ private theorem i64_sub_canon_ok (a b : Std.I64) (za : Std.I32)
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ a b)
-      (fun e => by cases e <;> simp_all <;> omega) (by simp))
+      (fun e => by cases e <;> simp_all) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The sum of two i64s, each holding a `[0,Q)` value, fits in i64. -/
@@ -269,7 +269,7 @@ private theorem i64_add_two_canon_ok (a b : Std.I64)
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ a b)
-      (fun e => by cases e <;> simp_all <;> omega) (by simp))
+      (fun e => by cases e <;> simp_all) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The sum of two i64s, each holding an i32 value, fits in i64. -/
@@ -286,7 +286,7 @@ private theorem i64_add_i32_ok (a b : Std.I64) (za zb : Std.I32)
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.add_spec _ a b)
-      (fun e => by cases e <;> simp_all <;> omega) (by simp))
+      (fun e => by cases e <;> simp_all) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- The difference of two i64s, each holding an i32 value, fits in i64. -/
@@ -303,7 +303,7 @@ private theorem i64_sub_i32_ok (a b : Std.I64) (za zb : Std.I32)
       IScalarTy.I64_numBits_eq]; norm_num; omega
   obtain ⟨s, hs_eq, hs_val⟩ :=
     Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.WP.spec_of_partialSpec (@Std.IScalar.sub_spec _ a b)
-      (fun e => by cases e <;> simp_all <;> omega) (by simp))
+      (fun e => by cases e <;> simp_all) (by simp))
   exact ⟨s, hs_eq, hs_val⟩
 
 /-- `parameters.Q` as an `i32` has value `8380417`. -/

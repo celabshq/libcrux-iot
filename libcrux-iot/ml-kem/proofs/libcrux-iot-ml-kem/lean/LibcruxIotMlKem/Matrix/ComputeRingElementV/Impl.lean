@@ -82,11 +82,11 @@ theorem enumerate_chunks_next_cont
   -- `Usize.add_spec` just below): `cs ≤ rest.length` now rules out the `panic` case.
   have hsa_p := core.slice.Slice.split_at.spec rest cs
   have hsa := Std.WP.spec_of_partialSpec hsa_p
-    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨⟨s0, s1⟩, hsa_eq, hs0len, hs1len, hs0val, hs1val⟩ := WP.spec_imp_exists hsa
   -- `cnt + 1#usize` succeeds.
   have hadd := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec cnt 1#usize)
-    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨cnt', hcnt'_eq, hcnt'_post⟩ := WP.spec_imp_exists hadd
   have hcnt'_val : cnt'.val = cnt.val + 1 := by
     have h1 : (1#usize : Std.Usize).val = 1 := rfl
@@ -106,7 +106,7 @@ theorem enumerate_chunks_next_cont
     rw [if_neg h_nlt]
     unfold rust_primitives.slice.slice_split_at
     rw [hsa_eq]
-    simp only [bind_assoc, bind_tc_ok]
+    simp only [bind_tc_ok]
     rw [hcnt'_eq]
     rfl
   · -- the element relation
@@ -272,10 +272,10 @@ theorem enumerate_chunks_next_cont_drop
   -- `Usize.add_spec` just below): `cs ≤ rest.length` now rules out the `panic` case.
   have hsa_p := core.slice.Slice.split_at.spec rest cs
   have hsa := Std.WP.spec_of_partialSpec hsa_p
-    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨⟨s0, s1⟩, hsa_eq, hs0len, hs1len, hs0val, hs1val⟩ := WP.spec_imp_exists hsa
   have hadd := Std.WP.spec_of_partialSpec (@Std.Usize.add_spec cnt 1#usize)
-    (fun e => by cases e <;> simp_all <;> scalar_tac) (by simp)
+    (fun e => by cases e <;> simp_all) (by simp)
   obtain ⟨cnt', hcnt'_eq, hcnt'_post⟩ := WP.spec_imp_exists hadd
   have hcnt'_val : cnt'.val = cnt.val + 1 := by
     have h1 : (1#usize : Std.Usize).val = 1 := rfl
@@ -294,7 +294,7 @@ theorem enumerate_chunks_next_cont_drop
     rw [if_neg h_nlt]
     unfold rust_primitives.slice.slice_split_at
     rw [hsa_eq]
-    simp only [bind_assoc, bind_tc_ok]
+    simp only [bind_tc_ok]
     rw [hcnt'_eq]
     rfl
   · intro ℓ hℓ

@@ -212,7 +212,7 @@ namespace libcrux_iot_ml_dsa.Verification
     and does not diverge", so any stronger post implies it. -/
 private theorem triple_true_of_triple {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
-    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ True ⌝ ⦄ := by
+    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ _r => ⌜ True ⌝ ⦄ := by
   match hx : x with
   | .ok v => simp [Std.Do.Triple, WP.wp, PredTrans.apply]
   | .fail e =>
@@ -340,7 +340,7 @@ private theorem lane_in_field_true {x : Std.I32}
   have hneg : (-. libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS : RustM Std.I32)
       = .ok (-8380417)#i32 := by
     simp [libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS]
-    first | rfl | decide
+    rfl
   have hFM : (libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS).val = 8380417 := by
     simp [libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS]
   simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.lane_in_field, hneg,
@@ -982,7 +982,7 @@ theorem use_one_hint_spec_proof (gamma2 r hint : Std.I32) :
   have hneg : (-. libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS : RustM Std.I32)
       = .ok (-8380417)#i32 := by
     simp [libcrux_iot_ml_dsa.simd.traits.FIELD_MODULUS]
-    first | rfl | decide
+    rfl
   simp only [libcrux_iot_ml_dsa.simd.portable.arithmetic.use_one_hint.pre, hneg,
     Aeneas.Std.bind_tc_ok] at hpre
   have key : (-(8380417 : Int) ≤ r.val ∧ r.val < 8380417)
@@ -1220,7 +1220,7 @@ private theorem lane_centered_true {x : Std.I32}
   have hsub : (libcrux_iot_ml_dsa.constants.FIELD_MODULUS - 1#i32 : RustM Std.I32)
       = .ok 8380416#i32 := by
     simp [libcrux_iot_ml_dsa.constants.FIELD_MODULUS]
-    first | rfl | decide
+    rfl
   have hdiv : ((8380416#i32 : Std.I32) / 2#i32 : RustM Std.I32) = .ok 4190208#i32 := by
     obtain ⟨z, hz_eq, hz_val, _⟩ :=
       Aeneas.Std.IScalar.div_bv_spec
@@ -1235,7 +1235,7 @@ private theorem lane_centered_true {x : Std.I32}
       show ((4190208#i32 : Std.I32)).val = 4190208 from by scalar_tac]
     decide
   have hneg : (-. (4190208#i32 : Std.I32) : RustM Std.I32) = .ok (-4190208)#i32 := by
-    first | rfl | decide
+    rfl
   simp only [libcrux_iot_ml_dsa.polynomial.lane_centered, hsub, hdiv, hneg,
     Aeneas.Std.bind_tc_ok] at h
   by_cases h1 : ((-4190208)#i32 : Std.I32) ≤ x
@@ -1473,7 +1473,7 @@ theorem infinity_norm_exceeds_spec_proof
     rw [hn_eq]
     simp only [Aeneas.Std.bind_tc_ok]
     rw [hr_val]
-    simp [decide_eq_decide, Aeneas.Std.IScalar.le_equiv]
+    simp [Aeneas.Std.IScalar.le_equiv]
   rw [hpost]
   exact holds_map_ok_of_bool rfl
 
@@ -1579,7 +1579,6 @@ private theorem array_eq_loop_self
     · omega
     · unfold CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop
       rw [Aeneas.Std.loop.eq_def, hbody]
-      simp only [Aeneas.Std.bind_tc_ok]
       have := ih i' (by omega) (by omega)
       unfold CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop at this
       exact this

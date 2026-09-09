@@ -43,8 +43,8 @@ private theorem triple_mono {α : Type} {x : RustM α} {P Q : α → Prop}
       have hv : P v := by simpa [Std.Do.Triple, WP.wp, PredTrans.apply] using h
       simp only [Std.Do.Triple, WP.wp, PredTrans.apply]
       exact SPred.pure_intro (hpq v hv)
-  | fail e => exfalso; simpa [Std.Do.Triple, WP.wp, PredTrans.apply] using h
-  | div => exfalso; simpa [Std.Do.Triple, WP.wp, PredTrans.apply] using h
+  | fail e => exfalso; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h
+  | div => exfalso; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h
 
 /-- The generated `.spec` post is `holds (do a ← <post>; pure (a = true))`; once
     `<post>` is shown to be `ok true` it holds. -/
@@ -232,8 +232,8 @@ private theorem triple_exists_ok {α : Type} {x : RustM α} {P : α → Prop}
     (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ v => ⌜ P v ⌝ ⦄) : ∃ v, x = .ok v ∧ P v := by
   cases x with
   | ok v => exact ⟨v, rfl, by simpa [Std.Do.Triple, WP.wp, PredTrans.apply] using h⟩
-  | fail e => exfalso; simpa [Std.Do.Triple, WP.wp, PredTrans.apply] using h
-  | div => exfalso; simpa [Std.Do.Triple, WP.wp, PredTrans.apply] using h
+  | fail e => exfalso; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h
+  | div => exfalso; simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h
 
 -- `lift_matrix_from_seed` agreement — the on-the-fly XOF-sampled matrix. Each
 -- entry goes through the opaque `sample_matrix_entry`, characterized by the A1
@@ -419,7 +419,7 @@ private theorem slice_range_strict {T : Type} [Inhabited T]
   obtain ⟨ns, hns_eq, hns_val, -, -, -, hns_get⟩ :=
     Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
       (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩)
-      (by intro e; cases e <;> simp_all <;> omega) (by simp))
+      (by intro e; cases e <;> simp_all ; omega) (by simp))
   have hlen : ns.val.length = b.val - a.val := by
     rw [hns_val]
     show (List.slice a.val b.val s.val).length = b.val - a.val
@@ -749,13 +749,12 @@ private theorem compute_cache_fc {K : Std.Usize}
       ((z.coefficients.val[i.val]!).elements.val[j.val]!) = 0#i16 := by
     intro i j
     have := hz
-    simp only [polynomial.PolynomialRingElement.ZERO, vector.portable.vector_type.zero,
-      libcrux_secrets.traits.Classify.Blanket.classify, bind_tc_ok] at this
+    simp only [polynomial.PolynomialRingElement.ZERO] at this
     rw [← (RustM.ok.injEq _ _).mp this]
     simp only [Std.Array.repeat_val]
-    rw [getElem!_pos _ i.val (by simp [List.length_replicate]), List.getElem_replicate,
+    rw [getElem!_pos _ i.val (by simp), List.getElem_replicate,
       Std.Array.repeat_val,
-      getElem!_pos _ j.val (by simp [List.length_replicate]), List.getElem_replicate]
+      getElem!_pos _ j.val (by simp), List.getElem_replicate]
   have hz_bnd : ∀ i : Fin 16, ∀ j : Fin 16,
       ((z.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 3328 := by
     intro i j; rw [hz_lane i j]; decide

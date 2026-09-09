@@ -146,7 +146,7 @@ private theorem bitSum_natBit (x : Nat) : ∀ k, bitSum (natBit x) k = x % 2 ^ k
         rw [pow_succ]; exact mod_two_mul_split x (2 ^ k) hb
       have hb2 : x / 2 ^ k % 2 < 2 := Nat.mod_lt _ (by omega)
       simp only [bitSum, ih, natBit, hsplit]
-      by_cases h : x / 2 ^ k % 2 = 1 <;> simp [h] <;> omega
+      by_cases h : x / 2 ^ k % 2 = 1 <;> simp [h] ; omega
 
 /-- (b) Bit extraction from a bit sum. -/
 private theorem natBit_bitSum (f : Nat → Bool) (k s : Nat) (hs : s < k) :
@@ -189,10 +189,10 @@ private theorem natBit_bitSum (f : Nat → Bool) (k s : Nat) (hs : s < k) :
         · simp only [hf, if_true]
           rw [show bitSum f s + 2 ^ s = bitSum f s + 1 * 2 ^ s by ring,
               Nat.add_mul_div_right _ _ hps, Nat.div_eq_of_lt hlow]
-          simp [hf]
+          simp
         · simp only [hf, Bool.false_eq_true, if_false, add_zero]
           rw [Nat.div_eq_of_lt hlow]
-          simp [hf]
+          simp
 
 private theorem bitSum_congr (f g : Nat → Bool) (k : Nat)
     (h : ∀ t, t < k → f t = g t) : bitSum f k = bitSum g k := by
@@ -208,7 +208,7 @@ private theorem bitSum_add (f : Nat → Bool) (a : Nat) :
       have ih := bitSum_add f a b
       have hab : a + (b + 1) = (a + b) + 1 := by omega
       rw [hab, bitSum, ih, bitSum]
-      by_cases hf : f (a + b) <;> simp [hf, pow_add] <;> ring
+      by_cases hf : f (a + b) <;> simp [hf, pow_add] ; ring
 
 private theorem bitSum_shift (x c : Nat) :
     ∀ k, bitSum (fun t => natBit x (c + t)) k = x / 2 ^ c % 2 ^ k := by
@@ -285,7 +285,7 @@ private theorem bitSum_sliceBit_odd (l : List Std.U8) (g : Nat) :
   have h2 : (l[3 * g + 2]! : Std.U8).val < 2 ^ 8 := u8_val_lt l (3 * g + 2)
   rw [Nat.mod_eq_of_lt h2]
   unfold dec12_hi
-  simp only [show (2:Nat) ^ 8 = 256 from rfl, show (2:Nat) ^ 4 = 16 from rfl]
+  simp only [show (2:Nat) ^ 4 = 16 from rfl]
   rw [Nat.mod_eq_of_lt (show (l[3 * g + 1]! : Std.U8).val / 16 < 16 by omega)]
   ring
 
@@ -452,7 +452,7 @@ private theorem slice_index_range_strict {T : Type} [Inhabited T]
   obtain ⟨ns, hns_eq, hns_val, -, -, -, hns_get⟩ :=
     Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
       (Aeneas.Std.Slice.subslice_spec s ⟨a, b⟩)
-      (by intro e; cases e <;> simp_all <;> omega) (by simp))
+      (by intro e; cases e <;> simp_all ; omega) (by simp))
   have hlen : ns.val.length = b.val - a.val := by
     rw [hns_val]
     show (List.slice a.val b.val s.val).length = b.val - a.val
@@ -506,7 +506,7 @@ private theorem d12_group (bytes : Slice Std.U8) (h : bytes.val.length = 24)
 private theorem set16_get (E : Std.Array Std.I16 16#usize)
     (v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 : Std.I16) (k : Nat) (hk : k < 16) :
     (((((((((((((((((E.set 0#usize v0).set 1#usize v1).set 2#usize v2).set 3#usize v3).set 4#usize v4).set 5#usize v5).set 6#usize v6).set 7#usize v7).set 8#usize v8).set 9#usize v9).set 10#usize v10).set 11#usize v11).set 12#usize v12).set 13#usize v13).set 14#usize v14).set 15#usize v15).val)[k]! = ([v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15] : List Std.I16)[k]! := by
-  have hE : E.val.length = 16 := by have := E.property; simpa using this
+  have hE : E.val.length = 16 := by have := E.property; simp
   simp only [Std.Array.set_val_eq]
   interval_cases k <;> simp_lists
 
@@ -517,7 +517,7 @@ private theorem bind_ok_pair {α β γ : Type} {x : RustM (α × β)} {a : α} {
 private theorem array_update16 (A : Std.Array Std.I16 16#usize) (i : Std.Usize) (x : Std.I16)
     (hi : i.val < 16) : Aeneas.Std.Array.update A i x = .ok (A.set i x) := by
   have hlen : i.val < A.val.length := by
-    have hA : A.val.length = 16 := by have := A.property; simpa using this
+    have hA : A.val.length = 16 := by have := A.property; simp
     omega
   simp only [Aeneas.Std.Array.update, Aeneas.Std.Array.getElem?_Usize_eq,
     List.getElem?_eq_getElem hlen]
@@ -625,7 +625,7 @@ private theorem array_index_mut16 {α : Type} (A : Std.Array α 16#usize) (i : S
 private theorem array_set_get16 {α : Type} [Inhabited α]
     (A : Std.Array α 16#usize) (i : Std.Usize) (x : α) (k : Nat) (hk : k < 16) (hi : i.val < 16) :
     ((Std.Array.set A i x).val)[k]! = if k = i.val then x else A.val[k]! := by
-  have hlen : A.val.length = 16 := by have := A.property; simpa using this
+  have hlen : A.val.length = 16 := by have := A.property; simp
   simp only [Std.Array.set_val_eq]
   by_cases h : k = i.val
   · subst h; rw [if_pos rfl, getElem!_pos _ _ (by simp [hlen]; omega)]
@@ -669,7 +669,7 @@ private theorem deserialize_uncompressed_loop_fc
     have hcnt16 : cnt.val < 16 := by omega
     have hcoeff_len : cnt.val < acc.coefficients.val.length := by
       have hc : acc.coefficients.val.length = 16 := by
-        have := acc.coefficients.property; simpa using this
+        have := acc.coefficients.property; simp
       omega
     have hchunk_len : chunk.val.length = 24 := by
       simpa [Aeneas.Std.Slice.length] using hclen
@@ -722,7 +722,7 @@ private theorem deserialize_uncompressed_loop_fc
         rw [hdget ℓ]
         simp only [h24]
         rw [hsuf (24 + ℓ)]
-        congr 1 <;> omega
+        congr 1 ; omega
       · refine (holds_ok _).mpr ?_
         show declane serialized.val { coefficients := Std.Array.set acc.coefficients cnt v } (k + 1)
         intro i hi ℓ hℓ
@@ -825,7 +825,7 @@ private theorem bytes_to_bits_closure_eq (a : Std.Array Std.U8 384#usize) (k : N
   have hq16 : q.val = k / 8 := by rw [hq_val, hkv, h8]
   have hr8 : r.val = k % 8 := by rw [hr_val, hkv, h8]
   have hqlt : q.val < a.val.length := by
-    have ha : a.val.length = 384 := by have := a.property; simpa using this
+    have ha : a.val.length = 384 := by have := a.property; simp
     rw [ha, hq16]; omega
   have hidx : Aeneas.Std.Array.index_usize a q = .ok (a.val[q.val]!) := by
     simp only [Aeneas.Std.Array.index_usize, Aeneas.Std.Array.getElem?_Usize_eq,
@@ -1202,7 +1202,7 @@ private theorem s12_group (v : libcrux_iot_ml_kem.vector.portable.vector_type.Po
                  w1of v.elements.val[m0]! v.elements.val[m1]!,
                  w2of v.elements.val[m1]!) := by
   subst hm1
-  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simp
   obtain ⟨ns, he, hl, hget⟩ := array_index_range_strict v.elements a bnd (by omega) (by omega)
   refine ⟨ns, he, ?_⟩
   rw [serialize_12_int_eq ns (by omega)]
@@ -1278,7 +1278,7 @@ private theorem serialize_12_eq
     show RustM.ok (Aeneas.Std.Slice.len out) = _
     congr 1
     apply Std.UScalar.eq_of_val_eq
-    simp [Aeneas.Std.Slice.len_val, h]
+    simp [h]
   unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_12 s12set
   rw [hlen]
   simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
@@ -1469,7 +1469,7 @@ private theorem serialize_uncompressed_loop_fc
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
           (by rw [h16]; exact hlt)
       have hcl : re.coefficients.val.length = 16 := by
-        have := re.coefficients.property; simpa using this
+        have := re.coefficients.property; simp
       have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
           = .ok (re.coefficients.val[k.val]!) :=
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
@@ -1589,7 +1589,7 @@ private theorem serialize_uncompressed_impl_fc
     show RustM.ok (Aeneas.Std.Slice.len serialized) = _
     congr 1
     apply Std.UScalar.eq_of_val_eq
-    simp [Aeneas.Std.Slice.len_val, h_len]
+    simp [h_len]
   have hdivlit : ∀ x y z : Std.Usize, y.val ≠ 0 → x.val / y.val = z.val →
       (x / y : RustM Std.Usize) = .ok z := by
     intro x y z hy hz
@@ -1848,7 +1848,7 @@ private theorem u8_shl_iscalar (x : Std.U8) (t : Std.I32) (ht0 : 0 ≤ t.val) (h
   obtain ⟨z, hz, hv, _, _⟩ :=
     Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
       (Std.UScalar.ShiftLeft_IScalar_spec (ty0 := .U8) x t (Std.UScalar.size .U8) rfl)
-      (by intro e; cases e <;> simp_all <;> omega) (by simp))
+      (by intro e; cases e <;> simp_all) (by simp))
   refine ⟨z, hz, ?_⟩
   have hsize : Std.UScalar.size .U8 = 256 := by
     rw [Std.UScalar.size_def]; norm_num [Std.UScalarTy.numBits]
@@ -1889,7 +1889,7 @@ private theorem byte_encode_closure_eq
       = .ok ((p.val[k]!).val, p) := by
   have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
     enc_usize_ofNat_val k (by omega)
-  have hlen : p.val.length = 256 := by have := p.property; simpa using this
+  have hlen : p.val.length = 256 := by have := p.property; simp
   show (do
       let fe ← Aeneas.Std.Array.index_usize p (⟨BitVec.ofNat _ k⟩ : Std.Usize)
       RustM.ok (fe.val, p)) = _
@@ -1957,7 +1957,7 @@ private theorem bvfb_closure_eq (a : Std.Array Std.U16 256#usize) (m : Nat) (hm 
   have hmv : ((⟨BitVec.ofNat _ m⟩ : Std.Usize)).val = m :=
     enc_usize_ofNat_val m (by omega)
   have h12 : ((12#usize : Std.Usize)).val = 12 := by scalar_tac
-  have hlen : a.val.length = 256 := by have := a.property; simpa using this
+  have hlen : a.val.length = 256 := by have := a.property; simp
   obtain ⟨q, hq_eq, hq_val⟩ :=
     Std.UScalar.div_spec (⟨BitVec.ofNat _ m⟩ : Std.Usize)
       (y := (12#usize : Std.Usize)) (by decide)
@@ -2037,7 +2037,7 @@ private theorem bits_to_bytes_closure_eq (bv : Std.Array Bool 3072#usize) (n : N
   set f : Nat → Bool := fun t => bv.val[8 * n + t]! with hf
   have hnv : ((⟨BitVec.ofNat _ n⟩ : Std.Usize)).val = n :=
     enc_usize_ofNat_val n (by omega)
-  have hlen : bv.val.length = 3072 := by have := bv.property; simpa using this
+  have hlen : bv.val.length = 3072 := by have := bv.property; simp
   have h8 : ((8#usize : Std.Usize)).val = 8 := by scalar_tac
   obtain ⟨i, hi, hiv0⟩ :=
     usize_mul_ok_e (8#usize : Std.Usize) (⟨BitVec.ofNat _ n⟩ : Std.Usize)
@@ -2135,32 +2135,32 @@ private theorem bits_to_bytes_closure_eq (bv : Std.Array Bool 3072#usize) (n : N
   simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
   rw [hj1]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j1 (by rw [e1, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz1]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz1]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj2]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j2 (by rw [e2, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz2]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz2]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj3]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j3 (by rw [e3, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz3]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz3]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj4]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j4 (by rw [e4, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz4]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz4]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj5]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j5 (by rw [e5, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz5]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz5]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj6]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j6 (by rw [e6, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz6]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz6]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj7]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j7 (by rw [e7, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz7]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz7]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hfinal]
 
 /-- **Level 3, assembled.** -/
@@ -2220,8 +2220,7 @@ theorem byte_encode_12_eq
       = .ok (3072#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.byte_encode
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      le_refl, if_true, Aeneas.Std.bind_tc_ok, e1, e2, eq_self_iff_true, hp_raw, hbv, hout]
+    simp only [Aeneas.Std.bind_tc_ok, hp_raw, hbv, hout]
   · intro n hn
     rw [hout_get n hn,
       bitSum_congr _ (fun t => encBit re (8 * n + t)) 8
@@ -2593,7 +2592,7 @@ private theorem u8_shr_lit (x : Std.U8) (t : Std.I32) (k : Nat)
   obtain ⟨z, hz, hzv, _, _⟩ :=
     Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
       (Std.UScalar.ShiftRight_IScalar_spec (ty0 := .U8) x t)
-      (by intro e; cases e <;> simp_all <;> omega) (by simp))
+      (by intro e; cases e <;> simp_all) (by simp))
   exact ⟨z, hz, by rw [hzv, hkn, Nat.shiftRight_eq_div_pow]⟩
 
 /-- The recipe's `or_shift_eq_add` in the orientation the impl writes it (high field
@@ -3494,8 +3493,7 @@ private theorem byte_decode_generic_12_get (a : Std.Array Std.U8 384#usize) :
       = .ok (3072#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   refine ⟨arr, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.byte_decode_generic
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      le_refl, if_true, Aeneas.Std.bind_tc_ok, e1, e2, e3, hbv, harr]
+    simp only [Aeneas.Std.bind_tc_ok, hbv, harr]
   · intro k hk
     rw [harrget k hk,
       bitSum_congr _ (fun t => sliceBit a.val (12 * k + t)) 12
@@ -3522,7 +3520,7 @@ private theorem byte_decode_closure_eq {D32 D256 : Std.Usize}
       = .ok (({ val := u16OfNat ((decoded.val[k]!).val % 3329) } :
                 hacspec_ml_kem.parameters.FieldElement), decoded) := by
   have hkv := usize_ofNat_val k (by omega)
-  have hlen : decoded.val.length = 256 := by have := decoded.property; simpa using this
+  have hlen : decoded.val.length = 256 := by have := decoded.property; simp
   have hidx : Aeneas.Std.Array.index_usize decoded (⟨BitVec.ofNat _ k⟩ : Std.Usize)
       = .ok (decoded.val[k]!) := by
     have := array_index_ok decoded (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [hkv, hlen]; exact hk)
@@ -3557,7 +3555,7 @@ private theorem byte_decode_12_eq (a : Std.Array Std.U8 384#usize)
       = .ok (384#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   have e4 : ((256#usize : Std.Usize) * (12#usize : Std.Usize) : RustM Std.Usize)
       = .ok (3072#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
-  have halen : a.val.length = 384 := by have := a.property; simpa using this
+  have halen : a.val.length = 384 := by have := a.property; simp
   have hslice : (Aeneas.Std.lift (Aeneas.Std.Array.to_slice a) : RustM (Slice Std.U8))
       = .ok ⟨a.val, by scalar_tac⟩ := by
     simp [Aeneas.Std.lift, Aeneas.Std.Array.to_slice]
@@ -3579,10 +3577,7 @@ private theorem byte_decode_12_eq (a : Std.Array Std.U8 384#usize)
         rw [byte_decode_closure_eq decoded k hk256,
           lift_fe_of_nat _ (dec12 a.val k) hlane, hdecget k hk256])
   unfold hacspec_ml_kem.serialize.byte_decode
-  simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-    le_refl, if_true, Aeneas.Std.bind_tc_ok, hslice,
-    slice_len_384 ⟨a.val, by scalar_tac⟩ halen, e2, e4, hdec,
-    hacspec_ml_kem.parameters.createi, hfn]
+  simp only [Aeneas.Std.bind_tc_ok, hdec, hacspec_ml_kem.parameters.createi, hfn]
   rfl
 
 /-! ### `byte_decode_dyn` at `d = 12` — the slice-shaped entry point. -/
@@ -3703,7 +3698,7 @@ theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 384#usize
       hacspec_ml_kem.serialize.byte_decode_dyn b 12#usize = .ok q
       ∧ hacspec_ml_kem.serialize.byte_decode (D32 := 384#usize) 3072#usize a 12#usize
           = .ok q := by
-  have halen : a.val.length = 384 := by have := a.property; simpa using this
+  have halen : a.val.length = 384 := by have := a.property; simp
   have hb : b.val.length = 384 := by rw [← hab]; exact halen
   obtain ⟨decoded, hdec, _⟩ := byte_decode_generic_12_get a
   have e2 : ((32#usize : Std.Usize) * (12#usize : Std.Usize) : RustM Std.Usize)
@@ -3728,10 +3723,7 @@ theorem byte_decode_dyn_12_ok (b : Slice Std.U8) (a : Std.Array Std.U8 384#usize
                            hacspec_ml_kem.parameters.FieldElement)),
              by simp⟩ := by
     unfold hacspec_ml_kem.serialize.byte_decode
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      le_refl, if_true, Aeneas.Std.bind_tc_ok, hslice,
-      slice_len_384 ⟨a.val, by scalar_tac⟩ halen, e2, e4, hdec,
-      hacspec_ml_kem.parameters.createi, hfn]
+    simp only [Aeneas.Std.bind_tc_ok, hdec, hacspec_ml_kem.parameters.createi, hfn]
   refine ⟨_, ?_, hbd⟩
   have hl := slice_len_eq_384 b hb
   have hlen := slice_len_384 b hb
@@ -4264,7 +4256,7 @@ private theorem mraw_toNat (y : Std.U8) :
   unfold natBit
   simp only [pow_zero, Nat.div_one]
   have : y.val % 2 < 2 := Nat.mod_lt _ (by omega)
-  by_cases h : y.val % 2 = 1 <;> simp [h] <;> omega
+  by_cases h : y.val % 2 = 1 <;> simp [h] ; omega
 
 private def shr8 (y : Std.U8) (s : Nat) : Std.U8 := ⟨BitVec.ushiftRight y.bv s⟩
 
@@ -4292,7 +4284,7 @@ private theorem u8_shr_ok (x : Std.U8) (s : Std.I32) (k : Nat)
   obtain ⟨z, hz, _hzv, hzbv, _⟩ :=
     Std.WP.spec_imp_exists (Std.WP.spec_of_partialSpec
       (Std.UScalar.ShiftRight_IScalar_spec (ty0 := .U8) x s)
-      (by intro e; cases e <;> simp_all <;> omega) (by simp))
+      (by intro e; cases e <;> simp_all) (by simp))
   rw [hz]
   congr 1
   refine uscalar_eq_of_bv ?_
@@ -4486,7 +4478,7 @@ private theorem message_loop_fc
       (vectortraitsOperationsInst := portable_ops_inst)
       { start := 0#usize, «end» := 16#usize } serialized re
     ⦃ ⇓ p => ⌜ (Aeneas.Std.RustM.ok (msglane serialized.val p 16)).holds ⌝ ⦄ := by
-  have hlen : serialized.val.length = 32 := by have := serialized.property; simpa using this
+  have hlen : serialized.val.length = 32 := by have := serialized.property; simp
   have h16 : ((16#usize : Std.Usize)).val = 16 := by scalar_tac
   have h0 : ((0#usize : Std.Usize)).val = 0 := by scalar_tac
   have hproj :
@@ -4525,7 +4517,7 @@ private theorem message_loop_fc
             libcrux_iot_ml_kem.vector.portable.vector_type.PortableVector 16#usize),
           Aeneas.Std.Array.index_mut_usize A i = .ok (A.val[i.val]!, Std.Array.set A i) := by
         intro A
-        have hAl : A.val.length = 16 := by have := A.property; simpa using this
+        have hAl : A.val.length = 16 := by have := A.property; simp
         have hA : i.val < A.val.length := by omega
         rw [array_index_mut16 A i hA, getElem!_pos A.val i.val hA]
       have hset_self : ∀ (A : Std.Array
@@ -4649,7 +4641,7 @@ private theorem bytes_to_bits_closure_eq_32 (a : Std.Array Std.U8 32#usize) (k :
   have hq16 : q.val = k / 8 := by rw [hq_val, hkv, h8]
   have hr8 : r.val = k % 8 := by rw [hr_val, hkv, h8]
   have hqlt : q.val < a.val.length := by
-    have ha : a.val.length = 32 := by have := a.property; simpa using this
+    have ha : a.val.length = 32 := by have := a.property; simp
     rw [ha, hq16]; omega
   have hidx : Aeneas.Std.Array.index_usize a q = .ok (a.val[q.val]!) :=
     array_index_ok a q hqlt
@@ -4768,8 +4760,7 @@ private theorem byte_decode_generic_1_get (a : Std.Array Std.U8 32#usize) :
       = .ok (32#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   refine ⟨arr, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.byte_decode_generic
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, Aeneas.Std.bind_tc_ok, e1, e2, if_true, hbv, harr]
+    simp only [Aeneas.Std.bind_tc_ok, hbv, harr]
   · intro k hk
     rw [harrget k hk, hbvget k hk]
 
@@ -4788,7 +4779,7 @@ private theorem byte_decode_1_get (a : Std.Array Std.U8 32#usize) :
       = .ok (32#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
   have e4 : ((256#usize : Std.Usize) * (1#usize : Std.Usize) : RustM Std.Usize)
       = .ok (256#usize : Std.Usize) := usize_mul_lit _ _ _ (by scalar_tac) (by scalar_tac)
-  have halen : a.val.length = 32 := by have := a.property; simpa using this
+  have halen : a.val.length = 32 := by have := a.property; simp
   have hslice : (Aeneas.Std.lift (Aeneas.Std.Array.to_slice a) : RustM (Slice Std.U8))
       = .ok ⟨a.val, by scalar_tac⟩ := by
     simp [Aeneas.Std.lift, Aeneas.Std.Array.to_slice]
@@ -4820,9 +4811,7 @@ private theorem byte_decode_1_get (a : Std.Array Std.U8 32#usize) :
         hacspec_ml_kem.parameters.FieldElement)),
       by simp [List.length_map, List.length_range]⟩, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.byte_decode
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, Aeneas.Std.bind_tc_ok, hslice, hlen32, e2, e4, if_true, hdec,
-      hacspec_ml_kem.parameters.createi, hfn]
+    simp only [Aeneas.Std.bind_tc_ok, hdec, hacspec_ml_kem.parameters.createi, hfn]
   · intro k hk
     rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
       List.getElem?_range (by rw [h256]; exact hk)]
@@ -4896,9 +4885,9 @@ private theorem decompress_d_1_eq (fe : hacspec_ml_kem.parameters.FieldElement)
     rw [h16]
     exact Nat.mod_eq_of_lt (by omega)
   unfold hacspec_ml_kem.compress.decompress_d
-  simp only [Aeneas.Std.massert, hacspec_ml_kem.parameters.FIELD_MODULUS,
+  simp only [hacspec_ml_kem.parameters.FIELD_MODULUS,
     hacspec_ml_kem.parameters.FieldElement.new, Aeneas.Std.lift,
-    Aeneas.Std.bind_tc_ok, hshl, if_pos hass1, if_pos hass2, hc1, hc3329, hpow,
+    Aeneas.Std.bind_tc_ok, hc1, hc3329, hpow,
     hi3, hi5, hnum, hi6, hdec, hfinal]
 
 /-- The `decompress` `createi` closure at `d = 1`, index `k`. -/
@@ -4912,7 +4901,7 @@ private theorem decompress_closure_1_eq
       = .ok (({ val := u16OfNat (b * 1665) } : hacspec_ml_kem.parameters.FieldElement),
              ((arr, 1#usize) : hacspec_ml_kem.compress.decompress.closure)) := by
   have hkv := usize_ofNat_val k (by omega)
-  have hlen : arr.val.length = 256 := by have := arr.property; simpa using this
+  have hlen : arr.val.length = 256 := by have := arr.property; simp
   have hidx : Aeneas.Std.Array.index_usize arr (⟨BitVec.ofNat _ k⟩ : Std.Usize)
       = .ok (arr.val[k]!) := by
     have := array_index_ok arr (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [hkv, hlen]; exact hk)
@@ -5119,9 +5108,9 @@ theorem decompress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : S
     rw [h16]
     exact Nat.mod_eq_of_lt (by omega)
   unfold hacspec_ml_kem.compress.decompress_d
-  simp only [Aeneas.Std.massert, hacspec_ml_kem.parameters.FIELD_MODULUS,
+  simp only [hacspec_ml_kem.parameters.FIELD_MODULUS,
     hacspec_ml_kem.parameters.FieldElement.new, Aeneas.Std.lift,
-    Aeneas.Std.bind_tc_ok, hshl, if_pos hass1, if_pos hass2, hc3329, hpow,
+    Aeneas.Std.bind_tc_ok, hc3329, hpow,
     hi3, hi5, hnum, hi6, hdec, hfinal]
 
 /-! ### Scaffolding for the general-`d` IMPL side.
@@ -5725,9 +5714,9 @@ theorem compress_d_gen_eq (fe : hacspec_ml_kem.parameters.FieldElement) (d : Std
     rw [h16]
     exact Nat.mod_eq_of_lt (by omega)
   unfold hacspec_ml_kem.compress.compress_d
-  simp only [Aeneas.Std.massert, hacspec_ml_kem.parameters.FIELD_MODULUS,
+  simp only [hacspec_ml_kem.parameters.FIELD_MODULUS,
     hacspec_ml_kem.parameters.FieldElement.new, Aeneas.Std.lift,
-    Aeneas.Std.bind_tc_ok, if_pos hass1, hc3329, hpow,
+    Aeneas.Std.bind_tc_ok, hc3329, hpow,
     hi2, hi3, hi5, hi7, hcmp, hi8, hfinal]
 
 end MCPBank
@@ -6139,7 +6128,7 @@ private theorem serialize_1_eq
       ∧ s.val.length = 2
       ∧ (s.val[0]!).val = bitSum f 8
       ∧ (s.val[1]!).val = bitSum (fun t => f (8 + t)) 8 := by
-  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simp
   have hb : ∀ l : Nat, l < 16 → (c8 (v.elements.val[l]!)).val = if f l then 1 else 0 := by
     intro l hl
     rw [c8_val, hv l hl]
@@ -6231,7 +6220,7 @@ private theorem serialize_1_eq
     show RustM.ok (Aeneas.Std.Slice.len out) = _
     congr 1
     apply Std.UScalar.eq_of_val_eq
-    simp [Aeneas.Std.Slice.len_val, h]
+    simp [h]
   refine ⟨(out.set 0#usize
               (c8 (v.elements.val[0]!) ||| z1 ||| z2 ||| z3 ||| z4 ||| z5 ||| z6 ||| z7)).set
             1#usize
@@ -6322,7 +6311,7 @@ private theorem msg_enc_loop_fc
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
           (by rw [h16]; exact hlt)
       have hcl : re.coefficients.val.length = 16 := by
-        have := re.coefficients.property; simpa using this
+        have := re.coefficients.property; simp
       have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
           = .ok (re.coefficients.val[k.val]!) :=
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
@@ -6488,7 +6477,7 @@ private theorem compress_msg_closure_eq
   have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
     enc_usize_ofNat_val k (by omega)
   have hlen : (lift_poly re).val.length = 256 := by
-    have := (lift_poly re).property; simpa using this
+    have := (lift_poly re).property; simp
   show (do
       let fe ← Aeneas.Std.Array.index_usize (lift_poly re) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
       let fe1 ← hacspec_ml_kem.compress.compress_d fe (1#usize : Std.Usize)
@@ -6541,7 +6530,7 @@ private theorem byte_encode_closure_eq_gen {D32 D256 : Std.Usize}
       = .ok ((p.val[k]!).val, p) := by
   have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
     enc_usize_ofNat_val k (by omega)
-  have hlen : p.val.length = 256 := by have := p.property; simpa using this
+  have hlen : p.val.length = 256 := by have := p.property; simp
   show (do
       let fe ← Aeneas.Std.Array.index_usize p (⟨BitVec.ofNat _ k⟩ : Std.Usize)
       RustM.ok (fe.val, p)) = _
@@ -6588,7 +6577,7 @@ private theorem bvfb_closure_1_eq (a : Std.Array Std.U16 256#usize) (m : Nat) (h
   have hmv : ((⟨BitVec.ofNat _ m⟩ : Std.Usize)).val = m :=
     enc_usize_ofNat_val m (by omega)
   have h1 : ((1#usize : Std.Usize)).val = 1 := by scalar_tac
-  have hlen : a.val.length = 256 := by have := a.property; simpa using this
+  have hlen : a.val.length = 256 := by have := a.property; simp
   obtain ⟨q, hq_eq, hq_val⟩ :=
     Std.UScalar.div_spec (⟨BitVec.ofNat _ m⟩ : Std.Usize)
       (y := (1#usize : Std.Usize)) (by decide)
@@ -6669,7 +6658,7 @@ private theorem bits_to_bytes_closure_eq_gen {N N8 : Std.Usize} (bv : Std.Array 
       = .ok (u8OfNat (bitSum (fun t => bv.val[8 * n + t]!) 8), bv) := by
   set f : Nat → Bool := fun t => bv.val[8 * n + t]! with hf
   have hnv : ((⟨BitVec.ofNat _ n⟩ : Std.Usize)).val = n := enc_usize_ofNat_val n hn32
-  have hlen : bv.val.length = N8.val := by have := bv.property; simpa using this
+  have hlen : bv.val.length = N8.val := by have := bv.property; simp
   have h8 : ((8#usize : Std.Usize)).val = 8 := by scalar_tac
   obtain ⟨i, hi, hiv0⟩ :=
     usize_mul_ok_e (8#usize : Std.Usize) (⟨BitVec.ofNat _ n⟩ : Std.Usize)
@@ -6767,32 +6756,32 @@ private theorem bits_to_bytes_closure_eq_gen {N N8 : Std.Usize} (bv : Std.Array 
   simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
   rw [hj1]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j1 (by rw [e1, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz1]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz1]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj2]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j2 (by rw [e2, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz2]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz2]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj3]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j3 (by rw [e3, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz3]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz3]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj4]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j4 (by rw [e4, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz4]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz4]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj5]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j5 (by rw [e5, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz5]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz5]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj6]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j6 (by rw [e6, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz6]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz6]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hj7]; simp only [Aeneas.Std.bind_tc_ok]
   rw [enc_array_index_ok bv j7 (by rw [e7, hlen]; omega)]
-  simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
-  rw [hz7]; simp only [Aeneas.Std.lift, Aeneas.Std.bind_tc_ok]
+  simp only [Aeneas.Std.bind_tc_ok]
+  rw [hz7]; simp only [Aeneas.Std.bind_tc_ok]
   rw [hfinal]
 
 /-- **Level 3, assembled at `N = 32`.** -/
@@ -6851,8 +6840,8 @@ private theorem msg_enc_spec_eq
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.compress_then_serialize_message
       hacspec_ml_kem.serialize.byte_encode
-    simp only [ha, Aeneas.Std.bind_tc_ok, hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT,
-      Aeneas.Std.massert, if_pos hass, if_true, e1, e2, hp_raw, hbv, hout]
+    simp only [ha, Aeneas.Std.bind_tc_ok,
+      hp_raw, hbv, hout]
   · intro n hn
     rw [hout_get n hn]
     unfold msgByte
@@ -7353,7 +7342,7 @@ private theorem L53_loop_4_fc
     have hcnt16 : cnt.val < 16 := by omega
     have hlen1 : cnt.val < acc.coefficients.val.length := by
       have hc : acc.coefficients.val.length = 16 := by
-        have := acc.coefficients.property; simpa using this
+        have := acc.coefficients.property; simp
       omega
     have hchunk_len : chunk.val.length = 8 := by
       simpa [Aeneas.Std.Slice.length] using hclen
@@ -7377,7 +7366,7 @@ private theorem L53_loop_4_fc
       chunk_decompress_ok serialized.val 4 (by omega) 4#i32 (by scalar_tac) k v hvwin
     have hlen2 : cnt.val < (Std.Array.set acc.coefficients cnt v).val.length := by
       have hc : (Std.Array.set acc.coefficients cnt v).val.length = 16 := by
-        have := (Std.Array.set acc.coefficients cnt v).property; simpa using this
+        have := (Std.Array.set acc.coefficients cnt v).property; simp
       omega
     have hgi : (Std.Array.set acc.coefficients cnt v).val[cnt.val]!
         = (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 :=
@@ -7448,7 +7437,7 @@ private theorem L53_loop_4_fc
         rw [hdget ℓ]
         simp only [h8]
         rw [hsuf (8 + ℓ)]
-        congr 1 <;> omega
+        congr 1 ; omega
       · refine (holds_ok _).mpr ?_
         intro i hi ℓ hℓ
         show ((Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w).val[i]!).elements.val[ℓ]!.val
@@ -7507,7 +7496,7 @@ private theorem L53_loop_5_fc
     have hcnt16 : cnt.val < 16 := by omega
     have hlen1 : cnt.val < acc.coefficients.val.length := by
       have hc : acc.coefficients.val.length = 16 := by
-        have := acc.coefficients.property; simpa using this
+        have := acc.coefficients.property; simp
       omega
     have hchunk_len : chunk.val.length = 10 := by
       simpa [Aeneas.Std.Slice.length] using hclen
@@ -7530,7 +7519,7 @@ private theorem L53_loop_5_fc
       chunk_decompress_ok serialized.val 5 (by omega) 5#i32 (by scalar_tac) k v hvwin
     have hlen2 : cnt.val < (Std.Array.set acc.coefficients cnt v).val.length := by
       have hc : (Std.Array.set acc.coefficients cnt v).val.length = 16 := by
-        have := (Std.Array.set acc.coefficients cnt v).property; simpa using this
+        have := (Std.Array.set acc.coefficients cnt v).property; simp
       omega
     have hgi : (Std.Array.set acc.coefficients cnt v).val[cnt.val]!
         = (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 :=
@@ -7599,7 +7588,7 @@ private theorem L53_loop_5_fc
         rw [hdget ℓ]
         simp only [h10]
         rw [hsuf (10 + ℓ)]
-        congr 1 <;> omega
+        congr 1 ; omega
       · refine (holds_ok _).mpr ?_
         intro i hi ℓ hℓ
         show ((Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w).val[i]!).elements.val[ℓ]!.val
@@ -7824,8 +7813,7 @@ private theorem byte_decode_generic_gen (d : Std.Usize) {Nd : Std.Usize}
     usize_mul_lit _ _ _ (by rw [hNd8]; scalar_tac) (by scalar_tac)
   refine ⟨arr, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.byte_decode_generic
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, if_true, Aeneas.Std.bind_tc_ok, e1, e2, e3, hbv, harr]
+    simp only [Aeneas.Std.bind_tc_ok, hbv, harr]
   · intro k hk
     rw [harrget k hk]
     have hb : ∀ t : Nat, t < d.val → d.val * k + t < Nd8.val := by
@@ -7881,9 +7869,7 @@ private theorem byte_decode_gen_eq (d : Std.Usize) {Nd : Std.Usize} (a : Std.Arr
                   : hacspec_ml_kem.parameters.FieldElement)),
       by simp [List.length_map, List.length_range]⟩, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.byte_decode
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hle, Aeneas.Std.bind_tc_ok, hslice, hlen, e2, e4, if_true, hdec,
-      hacspec_ml_kem.parameters.createi, hfn]
+    simp only [Aeneas.Std.bind_tc_ok, hdec, hacspec_ml_kem.parameters.createi, hfn]
   · intro k hk
     rw [List.getElem!_eq_getElem?_getD, List.getElem?_map,
       List.getElem?_range (by rw [h256]; exact hk)]
@@ -7994,7 +7980,7 @@ private theorem decompress_closure_gen (d : Std.Usize)
                                   / 2 ^ (d.val + 1)) } : hacspec_ml_kem.parameters.FieldElement),
              ((a, d) : hacspec_ml_kem.compress.decompress.closure)) := by
   have hkv := usize_ofNat_val k (by omega)
-  have hlen : a.val.length = 256 := by have := a.property; simpa using this
+  have hlen : a.val.length = 256 := by have := a.property; simp
   have hidx : Aeneas.Std.Array.index_usize a (⟨BitVec.ofNat _ k⟩ : Std.Usize)
       = .ok (a.val[k]!) := by
     have h := array_index_ok a (⟨BitVec.ofNat _ k⟩ : Std.Usize) (by rw [hkv, hlen]; exact hk)
@@ -8537,7 +8523,7 @@ private theorem s4_group (v : libcrux_iot_ml_kem.vector.portable.vector_type.Por
                  s4b v.elements.val[m0 + 2]! v.elements.val[m0 + 3]!,
                  s4b v.elements.val[m0 + 4]! v.elements.val[m0 + 5]!,
                  s4b v.elements.val[m0 + 6]! v.elements.val[m0 + 7]!) := by
-  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simp
   obtain ⟨ns, he, hl, hget⟩ := array_index_range_strict v.elements a bnd (by omega) (by omega)
   refine ⟨ns, he, ?_⟩
   rw [serialize_4_int_eq ns (by omega)]
@@ -8592,7 +8578,7 @@ private theorem serialize_4_eq
     show RustM.ok (Aeneas.Std.Slice.len out) = _
     congr 1
     apply Std.UScalar.eq_of_val_eq
-    simp [Aeneas.Std.Slice.len_val, h]
+    simp [h]
   unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_4 s4set
   rw [hlen]
   simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
@@ -8647,7 +8633,7 @@ private theorem s5_group (v : libcrux_iot_ml_kem.vector.portable.vector_type.Por
                  s5b2 v.elements.val[m0 + 3]! v.elements.val[m0 + 4]!,
                  s5b3 v.elements.val[m0 + 4]! v.elements.val[m0 + 5]! v.elements.val[m0 + 6]!,
                  s5b4 v.elements.val[m0 + 6]! v.elements.val[m0 + 7]!) := by
-  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simp
   obtain ⟨ns, he, hl, hget⟩ := array_index_range_strict v.elements a bnd (by omega) (by omega)
   refine ⟨ns, he, ?_⟩
   rw [serialize_5_int_eq ns (by omega)]
@@ -8715,7 +8701,7 @@ private theorem serialize_5_eq
     show RustM.ok (Aeneas.Std.Slice.len out) = _
     congr 1
     apply Std.UScalar.eq_of_val_eq
-    simp [Aeneas.Std.Slice.len_val, h]
+    simp [h]
   unfold libcrux_iot_ml_kem.vector.portable.serialize.serialize_5 s5set
   rw [hlen]
   simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.massert, if_true]
@@ -8759,13 +8745,11 @@ private theorem v5byte_val
     with hr | hr | hr | hr | hr
   · rw [if_pos hr, s5b0_val _ _ (by rw [b0]; omega) (by rw [b1]; omega), b0, b1,
       show 8 * n / 5 = 8 * m from by omega, show 8 * n % 5 = 0 from by omega]
-    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
+    all_goals simp only [Nat.add_assoc, Nat.reduceSub, Nat.reducePow]
     all_goals omega
   · rw [if_neg (by omega), if_pos hr,
       s5b1_val _ _ _ (by rw [b1]; omega) (by rw [b2]; omega) (by rw [b3]; omega), b1, b2, b3,
       show 8 * n / 5 = 8 * m + 1 from by omega, show 8 * n % 5 = 3 from by omega]
-    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
-    all_goals omega
   · rw [if_neg (by omega), if_neg (by omega), if_pos hr,
       s5b2_val _ _ (by rw [b3]; omega) (by rw [b4]; omega), b3, b4,
       show 8 * n / 5 = 8 * m + 3 from by omega, show 8 * n % 5 = 1 from by omega]
@@ -8774,8 +8758,6 @@ private theorem v5byte_val
   · rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_pos hr,
       s5b3_val _ _ _ (by rw [b4]; omega) (by rw [b5]; omega) (by rw [b6]; omega), b4, b5, b6,
       show 8 * n / 5 = 8 * m + 4 from by omega, show 8 * n % 5 = 4 from by omega]
-    all_goals simp only [Nat.add_assoc, Nat.reduceAdd, Nat.reduceSub, Nat.reducePow]
-    all_goals omega
   · rw [if_neg (by omega), if_neg (by omega), if_neg (by omega), if_neg (by omega),
       s5b4_val _ _ (by rw [b6]; omega) (by rw [b7]; omega), b6, b7,
       show 8 * n / 5 = 8 * m + 6 from by omega, show 8 * n % 5 = 2 from by omega]
@@ -8939,7 +8921,7 @@ private theorem L54_loop_4_fc
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
           (by rw [h16]; exact hlt)
       have hcl : re.coefficients.val.length = 16 := by
-        have := re.coefficients.property; simpa using this
+        have := re.coefficients.property; simp
       have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
           = .ok (re.coefficients.val[k.val]!) :=
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
@@ -9108,7 +9090,7 @@ private theorem L54_loop_5_fc
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
           (by rw [h16]; exact hlt)
       have hcl : re.coefficients.val.length = 16 := by
-        have := re.coefficients.property; simpa using this
+        have := re.coefficients.property; simp
       have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
           = .ok (re.coefficients.val[k.val]!) :=
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
@@ -9277,7 +9259,7 @@ private theorem compress_v_closure_eq
   have hkv : ((⟨BitVec.ofNat _ k⟩ : Std.Usize)).val = k :=
     enc_usize_ofNat_val k (by omega)
   have hlen : (lift_poly re).val.length = 256 := by
-    have := (lift_poly re).property; simpa using this
+    have := (lift_poly re).property; simp
   show (do
       let fe ← Aeneas.Std.Array.index_usize (lift_poly re) (⟨BitVec.ofNat _ k⟩ : Std.Usize)
       let fe1 ← hacspec_ml_kem.compress.compress_d fe d
@@ -9325,7 +9307,7 @@ private theorem bvfb_closure_eq_gen {Nd : Std.Usize} (a : Std.Array Std.U16 256#
         (256#usize : Std.Usize) Nd).call_mut (a, d) ⟨BitVec.ofNat _ m⟩
       = .ok (natBit ((a.val[m / d.val]!).val) (m % d.val), (a, d)) := by
   have hmv : ((⟨BitVec.ofNat _ m⟩ : Std.Usize)).val = m := enc_usize_ofNat_val m hm32
-  have hlen : a.val.length = 256 := by have := a.property; simpa using this
+  have hlen : a.val.length = 256 := by have := a.property; simp
   obtain ⟨q, hq_eq, hq_val⟩ :=
     Std.UScalar.div_spec (⟨BitVec.ofNat _ m⟩ : Std.Usize) (y := d) (by omega)
   obtain ⟨r, hr_eq, hr_val⟩ :=
@@ -9470,9 +9452,7 @@ theorem byte_encode_gen_eq
   have hass : (d ≤ (12#usize : Std.Usize)) := by scalar_tac
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_ml_kem.serialize.byte_encode
-    simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-      if_pos hass, Aeneas.Std.bind_tc_ok, e1, e2, eq_self_iff_true, if_true,
-      hp_raw', hbv, hout]
+    simp only [Aeneas.Std.bind_tc_ok, hp_raw', hbv, hout]
   · intro n hn
     rw [hout_get n hn,
       bitSum_congr _ (fun t => cBit re d.val (8 * n + t)) 8
@@ -9500,7 +9480,7 @@ theorem byte_encode_into_45_eq
     intro D32 enc hD32
     have hlen_enc : (Aeneas.Std.Array.to_slice enc).val.length = 32 * dv.val := by
       show enc.val.length = _
-      have := enc.property; rw [show enc.val.length = D32.val from by simpa using this, hD32]
+      have := enc.property; rw [show enc.val.length = D32.val from by simp, hD32]
     -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`
     -- (a `mapM clone` over the source); the `Util.SliceSpecs` bridge collapses it for a
     -- `Copy` instance whose `clone` is the identity, and needs the raw length equality.
@@ -9514,16 +9494,15 @@ theorem byte_encode_into_45_eq
         (by scalar_tac) (by scalar_tac) a ha
     refine ⟨Aeneas.Std.Array.to_slice enc, ?_, ?_, ?_⟩
     · unfold hacspec_ml_kem.serialize.byte_encode_into
-      simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-        Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
-        show ((4#usize : Std.Usize).val) = 4 from rfl, henc]
+      simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+                 show ((4#usize : Std.Usize).val) = 4 from rfl, henc]
       -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
       --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
       --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (128#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
-      rw [show enc.val.length = ((128#usize : Std.Usize)).val from by simpa using this]
+      rw [show enc.val.length = ((128#usize : Std.Usize)).val from by simp]
       scalar_tac
     · intro n hn
       show (enc.val[n]!).val = _
@@ -9535,16 +9514,15 @@ theorem byte_encode_into_45_eq
         (by scalar_tac) (by scalar_tac) a ha
     refine ⟨Aeneas.Std.Array.to_slice enc, ?_, ?_, ?_⟩
     · unfold hacspec_ml_kem.serialize.byte_encode_into
-      simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-        Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
-        show ((5#usize : Std.Usize).val) = 5 from rfl, henc]
+      simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+                 show ((5#usize : Std.Usize).val) = 5 from rfl, henc]
       -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
       --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
       --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (160#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
-      rw [show enc.val.length = ((160#usize : Std.Usize)).val from by simpa using this]
+      rw [show enc.val.length = ((160#usize : Std.Usize)).val from by simp]
       scalar_tac
     · intro n hn
       show (enc.val[n]!).val = _
@@ -10462,7 +10440,7 @@ private theorem Lu_loop_10_fc
     have hcnt16 : cnt.val < 16 := by omega
     have hlen1 : cnt.val < acc.coefficients.val.length := by
       have hc : acc.coefficients.val.length = 16 := by
-        have := acc.coefficients.property; simpa using this
+        have := acc.coefficients.property; simp
       omega
     have hchunk_len : chunk.val.length = 20 := by
       simpa [Aeneas.Std.Slice.length] using hclen
@@ -10485,7 +10463,7 @@ private theorem Lu_loop_10_fc
       chunk_decompress_ok serialized.val 10 (by omega) 10#i32 (by scalar_tac) k v hvwin
     have hlen2 : cnt.val < (Std.Array.set acc.coefficients cnt v).val.length := by
       have hc : (Std.Array.set acc.coefficients cnt v).val.length = 16 := by
-        have := (Std.Array.set acc.coefficients cnt v).property; simpa using this
+        have := (Std.Array.set acc.coefficients cnt v).property; simp
       omega
     have hgi : (Std.Array.set acc.coefficients cnt v).val[cnt.val]!
         = (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 :=
@@ -10554,7 +10532,7 @@ private theorem Lu_loop_10_fc
         rw [hdget ℓ]
         simp only [h20]
         rw [hsuf (20 + ℓ)]
-        congr 1 <;> omega
+        congr 1 ; omega
       · refine (holds_ok _).mpr ?_
         intro i hi ℓ hℓ
         show ((Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w).val[i]!).elements.val[ℓ]!.val
@@ -10613,7 +10591,7 @@ private theorem Lu_loop_11_fc
     have hcnt16 : cnt.val < 16 := by omega
     have hlen1 : cnt.val < acc.coefficients.val.length := by
       have hc : acc.coefficients.val.length = 16 := by
-        have := acc.coefficients.property; simpa using this
+        have := acc.coefficients.property; simp
       omega
     have hchunk_len : chunk.val.length = 22 := by
       simpa [Aeneas.Std.Slice.length] using hclen
@@ -10636,7 +10614,7 @@ private theorem Lu_loop_11_fc
       chunk_decompress_ok serialized.val 11 (by omega) 11#i32 (by scalar_tac) k v hvwin
     have hlen2 : cnt.val < (Std.Array.set acc.coefficients cnt v).val.length := by
       have hc : (Std.Array.set acc.coefficients cnt v).val.length = 16 := by
-        have := (Std.Array.set acc.coefficients cnt v).property; simpa using this
+        have := (Std.Array.set acc.coefficients cnt v).property; simp
       omega
     have hgi : (Std.Array.set acc.coefficients cnt v).val[cnt.val]!
         = (Std.Array.set acc.coefficients cnt v).val[cnt.val]'hlen2 :=
@@ -10705,7 +10683,7 @@ private theorem Lu_loop_11_fc
         rw [hdget ℓ]
         simp only [h22]
         rw [hsuf (22 + ℓ)]
-        congr 1 <;> omega
+        congr 1 ; omega
       · refine (holds_ok _).mpr ?_
         intro i hi ℓ hℓ
         show ((Std.Array.set (Std.Array.set acc.coefficients cnt v) cnt w).val[i]!).elements.val[ℓ]!.val
@@ -11255,7 +11233,7 @@ private theorem e10_group (v : libcrux_iot_ml_kem.vector.portable.vector_type.Po
           ∧ z2.val = lanewin 10 L (5 * g + 2)
           ∧ z3.val = lanewin 10 L (5 * g + 3)
           ∧ z4.val = lanewin 10 L (5 * g + 4) := by
-  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simp
   obtain ⟨ns, he, hl, hget⟩ := array_index_range_strict v.elements a bnd (by omega) (by omega)
   have b0 : (ns.val[0]!).bv.toNat = L (4 * g) := by
     rw [hget 0 (by omega), ha, Nat.add_zero]; exact hv _ (by omega)
@@ -11695,7 +11673,7 @@ private theorem e11_group (v : libcrux_iot_ml_kem.vector.portable.vector_type.Po
           ∧ z8.val = lanewin 11 L (11 * g + 8)
           ∧ z9.val = lanewin 11 L (11 * g + 9)
           ∧ z10.val = lanewin 11 L (11 * g + 10) := by
-  have hE : v.elements.val.length = 16 := by have := v.elements.property; simpa using this
+  have hE : v.elements.val.length = 16 := by have := v.elements.property; simp
   obtain ⟨ns, he, hl, hget⟩ := array_index_range_strict v.elements a bnd (by omega) (by omega)
   have w0 : (ns.val[0]!).bv.toNat = L (8 * g) := by
     rw [hget 0 (by omega), ha, Nat.add_zero]; exact hv _ (by omega)
@@ -11922,7 +11900,7 @@ private theorem Le_loop_10_fc
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
           (by rw [h16]; exact hlt)
       have hcl : re.coefficients.val.length = 16 := by
-        have := re.coefficients.property; simpa using this
+        have := re.coefficients.property; simp
       have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
           = .ok (re.coefficients.val[k.val]!) :=
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
@@ -12106,7 +12084,7 @@ private theorem Le_loop_11_fc
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.iter_next_some_eq k
           (by rw [h16]; exact hlt)
       have hcl : re.coefficients.val.length = 16 := by
-        have := re.coefficients.property; simpa using this
+        have := re.coefficients.property; simp
       have h_idx : Aeneas.Std.Array.index_usize re.coefficients k
           = .ok (re.coefficients.val[k.val]!) :=
         libcrux_iot_ml_kem.Vector.Portable.Arithmetic.LoopHelper.array_index_usize_ok_eq
@@ -12270,7 +12248,7 @@ private theorem byte_encode_into_1011_eq
     intro D32 enc hD32
     have hlen_enc : (Aeneas.Std.Array.to_slice enc).val.length = 32 * du.val := by
       show enc.val.length = _
-      have := enc.property; rw [show enc.val.length = D32.val from by simpa using this, hD32]
+      have := enc.property; rw [show enc.val.length = D32.val from by simp, hD32]
     -- `copy_from_slice` now routes through `rust_primitives.slice.slice_clone_from_slice`
     -- (a `mapM clone` over the source); the `Util.SliceSpecs` bridge collapses it for a
     -- `Copy` instance whose `clone` is the identity, and needs the raw length equality.
@@ -12284,16 +12262,15 @@ private theorem byte_encode_into_1011_eq
         (by scalar_tac) (by scalar_tac) a ha
     refine ⟨Aeneas.Std.Array.to_slice enc, ?_, ?_, ?_⟩
     · unfold hacspec_ml_kem.serialize.byte_encode_into
-      simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-        Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
-        show ((10#usize : Std.Usize).val) = 10 from rfl, henc]
+      simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+                 show ((10#usize : Std.Usize).val) = 10 from rfl, henc]
       -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
       --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
       --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (320#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
-      rw [show enc.val.length = ((320#usize : Std.Usize)).val from by simpa using this]
+      rw [show enc.val.length = ((320#usize : Std.Usize)).val from by simp]
       scalar_tac
     · intro n hn
       show (enc.val[n]!).val = _
@@ -12305,16 +12282,15 @@ private theorem byte_encode_into_1011_eq
         (by scalar_tac) (by scalar_tac) a ha
     refine ⟨Aeneas.Std.Array.to_slice enc, ?_, ?_, ?_⟩
     · unfold hacspec_ml_kem.serialize.byte_encode_into
-      simp only [hacspec_ml_kem.parameters.BITS_PER_COEFFICIENT, Aeneas.Std.massert,
-        Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
-        show ((11#usize : Std.Usize).val) = 11 from rfl, henc]
+      simp only [Aeneas.Std.bind_tc_ok, Aeneas.Std.lift,
+                 show ((11#usize : Std.Usize).val) = 11 from rfl, henc]
       -- (`byte_encode_into`'s `massert (d ≤ BITS_PER_COEFFICIENT)` and
       --  `massert (out.len = 32 * d)` prelude is gone from the hax v0.4.0-rc.1
       --  extraction, so the length/bound stepping that stood here is unnecessary)
       exact hcopy (352#usize) enc (by scalar_tac)
     · show enc.val.length = _
       have := enc.property
-      rw [show enc.val.length = ((352#usize : Std.Usize)).val from by simpa using this]
+      rw [show enc.val.length = ((352#usize : Std.Usize)).val from by simp]
       scalar_tac
     · intro n hn
       show (enc.val[n]!).val = _

@@ -508,8 +508,7 @@ theorem keccak.absorb_final_spec
         (core_models_Slice_Insts_index_RangeUsize_spec
           (Std.Array.to_slice buf3) { start := 0#usize, «end» := RATE } h0' h1')
     simp only [CoreModels.core.array.Array.as_slice,
-               CoreModels.rust_primitives.slice.array_as_slice,
-               CoreModels.core.Slice.Insts.CoreOpsIndexIndex, bind_tc_ok, hq_eq]
+               CoreModels.rust_primitives.slice.array_as_slice,bind_tc_ok, hq_eq]
     apply congrArg
     apply Subtype.ext
     show q.val = (block_of_blocks (Std.Array.to_slice buf3) 0#usize RATE h_blk).val

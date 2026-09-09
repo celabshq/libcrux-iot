@@ -365,7 +365,7 @@ private theorem array_eq_loop_self {T : Type} [Inhabited T] {N : Std.Usize}
       rw [Aeneas.Std.loop.eq_1]
       simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body]
       have hnlt : ¬ (i < N) := by scalar_tac
-      simp only [hnlt, if_false, reduceIte]
+      simp only [hnlt, if_false]
   | succ f ih =>
       intro i hi
       have hlt : i.val < N.val := by omega
@@ -433,15 +433,15 @@ private theorem array_eq_loop_sound {T : Type} [Inhabited T] {N : Std.Usize}
           | false =>
               simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
                 if_pos hltB, array_index_self_ok A i hlt, array_index_self_ok B i hlt,
-                bind_tc_ok, hb] at heq <;> simp at heq
+                bind_tc_ok, hb] at heq ; simp at heq
       | fail e =>
           simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
             if_pos hltB, array_index_self_ok A i hlt, array_index_self_ok B i hlt,
-            bind_tc_ok, hb] at heq <;> simp at heq
+            bind_tc_ok, hb] at heq ; simp at heq
       | div =>
           simp only [CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq_loop.body,
             if_pos hltB, array_index_self_ok A i hlt, array_index_self_ok B i hlt,
-            bind_tc_ok, hb] at heq <;> simp at heq
+            bind_tc_ok, hb] at heq ; simp at heq
 
 open CoreModels in
 /-- Rust `==` on two arrays returning `ok true` means every element `==` is
@@ -532,7 +532,7 @@ theorem acc_zero_of_holds (accumulator : Std.Array Std.I32 256#usize)
     omega
   have hguard : (BitVec.ofNat UScalarTy.Usize.numBits n#uscalar : Std.Usize) < 256#usize := by
     scalar_tac
-  have hlen : accumulator.val.length = 256 := by have := accumulator.property; simpa using this
+  have hlen : accumulator.val.length = 256 := by have := accumulator.property; simp
   have ht := h (BitVec.ofNat UScalarTy.Usize.numBits n#uscalar : Std.Usize)
   simp only [matrix.acc_zero.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call, if_pos hguard] at ht
   rw [array_index_ok accumulator (BitVec.ofNat UScalarTy.Usize.numBits n#uscalar : Std.Usize)

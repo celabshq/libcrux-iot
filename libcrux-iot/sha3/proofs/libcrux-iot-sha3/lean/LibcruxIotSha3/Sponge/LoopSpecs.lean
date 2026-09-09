@@ -934,6 +934,5 @@ theorem state.store_block_2u32_loop_spec
           rw [List.getElem!_setSlice!_same _ _ _ _ (Or.inr (by rw [h_r12, h_r17_len]; omega))]
           rw [List.getElem!_setSlice!_same _ _ _ _ (Or.inr (by rw [h_r6, h_r11_len]; omega))]
           exact h_acc_undone b (by omega) hb_25)
-      all_goals scalar_tac
 
 end libcrux_iot_sha3.Sponge
