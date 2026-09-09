@@ -5,7 +5,7 @@
 use hax_lib::{ToInt, ToProp};
 use libcrux_secrets::{Classify, U8};
 #[cfg(hax)]
-use libcrux_secrets::DeclassifyRef;
+use libcrux_secrets::{Declassify as _, DeclassifyRef as _};
 #[cfg(feature = "check-secret-independence")]
 use libcrux_secrets::{Declassify, U32};
 
@@ -2695,49 +2695,29 @@ pub(crate) fn squeeze_first_and_last<const RATE: usize>(s: &KeccakState, out: &m
 const WIDTH: usize = 200;
 
 #[inline(always)]
-/// Byte `k` of the FIPS-202 sponge output for `(rate, delim, message)`, exactly
-/// as the hacspec defines it: `hacspec_sha3::sponge::squeeze` is a `createi` over
-/// this very body, so `hacspec_sha3::sponge::keccak::<N>(rate, delim, message)[k]`
-/// equals it for every `N > k`. Output block `b = k / rate` is read from
-/// `iterate_keccak_f(b, absorb(rate, delim, message))`, byte `j = k - b * rate`
-/// of its lane-major little-endian serialization.
-///
-/// Stating `keccak`'s contract per byte is what makes a runtime-length `out`
-/// specifiable at all: the hacspec `keccak` takes the output length as a const
-/// generic, which `out.len()` cannot instantiate. The Lean theorem
-/// `keccak.keccak_keccak_spec` states the same thing through
-/// `sponge.keccak (out.len) RATE DELIM data`; `sponge_squeeze_byte_eq` bridges
-/// the two forms.
+/// Functional correctness of `keccak` against the hacspec, stated as the contract of
+/// a body-less function. hax turns the `#[ensures]` into `keccak_fc.spec`, and since
+/// the body does nothing that spec says exactly: for every `data` and every `out`
+/// of any length `OUT_LEN`, running `keccak::<RATE, DELIM>` on `out` yields
+/// `hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data)`. It has to live on a
+/// separate function because the hacspec takes the output length as a const
+/// generic, which `keccak`'s own `out: &mut [U8]` cannot provide. Proof-only
+/// (`#[cfg(hax)]`); discharged in Verification/ProofObligations.lean from the Lean
+/// theorem `keccak.keccak_keccak_spec`.
 #[cfg(hax)]
-pub(crate) fn keccak_spec_byte(rate: usize, delim: u8, message: &[u8], k: usize) -> u8 {
-    let b = k / rate;
-    let j = k - b * rate;
-    let state_b = hacspec_sha3::sponge::iterate_keccak_f(
-        b,
-        hacspec_sha3::sponge::absorb(rate, delim, message),
-    );
-    state_b[j / 8].to_le_bytes()[j % 8]
+#[allow(unused_variables)]
+#[hax_lib::requires(RATE > 0 && RATE % 8 == 0 && RATE <= 168)]
+#[hax_lib::ensures(|_| {
+    let mut result = out;
+    keccak::<RATE, DELIM>(data, &mut result);
+    result.declassify() == hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data.declassify_ref())
+})]
+pub(crate) fn keccak_fc<const RATE: usize, const DELIM: u8, const OUT_LEN: usize>(
+    data: &[U8],
+    out: [U8; OUT_LEN],
+) {
 }
 
-/// `out` is byte-for-byte the sponge output for `(rate, delim, message)`
-/// (Rust image of the per-byte conclusion of `keccak.keccak_keccak_spec`).
-#[cfg(hax)]
-pub(crate) fn keccak_matches(rate: usize, delim: u8, message: &[u8], out: &[u8]) -> hax_lib::prop::Prop {
-    hax_lib::forall(|k: usize| {
-        if k < out.len() {
-            out[k] == keccak_spec_byte(rate, delim, message, k)
-        } else {
-            true
-        }
-    })
-}
-
-#[hax_lib::requires(
-    RATE > 0 && RATE % 8 == 0 && RATE <= 168
-)]
-#[hax_lib::ensures(|_|
-    hax_lib::prop::Prop::from_bool(future(out).len() == out.len())
-        .and(keccak_matches(RATE, DELIM, data.declassify_ref(), future(out).declassify_ref())))]
 pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut [U8]) {
     let n = data.len() / RATE;
     let rem = data.len() % RATE;

@@ -489,186 +489,32 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
 
-/-! ## `keccak` -- the full per-byte functional-correctness contract
+/-! ## `keccak` -- functional correctness as the contract of `keccak_fc`
 
-    `keccak`'s Rust contract states, for the runtime-length `out`, that the
-    result has `out`'s length and that every byte `k < out.len()` equals
-    `keccak_spec_byte RATE DELIM data k` -- a `#[cfg(hax)]` helper whose body is
-    exactly the body of the hacspec `sponge::squeeze` closure (the hacspec
-    `keccak::<N>` takes the output length as a const generic, which `out.len()`
-    cannot instantiate, so the contract is stated per byte instead).
+    `keccak`'s correctness is stated in Rust as the `#[ensures]` of the body-less,
+    proof-only `keccak_fc::<RATE, DELIM, OUT_LEN>(data, out)`: running `keccak` on a
+    copy of `out` yields `hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data)`.
+    Since the body is `ok ()`, `keccak_fc.spec` is that statement for every `data`
+    and every `out`, with the output length a const generic -- what the hacspec
+    needs and `keccak`'s own `&mut [U8]` cannot provide. The discharge is
+    `Sponge.keccak.keccak_keccak_spec` applied to `out` as a slice, plus the
+    array/slice bookkeeping (`to_slice_mut`, `from_slice`) and the transport of the
+    hacspec result from length `Slice.len (to_slice out)` to `OUT_LEN`. -/
 
-    The Lean theorem `Sponge.keccak.keccak_keccak_spec` states the same fact
-    through `sponge.keccak (out.len) RATE DELIM data`. The bridge between the
-    two forms needs no arithmetic and no totality of the spec permutation:
-    `sponge.keccak N = absorb >>= squeeze N`, `squeeze N st rate` is
-    `createi N closure (rate, st)`, and `createi` succeeding means every closure
-    call succeeded with the corresponding output byte (`createi_inv`, valid
-    because the squeeze closure returns its captured state unchanged,
-    `squeeze_closure_state_eq`). `keccak_spec_byte` is that closure call with
-    `absorb` spliced in, so once `absorb = ok st` is known the two are equal by
-    the monad laws (`keccak_spec_byte_eq_closure`). -/
+/-- Transport a `sponge.keccak` result across an equality of output lengths. -/
+private theorem keccak_len_transport {RATE : Std.Usize} {DELIM : Std.U8} {data : Slice Std.U8}
+    (N M : Std.Usize) (h : N = M) (so : Std.Array Std.U8 N)
+    (heq : hacspec_sha3.sponge.keccak N RATE DELIM data = .ok so) :
+    ∃ so' : Std.Array Std.U8 M,
+      hacspec_sha3.sponge.keccak M RATE DELIM data = .ok so' ∧ so'.val = so.val := by
+  subst h; exact ⟨so, heq, rfl⟩
 
-/-- `(x >>= f) = ok y` splits into a successful `x` and a successful `f`. -/
-private theorem bind_ok_inv {α β : Type} {x : RustM α} {f : α → RustM β} {y : β}
-    (h : (do let v ← x; f v) = .ok y) : ∃ v, x = .ok v ∧ f v = .ok y := by
-  cases x with
-  | ok v => exact ⟨v, rfl, by simpa using h⟩
-  | fail e => simp at h
-  | div => simp at h
-
-/-- `do let v ← x; ok v` is `x`. -/
-private theorem bind_ok_eta {α : Type} (x : RustM α) :
-    (do let v ← x; (RustM.ok v : RustM α)) = x := by
-  cases x <;> rfl
-
-/-- The hacspec squeeze closure returns its captured `(rate, state)` unchanged. -/
-private theorem squeeze_closure_state_eq {OUTPUT_LEN : Std.Usize}
-    (i : Std.Usize) (a : Std.Array Std.U64 25#usize) (t : Std.Usize) (v : Std.U8)
-    (c' : hacspec_sha3.sponge.squeeze.closure OUTPUT_LEN)
-    (h : hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
-          ((i, a) : hacspec_sha3.sponge.squeeze.closure OUTPUT_LEN) t = .ok (v, c')) :
-    c' = ((i, a) : hacspec_sha3.sponge.squeeze.closure OUTPUT_LEN) := by
-  unfold hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut at h
-  change (do
-    let b ← t / i
-    let i1 ← b * i
-    let j ← t - i1
-    let state_b ← hacspec_sha3.sponge.iterate_keccak_f b a
-    let i2 ← j / 8#usize
-    let i3 ← Std.Array.index_usize state_b i2
-    let a1 ← CoreModels.core.num.U64.to_le_bytes i3
-    let i4 ← j % 8#usize
-    let i5 ← Std.Array.index_usize a1 i4
-    RustM.ok (i5, ((i, a) : hacspec_sha3.sponge.squeeze.closure OUTPUT_LEN))) = .ok (v, c') at h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  obtain ⟨_, _, h⟩ := bind_ok_inv h
-  cases h
-  rfl
-
-/-- Inversion of `array_from_fn_go` for closures that never change their state:
-    success means every index was produced by a successful call on the initial
-    state. -/
-private theorem array_from_fn_go_inv {T F : Type} [Inhabited T]
-    (inst : CoreModels.core.ops.function.FnMut F Std.Usize T)
-    (hpres : ∀ (c : F) (t : Std.Usize) (v : T) (c' : F),
-      inst.call_mut c t = .ok (v, c') → c' = c)
-    (c : F) : ∀ (n : Nat) (l : List T) (c' : F),
-      CoreModels.rust_primitives.slice.array_from_fn_go inst c n = .ok (l, c') →
-      c' = c ∧ l.length = n ∧
-        ∀ k : Nat, k < n → inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (l[k]!, c) := by
-  intro n
-  induction n with
-  | zero =>
-    intro l c' h
-    simp only [CoreModels.rust_primitives.slice.array_from_fn_go] at h
-    cases h
-    exact ⟨rfl, rfl, fun k hk => absurd hk (Nat.not_lt_zero k)⟩
-  | succ n ih =>
-    intro l c' h
-    simp only [CoreModels.rust_primitives.slice.array_from_fn_go] at h
-    obtain ⟨⟨l0, c0⟩, hgo, h⟩ := bind_ok_inv h
-    obtain ⟨⟨v, c1⟩, hcall, h⟩ := bind_ok_inv h
-    cases h
-    obtain ⟨hc0, hlen, hprev⟩ := ih l0 c0 hgo
-    subst hc0
-    have hc1 : c1 = c0 := hpres c0 _ v c1 hcall
-    subst hc1
-    refine ⟨rfl, by simp [hlen], ?_⟩
-    intro k hk
-    rcases Nat.lt_succ_iff_lt_or_eq.mp hk with hk' | hk'
-    · have hkl : k < l0.length := by rw [hlen]; exact hk'
-      rw [List.getElem!_eq_getElem?_getD, List.getElem?_append_left hkl,
-        ← List.getElem!_eq_getElem?_getD]
-      exact hprev k hk'
-    · subst hk'
-      have hidx : (l0 ++ [v])[k]! = v := by
-        rw [List.getElem!_eq_getElem?_getD, show k = l0.length from hlen.symm,
-          List.getElem?_concat_length]
-        rfl
-      rw [hidx]
-      exact hcall
-
-/-- `createi N inst c = ok arr` for a state-preserving closure gives each
-    `arr[k]` as the closure's value at `k`. -/
-private theorem createi_inv {T F : Type} [Inhabited T] (N : Std.Usize)
-    (inst : CoreModels.core.ops.function.FnMut F Std.Usize T) (c : F) (arr : Std.Array T N)
-    (hpres : ∀ (c : F) (t : Std.Usize) (v : T) (c' : F),
-      inst.call_mut c t = .ok (v, c') → c' = c)
-    (h : hacspec_sha3.createi N inst c = .ok arr) :
-    ∀ k : Nat, k < N.val → inst.call_mut c ⟨BitVec.ofNat _ k⟩ = .ok (arr.val[k]!, c) := by
-  unfold hacspec_sha3.createi CoreModels.core.array.from_fn
-    CoreModels.rust_primitives.slice.array_from_fn at h
-  obtain ⟨⟨l, c'⟩, hgo, h⟩ := bind_ok_inv h
-  dsimp only at h
-  split at h
-  · cases h
-    intro k hk
-    exact (array_from_fn_go_inv inst hpres c N.val l c' hgo).2.2 k hk
-  · simp at h
-
-/-- Once `absorb` is known to succeed, `keccak_spec_byte` IS the hacspec squeeze
-    closure's value at `k` (monad laws only). -/
-private theorem keccak_spec_byte_eq_closure {OUTPUT_LEN : Std.Usize}
-    (rate : Std.Usize) (delim : Std.U8) (msg : Slice Std.U8) (k : Std.Usize)
-    (st : Std.Array Std.U64 25#usize)
-    (h_absorb : hacspec_sha3.sponge.absorb rate delim msg = .ok st) :
-    libcrux_iot_sha3.keccak.keccak_spec_byte rate delim msg k
-      = (do
-          let p ← hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
-                    (OUTPUT_LEN := OUTPUT_LEN) (rate, st) k
-          RustM.ok p.1) := by
-  unfold libcrux_iot_sha3.keccak.keccak_spec_byte
-    hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
-  -- reduce the closure's `let (i, a) := (rate, st)` match definitionally
-  change _ = (do
-    let p ← (do
-      let b ← k / rate
-      let i1 ← b * rate
-      let j ← k - i1
-      let state_b ← hacspec_sha3.sponge.iterate_keccak_f b st
-      let i2 ← j / 8#usize
-      let i3 ← Std.Array.index_usize state_b i2
-      let a1 ← CoreModels.core.num.U64.to_le_bytes i3
-      let i4 ← j % 8#usize
-      let i5 ← Std.Array.index_usize a1 i4
-      RustM.ok (i5, ((rate, st) : hacspec_sha3.sponge.squeeze.closure OUTPUT_LEN)))
-    RustM.ok p.1)
-  simp only [h_absorb, bind_tc_ok, bind_assoc_eq, bind_ok_eta]
-
-/-- `Slice.index_usize` in range, as a plain equation. -/
-private theorem slice_index_ok {T : Type} [Inhabited T] (s : Aeneas.Std.Slice T)
-    (i : Std.Usize) (h : i.val < s.val.length) :
-    Aeneas.Std.Slice.index_usize s i = .ok (s.val[i.val]!) := by
-  unfold Aeneas.Std.Slice.index_usize
-  rw [Aeneas.Std.Slice.getElem?_Usize_eq, List.getElem?_eq_getElem h,
-    List.getElem!_eq_getElem?_getD, List.getElem?_eq_getElem h]
-  rfl
-
-private theorem holds_ok_prop {P : Prop} (h : P) : (RustM.ok P).holds := by
-  simp only [RustM.holds, Std.Do.Triple, Std.Do.WP.wp, Std.Do.PredTrans.apply,
-             Std.Do.PostCond.noThrow]
-  exact Std.Do.SPred.pure_intro h
-
-/-- `⟨BitVec.ofNat _ t.val⟩ = t` for a `Usize`. -/
-private theorem usize_ofNat_val (t : Std.Usize) : (⟨BitVec.ofNat _ t.val⟩ : Std.Usize) = t := by
-  apply Std.UScalar.eq_of_val_eq
-  show (BitVec.ofNat _ t.val).toNat = t.val
-  rw [BitVec.toNat_ofNat]
-  exact Nat.mod_eq_of_lt t.bv.isLt
-
-theorem keccak_spec_proof (RATE : Std.Usize) (DELIM : Std.U8) (data out : Slice Std.U8) :
-    libcrux_iot_sha3.keccak.keccak.spec RATE DELIM data out := by
+theorem keccak_fc_spec_proof (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
+    (data : Slice Std.U8) (out : Std.Array Std.U8 OUT_LEN) :
+    libcrux_iot_sha3.keccak.keccak_fc.spec RATE DELIM data out := by
   intro hpre
   -- Decode the generated `pre`: RATE > 0, RATE % 8 = 0, RATE ≤ 168.
-  simp only [libcrux_iot_sha3.keccak.keccak.pre] at hpre
+  simp only [libcrux_iot_sha3.keccak.keccak_fc.pre] at hpre
   by_cases hpos : RATE > 0#usize
   · rw [if_pos hpos] at hpre
     obtain ⟨m, hm_eq, hm_val⟩ :=
@@ -684,76 +530,51 @@ theorem keccak_spec_proof (RATE : Std.Usize) (DELIM : Std.U8) (data out : Slice 
         have h1 : m.val = RATE.val % 8 := by rw [hm_val]; rfl
         have h2 : m.val = 0 := by rw [hm0]; rfl
         omega
-      -- The Lean theorem.
-      obtain ⟨r, hr_eq, spec_out, hspec_eq, hr_len, hr_bytes⟩ :=
-        triple_exists_ok (Sponge.keccak.keccak_keccak_spec RATE DELIM data out h_mod h_ge1 h_le200)
-      refine triple_of_ok hr_eq ?_
-      -- `sponge.keccak = absorb >>= squeeze`: both succeeded.
-      have hsk := hspec_eq
-      unfold hacspec_sha3.sponge.keccak at hsk
-      obtain ⟨st, h_absorb, h_squeeze⟩ := bind_ok_inv hsk
-      -- Every squeeze-closure call succeeded with the corresponding byte.
-      have hcall : ∀ k : Nat, k < (Aeneas.Std.Slice.len out).val →
-          hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
-            (OUTPUT_LEN := Aeneas.Std.Slice.len out) (RATE, st) ⟨BitVec.ofNat _ k⟩
-            = .ok (spec_out.val[k]!, (RATE, st)) := by
-        unfold hacspec_sha3.sponge.squeeze at h_squeeze
-        exact createi_inv _ _ _ _
-          (fun c t v c' h => match c, h with
-            | (i, a), h => squeeze_closure_state_eq i a t v c' h) h_squeeze
-      have hout_len : (Aeneas.Std.Slice.len out).val = out.val.length := Aeneas.Std.Slice.len_val out
-      -- The post.
-      simp only [libcrux_iot_sha3.keccak.keccak.post, CoreModels.core.slice.Slice.len,
-        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, decl_ref_eq,
-        hax_lib.prop.Prop.from_bool, libcrux_iot_sha3.keccak.keccak_matches, hax_lib.prop.forall,
-        hax_lib.prop.Prop.and, CoreModels.core.convert.Into.Blanket.into,
-        CoreModels.core.convert.From.Blanket.from]
-      apply holds_ok_prop
-      refine ⟨?_, ?_⟩
-      · -- length preservation
-        apply decide_eq_true
+      -- The body is `ok ()`.
+      refine triple_of_ok (rfl : libcrux_iot_sha3.keccak.keccak_fc RATE DELIM data out = .ok ()) ?_
+      -- `out` as a slice.
+      set s : Slice Std.U8 := Aeneas.Std.Array.to_slice out with hs_def
+      have h_s_len : s.val.length = OUT_LEN.val := by
+        show out.to_slice.val.length = OUT_LEN.val
+        rw [Aeneas.Std.Array.val_to_slice]; exact out.property
+      have h_slice_len_s : Aeneas.Std.Slice.len s = OUT_LEN := by
         apply Aeneas.Std.UScalar.eq_of_val_eq
-        rw [Aeneas.Std.Slice.len_val, Aeneas.Std.Slice.len_val]
-        exact hr_len
-      · -- per-byte agreement
-        intro t
-        simp only [libcrux_iot_sha3.keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call,
-          CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-          Aeneas.Std.bind_tc_ok, hax_lib.prop.Prop.Insts.CoreConvertFromBool]
-        -- the closure's `let (s, i, i1, s1) := c` is a match on a literal tuple of a
-        -- `def`-typed closure; reduce it definitionally
+        rw [Aeneas.Std.Slice.len_val]; exact h_s_len
+      -- The Lean theorem on that slice, and the transported hacspec result.
+      obtain ⟨r, hr_eq, spec_out, hspec_eq, hr_len, hr_bytes⟩ :=
+        triple_exists_ok (Sponge.keccak.keccak_keccak_spec RATE DELIM data s h_mod h_ge1 h_le200)
+      obtain ⟨so, hso_eq, hso_val⟩ := keccak_len_transport _ _ h_slice_len_s spec_out hspec_eq
+      have hr_len' : r.val.length = OUT_LEN.val := by rw [hr_len]; exact h_s_len
+      have hspec_len : spec_out.val.length = OUT_LEN.val :=
+        spec_out.property.trans ((Aeneas.Std.Slice.len_val s).trans h_s_len)
+      have hr_val : r.val = spec_out.val := by
+        have h := val_eq_of_bytes (N := OUT_LEN.val) hr_len' hspec_len
+          (fun k hk => hr_bytes k (by rw [h_s_len]; exact hk))
+        rwa [Aeneas.Std.Array.val_to_slice] at h
+      -- The post: `to_slice_mut`, run `keccak`, write back, declassify, compare.
+      have h_to_slice_mut :
+          (Aeneas.Std.lift (Aeneas.Std.Array.to_slice_mut out)
+            : RustM (Slice Std.U8 × (Slice Std.U8 → Std.Array Std.U8 OUT_LEN)))
+            = .ok (s, Aeneas.Std.Array.from_slice out) := rfl
+      have hval : (Aeneas.Std.Array.from_slice out r).val = so.val := by
+        rw [Aeneas.Std.Array.from_slice_val out r hr_len', hr_val, hso_val]
+      have hpost : libcrux_iot_sha3.keccak.keccak_fc.post RATE DELIM data out () = .ok true := by
+        simp only [libcrux_iot_sha3.keccak.keccak_fc.post, h_to_slice_mut, Aeneas.Std.bind_tc_ok,
+          decl_blanket_eq, decl_ref_eq, hso_eq]
+        -- the `let (s, back) := (s, from_slice out)` destructuring reduces definitionally
         change (do
-          let b ← (if t < Aeneas.Std.Slice.len r then do
-              let i3 ← Aeneas.Std.Slice.index_usize r t
-              let i4 ← libcrux_iot_sha3.keccak.keccak_spec_byte RATE DELIM data t
-              RustM.ok (decide (i3 = i4))
-            else RustM.ok true)
-          RustM.ok (b = true)).holds
-        by_cases ht : t < Aeneas.Std.Slice.len r
-        · rw [if_pos ht]
-          have ht_r : t.val < r.val.length := by
-            have := Aeneas.Std.Slice.len_val r; scalar_tac
-          have ht_out : t.val < (Aeneas.Std.Slice.len out).val := by rw [hout_len, ← hr_len]; exact ht_r
-          have hcall_t :
-              hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
-                (OUTPUT_LEN := Aeneas.Std.Slice.len out) (RATE, st) t
-                = .ok (spec_out.val[t.val]!, (RATE, st)) := by
-            have := hcall t.val ht_out
-            rwa [usize_ofNat_val t] at this
-          rw [slice_index_ok r t ht_r]; simp only [Aeneas.Std.bind_tc_ok]
-          rw [keccak_spec_byte_eq_closure (OUTPUT_LEN := Aeneas.Std.Slice.len out) RATE DELIM data t st h_absorb,
-            hcall_t]
-          simp only [Aeneas.Std.bind_tc_ok]
-          have hb : r.val[t.val]! = spec_out.val[t.val]! := hr_bytes t.val (hr_len ▸ ht_r)
-          rw [hb]
-          exact holds_ok_prop (by simp)
-        · rw [if_neg ht]
-          exact holds_ok_prop (by simp)
+            let s1 ← libcrux_iot_sha3.keccak.keccak RATE DELIM data s
+            CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq
+              CoreModels.core.U8.Insts.CoreCmpPartialEqU8 (Aeneas.Std.Array.from_slice out s1) so)
+          = .ok true
+        rw [hr_eq, Aeneas.Std.bind_tc_ok]
+        exact array_eq_true hval
+      rw [hpost]
+      exact holds_map_ok_of_bool rfl
     · rw [if_neg hm0] at hpre
       exact absurd (bool_of_holds_map_ok hpre) (by simp)
   · rw [if_neg hpos] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
-
 
 /-! ## Axiom guards
     Pinned by `#guard_msgs`: the build fails if a result comes to depend on any axiom
@@ -796,9 +617,9 @@ info: 'libcrux_iot_sha3.Verification.sha512_ema_spec_proof' depends on axioms: [
 #print axioms sha512_ema_spec_proof
 
 /--
-info: 'libcrux_iot_sha3.Verification.keccak_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'libcrux_iot_sha3.Verification.keccak_fc_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms keccak_spec_proof
+#print axioms keccak_fc_spec_proof
 
 end libcrux_iot_sha3.Verification

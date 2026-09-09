@@ -38,35 +38,33 @@ Informally: the IOT-friendly implementation `keccak.keccak` (for some rate `RATE
 delimiter `DELIM`, input `data`, output buffer `out`) produces the same
 byte sequence as the hacspec-style specification `sponge.keccak`.
 
-The same statement is carried by `keccak`'s hax contract in
-[`src/keccak.rs`](../../../src/keccak.rs):
+The same statement is carried in Rust by the contract of a body-less, proof-only
+function next to `keccak` in [`src/keccak.rs`](../../../src/keccak.rs):
 
 ```rust
-#[cfg_attr(hax, hax_lib::requires(
-    RATE > 0 && RATE % 8 == 0 && RATE <= 168
-))]
-#[cfg_attr(hax, hax_lib::ensures(|_|
-    hax_lib::prop::Prop::from_bool(future(out).len() == out.len())
-        .and(keccak_matches(RATE, DELIM, data.declassify_ref(), future(out).declassify_ref()))))]
-pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut [U8])
+#[cfg(hax)]
+#[hax_lib::requires(RATE > 0 && RATE % 8 == 0 && RATE <= 168)]
+#[hax_lib::ensures(|_| {
+    let mut result = out;
+    keccak::<RATE, DELIM>(data, &mut result);
+    result.declassify() == hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data.declassify_ref())
+})]
+pub(crate) fn keccak_fc<const RATE: usize, const DELIM: u8, const OUT_LEN: usize>(
+    data: &[U8],
+    out: [U8; OUT_LEN],
+) {
+}
 ```
 
-where `keccak_matches(rate, delim, message, out)` is `∀ k < out.len(),
-out[k] == keccak_spec_byte(rate, delim, message, k)` and `keccak_spec_byte` is
-the byte-wise form of the hacspec sponge output: block `k / rate` of
-`iterate_keccak_f(k / rate, absorb(rate, delim, message))`, byte `k mod rate`
-of its little-endian lane serialization — literally the body of the hacspec
-`sponge::squeeze` closure. The contract is stated per byte because the hacspec
-`sponge::keccak::<OUTPUT_LEN>` takes its output length as a const generic,
-which a runtime `out.len()` cannot instantiate; the Lean theorem can pass
-`out.len` as a term. (The Rust precondition keeps `RATE <= 168`, which the
-inner block functions require; the Lean theorem is stated for `RATE ≤ 200`.)
-The generated `keccak.keccak.spec` is discharged from `keccak_keccak_spec` by
-`keccak_spec_proof` in
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean): the
-spec's `sponge.keccak` is `absorb` followed by a `createi` of exactly that
-closure, so the two forms agree by inverting `createi` — no arithmetic and no
-totality assumption on the spec permutation is needed.
+Since the body does nothing, the generated `keccak_fc.spec` says exactly that for
+every `data` and every `out` of any length `OUT_LEN`, running `keccak` on `out`
+yields the hacspec `sponge::keccak::<OUT_LEN>`. The statement lives on a separate
+function because the hacspec takes the output length as a const generic, which
+`keccak`'s own `out: &mut [U8]` cannot supply (the Lean theorem passes `out.len`
+as a term). `keccak` itself carries no contract. The obligation is discharged by
+`keccak_fc_spec_proof` in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean) directly
+from `keccak_keccak_spec`.
 
 The public SHA-3 and SHAKE functions in [`src/lib.rs`](../../../src/lib.rs), in
 contrast, carry their equivalence with the hacspec as hax contracts. For example:
@@ -91,7 +89,7 @@ hax generates a `<fn>.spec` from each contract in
 [`Verification/ProofObligations.lean`](Verification/ProofObligations.lean)
 discharges all six (`<fn>_spec_proof`) from the corollaries of
 `keccak_keccak_spec` in [`Sponge/Shake.lean`](Sponge/Shake.lean) (and, as
-described above, `keccak`'s own contract from `keccak_keccak_spec` itself):
+described above, the `keccak_fc` contract from `keccak_keccak_spec` itself):
 
 | impl function | `ensures` (hacspec function) | instance of `keccak_keccak_spec` | Lean corollary |
 |---|---|---|---|

@@ -628,12 +628,12 @@ def keccak.squeeze_first_and_last.spec (RATE : Std.Usize)
   ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
-/-- [libcrux_iot_sha3::keccak::keccak::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2735:0-2737:2 -/
+/-- [libcrux_iot_sha3::keccak::keccak_fc::pre]:
+    Source: 'sha3/src/keccak.rs', lines 2709:0-2709:62 -/
 @[reducible]
-def keccak.keccak.pre
-  (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
-  (out : Slice Std.U8) :
+def keccak.keccak_fc.pre
+  (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
+  (data : Slice Std.U8) (out : Array Std.U8 OUT_LEN) :
   RustM Bool
   := do
   if RATE > 0#usize
@@ -644,33 +644,34 @@ def keccak.keccak.pre
     else ok false
   else ok false
 
-/-- [libcrux_iot_sha3::keccak::keccak::post]:
-    Source: 'sha3/src/keccak.rs', lines 2738:0-2740:96 -/
+/-- [libcrux_iot_sha3::keccak::keccak_fc::post]:
+    Source: 'sha3/src/keccak.rs', lines 2710:0-2714:3 -/
 @[reducible]
-def keccak.keccak.post
-  (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
-  (out : Slice Std.U8) (out_future : Slice Std.U8) :
-  RustM hax_lib.prop.Prop
+def keccak.keccak_fc.post
+  (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
+  (data : Slice Std.U8) (out : Array Std.U8 OUT_LEN) (_ : Unit) :
+  RustM Bool
   := do
-  let i ← core.slice.Slice.len out_future
-  let i1 ← core.slice.Slice.len out
-  let p ← hax_lib.prop.Prop.from_bool (i = i1)
-  let s ←
+  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
+  let s1 ← keccak.keccak RATE DELIM data s
+  let out1 := to_slice_mut_back s1
+  let a ← libcrux_secrets.traits.Declassify.Blanket.declassify out1
+  let s2 ←
     libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
       libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar data
-  let s1 ←
-    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
-      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar out_future
-  let p1 ← keccak.keccak_matches RATE DELIM s s1
-  hax_lib.prop.Prop.and (core.convert.Into.Blanket (core.convert.From.Blanket
-    hax_lib.prop.Prop)) p p1
+  let a1 ← hacspec_sha3.sponge.keccak OUT_LEN RATE DELIM s2
+  core.Array.Insts.CoreCmpPartialEqArray.eq core.U8.Insts.CoreCmpPartialEqU8 a
+    a1
 
-def keccak.keccak.spec (RATE : Std.Usize) (DELIM : Std.U8)
-  (data : Slice Std.U8) (out : Slice Std.U8) : Prop :=
-  (keccak.keccak.pre RATE DELIM data out).holds →
+def
+  keccak.keccak_fc.spec (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN :
+                       Std.Usize} (data : Slice Std.U8)
+  (out : Array Std.U8 OUT_LEN) : Prop :=
+  (keccak.keccak_fc.pre RATE DELIM data out).holds →
   ⦃ ⌜ True ⌝ ⦄
-  keccak.keccak RATE DELIM data out
-  ⦃ ⇓ res => ⌜ (keccak.keccak.post RATE DELIM data out res).holds ⌝ ⦄
+  keccak.keccak_fc RATE DELIM data out
+  ⦃ ⇓ res => ⌜ (keccak.keccak_fc.post RATE DELIM data out res).holds ⌝
+  ⦄
 
 
 /-- [libcrux_iot_sha3::state::load_block_2u32::pre]:

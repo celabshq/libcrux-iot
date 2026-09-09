@@ -137,9 +137,10 @@ theorem keccak.squeeze_first_and_last.spec.proof (RATE : Std.Usize)
   := by sorry
 
 @[spec]
-theorem keccak.keccak.spec.proof (RATE : Std.Usize) (DELIM : Std.U8)
-  (data : Slice Std.U8) (out : Slice Std.U8) :
-  keccak.keccak.spec RATE DELIM data out
+theorem
+  keccak.keccak_fc.spec.proof (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN :
+                             Std.Usize} (data : Slice Std.U8)
+  (out : Array Std.U8 OUT_LEN) : keccak.keccak_fc.spec RATE DELIM data out
   := by sorry
 
 @[spec]

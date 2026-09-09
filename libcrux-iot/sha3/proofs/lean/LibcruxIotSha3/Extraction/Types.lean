@@ -44,11 +44,6 @@ structure keccak.KeccakXofState (RATE : Std.Usize) where
   buf_len : Std.Usize
   sponge : Bool
 
-/-- [libcrux_iot_sha3::keccak::keccak_matches::closure]
-    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
-def keccak.keccak_matches.closure :=
-  Slice Std.U8 × Std.Usize × Std.U8 × Slice Std.U8
-
 /-- [libcrux_iot_sha3::Algorithm]
     Source: 'sha3/src/lib.rs', lines 94:0-106:1
     Visibility: public -/

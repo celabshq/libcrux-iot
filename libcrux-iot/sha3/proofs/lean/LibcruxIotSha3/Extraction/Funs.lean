@@ -4233,106 +4233,8 @@ def keccak.squeeze_first_and_last
     Source: 'sha3/src/keccak.rs', lines 2695:0-2695:25 -/
 @[global_simps, irreducible] def keccak.WIDTH : Std.Usize := 200#usize
 
-/-- [libcrux_iot_sha3::keccak::keccak_spec_byte]:
-    Source: 'sha3/src/keccak.rs', lines 2712:0-2720:1 -/
-def keccak.keccak_spec_byte
-  (rate : Std.Usize) (delim : Std.U8) (message : Slice Std.U8) (k : Std.Usize)
-  :
-  RustM Std.U8
-  := do
-  let b ← k / rate
-  let i ← b * rate
-  let j ← k - i
-  let a ← hacspec_sha3.sponge.absorb rate delim message
-  let state_b ← hacspec_sha3.sponge.iterate_keccak_f b a
-  let i1 ← j / 8#usize
-  let i2 ← Array.index_usize state_b i1
-  let a1 ← core.num.U64.to_le_bytes i2
-  let i3 ← j % 8#usize
-  Array.index_usize a1 i3
-
-/-- [libcrux_iot_sha3::keccak::keccak_matches::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_sha3::keccak::keccak_matches::closure<'_0, '_1, '_2, '_3>}::call]:
-    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
-def keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
-  (c : keccak.keccak_matches.closure) (tupled_args : Std.Usize) :
-  RustM Bool
-  := do
-  let (s, i, i1, s1) := c
-  let i2 ← core.slice.Slice.len s
-  if tupled_args < i2
-  then
-    let i3 ← Slice.index_usize s tupled_args
-    let i4 ← keccak.keccak_spec_byte i i1 s1 tupled_args
-    ok (i3 = i4)
-  else ok true
-
-/-- [libcrux_iot_sha3::keccak::keccak_matches::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_sha3::keccak::keccak_matches::closure<'_0, '_1, '_2, '_3>}::call_mut]:
-    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
-def
-  keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
-  (state1 : keccak.keccak_matches.closure) (args : Std.Usize) :
-  RustM (Bool × keccak.keccak_matches.closure)
-  := do
-  let b ←
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
-      state1 args
-  ok (b, state1)
-
-/-- [libcrux_iot_sha3::keccak::keccak_matches::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_sha3::keccak::keccak_matches::closure<'_0, '_1, '_2, '_3>}::call_once]:
-    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
-def
-  keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
-  (c : keccak.keccak_matches.closure) (i : Std.Usize) : RustM Bool := do
-  let (b, _) ←
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
-      c i
-  ok b
-
-/-- Trait implementation: [libcrux_iot_sha3::keccak::keccak_matches::{impl core::ops::function::FnOnce<(usize,), bool> for libcrux_iot_sha3::keccak::keccak_matches::closure<'_0, '_1, '_2, '_3>}]
-    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
-@[reducible]
-def keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool :
-  core.ops.function.FnOnce keccak.keccak_matches.closure Std.Usize Bool := {
-  call_once :=
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool.call_once
-}
-
-/-- Trait implementation: [libcrux_iot_sha3::keccak::keccak_matches::{impl core::ops::function::FnMut<(usize,), bool> for libcrux_iot_sha3::keccak::keccak_matches::closure<'_0, '_1, '_2, '_3>}]
-    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
-@[reducible]
-def keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool :
-  core.ops.function.FnMut keccak.keccak_matches.closure Std.Usize Bool := {
-  FnOnceInst :=
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeBool
-  call_mut :=
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool.call_mut
-}
-
-/-- Trait implementation: [libcrux_iot_sha3::keccak::keccak_matches::{impl core::ops::function::Fn<(usize,), bool> for libcrux_iot_sha3::keccak::keccak_matches::closure<'_0, '_1, '_2, '_3>}]
-    Source: 'sha3/src/keccak.rs', lines 2726:20-2732:5 -/
-@[reducible]
-def keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool :
-  core.ops.function.Fn keccak.keccak_matches.closure Std.Usize Bool := {
-  FnMutInst :=
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnMutTupleUsizeBool
-  call :=
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool.call
-}
-
-/-- [libcrux_iot_sha3::keccak::keccak_matches]:
-    Source: 'sha3/src/keccak.rs', lines 2725:0-2733:1 -/
-def keccak.keccak_matches
-  (rate : Std.Usize) (delim : Std.U8) (message : Slice Std.U8)
-  (out : Slice Std.U8) :
-  RustM hax_lib.prop.Prop
-  := do
-  hax_lib.prop.forall (core.convert.Into.Blanket
-    hax_lib.prop.Prop.Insts.CoreConvertFromBool)
-    keccak.keccak_matches.closure.Insts.CoreOpsFunctionFnTupleUsizeBool (out,
-    rate, delim, message)
-
 /-- [libcrux_iot_sha3::keccak::keccak]: loop body 0:
-    Source: 'sha3/src/keccak.rs', lines 2752:4-2759:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2732:4-2739:5 -/
 @[rust_loop_body]
 def keccak.keccak_loop0.body
   (RATE : Std.Usize) (data : Slice Std.U8)
@@ -4352,7 +4254,7 @@ def keccak.keccak_loop0.body
     ok (cont (iter1, s1, start1))
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop 0:
-    Source: 'sha3/src/keccak.rs', lines 2752:4-2759:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2732:4-2739:5 -/
 @[rust_loop]
 def keccak.keccak_loop0
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4365,7 +4267,7 @@ def keccak.keccak_loop0
     (iter, s, start)
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop body 1:
-    Source: 'sha3/src/keccak.rs', lines 2768:8-2776:9 -/
+    Source: 'sha3/src/keccak.rs', lines 2748:8-2756:9 -/
 @[rust_loop_body]
 def keccak.keccak_loop1.body
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4390,7 +4292,7 @@ def keccak.keccak_loop1.body
     ok (cont (iter1, out1, s2, offset1))
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop 1:
-    Source: 'sha3/src/keccak.rs', lines 2768:8-2776:9 -/
+    Source: 'sha3/src/keccak.rs', lines 2748:8-2756:9 -/
 @[rust_loop]
 def keccak.keccak_loop1
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4403,7 +4305,7 @@ def keccak.keccak_loop1
     (iter, out, s, offset)
 
 /-- [libcrux_iot_sha3::keccak::keccak]:
-    Source: 'sha3/src/keccak.rs', lines 2741:0-2782:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2721:0-2762:1 -/
 def keccak.keccak
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
   (out : Slice Std.U8) :
@@ -4439,6 +4341,15 @@ def keccak.keccak
       let s5 ← keccak.squeeze_last RATE s3 s4
       ok (index_mut_back s5)
     else ok out2
+
+/-- [libcrux_iot_sha3::keccak::keccak_fc]:
+    Source: 'sha3/src/keccak.rs', lines 2715:0-2719:1 -/
+def keccak.keccak_fc
+  (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
+  (data : Slice Std.U8) (out : Array Std.U8 OUT_LEN) :
+  RustM Unit
+  := do
+  ok ()
 
 /-- [libcrux_iot_sha3::lane::{impl core::clone::Clone for libcrux_iot_sha3::lane::Lane2U32}::clone]:
     Source: 'sha3/src/lane.rs', lines 6:9-6:14
