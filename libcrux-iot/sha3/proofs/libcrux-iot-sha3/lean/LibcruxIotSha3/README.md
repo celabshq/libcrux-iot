@@ -108,11 +108,38 @@ Lean's three standard axioms `propext`,
 This set of axioms is checked on every build by `#guard_msgs` guards in
 [`Verification/ProofObligations.lean`](Verification/ProofObligations.lean).
 
+Beyond Lean's axioms, the proof trusts the hand-written models in
+[`Assumptions/`](Assumptions/), which stand in for what hax leaves external.
+`FunsExternal.lean` models the `libcrux_secrets` helpers the extraction does
+not define — `classify`, the blanket `declassify`, `declassify_ref` on a
+shared slice, and the `u32`/`u64` casts — each as an identity or a no-op,
+which is what those secret-independence wrappers are at the value level. The
+shared `CoreModels.core.*` helpers are NOT redefined here: they come from the
+`HacspecSha3` spec's own `FunsExternal`, since defining them twice clashes in
+any proof that imports both. `TypesExternal.lean` declares no external types.
+`HaxLibAlias.lean` aliases `hax_lib_1.*` onto `hax_lib.*`, a name-only repair
+for the duplicate hax-lib crate in the dependency graph. Being definitions
+rather than axioms, none of these show up in `#print axioms`, so they are a
+trust item to read separately from the guards above.
+
 ## Proof architecture
 
 The proof has two major stages: first establishing Keccak-f[1600]
 permutation equivalence as a central intermediate result, then building
 the full sponge construction on top of it.
+
+The tree divides as follows, bottom to top:
+
+| directory | holds |
+|---|---|
+| [`Extraction/`](Extraction/) | the hax/aeneas output: `Funs`/`Types`/`Specs` plus the `*External` templates. Generated, never edited. Its `ProofObligations.lean` is the generated, `sorry`-filled statement of every Rust contract; the lakefile keeps it out of the build (see [Extraction pipeline](#extraction-pipeline)) |
+| [`Assumptions/`](Assumptions/) | the hand-written models for the items hax leaves external, described under [Axiom hygiene](#axiom-hygiene) |
+| [`Foundation/`](Foundation/) | the `lift` bridge, the θ and π-ρ-χ round-level lemmas (`ThetaLift*`, `PrcLift*`), round-constant equivalence (`RcEquiv`), and the loop-spec helpers everything above reuses |
+| [`BitSpec/`](BitSpec/) | the pure-Lean intermediate bit spec `bit_keccak_spec` and its state isomorphism |
+| `StructuralEquiv.lean`, `AlgebraicEquiv.lean` | the two halves of the permutation argument, detailed below |
+| [`Composition/`](Composition/) | composes those halves (`ViaBit`) and bridges the result to the hacspec permutation (`HacspecBridge`), with a slice-equality helper (`SliceEq`) |
+| [`Sponge/`](Sponge/) | absorb, squeeze, padding and the top-level corollaries, plus the loop- and slice-spec helpers they share |
+| [`Verification/`](Verification/) | `ProofObligations.lean`, the hand-written discharge of the generated `<fn>.spec` obligations (so the Rust contracts hold), and the `#guard_msgs` axiom guards |
 
 ### Keccak-f[1600] permutation equivalence
 
