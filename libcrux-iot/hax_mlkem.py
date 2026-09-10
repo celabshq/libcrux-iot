@@ -20,30 +20,23 @@ nightly-2026.09.02, aeneas nightly-2026.09.03-6852e64). A fresh extraction plus
 one run of this script reproduces the committed `Extraction/` byte for byte;
 the raw extraction differs from it ONLY in these places:
 
- Funs.lean -- 10 call sites drop the `hash_functionsHashInst` ARGUMENT while the
+ Funs.lean -- 8 call sites drop the `hash_functionsHashInst` ARGUMENT while the
     callee's definition keeps the `(hash_functionsHashInst : hash_functions.Hash
     Hasher)` binder (always the binder right after `vectortraitsOperationsInst`):
-    `sample_matrix_entry` (x3, the opaque axiom), `compute_vector_u_loop0[.body]`,
-    `compute_vector_u_loop1_loop0[.body]`, `compute_vector_u_loop1[.body]`,
-    `compute_vector_u`. Without the fix the next positional argument lands in
-    the Hasher slot ("`start` is not a field of hash_functions.Hash" /
-    "Application type mismatch"). Repaired systematically (pass 2): collect every
-    def/axiom with that binder pair (18 functions), then at every call
-    `<fn> [K] vectortraitsOperationsInst` not already followed by the instance,
-    insert it (K-arity taken from the def; binder positions excluded).
+    `sample_matrix_entry` (x2, the opaque axiom) and one call each to
+    `compute_vector_u_loop0[.body]`, `compute_vector_u_loop1[.body]` and
+    `compute_vector_u_loop1_loop0[.body]`. Without the fix the next positional
+    argument lands in the Hasher slot ("`start` is not a field of
+    hash_functions.Hash" / "Application type mismatch"). Repaired systematically
+    (pass 2): collect every def/axiom with that binder pair (8 functions), then at
+    every call `<fn> [K] vectortraitsOperationsInst` not already followed by the
+    instance, insert it (K-arity taken from the def; binder positions excluded).
 
- Specs.lean -- 5 spec-side calls drop trait-clause instance arguments (pass 1,
-    one exact textual pattern each):
-      `lift_t_as_ntt_from_public_key K public_key`  -> + `vectortraitsOperationsInst`
-          (x2: `compute_u_and_v.post`, `compute_ring_element_v.post`)
-      `lift_matrix_from_seed K seed`                -> + both instances
-          (`compute_vector_u.post`)
+ Specs.lean -- 1 spec-side call drops a trait-clause instance argument (pass 1,
+    one exact textual pattern):
       `compute_vector_u K vectortraitsOperationsInst matrix_entry seed`
                                                     -> + `hash_functionsHashInst`
           (`compute_vector_u.spec`)
-      `compute_u_and_v K vectortraitsOperationsInst seed public_key`
-                                                    -> + `hash_functionsHashInst`
-          (`compute_u_and_v.spec`)
 
 (The opaque `matrix::sample_matrix_{entry,A}` used to get generated `.pre`/`.post`/
 `.spec` blocks from their `#[requires]`/`#[ensures]` too -- non-type-checking
@@ -84,9 +77,9 @@ def extract():
 # ---- pass 1: re-insert dropped trait-clause instances at spec-side calls --------
 SPEC_CALL_FIXES = [
     # (old, new, expected count)
-    # The `lift_*` and `compute_u_and_v` entries went with the top-level
-    # functional-correctness annotations they served; only `compute_vector_u`'s
-    # own spec still loses its Hasher instance.
+    # The `lift_*` entries went with the top-level functional-correctness
+    # annotations they served; only `compute_vector_u`'s own spec still loses
+    # its Hasher instance.
     ("matrix.compute_vector_u K vectortraitsOperationsInst matrix_entry seed",
      "matrix.compute_vector_u K vectortraitsOperationsInst hash_functionsHashInst matrix_entry seed", 1),
 ]

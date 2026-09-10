@@ -290,8 +290,8 @@ mutable sub-slice and a write-back closure. -/
     closure that overwrites `s.val[r.start.val..]` with the argument's
     `val`. -/
 -- The write-back keeps its `s'.length = end - start` side condition (it maps to
--- `Slice.update_subslice`); the range bound stays `≤` via the axiomatized
--- subslice / update_subslice specs at the top of this file.
+-- `Slice.update_subslice`); the range bound stays `≤` via the `≤`-range
+-- subslice / update_subslice theorems at the top of this file.
 @[spec]
 theorem core_models_Slice_Insts_index_mut_RangeUsize_spec
     {T : Type} (s : Slice T) (r : CoreModels.core.ops.range.Range Std.Usize)

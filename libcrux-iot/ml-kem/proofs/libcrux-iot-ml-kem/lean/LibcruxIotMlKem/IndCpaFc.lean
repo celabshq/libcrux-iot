@@ -1638,8 +1638,8 @@ private theorem spkm_core
     as "machine-refuted". That is a computation, not a proof, and the driver's gate does not
     re-derive `#eval` output. The five lemmas below replace it with theorems, so the claim
     "this statement is false" now carries the same weight as any other result in this tree.
-    Axioms: `propext / Classical.choice / Quot.sound`, i.e. NOT the `Util.SliceSpecs`
-    empty-subslice axioms — which matters here more than usual, see `spkm_locked_false`. -/
+    Axioms: `propext / Classical.choice / Quot.sound`, and nothing else — which matters
+    here more than usual, see `spkm_locked_false`. -/
 
 /-- `x * y` fails with `integerOverflow` once the product exceeds `Usize.max`. `Usize.max`
     is kept SYMBOLIC throughout (`2 ^ numBits - 1`, never a literal), so nothing here is
@@ -1792,12 +1792,12 @@ private theorem tbig_bnd :
     scaffold dropped, and false without them. Nothing about the POST is weakened anywhere.
 
     ⚠ One caveat that is NOT about this row, and is the reason the docstring above is so
-    insistent about which subslice fact each lemma uses. `Util.SliceSpecs` axiomatises
+    insistent about which subslice fact each lemma uses. `Util.SliceSpecs` USED TO axiomatise
     `Slice.subslice s ⟨a,b⟩ = .ok _` for `a ≤ b` (`AENEAS-SUBSLICE-STRICT`), which
-    contradicts `Slice.subslice`'s definition at `a = b` — so `False` is derivable from that
-    axiom, and the locked statement is therefore *also* "provable" from it. The allowlist is
-    what keeps that out: this refutation and `spkm_core` both stand clear of those axioms.
-    Reported to the driver as a trust-boundary finding; it is not this row's to fix. -/
+    contradicted `Slice.subslice`'s definition at `a = b` — so `False` was derivable from that
+    axiom, and the locked statement was therefore *also* "provable" from it. That gap is now
+    closed: the `≤`-range specs are theorems proved from the (fixed) aeneas definitions. This
+    refutation and `spkm_core` never went through them in the first place. -/
 private theorem spkm_locked_false :
     ¬ (∀ (K PUBLIC_KEY_SIZE : Std.Usize) (t_as_ntt : Std.Array SPoly K)
          (seed_for_a serialized : Slice Std.U8) (scratch : SVec),
@@ -1986,16 +1986,18 @@ theorem is_rank_ok_iff (K : Std.Usize) :
     ~20-digit witness is never evaluated), `idx_mut_empty_fail`, `usize_mul_overflow`.
     r1's verdict is confirmed in every particular; only the strength of the evidence changed.
 
-    ## r2 trust-boundary finding — NOT this row's to fix, but it decides how to read this row
-    `Util.SliceSpecs` (`AENEAS-SUBSLICE-STRICT`) axiomatises `Slice.subslice` / `update_subslice`
-    / `Array.update_subslice` as SUCCEEDING for `start ≤ end`, while aeneas's definitions
-    `fail` at `start = end`. Those axioms are therefore refutable in this very build — `False`
-    follows from `Slice.subslice_le_eq` applied at `⟨0,0⟩` (checked). Consequences: (i) the
-    locked statement is *also* derivable from them, so the axiom allowlist, not the proof
-    search, is what makes this row's SPECREQ the honest answer; (ii) `spkm_core` and every
-    lemma above deliberately go through the real strict `Slice.subslice_spec` (via
-    `Util.Shared.slice_index_mut_range_strict`) and are clean; (iii) obligations elsewhere
-    that DO list these axioms are vacuous — see the r2 self-report for the list.
+    ## r2 trust-boundary finding — SINCE RESOLVED, but it decides how to read this row
+    `Util.SliceSpecs` (`AENEAS-SUBSLICE-STRICT`) used to axiomatise `Slice.subslice` /
+    `update_subslice` / `Array.update_subslice` as SUCCEEDING for `start ≤ end`, while
+    aeneas's definitions `fail`ed at `start = end`. Those axioms were therefore refutable —
+    `False` followed from `Slice.subslice_le_eq` applied at `⟨0,0⟩` (checked at the time).
+    Consequences, as this row was written: (i) the locked statement was *also* derivable from
+    them, so the axiom allowlist, not the proof search, is what makes this row's SPECREQ the
+    honest answer; (ii) `spkm_core` and every lemma above deliberately go through the strict
+    `Slice.subslice_spec` (via `Util.Shared.slice_index_mut_range_strict`) and are clean
+    regardless. As of aeneas nightly-2026.08.24 the definitions guard on `start ≤ end` and
+    the three statements are proved theorems, so nothing in this tree carries them as
+    assumptions any more.
 
     ## r3 (2026-08-19): re-verified from primary sources; the trust-boundary claim MECHANISED
     r3 did not take r1/r2's narrative on trust. Re-derived independently: (a)
@@ -2013,10 +2015,11 @@ theorem is_rank_ok_iff (K : Std.Usize) :
     a proof of `False` must not sit in the tree. Reproducible in 10 lines; see the r3 report.
     ⚠ The escalation r2 did not state: `core_models_Slice_Insts_index_RangeUsize_spec` and
     `core_models_Slice_Insts_index_mut_RangeUsize_spec` (SliceSpecs :206, :269) are BOTH
-    `@[spec]`-tagged, so `hax_mvcgen` selects them AUTOMATICALLY on any slice-range subscript.
-    Inheriting the refutable axiom therefore needs no deliberate citation — which is why
-    `spkm_core` routes around them by hand, and why the blast radius is "every row whose
-    recorded axiom list mentions them", not "every row that meant to use them". -/
+    `@[spec]`-tagged, so `hax_mvcgen` selected them AUTOMATICALLY on any slice-range subscript.
+    Inheriting the refutable axiom therefore needed no deliberate citation — which is why
+    `spkm_core` routes around them by hand, and why the blast radius was "every row whose
+    recorded axiom list mentions them", not "every row that meant to use them". With the
+    `≤`-range specs now proved from the aeneas definitions, that exposure is gone. -/
 @[spec]
 theorem serialize_public_key_mut_fc
     (K PUBLIC_KEY_SIZE : Std.Usize)

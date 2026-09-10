@@ -435,8 +435,7 @@ private theorem r1of_val (x1 x2 : Std.U8) :
 /-! ### Impl side — the 16-lane `deserialize_12`
 
     The sub-slicing here is over STRICT ranges (`3g < 3g+3`), so it goes through
-    aeneas's real `Slice.subslice_spec`, NOT the `Slice.subslice_le_eq`
-    empty-range axiom. -/
+    aeneas's `Slice.subslice_spec` directly, not `Slice.subslice_le_eq`. -/
 
 private theorem slice_index_range_strict {T : Type} [Inhabited T]
     (s : Slice T) (a b : Std.Usize)
@@ -1149,7 +1148,7 @@ private theorem w1of_val (v0 v1 : Std.I16) (h0 : v0.bv.toNat < 4096) (h1 : v1.bv
 /-! ### Impl side — the 24-byte `serialize_12`.
 
     Sub-slicing is over STRICT ranges (`2g < 2g+2`), so it goes through aeneas's
-    real `Slice.subslice_spec`, NOT the A3/A4 empty-range axioms. -/
+    `Slice.subslice_spec` directly, not the `≤`-range specs in `Util/SliceSpecs.lean`. -/
 
 /-- Array-shaped strict subslice: `&arr[a..b]` via `as_slice` + the slice index. -/
 private theorem array_index_range_strict {T : Type} [Inhabited T] {N : Std.Usize}
