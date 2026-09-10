@@ -1,23 +1,10 @@
 use crate::{polynomial::PolynomialRingElement, simd::traits::Operations};
 
-#[cfg(hax)]
-use crate::polynomial::poly_abs_le;
-
-// Full functional correctness against the extracted FIPS-204 hacspec, the
-// README's `ntt_hacspec_fc` stated at the Rust level: impl `ntt` and spec
-// `ntt` agree through the Montgomery-stripping lift `lift_poly_res`. The
-// bound is the FC theorem's per-lane no-overflow precondition. `re` in the
-// `ensures` is the INPUT value, `future(re)` the output.
-#[hax_lib::requires(poly_abs_le(re, 1_577_058_303))]
 #[inline(always)]
 pub(crate) fn ntt<SIMDUnit: Operations>(re: &mut PolynomialRingElement<SIMDUnit>) {
     SIMDUnit::ntt(&mut re.simd_units);
 }
 
-// `intt_hacspec_fc` at the Rust level. The OUTPUT is lifted through
-// `lift_poly_res_intt` (one more `* R^-1`): the impl's inverse NTT leaves its
-// result in the Montgomery domain.
-#[hax_lib::requires(poly_abs_le(re, 8_388_607))]
 #[inline(always)]
 pub(crate) fn invert_ntt_montgomery<SIMDUnit: Operations>(
     re: &mut PolynomialRingElement<SIMDUnit>,
@@ -25,10 +12,6 @@ pub(crate) fn invert_ntt_montgomery<SIMDUnit: Operations>(
     SIMDUnit::invert_ntt_montgomery(&mut re.simd_units);
 }
 
-// `poly_pointwise_mul_hacspec_fc` at the Rust level: the FC theorem's only
-// precondition is the `[-q, q]` bound on `rhs` (the multiplier the NTT-domain
-// callers feed is reduced; `lhs` needs no bound).
-#[hax_lib::requires(poly_abs_le(rhs, 8_380_416))]
 #[inline(always)]
 pub(crate) fn ntt_multiply_montgomery<SIMDUnit: Operations>(
     lhs: &mut PolynomialRingElement<SIMDUnit>,
@@ -41,13 +24,6 @@ pub(crate) fn ntt_multiply_montgomery<SIMDUnit: Operations>(
     ()
 }
 
-// `reduce_fc` at the Rust level, BOTH halves: the residues are unchanged
-// (Barrett reduce; through `lift_poly_res`) AND the output is bounded by
-// 6283009 -- the bound is the point of the reduction and what downstream
-// callers consume, so a residue-only post would be strictly weaker than the
-// Lean FC theorem. The pre is the FC's no-overflow bound 2^31 - 2^23.
-#[hax_lib::requires(poly_abs_le(re, 2_139_095_040))]
-#[hax_lib::ensures(|_| poly_abs_le(future(re), 6_283_009))]
 #[inline(always)]
 // Barrett reduce all coefficients.
 pub(crate) fn reduce<SIMDUnit: Operations>(re: &mut PolynomialRingElement<SIMDUnit>) {

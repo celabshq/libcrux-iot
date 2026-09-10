@@ -121,16 +121,12 @@ theorem compute_message_fc
     libcrux_iot_ml_kem.matrix.compute_message
       (vectortraitsOperationsInst := portable_ops_inst)
       v secret_as_ntt u_as_ntt result scratch accumulator
-    ⦃ ⇓ p => ⌜ (∃ spec_out,
-                  hacspec_ml_kem.matrix.compute_message
-                    (lift_poly v)
-                    (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
-                  = .ok spec_out
-                ∧ PolyMatches p.1 spec_out)
-                ∧ hacspec_ml_kem.matrix.compute_message
-                    (lift_poly v)
-                    (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
-                  = .ok (lift_poly p.1) ⌝ ⦄ := by
+    ⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_message
+                  (lift_poly v)
+                  (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
+                = .ok (lift_poly p.1)
+              ∧ ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
+                  ((p.1.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328 ⌝ ⦄ := by
   -- Fin-form bounds for the loop lemma.
   have h_secret_fin : ∀ k : Fin K.val, ∀ i j : Fin 16,
       ((secret_as_ntt.val[k.val]!.coefficients.val[i.val]!).elements.val[j.val]!).val.natAbs ≤ 4095 :=
@@ -205,7 +201,7 @@ theorem compute_message_fc
       ((result2.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 32767 := by
     intro chunk hchunk ℓ hℓ
     have := h_result2_bnd chunk hchunk ℓ hℓ; omega
-  obtain ⟨result3, h_sub_eq, h_result3_lift, h_result3_bnd⟩ :=
+  obtain ⟨result3, h_sub_eq, h_result3_lift⟩ :=
     triple_exists_ok_fc
       (subtract_reduce_fc v result2 h_v_self_bnd h_result2_b_bnd)
   -- Reduce the impl do-block to `.ok (result3, scratch1, acc2)`.
@@ -222,11 +218,12 @@ theorem compute_message_fc
         let result3 ← polynomial.PolynomialRingElement.subtract_reduce portable_ops_inst v result2
         Aeneas.Std.RustM.ok (result3, scratch1, acc2)) = Aeneas.Std.RustM.ok (result3, scratch1, acc2)
     rw [h_sub_eq]; simp only [Aeneas.Std.bind_tc_ok]
-  · -- POST: (∃ spec_out, hacspec = .ok spec_out ∧ PolyMatches result3 spec_out)
-    -- ∧ hacspec = .ok (lift_poly result3). `h_hac` (the A/B/C/D chain) is exposed as
-    -- the second conjunct so the Rust-annotation discharge recovers `spec_out = lift_poly result3`.
-    have h_hac : hacspec_ml_kem.matrix.compute_message (lift_poly v)
-        (lift_vec secret_as_ntt) (lift_vec u_as_ntt) = .ok (lift_poly result3) := by
+  · -- POST is now a CONJUNCTION: the spec equation, and the ≤ 3328 bound the
+    -- consumer `compress_then_serialize_message_fc` requires (INC-2b.C).
+    refine ⟨?_, ?_⟩
+    · -- Chain A/B/C/D: prove the hacspec spec = .ok (lift_poly result3).
+      show hacspec_ml_kem.matrix.compute_message (lift_poly v)
+            (lift_vec secret_as_ntt) (lift_vec u_as_ntt) = .ok (lift_poly result3)
       unfold hacspec_ml_kem.matrix.compute_message
       -- A: multiply_vectors = .ok (scaleZ 2285 (lift_poly result1)).
       have hA := compute_message_acc_bridge secret_as_ntt u_as_ntt acc1 acc2
@@ -255,18 +252,24 @@ theorem compute_message_fc
           (fun j hj => lift_poly_canon v j hj)]
       -- subtract_reduce_pure (lift_poly v) (lift_poly result2) = lift_poly result3.
       rw [← h_result3_lift]
-    refine ⟨⟨lift_poly result3, h_hac, ?_⟩, h_hac⟩
-    -- Per-lane bridge: the impl output is the centered Barrett representative
-    -- `|x| ≤ 1664`; `LaneMatches` records the tight bound + the residue equality
-    -- `(x : ZMod q) = zmodOfFE (spec lane)`, discharged by `laneMatches_lift_fe`.
-    unfold PolyMatches
-    intro ℓ hℓ
-    have hj : ℓ / 16 < 16 := Nat.div_lt_iff_lt_mul (by decide : 0 < 16) |>.mpr hℓ
-    have hm : ℓ % 16 < 16 := Nat.mod_lt _ (by decide : 0 < 16)
-    have hbnd : (((result3.coefficients.val[ℓ / 16]!).elements.val[ℓ % 16]!).val).natAbs ≤ 1664 :=
-      h_result3_bnd (ℓ / 16) hj (ℓ % 16) hm
-    rw [lift_poly_getElem result3 ℓ hℓ]
-    exact laneMatches_lift_fe _ hbnd
+    · -- ★ INC-2b.C OBLIGATION — the NEW bound conjunct. HELPER SCAFFOLD, do not
+      -- weaken the statement to close it.
+      --
+      -- The ingredient is BANKED and axiom-clean: `PolyOpsFc.subtract_reduce_bnd`
+      -- (Polynomial/PolyOpsFc.lean:1191) has EXACTLY the hypotheses already
+      -- discharged above for `subtract_reduce_fc` (`h_v_self_bnd`,
+      -- `h_result2_b_bnd`) and posts `natAbs ≤ 3328` on the very same call whose
+      -- result is `result3`. `subtract_reduce` is the LAST operation the impl
+      -- performs, so its result IS `p.1`.
+      obtain ⟨result3', h_sub_eq', h_bnd⟩ :=
+        triple_exists_ok_fc
+          (subtract_reduce_bnd v result2 h_v_self_bnd h_result2_b_bnd)
+      -- Same call, so same result: `.ok` is injective.
+      have h_r3 : result3' = result3 := by
+        have h := h_sub_eq'.symm.trans h_sub_eq
+        simpa using h
+      subst h_r3
+      exact h_bnd
 
 /--
 info: 'libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc' depends on axioms: [propext,

@@ -1,6 +1,4 @@
 use libcrux_secrets::{Classify as _, DeclassifyRef as _, I32};
-#[cfg(hax)]
-use libcrux_secrets::Declassify as _;
 
 use crate::simd::traits::COEFFICIENTS_IN_SIMD_UNIT;
 /// Values having this type hold a representative 'x' of the ML-DSA field.
@@ -17,13 +15,6 @@ pub(crate) fn zero() -> Coefficients {
     Coefficients {
         values: [0i32.classify(); COEFFICIENTS_IN_SIMD_UNIT],
     }
-}
-
-/// Spec-only PURE lane read; see `Operations::lane`.
-#[cfg(hax)]
-#[hax_lib::requires(i < COEFFICIENTS_IN_SIMD_UNIT)]
-pub(crate) fn lane(value: &Coefficients, i: usize) -> i32 {
-    value.values[i].declassify()
 }
 
 pub(crate) fn from_coefficient_array(array: &[I32], out: &mut Coefficients) {

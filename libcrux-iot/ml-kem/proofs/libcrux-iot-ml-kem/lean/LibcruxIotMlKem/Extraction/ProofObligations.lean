@@ -147,20 +147,6 @@ theorem
 
 @[spec]
 theorem
-  matrix.compute_message.spec.proof {Vector : Type} {K : Std.Usize}
-                                   (vectortraitsOperationsInst :
-                                   vector.traits.Operations Vector)
-  (v : polynomial.PolynomialRingElement Vector)
-  (secret_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (u_as_ntt : Array (polynomial.PolynomialRingElement Vector) K)
-  (result : polynomial.PolynomialRingElement Vector) (scratch : Vector)
-  (accumulator : Array Std.I32 256#usize) :
-  matrix.compute_message.spec vectortraitsOperationsInst v secret_as_ntt
-  u_as_ntt result scratch accumulator
-  := by sorry
-
-@[spec]
-theorem
   matrix.compute_ring_element_v.spec.proof {Vector : Type} (K : Std.Usize)
                                           (vectortraitsOperationsInst :
                                           vector.traits.Operations Vector)

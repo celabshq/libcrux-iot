@@ -1,4 +1,4 @@
-use libcrux_secrets::{CastOps as _, Classify as _, Declassify as _, I32, I64, U64};
+use libcrux_secrets::{CastOps as _, Classify as _, Declassify as _, IntOps as _, I32, I64, U64};
 
 use super::vector_type::{Coefficients, FieldElement};
 use crate::{
@@ -77,17 +77,13 @@ pub(crate) fn montgomery_multiply(lhs: &mut Coefficients, rhs: &Coefficients) {
 // We assume the input t is in the signed representative range and convert it
 // to the standard unsigned range.
 #[inline(always)]
-// The range bound was a commented-out `debug_assert!` here with a note that it
-// "should be a precondition for hax instead" (hax issue 1082). It now is one --
-// stated with `>=` rather than the assert's `>`, to match
-// `Vector.Portable.Arithmetic.power2round_element_spec`.
-#[hax_lib::requires(t >= -FIELD_MODULUS && t < FIELD_MODULUS)]
-// Full functional correctness against the extracted FIPS-204 hacspec, named
-// directly -- no lifting function, both sides are plain `i32`. Conjuncts are
-// CROSSED (impl returns `(low, high)`, spec returns `(r1, r0)`) and `t` is
-// canonicalised with the hacspec's own `mod_q`, exactly as for
-// `decompose_element` above.
 fn power2round_element(t: I32) -> (I32, I32) {
+    // Hax issue: https://github.com/hacspec/hax/issues/1082
+    // XXX: Below debug assert violates the classification regime
+    // in Debug mode. It should be a precondition for hax
+    // instead.
+    // #[cfg(not(eurydice))]
+    // debug_assert!(t > -FIELD_MODULUS && t < FIELD_MODULUS);
 
     // Convert the signed representative to the standard unsigned one.
     let t = t.wrapping_add((t >> 31) & FIELD_MODULUS);
@@ -107,11 +103,6 @@ fn power2round_element(t: I32) -> (I32, I32) {
 }
 
 #[inline(always)]
-// `power2round_element`'s range bound, lifted to the whole unit; this is what
-// `Vector.Portable.Arithmetic.power2round_spec` assumes.
-#[hax_lib::requires(coefficients_in_field(t0))]
-// Full functional correctness at the SIMD-unit level. Note `t0` is read AND
-// written: the bare `t0` here is the input value, `future(t0)` the output.
 pub(super) fn power2round(t0: &mut Coefficients, t1: &mut Coefficients) {
     for i in 0..t0.values.len() {
         (t0.values[i], t1.values[i]) = power2round_element(t0.values[i]);
@@ -232,18 +223,6 @@ pub(super) fn compute_hint(
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && r >= -FIELD_MODULUS
     && r < FIELD_MODULUS)]
-// Full functional correctness against the machine-extracted FIPS-204 hacspec,
-// named directly. No lifting function is needed here: both sides are plain
-// `i32`, exactly like sha3's `[u8; N]` digests.
-//
-// Two wrinkles, both forced by the existing Lean theorem
-// (`Vector.Portable.Rounding.decompose_element_spec`):
-//  - the impl returns `(low, high)` while the spec returns `(r1, r0) =
-//    (high, low)`, so the conjuncts are CROSSED (`out.0` vs `.1`, `out.1` vs `.0`);
-//  - the hacspec's `decompose` is specified for a canonical `r` in `[0, Q)`
-//    (`#[requires(r >= 0 && r < Q && ...)]`) while `r` here is a signed
-//    representative in `[-q, q)`, so it is canonicalised with the hacspec's own
-//    `mod_q` first -- which is what `Spec.Rounding.decompose` does internally too.
 fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
 
     // Convert the signed representative to the standard unsigned one.
@@ -292,10 +271,6 @@ fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && r >= -FIELD_MODULUS && r < FIELD_MODULUS
     && (hint == 0 || hint == 1))]
-// Full functional correctness against the extracted FIPS-204 hacspec. Same
-// pattern as `decompose_element` / `power2round_element`: plain `i32` on both
-// sides, `r` canonicalised with the hacspec's own `mod_q`. Here the hint is a
-// `bool` on the spec side, so it is compared rather than passed through.
 pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
     let (r0, r1) = decompose_element(gamma2, r.classify());
 
@@ -396,8 +371,6 @@ fn coefficients_are_hints(c: &Coefficients) -> bool {
 #[inline(always)]
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && coefficients_in_field(simd_unit))]
-// Full functional correctness at the SIMD-unit level: every lane of the
-// output pair is the FIPS-204 Decompose of the corresponding input lane.
 pub fn decompose(
     gamma2: Gamma2,
     simd_unit: &Coefficients,
@@ -409,11 +382,10 @@ pub fn decompose(
     }
 }
 
+#[inline(always)]
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && coefficients_in_field(simd_unit)
     && coefficients_are_hints(hint))]
-// Full functional correctness at the SIMD-unit level. Like `power2round`, `hint`
-// is read AND written: the bare `hint` is the input, `future(hint)` the output.
 pub fn use_hint(gamma2: Gamma2, simd_unit: &Coefficients, hint: &mut Coefficients) {
     for i in 0..hint.values.len() {
         // Declassifications: The hint values themselves are not

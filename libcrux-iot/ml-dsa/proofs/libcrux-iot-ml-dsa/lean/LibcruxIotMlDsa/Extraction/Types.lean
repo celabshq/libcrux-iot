@@ -30,14 +30,13 @@ inductive constants.Eta where
 | Four : constants.Eta
 
 /-- Trait declaration: [libcrux_iot_ml_dsa::simd::traits::Operations]
-    Source: 'ml-dsa/src/simd/traits.rs', lines 21:0-96:1 -/
+    Source: 'ml-dsa/src/simd/traits.rs', lines 21:0-85:1 -/
 structure simd.traits.Operations (Self : Type) where
   coremarkerCopyInst : core.marker.Copy Self
   corecloneCloneInst : core.clone.Clone Self
   zero : RustM Self
   from_coefficient_array : Slice Std.I32 → Self → RustM Self
   to_coefficient_array : Self → Slice Std.I32 → RustM (Slice Std.I32)
-  lane : Self → Std.Usize → RustM Std.I32
   add : Self → Self → RustM Self
   subtract : Self → Self → RustM Self
   infinity_norm_exceeds : Self → Std.I32 → RustM Bool
@@ -70,18 +69,12 @@ structure simd.traits.Operations (Self : Type) where
   reduce : Array Self 32#usize → RustM (Array Self 32#usize)
 
 /-- [libcrux_iot_ml_dsa::polynomial::PolynomialRingElement]
-    Source: 'ml-dsa/src/polynomial.rs', lines 12:0-14:1 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 9:0-11:1 -/
 structure polynomial.PolynomialRingElement (SIMDUnit : Type) where
   simd_units : Array SIMDUnit 32#usize
 
-/-- [libcrux_iot_ml_dsa::polynomial::raw_gather::closure]
-    Source: 'ml-dsa/src/polynomial.rs', lines 108:25-111:5 -/
-@[reducible]
-def polynomial.raw_gather.closure (SIMDUnit : Type) :=
-  polynomial.PolynomialRingElement SIMDUnit
-
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients]
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 12:0-14:1 -/
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 10:0-12:1 -/
 structure simd.portable.vector_type.Coefficients where
   values : Array Std.I32 8#usize
 

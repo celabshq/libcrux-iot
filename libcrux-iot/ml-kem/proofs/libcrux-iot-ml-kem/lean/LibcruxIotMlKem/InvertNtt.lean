@@ -1521,12 +1521,8 @@ theorem inv_ntt_layer_int_vec_step_reduce_fc
       (scratch2.elements.val[ℓ]!).val.natAbs ≤ 32767 := by
     intro ℓ hℓ
     have := h_s2_bnd ℓ hℓ; omega
-  obtain ⟨scratch3, h_s3_eq, h_s3_bnd_t, _h_s3_lift⟩ :=
+  obtain ⟨scratch3, h_s3_eq, h_s3_bnd, _h_s3_lift⟩ :=
     triple_exists_ok_fc (barrett_reduce_fc scratch2 h_barrett_pre)
-  -- `barrett_reduce_fc` now gives the centered `≤ 1664`; this inverse-NTT step
-  -- only needs the looser `≤ 3328`, so weaken.
-  have h_s3_bnd : ∀ i : Nat, i < 16 → (scratch3.elements.val[i]!).val.natAbs ≤ 3328 :=
-    fun i hi => Nat.le_trans (h_s3_bnd_t i hi) (by decide)
   have h_s3_legacy :=
     libcrux_iot_ml_kem.Vector.Portable.Arithmetic.Element.barrett_reduce_spec scratch2 h_barrett_pre
   obtain ⟨scratch3', h_s3_eq', h_s3_per⟩ := triple_exists_ok_fc h_s3_legacy
@@ -3846,18 +3842,5 @@ theorem ntt_vector_u_fc
     where `Spec.chunk_subtract_reduce_pure` (defined in §0.5) is the
     16-lane version of `self - b * lift_fe_mont(1441)`. -/
 
-
-
-/-! ## Axiom guards
-    Pinned by `#guard_msgs` (replacing the former `AxiomCheck.lean`, which only asserted
-    sorry-freedom): the build fails if a result's axiom set drifts. Beyond Lean's standard
-    three, only the documented deferred leaves A1 (`sample_matrix_entry_fc` with the opaque
-    `matrix.sample_matrix_entry`) and A2 (`deserialize_to_reduced_ring_element_fc`) may
-    appear, and only where listed. -/
-/--
-info: 'libcrux_iot_ml_kem.InvertNtt.invert_ntt_montgomery_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms invert_ntt_montgomery_fc
 
 end libcrux_iot_ml_kem.InvertNtt

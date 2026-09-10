@@ -27,7 +27,7 @@ noncomputable section
 namespace libcrux_iot_ml_dsa
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 364:8-366:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 56:8-58:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -49,7 +49,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop.body
       ok (cont (iter1, result1))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 364:8-366:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 56:8-58:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -64,7 +64,7 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds_loop
     (iter, result)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 362:8-369:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 54:4-61:5 -/
 def polynomial.PolynomialRingElement.infinity_norm_exceeds
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
@@ -232,7 +232,7 @@ def polynomial.PolynomialRingElement.to_i32_array_loop
     (iter, result)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::to_i32_array]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 313:4-323:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 21:4-31:5 -/
 def polynomial.PolynomialRingElement.to_i32_array
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit) :
@@ -249,7 +249,7 @@ def polynomial.PolynomialRingElement.to_i32_array
     iter result
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::zero]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 301:4-305:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 14:4-18:5 -/
 def polynomial.PolynomialRingElement.zero
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) :
@@ -382,7 +382,7 @@ def simd.traits.SIMD_UNITS_IN_RING_ELEMENT : RustM Std.Usize :=
     simd.traits.COEFFICIENTS_IN_SIMD_UNIT
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 335:8-340:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 36:8-41:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.from_i32_array_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -411,7 +411,7 @@ def polynomial.PolynomialRingElement.from_i32_array_loop.body
     ok (cont (iter1, { simd_units := a }))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 335:8-340:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 36:8-41:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.from_i32_array_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -426,7 +426,7 @@ def polynomial.PolynomialRingElement.from_i32_array_loop
     (iter, result)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 332:4-343:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 33:4-44:5 -/
 def polynomial.PolynomialRingElement.from_i32_array
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (array : Slice Std.I32)
@@ -541,11 +541,6 @@ def arithmetic.use_hint
   arithmetic.use_hint_loop0 simdtraitsOperationsInst
     { start := 0#usize, «end» := i } gamma2 hint re_vector
 
-/-- [libcrux_iot_ml_dsa::constants::FIELD_MODULUS]
-    Source: 'ml-dsa/src/constants.rs', lines 1:0-1:48 -/
-@[global_simps, irreducible]
-def constants.FIELD_MODULUS : Std.I32 := 8380417#i32
-
 /-- [libcrux_iot_ml_dsa::constants::BITS_IN_LOWER_PART_OF_T]
     Source: 'ml-dsa/src/constants.rs', lines 7:0-7:53 -/
 @[global_simps, irreducible]
@@ -561,323 +556,8 @@ def constants.GAMMA2_V261_888 : Std.I32 := 261888#i32
 @[global_simps, irreducible]
 def constants.GAMMA2_V95_232 : Std.I32 := 95232#i32
 
-/-- [libcrux_iot_ml_dsa::polynomial::lane_abs_le]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 119:0-122:1 -/
-def polynomial.lane_abs_le (x : Std.I32) (b : Std.I32) : RustM Bool := do
-  let i ← lift (IScalar.cast .I64 b)
-  let i1 ← -. i
-  let i2 ← lift (IScalar.cast .I64 x)
-  if i1 <= i2
-  then
-    let i3 ← lift (IScalar.cast .I64 x)
-    let i4 ← lift (IScalar.cast .I64 b)
-    ok (i3 <= i4)
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::unit_abs_le]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 125:0-134:1 -/
-def polynomial.unit_abs_le
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (u : SIMDUnit) (b : Std.I32) :
-  RustM Bool
-  := do
-  let i ← simdtraitsOperationsInst.lane u 0#usize
-  let b1 ← polynomial.lane_abs_le i b
-  if b1
-  then
-    let i1 ← simdtraitsOperationsInst.lane u 1#usize
-    let b2 ← polynomial.lane_abs_le i1 b
-    if b2
-    then
-      let i2 ← simdtraitsOperationsInst.lane u 2#usize
-      let b3 ← polynomial.lane_abs_le i2 b
-      if b3
-      then
-        let i3 ← simdtraitsOperationsInst.lane u 3#usize
-        let b4 ← polynomial.lane_abs_le i3 b
-        if b4
-        then
-          let i4 ← simdtraitsOperationsInst.lane u 4#usize
-          let b5 ← polynomial.lane_abs_le i4 b
-          if b5
-          then
-            let i5 ← simdtraitsOperationsInst.lane u 5#usize
-            let b6 ← polynomial.lane_abs_le i5 b
-            if b6
-            then
-              let i6 ← simdtraitsOperationsInst.lane u 6#usize
-              let b7 ← polynomial.lane_abs_le i6 b
-              if b7
-              then
-                let i7 ← simdtraitsOperationsInst.lane u 7#usize
-                polynomial.lane_abs_le i7 b
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::poly_abs_le]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 137:0-173:1 -/
-def polynomial.poly_abs_le
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) (b : Std.I32) :
-  RustM Bool
-  := do
-  let t ← Array.index_usize re.simd_units 0#usize
-  let b1 ← polynomial.unit_abs_le simdtraitsOperationsInst t b
-  if b1
-  then
-    let t1 ← Array.index_usize re.simd_units 1#usize
-    let b2 ← polynomial.unit_abs_le simdtraitsOperationsInst t1 b
-    if b2
-    then
-      let t2 ← Array.index_usize re.simd_units 2#usize
-      let b3 ← polynomial.unit_abs_le simdtraitsOperationsInst t2 b
-      if b3
-      then
-        let t3 ← Array.index_usize re.simd_units 3#usize
-        let b4 ← polynomial.unit_abs_le simdtraitsOperationsInst t3 b
-        if b4
-        then
-          let t4 ← Array.index_usize re.simd_units 4#usize
-          let b5 ← polynomial.unit_abs_le simdtraitsOperationsInst t4 b
-          if b5
-          then
-            let t5 ← Array.index_usize re.simd_units 5#usize
-            let b6 ← polynomial.unit_abs_le simdtraitsOperationsInst t5 b
-            if b6
-            then
-              let t6 ← Array.index_usize re.simd_units 6#usize
-              let b7 ← polynomial.unit_abs_le simdtraitsOperationsInst t6 b
-              if b7
-              then
-                let t7 ← Array.index_usize re.simd_units 7#usize
-                let b8 ← polynomial.unit_abs_le simdtraitsOperationsInst t7 b
-                if b8
-                then
-                  let t8 ← Array.index_usize re.simd_units 8#usize
-                  let b9 ←
-                    polynomial.unit_abs_le simdtraitsOperationsInst t8 b
-                  if b9
-                  then
-                    let t9 ← Array.index_usize re.simd_units 9#usize
-                    let b10 ←
-                      polynomial.unit_abs_le simdtraitsOperationsInst t9 b
-                    if b10
-                    then
-                      let t10 ← Array.index_usize re.simd_units 10#usize
-                      let b11 ←
-                        polynomial.unit_abs_le simdtraitsOperationsInst t10 b
-                      if b11
-                      then
-                        let t11 ← Array.index_usize re.simd_units 11#usize
-                        let b12 ←
-                          polynomial.unit_abs_le simdtraitsOperationsInst t11 b
-                        if b12
-                        then
-                          let t12 ← Array.index_usize re.simd_units 12#usize
-                          let b13 ←
-                            polynomial.unit_abs_le simdtraitsOperationsInst t12
-                              b
-                          if b13
-                          then
-                            let t13 ←
-                              Array.index_usize re.simd_units 13#usize
-                            let b14 ←
-                              polynomial.unit_abs_le simdtraitsOperationsInst
-                                t13 b
-                            if b14
-                            then
-                              let t14 ←
-                                Array.index_usize re.simd_units 14#usize
-                              let b15 ←
-                                polynomial.unit_abs_le simdtraitsOperationsInst
-                                  t14 b
-                              if b15
-                              then
-                                let t15 ←
-                                  Array.index_usize re.simd_units 15#usize
-                                let b16 ←
-                                  polynomial.unit_abs_le
-                                    simdtraitsOperationsInst t15 b
-                                if b16
-                                then
-                                  let t16 ←
-                                    Array.index_usize re.simd_units 16#usize
-                                  let b17 ←
-                                    polynomial.unit_abs_le
-                                      simdtraitsOperationsInst t16 b
-                                  if b17
-                                  then
-                                    let t17 ←
-                                      Array.index_usize re.simd_units 17#usize
-                                    let b18 ←
-                                      polynomial.unit_abs_le
-                                        simdtraitsOperationsInst t17 b
-                                    if b18
-                                    then
-                                      let t18 ←
-                                        Array.index_usize re.simd_units
-                                          18#usize
-                                      let b19 ←
-                                        polynomial.unit_abs_le
-                                          simdtraitsOperationsInst t18 b
-                                      if b19
-                                      then
-                                        let t19 ←
-                                          Array.index_usize re.simd_units
-                                            19#usize
-                                        let b20 ←
-                                          polynomial.unit_abs_le
-                                            simdtraitsOperationsInst t19 b
-                                        if b20
-                                        then
-                                          let t20 ←
-                                            Array.index_usize re.simd_units
-                                              20#usize
-                                          let b21 ←
-                                            polynomial.unit_abs_le
-                                              simdtraitsOperationsInst t20 b
-                                          if b21
-                                          then
-                                            let t21 ←
-                                              Array.index_usize re.simd_units
-                                                21#usize
-                                            let b22 ←
-                                              polynomial.unit_abs_le
-                                                simdtraitsOperationsInst t21 b
-                                            if b22
-                                            then
-                                              let t22 ←
-                                                Array.index_usize re.simd_units
-                                                  22#usize
-                                              let b23 ←
-                                                polynomial.unit_abs_le
-                                                  simdtraitsOperationsInst t22
-                                                  b
-                                              if b23
-                                              then
-                                                let t23 ←
-                                                  Array.index_usize
-                                                    re.simd_units 23#usize
-                                                let b24 ←
-                                                  polynomial.unit_abs_le
-                                                    simdtraitsOperationsInst
-                                                    t23 b
-                                                if b24
-                                                then
-                                                  let t24 ←
-                                                    Array.index_usize
-                                                      re.simd_units 24#usize
-                                                  let b25 ←
-                                                    polynomial.unit_abs_le
-                                                      simdtraitsOperationsInst
-                                                      t24 b
-                                                  if b25
-                                                  then
-                                                    let t25 ←
-                                                      Array.index_usize
-                                                        re.simd_units 25#usize
-                                                    let b26 ←
-                                                      polynomial.unit_abs_le
-                                                        simdtraitsOperationsInst
-                                                        t25 b
-                                                    if b26
-                                                    then
-                                                      let t26 ←
-                                                        Array.index_usize
-                                                          re.simd_units
-                                                          26#usize
-                                                      let b27 ←
-                                                        polynomial.unit_abs_le
-                                                          simdtraitsOperationsInst
-                                                          t26 b
-                                                      if b27
-                                                      then
-                                                        let t27 ←
-                                                          Array.index_usize
-                                                            re.simd_units
-                                                            27#usize
-                                                        let b28 ←
-                                                          polynomial.unit_abs_le
-                                                            simdtraitsOperationsInst
-                                                            t27 b
-                                                        if b28
-                                                        then
-                                                          let t28 ←
-                                                            Array.index_usize
-                                                              re.simd_units
-                                                              28#usize
-                                                          let b29 ←
-                                                            polynomial.unit_abs_le
-                                                              simdtraitsOperationsInst
-                                                              t28 b
-                                                          if b29
-                                                          then
-                                                            let t29 ←
-                                                              Array.index_usize
-                                                                re.simd_units
-                                                                29#usize
-                                                            let b30 ←
-                                                              polynomial.unit_abs_le
-                                                                simdtraitsOperationsInst
-                                                                t29 b
-                                                            if b30
-                                                            then
-                                                              let t30 ←
-                                                                Array.index_usize
-                                                                  re.simd_units
-                                                                  30#usize
-                                                              let b31 ←
-                                                                polynomial.unit_abs_le
-                                                                  simdtraitsOperationsInst
-                                                                  t30 b
-                                                              if b31
-                                                              then
-                                                                let t31 ←
-                                                                  Array.index_usize
-                                                                    re.simd_units
-                                                                    31#usize
-                                                                polynomial.unit_abs_le
-                                                                  simdtraitsOperationsInst
-                                                                  t31 b
-                                                              else ok false
-                                                            else ok false
-                                                          else ok false
-                                                        else ok false
-                                                      else ok false
-                                                    else ok false
-                                                  else ok false
-                                                else ok false
-                                              else ok false
-                                            else ok false
-                                          else ok false
-                                        else ok false
-                                      else ok false
-                                    else ok false
-                                  else ok false
-                                else ok false
-                              else ok false
-                            else ok false
-                          else ok false
-                        else ok false
-                      else ok false
-                    else ok false
-                  else ok false
-                else ok false
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
 /-- [libcrux_iot_ml_dsa::ntt::ntt]:
-    Source: 'ml-dsa/src/ntt.rs', lines 13:0-15:1 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 4:0-6:1 -/
 def ntt.ntt
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -887,7 +567,7 @@ def ntt.ntt
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::ntt::invert_ntt_montgomery]:
-    Source: 'ml-dsa/src/ntt.rs', lines 22:0-26:1 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 9:0-13:1 -/
 def ntt.invert_ntt_montgomery
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -897,7 +577,7 @@ def ntt.invert_ntt_montgomery
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::ntt::ntt_multiply_montgomery]: loop body 0:
-    Source: 'ml-dsa/src/ntt.rs', lines 37:4-39:5 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 20:4-22:5 -/
 @[rust_loop_body]
 def ntt.ntt_multiply_montgomery_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -919,7 +599,7 @@ def ntt.ntt_multiply_montgomery_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::ntt::ntt_multiply_montgomery]: loop 0:
-    Source: 'ml-dsa/src/ntt.rs', lines 37:4-39:5 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 20:4-22:5 -/
 @[rust_loop]
 def ntt.ntt_multiply_montgomery_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -934,7 +614,7 @@ def ntt.ntt_multiply_montgomery_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::ntt::ntt_multiply_montgomery]:
-    Source: 'ml-dsa/src/ntt.rs', lines 33:0-42:1 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 16:0-25:1 -/
 def ntt.ntt_multiply_montgomery
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (lhs : polynomial.PolynomialRingElement SIMDUnit)
@@ -949,7 +629,7 @@ def ntt.ntt_multiply_montgomery
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::ntt::reduce]:
-    Source: 'ml-dsa/src/ntt.rs', lines 53:0-55:1 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 29:0-31:1 -/
 def ntt.reduce
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
@@ -958,1188 +638,8 @@ def ntt.reduce
   let a ← simdtraitsOperationsInst.reduce re.simd_units
   ok { simd_units := a }
 
-/-- [libcrux_iot_ml_dsa::polynomial::lane_centered]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 31:0-34:1 -/
-def polynomial.lane_centered (x : Std.I32) : RustM Bool := do
-  let i ← constants.FIELD_MODULUS - 1#i32
-  let i1 ← i / 2#i32
-  let i2 ← -. i1
-  if i2 <= x
-  then let i3 ← i / 2#i32
-       ok (x <= i3)
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::unit_centered]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 37:0-46:1 -/
-def polynomial.unit_centered
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (u : SIMDUnit) :
-  RustM Bool
-  := do
-  let i ← simdtraitsOperationsInst.lane u 0#usize
-  let b ← polynomial.lane_centered i
-  if b
-  then
-    let i1 ← simdtraitsOperationsInst.lane u 1#usize
-    let b1 ← polynomial.lane_centered i1
-    if b1
-    then
-      let i2 ← simdtraitsOperationsInst.lane u 2#usize
-      let b2 ← polynomial.lane_centered i2
-      if b2
-      then
-        let i3 ← simdtraitsOperationsInst.lane u 3#usize
-        let b3 ← polynomial.lane_centered i3
-        if b3
-        then
-          let i4 ← simdtraitsOperationsInst.lane u 4#usize
-          let b4 ← polynomial.lane_centered i4
-          if b4
-          then
-            let i5 ← simdtraitsOperationsInst.lane u 5#usize
-            let b5 ← polynomial.lane_centered i5
-            if b5
-            then
-              let i6 ← simdtraitsOperationsInst.lane u 6#usize
-              let b6 ← polynomial.lane_centered i6
-              if b6
-              then
-                let i7 ← simdtraitsOperationsInst.lane u 7#usize
-                polynomial.lane_centered i7
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::coefficients_centered]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 49:0-84:1 -/
-def polynomial.coefficients_centered
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let t ← Array.index_usize re.simd_units 0#usize
-  let b ← polynomial.unit_centered simdtraitsOperationsInst t
-  if b
-  then
-    let t1 ← Array.index_usize re.simd_units 1#usize
-    let b1 ← polynomial.unit_centered simdtraitsOperationsInst t1
-    if b1
-    then
-      let t2 ← Array.index_usize re.simd_units 2#usize
-      let b2 ← polynomial.unit_centered simdtraitsOperationsInst t2
-      if b2
-      then
-        let t3 ← Array.index_usize re.simd_units 3#usize
-        let b3 ← polynomial.unit_centered simdtraitsOperationsInst t3
-        if b3
-        then
-          let t4 ← Array.index_usize re.simd_units 4#usize
-          let b4 ← polynomial.unit_centered simdtraitsOperationsInst t4
-          if b4
-          then
-            let t5 ← Array.index_usize re.simd_units 5#usize
-            let b5 ← polynomial.unit_centered simdtraitsOperationsInst t5
-            if b5
-            then
-              let t6 ← Array.index_usize re.simd_units 6#usize
-              let b6 ← polynomial.unit_centered simdtraitsOperationsInst t6
-              if b6
-              then
-                let t7 ← Array.index_usize re.simd_units 7#usize
-                let b7 ← polynomial.unit_centered simdtraitsOperationsInst t7
-                if b7
-                then
-                  let t8 ← Array.index_usize re.simd_units 8#usize
-                  let b8 ←
-                    polynomial.unit_centered simdtraitsOperationsInst t8
-                  if b8
-                  then
-                    let t9 ← Array.index_usize re.simd_units 9#usize
-                    let b9 ←
-                      polynomial.unit_centered simdtraitsOperationsInst t9
-                    if b9
-                    then
-                      let t10 ← Array.index_usize re.simd_units 10#usize
-                      let b10 ←
-                        polynomial.unit_centered simdtraitsOperationsInst t10
-                      if b10
-                      then
-                        let t11 ← Array.index_usize re.simd_units 11#usize
-                        let b11 ←
-                          polynomial.unit_centered simdtraitsOperationsInst t11
-                        if b11
-                        then
-                          let t12 ← Array.index_usize re.simd_units 12#usize
-                          let b12 ←
-                            polynomial.unit_centered simdtraitsOperationsInst
-                              t12
-                          if b12
-                          then
-                            let t13 ←
-                              Array.index_usize re.simd_units 13#usize
-                            let b13 ←
-                              polynomial.unit_centered simdtraitsOperationsInst
-                                t13
-                            if b13
-                            then
-                              let t14 ←
-                                Array.index_usize re.simd_units 14#usize
-                              let b14 ←
-                                polynomial.unit_centered
-                                  simdtraitsOperationsInst t14
-                              if b14
-                              then
-                                let t15 ←
-                                  Array.index_usize re.simd_units 15#usize
-                                let b15 ←
-                                  polynomial.unit_centered
-                                    simdtraitsOperationsInst t15
-                                if b15
-                                then
-                                  let t16 ←
-                                    Array.index_usize re.simd_units 16#usize
-                                  let b16 ←
-                                    polynomial.unit_centered
-                                      simdtraitsOperationsInst t16
-                                  if b16
-                                  then
-                                    let t17 ←
-                                      Array.index_usize re.simd_units 17#usize
-                                    let b17 ←
-                                      polynomial.unit_centered
-                                        simdtraitsOperationsInst t17
-                                    if b17
-                                    then
-                                      let t18 ←
-                                        Array.index_usize re.simd_units
-                                          18#usize
-                                      let b18 ←
-                                        polynomial.unit_centered
-                                          simdtraitsOperationsInst t18
-                                      if b18
-                                      then
-                                        let t19 ←
-                                          Array.index_usize re.simd_units
-                                            19#usize
-                                        let b19 ←
-                                          polynomial.unit_centered
-                                            simdtraitsOperationsInst t19
-                                        if b19
-                                        then
-                                          let t20 ←
-                                            Array.index_usize re.simd_units
-                                              20#usize
-                                          let b20 ←
-                                            polynomial.unit_centered
-                                              simdtraitsOperationsInst t20
-                                          if b20
-                                          then
-                                            let t21 ←
-                                              Array.index_usize re.simd_units
-                                                21#usize
-                                            let b21 ←
-                                              polynomial.unit_centered
-                                                simdtraitsOperationsInst t21
-                                            if b21
-                                            then
-                                              let t22 ←
-                                                Array.index_usize re.simd_units
-                                                  22#usize
-                                              let b22 ←
-                                                polynomial.unit_centered
-                                                  simdtraitsOperationsInst t22
-                                              if b22
-                                              then
-                                                let t23 ←
-                                                  Array.index_usize
-                                                    re.simd_units 23#usize
-                                                let b23 ←
-                                                  polynomial.unit_centered
-                                                    simdtraitsOperationsInst
-                                                    t23
-                                                if b23
-                                                then
-                                                  let t24 ←
-                                                    Array.index_usize
-                                                      re.simd_units 24#usize
-                                                  let b24 ←
-                                                    polynomial.unit_centered
-                                                      simdtraitsOperationsInst
-                                                      t24
-                                                  if b24
-                                                  then
-                                                    let t25 ←
-                                                      Array.index_usize
-                                                        re.simd_units 25#usize
-                                                    let b25 ←
-                                                      polynomial.unit_centered
-                                                        simdtraitsOperationsInst
-                                                        t25
-                                                    if b25
-                                                    then
-                                                      let t26 ←
-                                                        Array.index_usize
-                                                          re.simd_units
-                                                          26#usize
-                                                      let b26 ←
-                                                        polynomial.unit_centered
-                                                          simdtraitsOperationsInst
-                                                          t26
-                                                      if b26
-                                                      then
-                                                        let t27 ←
-                                                          Array.index_usize
-                                                            re.simd_units
-                                                            27#usize
-                                                        let b27 ←
-                                                          polynomial.unit_centered
-                                                            simdtraitsOperationsInst
-                                                            t27
-                                                        if b27
-                                                        then
-                                                          let t28 ←
-                                                            Array.index_usize
-                                                              re.simd_units
-                                                              28#usize
-                                                          let b28 ←
-                                                            polynomial.unit_centered
-                                                              simdtraitsOperationsInst
-                                                              t28
-                                                          if b28
-                                                          then
-                                                            let t29 ←
-                                                              Array.index_usize
-                                                                re.simd_units
-                                                                29#usize
-                                                            let b29 ←
-                                                              polynomial.unit_centered
-                                                                simdtraitsOperationsInst
-                                                                t29
-                                                            if b29
-                                                            then
-                                                              let t30 ←
-                                                                Array.index_usize
-                                                                  re.simd_units
-                                                                  30#usize
-                                                              let b30 ←
-                                                                polynomial.unit_centered
-                                                                  simdtraitsOperationsInst
-                                                                  t30
-                                                              if b30
-                                                              then
-                                                                let t31 ←
-                                                                  Array.index_usize
-                                                                    re.simd_units
-                                                                    31#usize
-                                                                polynomial.unit_centered
-                                                                  simdtraitsOperationsInst
-                                                                  t31
-                                                              else ok false
-                                                            else ok false
-                                                          else ok false
-                                                        else ok false
-                                                      else ok false
-                                                    else ok false
-                                                  else ok false
-                                                else ok false
-                                              else ok false
-                                            else ok false
-                                          else ok false
-                                        else ok false
-                                      else ok false
-                                    else ok false
-                                  else ok false
-                                else ok false
-                              else ok false
-                            else ok false
-                          else ok false
-                        else ok false
-                      else ok false
-                    else ok false
-                  else ok false
-                else ok false
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::RINV]
-    Source: 'ml-dsa/src/polynomial.rs', lines 96:0-96:39 -/
-@[global_simps, irreducible] def polynomial.RINV : Std.I64 := 8265825#i64
-
-/-- [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}::call_mut]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 108:25-111:5 -/
-def
-  polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (c : polynomial.raw_gather.closure SIMDUnit)
-  (tupled_args : Std.Usize) :
-  RustM (Std.I32 × (polynomial.raw_gather.closure SIMDUnit))
-  := do
-  let i ← tupled_args / simd.traits.COEFFICIENTS_IN_SIMD_UNIT
-  let t ← Array.index_usize c.simd_units i
-  let i1 ← tupled_args % simd.traits.COEFFICIENTS_IN_SIMD_UNIT
-  let i2 ← simdtraitsOperationsInst.lane t i1
-  ok (i2, c)
-
-/-- [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}::call_once]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 108:25-111:5 -/
-def
-  polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32.call_once
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (c : polynomial.raw_gather.closure SIMDUnit) (i : Std.Usize) :
-  RustM Std.I32
-  := do
-  let (i1, _) ←
-    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-      simdtraitsOperationsInst c i
-  ok i1
-
-/-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnOnce<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 108:25-111:5 -/
-@[reducible]
-def polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) : core.ops.function.FnOnce (polynomial.raw_gather.closure SIMDUnit)
-  Std.Usize Std.I32 := {
-  call_once :=
-    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32.call_once
-    simdtraitsOperationsInst
-}
-
-/-- Trait implementation: [libcrux_iot_ml_dsa::polynomial::raw_gather::{impl core::ops::function::FnMut<(usize,), i32> for libcrux_iot_ml_dsa::polynomial::raw_gather::closure<'_0, SIMDUnit>}]
-    Source: 'ml-dsa/src/polynomial.rs', lines 108:25-111:5 -/
-@[reducible]
-def polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) : core.ops.function.FnMut (polynomial.raw_gather.closure SIMDUnit)
-  Std.Usize Std.I32 := {
-  FnOnceInst :=
-    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnOnceTupleUsizeI32
-    simdtraitsOperationsInst
-  call_mut :=
-    polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32.call_mut
-    simdtraitsOperationsInst
-}
-
-/-- [libcrux_iot_ml_dsa::polynomial::raw_gather]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 105:0-112:1 -/
-def polynomial.raw_gather
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM (Array Std.I32 256#usize)
-  := do
-  core.array.from_fn 256#usize
-    (polynomial.raw_gather.closure.Insts.CoreOpsFunctionFnMutTupleUsizeI32
-    simdtraitsOperationsInst) re
-
-/-- [libcrux_iot_ml_dsa::polynomial::lane_add_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 181:0-183:1 -/
-def polynomial.lane_add_in_range (x : Std.I32) (y : Std.I32) : RustM Bool := do
-  let i ← lift (IScalar.cast .I64 x)
-  let i1 ← lift (IScalar.cast .I64 y)
-  let i2 ← i + i1
-  if (-2147483647)#i64 <= i2
-  then
-    let i3 ← lift (IScalar.cast .I64 x)
-    let i4 ← lift (IScalar.cast .I64 y)
-    let i5 ← i3 + i4
-    ok (i5 <= 2147483647#i64)
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::lane_sub_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 186:0-188:1 -/
-def polynomial.lane_sub_in_range (x : Std.I32) (y : Std.I32) : RustM Bool := do
-  let i ← lift (IScalar.cast .I64 x)
-  let i1 ← lift (IScalar.cast .I64 y)
-  let i2 ← i - i1
-  if (-2147483647)#i64 <= i2
-  then
-    let i3 ← lift (IScalar.cast .I64 x)
-    let i4 ← lift (IScalar.cast .I64 y)
-    let i5 ← i3 - i4
-    ok (i5 <= 2147483647#i64)
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::unit_add_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 191:0-200:1 -/
-def polynomial.unit_add_in_range
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (a : SIMDUnit) (b : SIMDUnit) :
-  RustM Bool
-  := do
-  let i ← simdtraitsOperationsInst.lane a 0#usize
-  let i1 ← simdtraitsOperationsInst.lane b 0#usize
-  let b1 ← polynomial.lane_add_in_range i i1
-  if b1
-  then
-    let i2 ← simdtraitsOperationsInst.lane a 1#usize
-    let i3 ← simdtraitsOperationsInst.lane b 1#usize
-    let b2 ← polynomial.lane_add_in_range i2 i3
-    if b2
-    then
-      let i4 ← simdtraitsOperationsInst.lane a 2#usize
-      let i5 ← simdtraitsOperationsInst.lane b 2#usize
-      let b3 ← polynomial.lane_add_in_range i4 i5
-      if b3
-      then
-        let i6 ← simdtraitsOperationsInst.lane a 3#usize
-        let i7 ← simdtraitsOperationsInst.lane b 3#usize
-        let b4 ← polynomial.lane_add_in_range i6 i7
-        if b4
-        then
-          let i8 ← simdtraitsOperationsInst.lane a 4#usize
-          let i9 ← simdtraitsOperationsInst.lane b 4#usize
-          let b5 ← polynomial.lane_add_in_range i8 i9
-          if b5
-          then
-            let i10 ← simdtraitsOperationsInst.lane a 5#usize
-            let i11 ← simdtraitsOperationsInst.lane b 5#usize
-            let b6 ← polynomial.lane_add_in_range i10 i11
-            if b6
-            then
-              let i12 ← simdtraitsOperationsInst.lane a 6#usize
-              let i13 ← simdtraitsOperationsInst.lane b 6#usize
-              let b7 ← polynomial.lane_add_in_range i12 i13
-              if b7
-              then
-                let i14 ← simdtraitsOperationsInst.lane a 7#usize
-                let i15 ← simdtraitsOperationsInst.lane b 7#usize
-                polynomial.lane_add_in_range i14 i15
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::unit_sub_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 203:0-212:1 -/
-def polynomial.unit_sub_in_range
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (a : SIMDUnit) (b : SIMDUnit) :
-  RustM Bool
-  := do
-  let i ← simdtraitsOperationsInst.lane a 0#usize
-  let i1 ← simdtraitsOperationsInst.lane b 0#usize
-  let b1 ← polynomial.lane_sub_in_range i i1
-  if b1
-  then
-    let i2 ← simdtraitsOperationsInst.lane a 1#usize
-    let i3 ← simdtraitsOperationsInst.lane b 1#usize
-    let b2 ← polynomial.lane_sub_in_range i2 i3
-    if b2
-    then
-      let i4 ← simdtraitsOperationsInst.lane a 2#usize
-      let i5 ← simdtraitsOperationsInst.lane b 2#usize
-      let b3 ← polynomial.lane_sub_in_range i4 i5
-      if b3
-      then
-        let i6 ← simdtraitsOperationsInst.lane a 3#usize
-        let i7 ← simdtraitsOperationsInst.lane b 3#usize
-        let b4 ← polynomial.lane_sub_in_range i6 i7
-        if b4
-        then
-          let i8 ← simdtraitsOperationsInst.lane a 4#usize
-          let i9 ← simdtraitsOperationsInst.lane b 4#usize
-          let b5 ← polynomial.lane_sub_in_range i8 i9
-          if b5
-          then
-            let i10 ← simdtraitsOperationsInst.lane a 5#usize
-            let i11 ← simdtraitsOperationsInst.lane b 5#usize
-            let b6 ← polynomial.lane_sub_in_range i10 i11
-            if b6
-            then
-              let i12 ← simdtraitsOperationsInst.lane a 6#usize
-              let i13 ← simdtraitsOperationsInst.lane b 6#usize
-              let b7 ← polynomial.lane_sub_in_range i12 i13
-              if b7
-              then
-                let i14 ← simdtraitsOperationsInst.lane a 7#usize
-                let i15 ← simdtraitsOperationsInst.lane b 7#usize
-                polynomial.lane_sub_in_range i14 i15
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::poly_add_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 215:0-251:1 -/
-def polynomial.poly_add_in_range
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (a : polynomial.PolynomialRingElement SIMDUnit)
-  (b : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let t ← Array.index_usize a.simd_units 0#usize
-  let t1 ← Array.index_usize b.simd_units 0#usize
-  let b1 ← polynomial.unit_add_in_range simdtraitsOperationsInst t t1
-  if b1
-  then
-    let t2 ← Array.index_usize a.simd_units 1#usize
-    let t3 ← Array.index_usize b.simd_units 1#usize
-    let b2 ← polynomial.unit_add_in_range simdtraitsOperationsInst t2 t3
-    if b2
-    then
-      let t4 ← Array.index_usize a.simd_units 2#usize
-      let t5 ← Array.index_usize b.simd_units 2#usize
-      let b3 ← polynomial.unit_add_in_range simdtraitsOperationsInst t4 t5
-      if b3
-      then
-        let t6 ← Array.index_usize a.simd_units 3#usize
-        let t7 ← Array.index_usize b.simd_units 3#usize
-        let b4 ← polynomial.unit_add_in_range simdtraitsOperationsInst t6 t7
-        if b4
-        then
-          let t8 ← Array.index_usize a.simd_units 4#usize
-          let t9 ← Array.index_usize b.simd_units 4#usize
-          let b5 ←
-            polynomial.unit_add_in_range simdtraitsOperationsInst t8 t9
-          if b5
-          then
-            let t10 ← Array.index_usize a.simd_units 5#usize
-            let t11 ← Array.index_usize b.simd_units 5#usize
-            let b6 ←
-              polynomial.unit_add_in_range simdtraitsOperationsInst t10 t11
-            if b6
-            then
-              let t12 ← Array.index_usize a.simd_units 6#usize
-              let t13 ← Array.index_usize b.simd_units 6#usize
-              let b7 ←
-                polynomial.unit_add_in_range simdtraitsOperationsInst t12 t13
-              if b7
-              then
-                let t14 ← Array.index_usize a.simd_units 7#usize
-                let t15 ← Array.index_usize b.simd_units 7#usize
-                let b8 ←
-                  polynomial.unit_add_in_range simdtraitsOperationsInst t14 t15
-                if b8
-                then
-                  let t16 ← Array.index_usize a.simd_units 8#usize
-                  let t17 ← Array.index_usize b.simd_units 8#usize
-                  let b9 ←
-                    polynomial.unit_add_in_range simdtraitsOperationsInst t16
-                      t17
-                  if b9
-                  then
-                    let t18 ← Array.index_usize a.simd_units 9#usize
-                    let t19 ← Array.index_usize b.simd_units 9#usize
-                    let b10 ←
-                      polynomial.unit_add_in_range simdtraitsOperationsInst t18
-                        t19
-                    if b10
-                    then
-                      let t20 ← Array.index_usize a.simd_units 10#usize
-                      let t21 ← Array.index_usize b.simd_units 10#usize
-                      let b11 ←
-                        polynomial.unit_add_in_range simdtraitsOperationsInst
-                          t20 t21
-                      if b11
-                      then
-                        let t22 ← Array.index_usize a.simd_units 11#usize
-                        let t23 ← Array.index_usize b.simd_units 11#usize
-                        let b12 ←
-                          polynomial.unit_add_in_range simdtraitsOperationsInst
-                            t22 t23
-                        if b12
-                        then
-                          let t24 ← Array.index_usize a.simd_units 12#usize
-                          let t25 ← Array.index_usize b.simd_units 12#usize
-                          let b13 ←
-                            polynomial.unit_add_in_range
-                              simdtraitsOperationsInst t24 t25
-                          if b13
-                          then
-                            let t26 ← Array.index_usize a.simd_units 13#usize
-                            let t27 ← Array.index_usize b.simd_units 13#usize
-                            let b14 ←
-                              polynomial.unit_add_in_range
-                                simdtraitsOperationsInst t26 t27
-                            if b14
-                            then
-                              let t28 ←
-                                Array.index_usize a.simd_units 14#usize
-                              let t29 ←
-                                Array.index_usize b.simd_units 14#usize
-                              let b15 ←
-                                polynomial.unit_add_in_range
-                                  simdtraitsOperationsInst t28 t29
-                              if b15
-                              then
-                                let t30 ←
-                                  Array.index_usize a.simd_units 15#usize
-                                let t31 ←
-                                  Array.index_usize b.simd_units 15#usize
-                                let b16 ←
-                                  polynomial.unit_add_in_range
-                                    simdtraitsOperationsInst t30 t31
-                                if b16
-                                then
-                                  let t32 ←
-                                    Array.index_usize a.simd_units 16#usize
-                                  let t33 ←
-                                    Array.index_usize b.simd_units 16#usize
-                                  let b17 ←
-                                    polynomial.unit_add_in_range
-                                      simdtraitsOperationsInst t32 t33
-                                  if b17
-                                  then
-                                    let t34 ←
-                                      Array.index_usize a.simd_units 17#usize
-                                    let t35 ←
-                                      Array.index_usize b.simd_units 17#usize
-                                    let b18 ←
-                                      polynomial.unit_add_in_range
-                                        simdtraitsOperationsInst t34 t35
-                                    if b18
-                                    then
-                                      let t36 ←
-                                        Array.index_usize a.simd_units 18#usize
-                                      let t37 ←
-                                        Array.index_usize b.simd_units 18#usize
-                                      let b19 ←
-                                        polynomial.unit_add_in_range
-                                          simdtraitsOperationsInst t36 t37
-                                      if b19
-                                      then
-                                        let t38 ←
-                                          Array.index_usize a.simd_units
-                                            19#usize
-                                        let t39 ←
-                                          Array.index_usize b.simd_units
-                                            19#usize
-                                        let b20 ←
-                                          polynomial.unit_add_in_range
-                                            simdtraitsOperationsInst t38 t39
-                                        if b20
-                                        then
-                                          let t40 ←
-                                            Array.index_usize a.simd_units
-                                              20#usize
-                                          let t41 ←
-                                            Array.index_usize b.simd_units
-                                              20#usize
-                                          let b21 ←
-                                            polynomial.unit_add_in_range
-                                              simdtraitsOperationsInst t40 t41
-                                          if b21
-                                          then
-                                            let t42 ←
-                                              Array.index_usize a.simd_units
-                                                21#usize
-                                            let t43 ←
-                                              Array.index_usize b.simd_units
-                                                21#usize
-                                            let b22 ←
-                                              polynomial.unit_add_in_range
-                                                simdtraitsOperationsInst t42
-                                                t43
-                                            if b22
-                                            then
-                                              let t44 ←
-                                                Array.index_usize a.simd_units
-                                                  22#usize
-                                              let t45 ←
-                                                Array.index_usize b.simd_units
-                                                  22#usize
-                                              let b23 ←
-                                                polynomial.unit_add_in_range
-                                                  simdtraitsOperationsInst t44
-                                                  t45
-                                              if b23
-                                              then
-                                                let t46 ←
-                                                  Array.index_usize
-                                                    a.simd_units 23#usize
-                                                let t47 ←
-                                                  Array.index_usize
-                                                    b.simd_units 23#usize
-                                                let b24 ←
-                                                  polynomial.unit_add_in_range
-                                                    simdtraitsOperationsInst
-                                                    t46 t47
-                                                if b24
-                                                then
-                                                  let t48 ←
-                                                    Array.index_usize
-                                                      a.simd_units 24#usize
-                                                  let t49 ←
-                                                    Array.index_usize
-                                                      b.simd_units 24#usize
-                                                  let b25 ←
-                                                    polynomial.unit_add_in_range
-                                                      simdtraitsOperationsInst
-                                                      t48 t49
-                                                  if b25
-                                                  then
-                                                    let t50 ←
-                                                      Array.index_usize
-                                                        a.simd_units 25#usize
-                                                    let t51 ←
-                                                      Array.index_usize
-                                                        b.simd_units 25#usize
-                                                    let b26 ←
-                                                      polynomial.unit_add_in_range
-                                                        simdtraitsOperationsInst
-                                                        t50 t51
-                                                    if b26
-                                                    then
-                                                      let t52 ←
-                                                        Array.index_usize
-                                                          a.simd_units 26#usize
-                                                      let t53 ←
-                                                        Array.index_usize
-                                                          b.simd_units 26#usize
-                                                      let b27 ←
-                                                        polynomial.unit_add_in_range
-                                                          simdtraitsOperationsInst
-                                                          t52 t53
-                                                      if b27
-                                                      then
-                                                        let t54 ←
-                                                          Array.index_usize
-                                                            a.simd_units
-                                                            27#usize
-                                                        let t55 ←
-                                                          Array.index_usize
-                                                            b.simd_units
-                                                            27#usize
-                                                        let b28 ←
-                                                          polynomial.unit_add_in_range
-                                                            simdtraitsOperationsInst
-                                                            t54 t55
-                                                        if b28
-                                                        then
-                                                          let t56 ←
-                                                            Array.index_usize
-                                                              a.simd_units
-                                                              28#usize
-                                                          let t57 ←
-                                                            Array.index_usize
-                                                              b.simd_units
-                                                              28#usize
-                                                          let b29 ←
-                                                            polynomial.unit_add_in_range
-                                                              simdtraitsOperationsInst
-                                                              t56 t57
-                                                          if b29
-                                                          then
-                                                            let t58 ←
-                                                              Array.index_usize
-                                                                a.simd_units
-                                                                29#usize
-                                                            let t59 ←
-                                                              Array.index_usize
-                                                                b.simd_units
-                                                                29#usize
-                                                            let b30 ←
-                                                              polynomial.unit_add_in_range
-                                                                simdtraitsOperationsInst
-                                                                t58 t59
-                                                            if b30
-                                                            then
-                                                              let t60 ←
-                                                                Array.index_usize
-                                                                  a.simd_units
-                                                                  30#usize
-                                                              let t61 ←
-                                                                Array.index_usize
-                                                                  b.simd_units
-                                                                  30#usize
-                                                              let b31 ←
-                                                                polynomial.unit_add_in_range
-                                                                  simdtraitsOperationsInst
-                                                                  t60 t61
-                                                              if b31
-                                                              then
-                                                                let t62 ←
-                                                                  Array.index_usize
-                                                                    a.simd_units
-                                                                    31#usize
-                                                                let t63 ←
-                                                                  Array.index_usize
-                                                                    b.simd_units
-                                                                    31#usize
-                                                                polynomial.unit_add_in_range
-                                                                  simdtraitsOperationsInst
-                                                                  t62 t63
-                                                              else ok false
-                                                            else ok false
-                                                          else ok false
-                                                        else ok false
-                                                      else ok false
-                                                    else ok false
-                                                  else ok false
-                                                else ok false
-                                              else ok false
-                                            else ok false
-                                          else ok false
-                                        else ok false
-                                      else ok false
-                                    else ok false
-                                  else ok false
-                                else ok false
-                              else ok false
-                            else ok false
-                          else ok false
-                        else ok false
-                      else ok false
-                    else ok false
-                  else ok false
-                else ok false
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::polynomial::poly_sub_in_range]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 254:0-290:1 -/
-def polynomial.poly_sub_in_range
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (a : polynomial.PolynomialRingElement SIMDUnit)
-  (b : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let t ← Array.index_usize a.simd_units 0#usize
-  let t1 ← Array.index_usize b.simd_units 0#usize
-  let b1 ← polynomial.unit_sub_in_range simdtraitsOperationsInst t t1
-  if b1
-  then
-    let t2 ← Array.index_usize a.simd_units 1#usize
-    let t3 ← Array.index_usize b.simd_units 1#usize
-    let b2 ← polynomial.unit_sub_in_range simdtraitsOperationsInst t2 t3
-    if b2
-    then
-      let t4 ← Array.index_usize a.simd_units 2#usize
-      let t5 ← Array.index_usize b.simd_units 2#usize
-      let b3 ← polynomial.unit_sub_in_range simdtraitsOperationsInst t4 t5
-      if b3
-      then
-        let t6 ← Array.index_usize a.simd_units 3#usize
-        let t7 ← Array.index_usize b.simd_units 3#usize
-        let b4 ← polynomial.unit_sub_in_range simdtraitsOperationsInst t6 t7
-        if b4
-        then
-          let t8 ← Array.index_usize a.simd_units 4#usize
-          let t9 ← Array.index_usize b.simd_units 4#usize
-          let b5 ←
-            polynomial.unit_sub_in_range simdtraitsOperationsInst t8 t9
-          if b5
-          then
-            let t10 ← Array.index_usize a.simd_units 5#usize
-            let t11 ← Array.index_usize b.simd_units 5#usize
-            let b6 ←
-              polynomial.unit_sub_in_range simdtraitsOperationsInst t10 t11
-            if b6
-            then
-              let t12 ← Array.index_usize a.simd_units 6#usize
-              let t13 ← Array.index_usize b.simd_units 6#usize
-              let b7 ←
-                polynomial.unit_sub_in_range simdtraitsOperationsInst t12 t13
-              if b7
-              then
-                let t14 ← Array.index_usize a.simd_units 7#usize
-                let t15 ← Array.index_usize b.simd_units 7#usize
-                let b8 ←
-                  polynomial.unit_sub_in_range simdtraitsOperationsInst t14 t15
-                if b8
-                then
-                  let t16 ← Array.index_usize a.simd_units 8#usize
-                  let t17 ← Array.index_usize b.simd_units 8#usize
-                  let b9 ←
-                    polynomial.unit_sub_in_range simdtraitsOperationsInst t16
-                      t17
-                  if b9
-                  then
-                    let t18 ← Array.index_usize a.simd_units 9#usize
-                    let t19 ← Array.index_usize b.simd_units 9#usize
-                    let b10 ←
-                      polynomial.unit_sub_in_range simdtraitsOperationsInst t18
-                        t19
-                    if b10
-                    then
-                      let t20 ← Array.index_usize a.simd_units 10#usize
-                      let t21 ← Array.index_usize b.simd_units 10#usize
-                      let b11 ←
-                        polynomial.unit_sub_in_range simdtraitsOperationsInst
-                          t20 t21
-                      if b11
-                      then
-                        let t22 ← Array.index_usize a.simd_units 11#usize
-                        let t23 ← Array.index_usize b.simd_units 11#usize
-                        let b12 ←
-                          polynomial.unit_sub_in_range simdtraitsOperationsInst
-                            t22 t23
-                        if b12
-                        then
-                          let t24 ← Array.index_usize a.simd_units 12#usize
-                          let t25 ← Array.index_usize b.simd_units 12#usize
-                          let b13 ←
-                            polynomial.unit_sub_in_range
-                              simdtraitsOperationsInst t24 t25
-                          if b13
-                          then
-                            let t26 ← Array.index_usize a.simd_units 13#usize
-                            let t27 ← Array.index_usize b.simd_units 13#usize
-                            let b14 ←
-                              polynomial.unit_sub_in_range
-                                simdtraitsOperationsInst t26 t27
-                            if b14
-                            then
-                              let t28 ←
-                                Array.index_usize a.simd_units 14#usize
-                              let t29 ←
-                                Array.index_usize b.simd_units 14#usize
-                              let b15 ←
-                                polynomial.unit_sub_in_range
-                                  simdtraitsOperationsInst t28 t29
-                              if b15
-                              then
-                                let t30 ←
-                                  Array.index_usize a.simd_units 15#usize
-                                let t31 ←
-                                  Array.index_usize b.simd_units 15#usize
-                                let b16 ←
-                                  polynomial.unit_sub_in_range
-                                    simdtraitsOperationsInst t30 t31
-                                if b16
-                                then
-                                  let t32 ←
-                                    Array.index_usize a.simd_units 16#usize
-                                  let t33 ←
-                                    Array.index_usize b.simd_units 16#usize
-                                  let b17 ←
-                                    polynomial.unit_sub_in_range
-                                      simdtraitsOperationsInst t32 t33
-                                  if b17
-                                  then
-                                    let t34 ←
-                                      Array.index_usize a.simd_units 17#usize
-                                    let t35 ←
-                                      Array.index_usize b.simd_units 17#usize
-                                    let b18 ←
-                                      polynomial.unit_sub_in_range
-                                        simdtraitsOperationsInst t34 t35
-                                    if b18
-                                    then
-                                      let t36 ←
-                                        Array.index_usize a.simd_units 18#usize
-                                      let t37 ←
-                                        Array.index_usize b.simd_units 18#usize
-                                      let b19 ←
-                                        polynomial.unit_sub_in_range
-                                          simdtraitsOperationsInst t36 t37
-                                      if b19
-                                      then
-                                        let t38 ←
-                                          Array.index_usize a.simd_units
-                                            19#usize
-                                        let t39 ←
-                                          Array.index_usize b.simd_units
-                                            19#usize
-                                        let b20 ←
-                                          polynomial.unit_sub_in_range
-                                            simdtraitsOperationsInst t38 t39
-                                        if b20
-                                        then
-                                          let t40 ←
-                                            Array.index_usize a.simd_units
-                                              20#usize
-                                          let t41 ←
-                                            Array.index_usize b.simd_units
-                                              20#usize
-                                          let b21 ←
-                                            polynomial.unit_sub_in_range
-                                              simdtraitsOperationsInst t40 t41
-                                          if b21
-                                          then
-                                            let t42 ←
-                                              Array.index_usize a.simd_units
-                                                21#usize
-                                            let t43 ←
-                                              Array.index_usize b.simd_units
-                                                21#usize
-                                            let b22 ←
-                                              polynomial.unit_sub_in_range
-                                                simdtraitsOperationsInst t42
-                                                t43
-                                            if b22
-                                            then
-                                              let t44 ←
-                                                Array.index_usize a.simd_units
-                                                  22#usize
-                                              let t45 ←
-                                                Array.index_usize b.simd_units
-                                                  22#usize
-                                              let b23 ←
-                                                polynomial.unit_sub_in_range
-                                                  simdtraitsOperationsInst t44
-                                                  t45
-                                              if b23
-                                              then
-                                                let t46 ←
-                                                  Array.index_usize
-                                                    a.simd_units 23#usize
-                                                let t47 ←
-                                                  Array.index_usize
-                                                    b.simd_units 23#usize
-                                                let b24 ←
-                                                  polynomial.unit_sub_in_range
-                                                    simdtraitsOperationsInst
-                                                    t46 t47
-                                                if b24
-                                                then
-                                                  let t48 ←
-                                                    Array.index_usize
-                                                      a.simd_units 24#usize
-                                                  let t49 ←
-                                                    Array.index_usize
-                                                      b.simd_units 24#usize
-                                                  let b25 ←
-                                                    polynomial.unit_sub_in_range
-                                                      simdtraitsOperationsInst
-                                                      t48 t49
-                                                  if b25
-                                                  then
-                                                    let t50 ←
-                                                      Array.index_usize
-                                                        a.simd_units 25#usize
-                                                    let t51 ←
-                                                      Array.index_usize
-                                                        b.simd_units 25#usize
-                                                    let b26 ←
-                                                      polynomial.unit_sub_in_range
-                                                        simdtraitsOperationsInst
-                                                        t50 t51
-                                                    if b26
-                                                    then
-                                                      let t52 ←
-                                                        Array.index_usize
-                                                          a.simd_units 26#usize
-                                                      let t53 ←
-                                                        Array.index_usize
-                                                          b.simd_units 26#usize
-                                                      let b27 ←
-                                                        polynomial.unit_sub_in_range
-                                                          simdtraitsOperationsInst
-                                                          t52 t53
-                                                      if b27
-                                                      then
-                                                        let t54 ←
-                                                          Array.index_usize
-                                                            a.simd_units
-                                                            27#usize
-                                                        let t55 ←
-                                                          Array.index_usize
-                                                            b.simd_units
-                                                            27#usize
-                                                        let b28 ←
-                                                          polynomial.unit_sub_in_range
-                                                            simdtraitsOperationsInst
-                                                            t54 t55
-                                                        if b28
-                                                        then
-                                                          let t56 ←
-                                                            Array.index_usize
-                                                              a.simd_units
-                                                              28#usize
-                                                          let t57 ←
-                                                            Array.index_usize
-                                                              b.simd_units
-                                                              28#usize
-                                                          let b29 ←
-                                                            polynomial.unit_sub_in_range
-                                                              simdtraitsOperationsInst
-                                                              t56 t57
-                                                          if b29
-                                                          then
-                                                            let t58 ←
-                                                              Array.index_usize
-                                                                a.simd_units
-                                                                29#usize
-                                                            let t59 ←
-                                                              Array.index_usize
-                                                                b.simd_units
-                                                                29#usize
-                                                            let b30 ←
-                                                              polynomial.unit_sub_in_range
-                                                                simdtraitsOperationsInst
-                                                                t58 t59
-                                                            if b30
-                                                            then
-                                                              let t60 ←
-                                                                Array.index_usize
-                                                                  a.simd_units
-                                                                  30#usize
-                                                              let t61 ←
-                                                                Array.index_usize
-                                                                  b.simd_units
-                                                                  30#usize
-                                                              let b31 ←
-                                                                polynomial.unit_sub_in_range
-                                                                  simdtraitsOperationsInst
-                                                                  t60 t61
-                                                              if b31
-                                                              then
-                                                                let t62 ←
-                                                                  Array.index_usize
-                                                                    a.simd_units
-                                                                    31#usize
-                                                                let t63 ←
-                                                                  Array.index_usize
-                                                                    b.simd_units
-                                                                    31#usize
-                                                                polynomial.unit_sub_in_range
-                                                                  simdtraitsOperationsInst
-                                                                  t62 t63
-                                                              else ok false
-                                                            else ok false
-                                                          else ok false
-                                                        else ok false
-                                                      else ok false
-                                                    else ok false
-                                                  else ok false
-                                                else ok false
-                                              else ok false
-                                            else ok false
-                                          else ok false
-                                        else ok false
-                                      else ok false
-                                    else ok false
-                                  else ok false
-                                else ok false
-                              else ok false
-                            else ok false
-                          else ok false
-                        else ok false
-                      else ok false
-                    else ok false
-                  else ok false
-                else ok false
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 379:8-381:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 65:8-67:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.add_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2161,7 +661,7 @@ def polynomial.PolynomialRingElement.add_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 379:8-381:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 65:8-67:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.add_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2176,7 +676,7 @@ def polynomial.PolynomialRingElement.add_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 378:8-384:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 64:4-70:5 -/
 def polynomial.PolynomialRingElement.add
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
@@ -2191,7 +691,7 @@ def polynomial.PolynomialRingElement.add
   ok { simd_units := a }
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract]: loop body 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 390:8-392:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 74:8-76:9 -/
 @[rust_loop_body]
 def polynomial.PolynomialRingElement.subtract_loop.body
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2213,7 +713,7 @@ def polynomial.PolynomialRingElement.subtract_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract]: loop 0:
-    Source: 'ml-dsa/src/polynomial.rs', lines 390:8-392:9 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 74:8-76:9 -/
 @[rust_loop]
 def polynomial.PolynomialRingElement.subtract_loop
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -2228,7 +728,7 @@ def polynomial.PolynomialRingElement.subtract_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 389:8-395:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 73:4-79:5 -/
 def polynomial.PolynomialRingElement.subtract
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
   SIMDUnit) (self : polynomial.PolynomialRingElement SIMDUnit)
@@ -2505,7 +1005,7 @@ def simd.portable.arithmetic.montgomery_multiply
   ok { values := a }
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round_element]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 90:0-107:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 80:0-103:1 -/
 def simd.portable.arithmetic.power2round_element
   (t : Std.I32) : RustM (Std.I32 × Std.I32) := do
   let i ← t >>> 31#i32
@@ -2520,58 +1020,8 @@ def simd.portable.arithmetic.power2round_element
   let t0 ← core.num.I32.wrapping_sub t1 i6
   ok (t0, t11)
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::lane_in_field]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 363:0-365:1 -/
-def simd.portable.arithmetic.lane_in_field (x : Std.I32) : RustM Bool := do
-  let i ← -. simd.traits.FIELD_MODULUS
-  if x >= i
-  then ok (x < simd.traits.FIELD_MODULUS)
-  else ok false
-
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::coefficients_in_field]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 368:0-377:1 -/
-def simd.portable.arithmetic.coefficients_in_field
-  (c : simd.portable.vector_type.Coefficients) : RustM Bool := do
-  let i ← Array.index_usize c.values 0#usize
-  let b ← simd.portable.arithmetic.lane_in_field i
-  if b
-  then
-    let i1 ← Array.index_usize c.values 1#usize
-    let b1 ← simd.portable.arithmetic.lane_in_field i1
-    if b1
-    then
-      let i2 ← Array.index_usize c.values 2#usize
-      let b2 ← simd.portable.arithmetic.lane_in_field i2
-      if b2
-      then
-        let i3 ← Array.index_usize c.values 3#usize
-        let b3 ← simd.portable.arithmetic.lane_in_field i3
-        if b3
-        then
-          let i4 ← Array.index_usize c.values 4#usize
-          let b4 ← simd.portable.arithmetic.lane_in_field i4
-          if b4
-          then
-            let i5 ← Array.index_usize c.values 5#usize
-            let b5 ← simd.portable.arithmetic.lane_in_field i5
-            if b5
-            then
-              let i6 ← Array.index_usize c.values 6#usize
-              let b6 ← simd.portable.arithmetic.lane_in_field i6
-              if b6
-              then
-                let i7 ← Array.index_usize c.values 7#usize
-                simd.portable.arithmetic.lane_in_field i7
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 116:4-118:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 107:4-109:5 -/
 @[rust_loop_body]
 def simd.portable.arithmetic.power2round_loop.body
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
@@ -2593,7 +1043,7 @@ def simd.portable.arithmetic.power2round_loop.body
     ok (cont (iter1, a1, { values := a2 }))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 116:4-118:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 107:4-109:5 -/
 @[rust_loop]
 def simd.portable.arithmetic.power2round_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
@@ -2606,7 +1056,7 @@ def simd.portable.arithmetic.power2round_loop
     (iter, a, t1)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 115:0-119:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 106:0-110:1 -/
 def simd.portable.arithmetic.power2round
   (t0 : simd.portable.vector_type.Coefficients)
   (t1 : simd.portable.vector_type.Coefficients) :
@@ -2621,7 +1071,7 @@ def simd.portable.arithmetic.power2round
   ok ({ values := a }, t11)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::infinity_norm_exceeds]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 129:4-153:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 120:4-144:5 -/
 @[rust_loop_body]
 def simd.portable.arithmetic.infinity_norm_exceeds_loop.body
   (a : Array Std.I32 8#usize) (bound : Std.I32)
@@ -2648,7 +1098,7 @@ def simd.portable.arithmetic.infinity_norm_exceeds_loop.body
       ok (cont (iter1, i4 >= bound))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::infinity_norm_exceeds]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 129:4-153:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 120:4-144:5 -/
 @[rust_loop]
 def simd.portable.arithmetic.infinity_norm_exceeds_loop
   (iter : core.ops.range.Range Std.Usize) (a : Array Std.I32 8#usize)
@@ -2662,7 +1112,7 @@ def simd.portable.arithmetic.infinity_norm_exceeds_loop
     (iter, result)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::infinity_norm_exceeds]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 124:0-156:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 115:0-147:1 -/
 def simd.portable.arithmetic.infinity_norm_exceeds
   (simd_unit : simd.portable.vector_type.Coefficients) (bound : Std.I32) :
   RustM Bool
@@ -2673,7 +1123,7 @@ def simd.portable.arithmetic.infinity_norm_exceeds
     { start := 0#usize, «end» := i } simd_unit.values bound false
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::reduce_element]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 159:0-163:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 150:0-154:1 -/
 def simd.portable.arithmetic.reduce_element
   (fe : Std.I32) : RustM Std.I32 := do
   let i ← 1#i32 <<< 22#i32
@@ -2683,7 +1133,7 @@ def simd.portable.arithmetic.reduce_element
   core.num.I32.wrapping_sub fe i2
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::shift_left_then_reduce]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 168:4-170:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 159:4-161:5 -/
 @[rust_loop_body]
 def simd.portable.arithmetic.shift_left_then_reduce_loop.body
   (SHIFT_BY : Std.I32) (iter : core.ops.range.Range Std.Usize)
@@ -2704,7 +1154,7 @@ def simd.portable.arithmetic.shift_left_then_reduce_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::shift_left_then_reduce]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 168:4-170:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 159:4-161:5 -/
 @[rust_loop]
 def simd.portable.arithmetic.shift_left_then_reduce_loop
   (SHIFT_BY : Std.I32) (iter : core.ops.range.Range Std.Usize)
@@ -2718,7 +1168,7 @@ def simd.portable.arithmetic.shift_left_then_reduce_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::shift_left_then_reduce]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 167:0-171:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 158:0-162:1 -/
 def simd.portable.arithmetic.shift_left_then_reduce
   (SHIFT_BY : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients) :
   RustM simd.portable.vector_type.Coefficients
@@ -2731,7 +1181,7 @@ def simd.portable.arithmetic.shift_left_then_reduce
   ok { values := a }
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 176:0-182:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 167:0-173:1 -/
 def simd.portable.arithmetic.compute_one_hint
   (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) : RustM Std.I32 := do
   if low > gamma2
@@ -2748,7 +1198,7 @@ def simd.portable.arithmetic.compute_one_hint
       else ok 0#i32
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 197:4-208:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 188:4-199:5 -/
 @[rust_loop_body]
 def simd.portable.arithmetic.compute_hint_loop.body
   (low : simd.portable.vector_type.Coefficients)
@@ -2778,7 +1228,7 @@ def simd.portable.arithmetic.compute_hint_loop.body
     ok (cont (iter1, a1, one_hints_count1))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 197:4-208:5 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 188:4-199:5 -/
 @[rust_loop]
 def simd.portable.arithmetic.compute_hint_loop
   (iter : core.ops.range.Range Std.Usize)
@@ -2794,7 +1244,7 @@ def simd.portable.arithmetic.compute_hint_loop
     (iter, a, one_hints_count)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 186:0-211:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 177:0-202:1 -/
 def simd.portable.arithmetic.compute_hint
   (low : simd.portable.vector_type.Coefficients)
   (high : simd.portable.vector_type.Coefficients) (gamma2 : Std.I32)
@@ -2809,7 +1259,7 @@ def simd.portable.arithmetic.compute_hint
   ok (one_hints_count, { values := a })
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_element]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 247:0-289:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 226:0-268:1 -/
 def simd.portable.arithmetic.decompose_element
   (gamma2 : Std.I32) (r : Std.I32) : RustM (Std.I32 × Std.I32) := do
   let i ← r >>> 31#i32
@@ -2851,7 +1301,7 @@ def simd.portable.arithmetic.decompose_element
   ok (r01, r11)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 299:0-333:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 274:0-308:1 -/
 def simd.portable.arithmetic.use_one_hint
   (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) : RustM Std.I32 := do
   let i ← libcrux_secrets.traits.Classify.Blanket.classify r
@@ -2880,15 +1330,65 @@ def simd.portable.arithmetic.use_one_hint
            ok (i1 &&& 15#i32)
     | _ => fail panic
 
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::lane_in_field]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 338:0-340:1 -/
+def simd.portable.arithmetic.lane_in_field (x : Std.I32) : RustM Bool := do
+  let i ← -. simd.traits.FIELD_MODULUS
+  if x >= i
+  then ok (x < simd.traits.FIELD_MODULUS)
+  else ok false
+
+/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::coefficients_in_field]:
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 343:0-352:1 -/
+def simd.portable.arithmetic.coefficients_in_field
+  (c : simd.portable.vector_type.Coefficients) : RustM Bool := do
+  let i ← Array.index_usize c.values 0#usize
+  let b ← simd.portable.arithmetic.lane_in_field i
+  if b
+  then
+    let i1 ← Array.index_usize c.values 1#usize
+    let b1 ← simd.portable.arithmetic.lane_in_field i1
+    if b1
+    then
+      let i2 ← Array.index_usize c.values 2#usize
+      let b2 ← simd.portable.arithmetic.lane_in_field i2
+      if b2
+      then
+        let i3 ← Array.index_usize c.values 3#usize
+        let b3 ← simd.portable.arithmetic.lane_in_field i3
+        if b3
+        then
+          let i4 ← Array.index_usize c.values 4#usize
+          let b4 ← simd.portable.arithmetic.lane_in_field i4
+          if b4
+          then
+            let i5 ← Array.index_usize c.values 5#usize
+            let b5 ← simd.portable.arithmetic.lane_in_field i5
+            if b5
+            then
+              let i6 ← Array.index_usize c.values 6#usize
+              let b6 ← simd.portable.arithmetic.lane_in_field i6
+              if b6
+              then
+                let i7 ← Array.index_usize c.values 7#usize
+                simd.portable.arithmetic.lane_in_field i7
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::lane_is_hint]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 380:0-382:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 355:0-357:1 -/
 def simd.portable.arithmetic.lane_is_hint (x : Std.I32) : RustM Bool := do
   if x = 0#i32
   then ok true
   else ok (x = 1#i32)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::coefficients_are_hints]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 385:0-394:1 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 360:0-369:1 -/
 def simd.portable.arithmetic.coefficients_are_hints
   (c : simd.portable.vector_type.Coefficients) : RustM Bool := do
   let i ← Array.index_usize c.values 0#usize
@@ -2930,7 +1430,7 @@ def simd.portable.arithmetic.coefficients_are_hints
   else ok false
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 407:4-409:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 380:4-382:5
     Visibility: public -/
 @[rust_loop_body]
 def simd.portable.arithmetic.decompose_loop.body
@@ -2954,7 +1454,7 @@ def simd.portable.arithmetic.decompose_loop.body
     ok (cont (iter1, a1, { values := a2 }))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 407:4-409:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 380:4-382:5
     Visibility: public -/
 @[rust_loop]
 def simd.portable.arithmetic.decompose_loop
@@ -2969,7 +1469,7 @@ def simd.portable.arithmetic.decompose_loop
     (iter, a, high)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 401:0-410:1
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 374:0-383:1
     Visibility: public -/
 def simd.portable.arithmetic.decompose
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -2986,7 +1486,7 @@ def simd.portable.arithmetic.decompose
   ok ({ values := a }, high1)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 418:4-428:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 390:4-400:5
     Visibility: public -/
 @[rust_loop_body]
 def simd.portable.arithmetic.use_hint_loop.body
@@ -3011,7 +1511,7 @@ def simd.portable.arithmetic.use_hint_loop.body
     ok (cont (iter1, a1))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint]: loop 0:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 418:4-428:5
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 390:4-400:5
     Visibility: public -/
 @[rust_loop]
 def simd.portable.arithmetic.use_hint_loop
@@ -3026,7 +1526,7 @@ def simd.portable.arithmetic.use_hint_loop
     (iter, a)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 417:0-429:1
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 389:0-401:1
     Visibility: public -/
 def simd.portable.arithmetic.use_hint
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -3496,7 +1996,7 @@ def simd.portable.invntt.invert_ntt_at_layer_2
   simd.portable.invntt.invert_ntt_at_layer_2.round re31 31#usize 2706023#i32
 
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::{impl core::clone::Clone for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::clone]:
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 10:9-10:14
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 8:9-8:14
     Visibility: public -/
 def simd.portable.vector_type.Coefficients.Insts.CoreCloneClone.clone
   (self : simd.portable.vector_type.Coefficients) :
@@ -4369,7 +2869,7 @@ def simd.portable.ntt.ntt
   simd.portable.ntt.ntt_at_layer_0 re7
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::simd::portable::vector_type::{impl core::clone::Clone for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}]
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 10:9-10:14 -/
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 8:9-8:14 -/
 @[reducible]
 impl_def simd.portable.vector_type.Coefficients.Insts.CoreCloneClone :
   core.clone.Clone simd.portable.vector_type.Coefficients := {
@@ -4379,7 +2879,7 @@ impl_def simd.portable.vector_type.Coefficients.Insts.CoreCloneClone :
 }
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::simd::portable::vector_type::{impl core::marker::Copy for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}]
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 10:16-10:20 -/
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 8:16-8:20 -/
 @[reducible]
 def simd.portable.vector_type.Coefficients.Insts.CoreMarkerCopy :
   core.marker.Copy simd.portable.vector_type.Coefficients := {
@@ -4387,24 +2887,15 @@ def simd.portable.vector_type.Coefficients.Insts.CoreMarkerCopy :
 }
 
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::zero]:
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 16:0-20:1 -/
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 14:0-18:1 -/
 def simd.portable.vector_type.zero
   : RustM simd.portable.vector_type.Coefficients := do
   let i ← libcrux_secrets.traits.Classify.Blanket.classify 0#i32
   let a := Array.repeat 8#usize i
   ok { values := a }
 
-/-- [libcrux_iot_ml_dsa::simd::portable::vector_type::lane]:
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 25:0-27:1 -/
-def simd.portable.vector_type.lane
-  (value : simd.portable.vector_type.Coefficients) (i : Std.Usize) :
-  RustM Std.I32
-  := do
-  let i1 ← Array.index_usize value.values i
-  libcrux_secrets.traits.Declassify.Blanket.declassify i1
-
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::from_coefficient_array]:
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 29:0-32:1 -/
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 20:0-23:1 -/
 def simd.portable.vector_type.from_coefficient_array
   (array : Slice Std.I32) (out : simd.portable.vector_type.Coefficients) :
   RustM simd.portable.vector_type.Coefficients
@@ -4421,7 +2912,7 @@ def simd.portable.vector_type.from_coefficient_array
   ok { values := a }
 
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::to_coefficient_array]:
-    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 35:0-40:1 -/
+    Source: 'ml-dsa/src/simd/portable/vector_type.rs', lines 26:0-31:1 -/
 def simd.portable.vector_type.to_coefficient_array
   (value : simd.portable.vector_type.Coefficients) (out : Slice Std.I32) :
   RustM (Slice Std.I32)
@@ -4433,7 +2924,7 @@ def simd.portable.vector_type.to_coefficient_array
   core.slice.Slice.copy_from_slice core.I32.Insts.CoreMarkerCopy out s
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::shift_left_then_reduce]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 50:4-52:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 45:4-47:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.shift_left_then_reduce
   (SHIFT_BY : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients) :
@@ -4442,7 +2933,7 @@ def
   simd.portable.arithmetic.shift_left_then_reduce SHIFT_BY simd_unit
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::reduce]: loop body 0:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 136:8-138:9 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 131:8-133:9 -/
 @[rust_loop_body]
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.reduce_loop.body
@@ -4466,7 +2957,7 @@ def
     ok (cont (iter1, a))
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::reduce]: loop 0:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 136:8-138:9 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 131:8-133:9 -/
 @[rust_loop]
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.reduce_loop
@@ -4481,7 +2972,7 @@ def
     (iter, simd_units)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::reduce]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 135:4-139:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 130:4-134:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.reduce
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
@@ -4493,7 +2984,7 @@ def
     { start := 0#usize, «end» := i } simd_units
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::invert_ntt_montgomery]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 131:4-133:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 126:4-128:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.invert_ntt_montgomery
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
@@ -4502,7 +2993,7 @@ def
   simd.portable.invntt.invert_ntt_montgomery simd_units
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::ntt]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 127:4-129:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 122:4-124:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.ntt
   (simd_units : Array simd.portable.vector_type.Coefficients 32#usize) :
@@ -4511,7 +3002,7 @@ def
   simd.portable.ntt.ntt simd_units
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::t1_deserialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 123:4-125:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 118:4-120:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t1_deserialize
   (serialized : Slice Std.U8) (out : simd.portable.vector_type.Coefficients) :
@@ -4520,7 +3011,7 @@ def
   simd.portable.encoding.t1.deserialize serialized out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::t1_serialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 119:4-121:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 114:4-116:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t1_serialize
   (simd_unit : simd.portable.vector_type.Coefficients) (out : Slice Std.U8) :
@@ -4529,7 +3020,7 @@ def
   simd.portable.encoding.t1.serialize simd_unit out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::t0_deserialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 115:4-117:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 110:4-112:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t0_deserialize
   (serialized : Slice Std.U8) (out : simd.portable.vector_type.Coefficients) :
@@ -4538,7 +3029,7 @@ def
   simd.portable.encoding.t0.deserialize serialized out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::t0_serialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 111:4-113:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 106:4-108:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.t0_serialize
   (simd_unit : simd.portable.vector_type.Coefficients) (out : Slice Std.U8) :
@@ -4547,7 +3038,7 @@ def
   simd.portable.encoding.t0.serialize simd_unit out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::error_deserialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 107:4-109:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 102:4-104:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.error_deserialize
   (eta : constants.Eta) (serialized : Slice Std.U8)
@@ -4557,7 +3048,7 @@ def
   simd.portable.encoding.error.deserialize eta serialized out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::error_serialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 103:4-105:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 98:4-100:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.error_serialize
   (eta : constants.Eta) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -4567,7 +3058,7 @@ def
   simd.portable.encoding.error.serialize eta simd_unit serialized
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::commitment_serialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 99:4-101:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 94:4-96:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.commitment_serialize
   (simd_unit : simd.portable.vector_type.Coefficients)
@@ -4577,7 +3068,7 @@ def
   simd.portable.encoding.commitment.serialize simd_unit serialized
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::gamma1_deserialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 95:4-97:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 90:4-92:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.gamma1_deserialize
   (serialized : Slice Std.U8) (out : simd.portable.vector_type.Coefficients)
@@ -4587,7 +3078,7 @@ def
   simd.portable.encoding.gamma1.deserialize serialized out gamma1_exponent
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::gamma1_serialize]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 91:4-93:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 86:4-88:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.gamma1_serialize
   (simd_unit : simd.portable.vector_type.Coefficients)
@@ -4597,7 +3088,7 @@ def
   simd.portable.encoding.gamma1.serialize simd_unit serialized gamma1_exponent
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::rejection_sample_less_than_eta_equals_4]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 87:4-89:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 82:4-84:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.rejection_sample_less_than_eta_equals_4
   (randomness : Slice Std.U8) (out : Slice Std.I32) :
@@ -4606,7 +3097,7 @@ def
   simd.portable.sample.rejection_sample_less_than_eta_equals_4 randomness out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::rejection_sample_less_than_eta_equals_2]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 83:4-85:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 78:4-80:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.rejection_sample_less_than_eta_equals_2
   (randomness : Slice Std.U8) (out : Slice Std.I32) :
@@ -4615,7 +3106,7 @@ def
   simd.portable.sample.rejection_sample_less_than_eta_equals_2 randomness out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::rejection_sample_less_than_field_modulus]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 79:4-81:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 74:4-76:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.rejection_sample_less_than_field_modulus
   (randomness : Slice Std.U8) (out : Slice Std.I32) :
@@ -4624,7 +3115,7 @@ def
   simd.portable.sample.rejection_sample_less_than_field_modulus randomness out
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::use_hint]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 75:4-77:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 70:4-72:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.use_hint
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -4634,7 +3125,7 @@ def
   simd.portable.arithmetic.use_hint gamma2 simd_unit hint
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::compute_hint]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 66:4-73:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 61:4-68:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.compute_hint
   (low : simd.portable.vector_type.Coefficients)
@@ -4645,7 +3136,7 @@ def
   simd.portable.arithmetic.compute_hint low high gamma2 hint
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::decompose]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 62:4-64:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 57:4-59:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.decompose
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -4657,7 +3148,7 @@ def
   simd.portable.arithmetic.decompose gamma2 simd_unit low high
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::infinity_norm_exceeds]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 58:4-60:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 53:4-55:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.infinity_norm_exceeds
   (simd_unit : simd.portable.vector_type.Coefficients) (bound : Std.I32) :
@@ -4666,7 +3157,7 @@ def
   simd.portable.arithmetic.infinity_norm_exceeds simd_unit bound
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::power2round]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 54:4-56:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 49:4-51:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.power2round
   (t0 : simd.portable.vector_type.Coefficients)
@@ -4677,7 +3168,7 @@ def
   simd.portable.arithmetic.power2round t0 t1
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::montgomery_multiply]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 46:4-48:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 41:4-43:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.montgomery_multiply
   (lhs : simd.portable.vector_type.Coefficients)
@@ -4687,7 +3178,7 @@ def
   simd.portable.arithmetic.montgomery_multiply lhs rhs
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::subtract]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 42:4-44:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 37:4-39:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.subtract
   (lhs : simd.portable.vector_type.Coefficients)
@@ -4697,7 +3188,7 @@ def
   simd.portable.arithmetic.subtract lhs rhs
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::add]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 38:4-40:5 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 33:4-35:5 -/
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.add
   (lhs : simd.portable.vector_type.Coefficients)
@@ -4705,15 +3196,6 @@ def
   RustM simd.portable.vector_type.Coefficients
   := do
   simd.portable.arithmetic.add lhs rhs
-
-/-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::lane]:
-    Source: 'ml-dsa/src/simd/portable.rs', lines 34:4-36:5 -/
-def
-  simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.lane
-  (value : simd.portable.vector_type.Coefficients) (i : Std.Usize) :
-  RustM Std.I32
-  := do
-  simd.portable.vector_type.lane value i
 
 /-- [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}::to_coefficient_array]:
     Source: 'ml-dsa/src/simd/portable.rs', lines 29:4-31:5 -/
@@ -4741,7 +3223,7 @@ def
   simd.portable.vector_type.zero
 
 /-- Trait implementation: [libcrux_iot_ml_dsa::simd::portable::{impl libcrux_iot_ml_dsa::simd::traits::Operations for libcrux_iot_ml_dsa::simd::portable::vector_type::Coefficients}]
-    Source: 'ml-dsa/src/simd/portable.rs', lines 20:0-140:1 -/
+    Source: 'ml-dsa/src/simd/portable.rs', lines 20:0-135:1 -/
 @[reducible]
 def
   simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations
@@ -4756,8 +3238,6 @@ def
     simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.from_coefficient_array
   to_coefficient_array :=
     simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.to_coefficient_array
-  lane :=
-    simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.lane
   add :=
     simd.portable.vector_type.Coefficients.Insts.Libcrux_iot_ml_dsaSimdTraitsOperations.add
   subtract :=

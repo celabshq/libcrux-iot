@@ -3750,22 +3750,11 @@ theorem decrypt_unpacked_fc
     intro k hk i hi j hj
     rw [Aeneas.Std.Array.from_slice_val A pu.1 hpu_len']
     exact hpu_bnd k hk i hi j hj
-  obtain ⟨pm, hpm_eq, ⟨spec_out_m, _h_hac_m, h_pm_match⟩, hpm_spec⟩ :=
+  obtain ⟨pm, hpm_eq, hpm_spec, hpm_bnd⟩ :=
     triple_exists_ok_fc
       (Matrix.ComputeMessage.FC.compute_message_fc pv secret_key.secret_as_ntt
         (Aeneas.Std.Array.from_slice A pu.1) zp pu.2 accumulator hK4 h_secret_bnd h_u_bnd
         hpv_bnd)
-  -- `compress_then_serialize_message` needs a `≤ 3328` chunk/lane bound; the new
-  -- `PolyMatches` conjunct gives the tighter `≤ 1664` (flat index), so weaken + reindex.
-  have hpm_bnd : ∀ chunk : Nat, chunk < 16 → ∀ ℓ : Nat, ℓ < 16 →
-      ((pm.1.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328 := by
-    intro chunk hchunk ℓ hℓ
-    have hl : chunk * 16 + ℓ < 256 := by omega
-    have hb := (h_pm_match (chunk * 16 + ℓ) hl).1
-    have hdiv : (chunk * 16 + ℓ) / 16 = chunk := by omega
-    have hmod : (chunk * 16 + ℓ) % 16 = ℓ := by omega
-    rw [hdiv, hmod] at hb
-    omega
   -- ═══ 7. `serialize::compress_then_serialize_message` (L5.2) — consumes the `≤ 3328`. ═══
   obtain ⟨pd, hpd_eq, out, hout_spec, hpd_len, hpd_bytes⟩ :=
     triple_exists_ok_fc
@@ -4075,56 +4064,5 @@ theorem decrypt_fc
     rw [hdrer, hps_spec]
     simp only [Aeneas.Std.bind_tc_ok]
     exact hout_spec
-
-
-/-! ## Axiom guards
-    Pinned by `#guard_msgs` (replacing the former `AxiomCheck.lean`, which only asserted
-    sorry-freedom): the build fails if a result's axiom set drifts. Beyond Lean's standard
-    three, only the documented deferred leaves A1 (`sample_matrix_entry_fc` with the opaque
-    `matrix.sample_matrix_entry`) and A2 (`deserialize_to_reduced_ring_element_fc`) may
-    appear, and only where listed. -/
-/--
-info: 'libcrux_iot_ml_kem.IndCpaFc.deserialize_vector_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms deserialize_vector_fc
-
-/--
-info: 'libcrux_iot_ml_kem.IndCpaFc.serialize_vector_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms serialize_vector_fc
-
-/--
-info: 'libcrux_iot_ml_kem.IndCpaFc.serialize_public_key_mut_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms serialize_public_key_mut_fc
-
-/--
-info: 'libcrux_iot_ml_kem.IndCpaFc.compress_then_serialize_u_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms compress_then_serialize_u_fc
-
-/--
-info: 'libcrux_iot_ml_kem.IndCpaFc.deserialize_then_decompress_u_fc' depends on axioms: [propext,
- Classical.choice,
- Quot.sound]
--/
-#guard_msgs in
-#print axioms deserialize_then_decompress_u_fc
-
-/--
-info: 'libcrux_iot_ml_kem.IndCpaFc.decrypt_unpacked_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms decrypt_unpacked_fc
-
-/--
-info: 'libcrux_iot_ml_kem.IndCpaFc.decrypt_fc' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms decrypt_fc
 
 end libcrux_iot_ml_kem.IndCpaFc

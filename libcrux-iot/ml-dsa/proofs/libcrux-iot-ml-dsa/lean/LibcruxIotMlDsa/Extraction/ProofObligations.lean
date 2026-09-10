@@ -28,56 +28,9 @@ noncomputable section
 namespace libcrux_iot_ml_dsa
 
 @[spec]
-theorem
-  ntt.ntt.spec.proof {SIMDUnit : Type} (simdtraitsOperationsInst :
-                    simd.traits.Operations SIMDUnit)
-  (re : polynomial.PolynomialRingElement SIMDUnit) :
-  ntt.ntt.spec simdtraitsOperationsInst re
-  := by sorry
-
-@[spec]
-theorem
-  ntt.invert_ntt_montgomery.spec.proof {SIMDUnit : Type}
-                                      (simdtraitsOperationsInst :
-                                      simd.traits.Operations SIMDUnit)
-  (re : polynomial.PolynomialRingElement SIMDUnit) :
-  ntt.invert_ntt_montgomery.spec simdtraitsOperationsInst re
-  := by sorry
-
-@[spec]
-theorem
-  ntt.ntt_multiply_montgomery.spec.proof {SIMDUnit : Type}
-                                        (simdtraitsOperationsInst :
-                                        simd.traits.Operations SIMDUnit)
-  (lhs : polynomial.PolynomialRingElement SIMDUnit)
-  (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  ntt.ntt_multiply_montgomery.spec simdtraitsOperationsInst lhs rhs
-  := by sorry
-
-@[spec]
-theorem
-  ntt.reduce.spec.proof {SIMDUnit : Type} (simdtraitsOperationsInst :
-                       simd.traits.Operations SIMDUnit)
-  (re : polynomial.PolynomialRingElement SIMDUnit) :
-  ntt.reduce.spec simdtraitsOperationsInst re
-  := by sorry
-
-@[spec]
 theorem simd.portable.arithmetic.get_n_least_significant_bits.spec.proof
    (n : Std.U8) (value : Std.U64) :
   simd.portable.arithmetic.get_n_least_significant_bits.spec n value
-  := by sorry
-
-@[spec]
-theorem simd.portable.arithmetic.power2round_element.spec.proof (t : Std.I32) :
-  simd.portable.arithmetic.power2round_element.spec t
-  := by sorry
-
-@[spec]
-theorem simd.portable.arithmetic.power2round.spec.proof
-  (t0 : simd.portable.vector_type.Coefficients)
-  (t1 : simd.portable.vector_type.Coefficients) :
-  simd.portable.arithmetic.power2round.spec t0 t1
   := by sorry
 
 @[spec]
@@ -127,82 +80,6 @@ theorem simd.portable.arithmetic.use_hint.spec.proof (gamma2 : Std.I32)
   (simd_unit : simd.portable.vector_type.Coefficients)
   (hint : simd.portable.vector_type.Coefficients) :
   simd.portable.arithmetic.use_hint.spec gamma2 simd_unit hint
-  := by sorry
-
-@[spec]
-theorem simd.portable.vector_type.lane.spec.proof
-  (value : simd.portable.vector_type.Coefficients) (i : Std.Usize) :
-  simd.portable.vector_type.lane.spec value i
-  := by sorry
-
-@[spec]
-theorem
-  polynomial.PolynomialRingElement.add.spec.proof {SIMDUnit : Type}
-                                                 (simdtraitsOperationsInst :
-                                                 simd.traits.Operations
-                                                 SIMDUnit)
-  (self : polynomial.PolynomialRingElement SIMDUnit)
-  (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  polynomial.PolynomialRingElement.add.spec simdtraitsOperationsInst self rhs
-  := by sorry
-
-@[spec]
-theorem
-  polynomial.PolynomialRingElement.subtract.spec.proof {SIMDUnit : Type}
-                                                      (simdtraitsOperationsInst
-                                                      : simd.traits.Operations
-                                                      SIMDUnit)
-  (self : polynomial.PolynomialRingElement SIMDUnit)
-  (rhs : polynomial.PolynomialRingElement SIMDUnit) :
-  polynomial.PolynomialRingElement.subtract.spec simdtraitsOperationsInst self
-  rhs
-  := by sorry
-
-@[spec]
-theorem
-  polynomial.PolynomialRingElement.infinity_norm_exceeds.spec.proof {SIMDUnit :
-                                                                   Type}
-                                                                   (simdtraitsOperationsInst
-                                                                   :
-                                                                   simd.traits.Operations
-                                                                   SIMDUnit)
-  (self : polynomial.PolynomialRingElement SIMDUnit) (bound : Std.I32) :
-  polynomial.PolynomialRingElement.infinity_norm_exceeds.spec
-  simdtraitsOperationsInst self bound
-  := by sorry
-
-@[spec]
-theorem
-  polynomial.PolynomialRingElement.zero.spec.proof {SIMDUnit : Type}
-                                                  (simdtraitsOperationsInst :
-                                                  simd.traits.Operations
-                                                  SIMDUnit) :
-  polynomial.PolynomialRingElement.zero.spec simdtraitsOperationsInst
-  := by sorry
-
-@[spec]
-theorem
-  polynomial.PolynomialRingElement.to_i32_array.spec.proof {SIMDUnit : Type}
-                                                          (simdtraitsOperationsInst
-                                                          :
-                                                          simd.traits.Operations
-                                                          SIMDUnit)
-  (self : polynomial.PolynomialRingElement SIMDUnit) :
-  polynomial.PolynomialRingElement.to_i32_array.spec simdtraitsOperationsInst
-  self
-  := by sorry
-
-@[spec]
-theorem
-  polynomial.PolynomialRingElement.from_i32_array.spec.proof {SIMDUnit : Type}
-                                                            (simdtraitsOperationsInst
-                                                            :
-                                                            simd.traits.Operations
-                                                            SIMDUnit)
-  (array : Slice Std.I32) (result : polynomial.PolynomialRingElement SIMDUnit)
-  :
-  polynomial.PolynomialRingElement.from_i32_array.spec simdtraitsOperationsInst
-  array result
   := by sorry
 
 end libcrux_iot_ml_dsa

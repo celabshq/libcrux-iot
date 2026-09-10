@@ -1,8 +1,5 @@
 use libcrux_secrets::I32;
 
-#[cfg(hax)]
-use libcrux_secrets::DeclassifyRef as _;
-
 use crate::{
     helper::cloop,
     simd::traits::{Operations, COEFFICIENTS_IN_SIMD_UNIT, SIMD_UNITS_IN_RING_ELEMENT},
@@ -13,291 +10,7 @@ pub(crate) struct PolynomialRingElement<SIMDUnit: Operations> {
     pub(crate) simd_units: [SIMDUnit; SIMD_UNITS_IN_RING_ELEMENT],
 }
 
-// Spec-only bound predicates for `infinity_norm_exceeds`'s `#[requires]`.
-//
-// The FC theorem (`Polynomial/HacspecNorm.lean`, `infinity_norm_exceeds_hacspec_fc`)
-// needs every coefficient to be a CENTERED representative, `|c| <= (Q-1)/2`:
-// the impl computes the RAW `|coefficient|` while the extracted spec computes
-// the centered FIPS norm `coeff_norm`, and the two agree exactly on centered
-// values. The FIPS signing context feeds centered values, so this is a
-// documented representation choice, not a missing bound. (It also implies the
-// impl's own no-overflow precondition `|c| <= 2^30`, since (Q-1)/2 = 4190208.)
-//
-// Explicit conjunctions, not a loop or `forall`: the generated `pre` is then a
-// flat Bool expression the Lean discharge can destructure, the same idiom as
-// `coefficients_in_field` in `simd/portable/arithmetic.rs`, lifted to the
-// generic level via the spec-only `Operations::lane`.
-#[cfg(hax)]
-fn lane_centered(x: i32) -> bool {
-    -((crate::constants::FIELD_MODULUS - 1) / 2) <= x
-        && x <= (crate::constants::FIELD_MODULUS - 1) / 2
-}
-
-#[cfg(hax)]
-fn unit_centered<SIMDUnit: Operations>(u: &SIMDUnit) -> bool {
-    lane_centered(SIMDUnit::lane(u, 0))
-        && lane_centered(SIMDUnit::lane(u, 1))
-        && lane_centered(SIMDUnit::lane(u, 2))
-        && lane_centered(SIMDUnit::lane(u, 3))
-        && lane_centered(SIMDUnit::lane(u, 4))
-        && lane_centered(SIMDUnit::lane(u, 5))
-        && lane_centered(SIMDUnit::lane(u, 6))
-        && lane_centered(SIMDUnit::lane(u, 7))
-}
-
-#[cfg(hax)]
-pub(crate) fn coefficients_centered<SIMDUnit: Operations>(
-    re: &PolynomialRingElement<SIMDUnit>,
-) -> bool {
-    unit_centered(&re.simd_units[0])
-        && unit_centered(&re.simd_units[1])
-        && unit_centered(&re.simd_units[2])
-        && unit_centered(&re.simd_units[3])
-        && unit_centered(&re.simd_units[4])
-        && unit_centered(&re.simd_units[5])
-        && unit_centered(&re.simd_units[6])
-        && unit_centered(&re.simd_units[7])
-        && unit_centered(&re.simd_units[8])
-        && unit_centered(&re.simd_units[9])
-        && unit_centered(&re.simd_units[10])
-        && unit_centered(&re.simd_units[11])
-        && unit_centered(&re.simd_units[12])
-        && unit_centered(&re.simd_units[13])
-        && unit_centered(&re.simd_units[14])
-        && unit_centered(&re.simd_units[15])
-        && unit_centered(&re.simd_units[16])
-        && unit_centered(&re.simd_units[17])
-        && unit_centered(&re.simd_units[18])
-        && unit_centered(&re.simd_units[19])
-        && unit_centered(&re.simd_units[20])
-        && unit_centered(&re.simd_units[21])
-        && unit_centered(&re.simd_units[22])
-        && unit_centered(&re.simd_units[23])
-        && unit_centered(&re.simd_units[24])
-        && unit_centered(&re.simd_units[25])
-        && unit_centered(&re.simd_units[26])
-        && unit_centered(&re.simd_units[27])
-        && unit_centered(&re.simd_units[28])
-        && unit_centered(&re.simd_units[29])
-        && unit_centered(&re.simd_units[30])
-        && unit_centered(&re.simd_units[31])
-}
-
-// Spec-only impl->spec lift, the Rust counterpart of Lean's
-// `Spec.HacspecBridge.lift_poly_res`: `canon_raw` composed with the Montgomery
-// factor strip `* R^-1` (`Spec/Lift.lean`: `liftZ x = (x : Zq) * RINV`,
-// `Spec/Montgomery.lean`: `RINV = 8265825`). One `mod_q` suffices:
-// `|lane| * RINV < 2^31 * 2^23 = 2^54` fits an i64, and the residue class of
-// `lane * RINV` IS `liftZ lane`.
-//
-// This is the lift the poly_add/poly_sub/poly_pointwise_mul and ntt top-level
-// theorems speak (see the three-lift table at `canon_raw` above).
-#[cfg(hax)]
-pub(crate) const RINV: i64 = 8_265_825;
-
-// Spec-only RAW lane gather: the 32x8 SIMD layout as a flat `[i32; 256]`,
-// NO `mod_q` and NO Montgomery factor -- the identity view of the raw lanes.
-// This is what the four value-equation theorems (`zero`, `to_i32_array`,
-// `from_i32_array`, and `reduce`'s bound half) speak: their Lean FC posts are
-// per-raw-lane, not residue-level. Distinct from all three residue lifts in
-// the table at `canon_raw`.
-#[cfg(hax)]
-pub(crate) fn raw_gather<SIMDUnit: Operations>(
-    re: &PolynomialRingElement<SIMDUnit>,
-) -> [i32; crate::constants::COEFFICIENTS_IN_RING_ELEMENT] {
-    core::array::from_fn(|i| {
-        SIMDUnit::lane(&re.simd_units[i / COEFFICIENTS_IN_SIMD_UNIT],
-                       i % COEFFICIENTS_IN_SIMD_UNIT)
-    })
-}
-
-// Spec-only per-lane absolute bound `|lane| <= b`, parameterized: the NTT
-// entry points' `#[requires]` use it with their respective FC-theorem bounds
-// (ntt: 1577058303, intt: 8388607, ntt_multiply_montgomery: 8380416 on rhs).
-// Explicit conjunctions, as above.
-#[cfg(hax)]
-fn lane_abs_le(x: i32, b: i32) -> bool {
-    // in i64, so the negation cannot itself overflow (`-i32::MIN` would).
-    -(b as i64) <= (x as i64) && (x as i64) <= (b as i64)
-}
-
-#[cfg(hax)]
-fn unit_abs_le<SIMDUnit: Operations>(u: &SIMDUnit, b: i32) -> bool {
-    lane_abs_le(SIMDUnit::lane(u, 0), b)
-        && lane_abs_le(SIMDUnit::lane(u, 1), b)
-        && lane_abs_le(SIMDUnit::lane(u, 2), b)
-        && lane_abs_le(SIMDUnit::lane(u, 3), b)
-        && lane_abs_le(SIMDUnit::lane(u, 4), b)
-        && lane_abs_le(SIMDUnit::lane(u, 5), b)
-        && lane_abs_le(SIMDUnit::lane(u, 6), b)
-        && lane_abs_le(SIMDUnit::lane(u, 7), b)
-}
-
-#[cfg(hax)]
-pub(crate) fn poly_abs_le<SIMDUnit: Operations>(
-    re: &PolynomialRingElement<SIMDUnit>,
-    b: i32,
-) -> bool {
-    unit_abs_le(&re.simd_units[0], b)
-        && unit_abs_le(&re.simd_units[1], b)
-        && unit_abs_le(&re.simd_units[2], b)
-        && unit_abs_le(&re.simd_units[3], b)
-        && unit_abs_le(&re.simd_units[4], b)
-        && unit_abs_le(&re.simd_units[5], b)
-        && unit_abs_le(&re.simd_units[6], b)
-        && unit_abs_le(&re.simd_units[7], b)
-        && unit_abs_le(&re.simd_units[8], b)
-        && unit_abs_le(&re.simd_units[9], b)
-        && unit_abs_le(&re.simd_units[10], b)
-        && unit_abs_le(&re.simd_units[11], b)
-        && unit_abs_le(&re.simd_units[12], b)
-        && unit_abs_le(&re.simd_units[13], b)
-        && unit_abs_le(&re.simd_units[14], b)
-        && unit_abs_le(&re.simd_units[15], b)
-        && unit_abs_le(&re.simd_units[16], b)
-        && unit_abs_le(&re.simd_units[17], b)
-        && unit_abs_le(&re.simd_units[18], b)
-        && unit_abs_le(&re.simd_units[19], b)
-        && unit_abs_le(&re.simd_units[20], b)
-        && unit_abs_le(&re.simd_units[21], b)
-        && unit_abs_le(&re.simd_units[22], b)
-        && unit_abs_le(&re.simd_units[23], b)
-        && unit_abs_le(&re.simd_units[24], b)
-        && unit_abs_le(&re.simd_units[25], b)
-        && unit_abs_le(&re.simd_units[26], b)
-        && unit_abs_le(&re.simd_units[27], b)
-        && unit_abs_le(&re.simd_units[28], b)
-        && unit_abs_le(&re.simd_units[29], b)
-        && unit_abs_le(&re.simd_units[30], b)
-        && unit_abs_le(&re.simd_units[31], b)
-}
-
-// Spec-only per-lane no-overflow predicates for `add`/`subtract`'s
-// `#[requires]`: the FC theorems (`Polynomial/HacspecFC.lean`) need
-// `|a ± b| <= i32::MAX` per lane (the impl adds/subtracts lanes directly).
-// The sums are computed in i64 so the PREDICATE cannot itself overflow.
-// Explicit conjunctions, as for `coefficients_centered` above.
-#[cfg(hax)]
-fn lane_add_in_range(x: i32, y: i32) -> bool {
-    -2_147_483_647 <= (x as i64) + (y as i64) && (x as i64) + (y as i64) <= 2_147_483_647
-}
-
-#[cfg(hax)]
-fn lane_sub_in_range(x: i32, y: i32) -> bool {
-    -2_147_483_647 <= (x as i64) - (y as i64) && (x as i64) - (y as i64) <= 2_147_483_647
-}
-
-#[cfg(hax)]
-fn unit_add_in_range<SIMDUnit: Operations>(a: &SIMDUnit, b: &SIMDUnit) -> bool {
-    lane_add_in_range(SIMDUnit::lane(a, 0), SIMDUnit::lane(b, 0))
-        && lane_add_in_range(SIMDUnit::lane(a, 1), SIMDUnit::lane(b, 1))
-        && lane_add_in_range(SIMDUnit::lane(a, 2), SIMDUnit::lane(b, 2))
-        && lane_add_in_range(SIMDUnit::lane(a, 3), SIMDUnit::lane(b, 3))
-        && lane_add_in_range(SIMDUnit::lane(a, 4), SIMDUnit::lane(b, 4))
-        && lane_add_in_range(SIMDUnit::lane(a, 5), SIMDUnit::lane(b, 5))
-        && lane_add_in_range(SIMDUnit::lane(a, 6), SIMDUnit::lane(b, 6))
-        && lane_add_in_range(SIMDUnit::lane(a, 7), SIMDUnit::lane(b, 7))
-}
-
-#[cfg(hax)]
-fn unit_sub_in_range<SIMDUnit: Operations>(a: &SIMDUnit, b: &SIMDUnit) -> bool {
-    lane_sub_in_range(SIMDUnit::lane(a, 0), SIMDUnit::lane(b, 0))
-        && lane_sub_in_range(SIMDUnit::lane(a, 1), SIMDUnit::lane(b, 1))
-        && lane_sub_in_range(SIMDUnit::lane(a, 2), SIMDUnit::lane(b, 2))
-        && lane_sub_in_range(SIMDUnit::lane(a, 3), SIMDUnit::lane(b, 3))
-        && lane_sub_in_range(SIMDUnit::lane(a, 4), SIMDUnit::lane(b, 4))
-        && lane_sub_in_range(SIMDUnit::lane(a, 5), SIMDUnit::lane(b, 5))
-        && lane_sub_in_range(SIMDUnit::lane(a, 6), SIMDUnit::lane(b, 6))
-        && lane_sub_in_range(SIMDUnit::lane(a, 7), SIMDUnit::lane(b, 7))
-}
-
-#[cfg(hax)]
-pub(crate) fn poly_add_in_range<SIMDUnit: Operations>(
-    a: &PolynomialRingElement<SIMDUnit>,
-    b: &PolynomialRingElement<SIMDUnit>,
-) -> bool {
-    unit_add_in_range(&a.simd_units[0], &b.simd_units[0])
-        && unit_add_in_range(&a.simd_units[1], &b.simd_units[1])
-        && unit_add_in_range(&a.simd_units[2], &b.simd_units[2])
-        && unit_add_in_range(&a.simd_units[3], &b.simd_units[3])
-        && unit_add_in_range(&a.simd_units[4], &b.simd_units[4])
-        && unit_add_in_range(&a.simd_units[5], &b.simd_units[5])
-        && unit_add_in_range(&a.simd_units[6], &b.simd_units[6])
-        && unit_add_in_range(&a.simd_units[7], &b.simd_units[7])
-        && unit_add_in_range(&a.simd_units[8], &b.simd_units[8])
-        && unit_add_in_range(&a.simd_units[9], &b.simd_units[9])
-        && unit_add_in_range(&a.simd_units[10], &b.simd_units[10])
-        && unit_add_in_range(&a.simd_units[11], &b.simd_units[11])
-        && unit_add_in_range(&a.simd_units[12], &b.simd_units[12])
-        && unit_add_in_range(&a.simd_units[13], &b.simd_units[13])
-        && unit_add_in_range(&a.simd_units[14], &b.simd_units[14])
-        && unit_add_in_range(&a.simd_units[15], &b.simd_units[15])
-        && unit_add_in_range(&a.simd_units[16], &b.simd_units[16])
-        && unit_add_in_range(&a.simd_units[17], &b.simd_units[17])
-        && unit_add_in_range(&a.simd_units[18], &b.simd_units[18])
-        && unit_add_in_range(&a.simd_units[19], &b.simd_units[19])
-        && unit_add_in_range(&a.simd_units[20], &b.simd_units[20])
-        && unit_add_in_range(&a.simd_units[21], &b.simd_units[21])
-        && unit_add_in_range(&a.simd_units[22], &b.simd_units[22])
-        && unit_add_in_range(&a.simd_units[23], &b.simd_units[23])
-        && unit_add_in_range(&a.simd_units[24], &b.simd_units[24])
-        && unit_add_in_range(&a.simd_units[25], &b.simd_units[25])
-        && unit_add_in_range(&a.simd_units[26], &b.simd_units[26])
-        && unit_add_in_range(&a.simd_units[27], &b.simd_units[27])
-        && unit_add_in_range(&a.simd_units[28], &b.simd_units[28])
-        && unit_add_in_range(&a.simd_units[29], &b.simd_units[29])
-        && unit_add_in_range(&a.simd_units[30], &b.simd_units[30])
-        && unit_add_in_range(&a.simd_units[31], &b.simd_units[31])
-}
-
-#[cfg(hax)]
-pub(crate) fn poly_sub_in_range<SIMDUnit: Operations>(
-    a: &PolynomialRingElement<SIMDUnit>,
-    b: &PolynomialRingElement<SIMDUnit>,
-) -> bool {
-    unit_sub_in_range(&a.simd_units[0], &b.simd_units[0])
-        && unit_sub_in_range(&a.simd_units[1], &b.simd_units[1])
-        && unit_sub_in_range(&a.simd_units[2], &b.simd_units[2])
-        && unit_sub_in_range(&a.simd_units[3], &b.simd_units[3])
-        && unit_sub_in_range(&a.simd_units[4], &b.simd_units[4])
-        && unit_sub_in_range(&a.simd_units[5], &b.simd_units[5])
-        && unit_sub_in_range(&a.simd_units[6], &b.simd_units[6])
-        && unit_sub_in_range(&a.simd_units[7], &b.simd_units[7])
-        && unit_sub_in_range(&a.simd_units[8], &b.simd_units[8])
-        && unit_sub_in_range(&a.simd_units[9], &b.simd_units[9])
-        && unit_sub_in_range(&a.simd_units[10], &b.simd_units[10])
-        && unit_sub_in_range(&a.simd_units[11], &b.simd_units[11])
-        && unit_sub_in_range(&a.simd_units[12], &b.simd_units[12])
-        && unit_sub_in_range(&a.simd_units[13], &b.simd_units[13])
-        && unit_sub_in_range(&a.simd_units[14], &b.simd_units[14])
-        && unit_sub_in_range(&a.simd_units[15], &b.simd_units[15])
-        && unit_sub_in_range(&a.simd_units[16], &b.simd_units[16])
-        && unit_sub_in_range(&a.simd_units[17], &b.simd_units[17])
-        && unit_sub_in_range(&a.simd_units[18], &b.simd_units[18])
-        && unit_sub_in_range(&a.simd_units[19], &b.simd_units[19])
-        && unit_sub_in_range(&a.simd_units[20], &b.simd_units[20])
-        && unit_sub_in_range(&a.simd_units[21], &b.simd_units[21])
-        && unit_sub_in_range(&a.simd_units[22], &b.simd_units[22])
-        && unit_sub_in_range(&a.simd_units[23], &b.simd_units[23])
-        && unit_sub_in_range(&a.simd_units[24], &b.simd_units[24])
-        && unit_sub_in_range(&a.simd_units[25], &b.simd_units[25])
-        && unit_sub_in_range(&a.simd_units[26], &b.simd_units[26])
-        && unit_sub_in_range(&a.simd_units[27], &b.simd_units[27])
-        && unit_sub_in_range(&a.simd_units[28], &b.simd_units[28])
-        && unit_sub_in_range(&a.simd_units[29], &b.simd_units[29])
-        && unit_sub_in_range(&a.simd_units[30], &b.simd_units[30])
-        && unit_sub_in_range(&a.simd_units[31], &b.simd_units[31])
-}
-
-// `hax_lib::attributes` so that methods of this inherent impl can carry
-// `#[hax_lib::requires]`/`#[ensures]` (they mention `Self`; the plain macros
-// reject that outside an annotated block).
-#[cfg_attr(hax, hax_lib::attributes)]
 impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
-    // `zero_fc` at the Rust level: every RAW lane of the result is literally
-    // `0` (strictly stronger than "the residues are zero", which would also
-    // admit lanes of ±q; the Lean FC states both, and this implies the other).
-    #[hax_lib::ensures(|result| raw_gather(&result) == [0i32; 256])]
     pub(crate) fn zero() -> Self {
         Self {
             simd_units: [SIMDUnit::zero(); SIMD_UNITS_IN_RING_ELEMENT],
@@ -305,11 +18,6 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     // This is used in `make_hint` and for tests
-    //
-    // `to_i32_array_fc` at the Rust level: the output is exactly the raw lane
-    // gather (array equality = the FC's per-index `.val` equality, `.val`
-    // being injective).
-    #[hax_lib::ensures(|result| result == raw_gather(self))]
     pub(crate) fn to_i32_array(&self) -> [i32; 256] {
         let mut result = [0i32; 256];
 
@@ -322,13 +30,6 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
         result
     }
 
-    // `from_i32_array_fc` at the Rust level: the result's raw lanes are the
-    // (declassified) input values. The FC's length hypothesis becomes the
-    // `requires`; the comparison is slice-shaped, so the discharge rides the
-    // slice-eq machinery rather than the array-eq one.
-    #[hax_lib::requires(array.len() == 256)]
-    #[hax_lib::ensures(|_|
-        &raw_gather(future(result))[..] == array.declassify_ref())]
     pub(crate) fn from_i32_array(array: &[I32], result: &mut Self) {
         #[cfg(not(eurydice))]
         debug_assert!(array.len() >= 256);
@@ -350,16 +51,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     #[inline(always)]
-    // Full functional correctness against the extracted FIPS-204 hacspec: the
-    // spec has no direct `infinity_norm_exceeds`, so the post states the
-    // equivalence through `poly_infinity_norm` on the canonical-residue array
-    // `canon_raw(self)` -- exactly the shape of the FC theorem
-    // `infinity_norm_exceeds_hacspec_fc` (`Polynomial/HacspecNorm.lean`).
-    // `canon_raw`, not `lift_poly_res`: the norm theorem is the one place the
-    // RAW (Montgomery-domain-agnostic) lift is the right one; see the note at
-    // `canon_raw`'s definition.
-    #[hax_lib::requires(coefficients_centered(self))]
-        pub(crate) fn infinity_norm_exceeds(&self, bound: i32) -> bool {
+    pub(crate) fn infinity_norm_exceeds(&self, bound: i32) -> bool {
         let mut result = false;
         for i in 0..self.simd_units.len() {
             result = result || SIMDUnit::infinity_norm_exceeds(&self.simd_units[i], bound);
@@ -369,13 +61,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     #[inline(always)]
-    // Full functional correctness against the extracted FIPS-204 hacspec, the
-    // README's `poly_add_hacspec_fc` stated at the Rust level: the outputs of
-    // impl `add` and spec `poly_add` agree through the Montgomery-stripping
-    // lift `lift_poly_res`. `self` in the `ensures` is the INPUT value,
-    // `future(self)` the output.
-    #[hax_lib::requires(poly_add_in_range(self, rhs))]
-        pub(crate) fn add(&mut self, rhs: &Self) {
+    pub(crate) fn add(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::add(&mut self.simd_units[i], &rhs.simd_units[i]);
         }
@@ -384,9 +70,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     #[inline(always)]
-    // `poly_sub_hacspec_fc` at the Rust level; see `add` above.
-    #[hax_lib::requires(poly_sub_in_range(self, rhs))]
-        pub(crate) fn subtract(&mut self, rhs: &Self) {
+    pub(crate) fn subtract(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::subtract(&mut self.simd_units[i], &rhs.simd_units[i]);
         }
