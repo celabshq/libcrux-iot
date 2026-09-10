@@ -1,5 +1,5 @@
 [workspace]
-members = ["ml-dsa", "ml-kem", "sha3"]
+members = ["ml-dsa", "ml-kem", "sha3", "aes"]
 resolver = "3"
 
 [workspace.package]
@@ -31,7 +31,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 [patch.crates-io]
 hax-lib = { git = "https://github.com/cryspen/hax", branch = "jonas/fstar-wrapping" }
 # patch until libcrux-secrets 0.0.6 is released
-libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "c4253d211a605f4a284c595fc6ca28ae18dd07ba" }
+libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "10a65cfa9175e8f78198f24ba450c17090622945" }
 
 [profile.release-debug]
 inherits = "release"
