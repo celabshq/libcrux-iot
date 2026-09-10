@@ -1,5 +1,5 @@
 [workspace]
-members = ["ml-dsa", "ml-kem", "sha3", "aes"]
+members = ["ml-dsa", "ml-kem", "sha3", "aes", "p256"]
 resolver = "3"
 
 [workspace.package]
@@ -16,6 +16,8 @@ libcrux-kats = { git = "https://github.com/cryspen/libcrux.git" }
 libcrux-secrets = { version = "0.0.5" }
 libcrux-macros = { version = "0.0.3" }
 libcrux-traits = { version = "0.0.7" }
+libcrux-hacl-rs = { version = "0.0.5" }
+libcrux-sha2 = { version = "=0.0.7" }
 
 hax-lib = { version = "0.3.6" }
 

@@ -1,0 +1,104 @@
+name: P-256 - Build & Test
+
+permissions: {}
+
+on:
+  merge_group:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'merge_group' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # These are all arm64, of course, but at least we can test on
+        # some ARM architectures with different stack size defaults
+        # etc
+        os:
+          - ubuntu-24.04-arm
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: libcrux-iot/p256
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+
+      # Build ...
+      - name: 🔨 Build
+        run: |
+          rustc --print=cfg
+          cargo build --verbose
+
+      - name: 🔨 Build Release
+        run: cargo build --verbose --release
+
+      # Test ...
+      - name: 🏃🏻‍♀️ Test
+        run: |
+          cargo clean
+          cargo test --verbose
+
+      - name: 🏃🏻‍♀️ Test Release
+        run: |
+          cargo clean
+          cargo test --verbose --release
+
+      # Only the library is checked here: the test harness passes
+      # public `u8` slices into the secret-independent API and thus
+      # doesn't compile with this feature enabled.
+      - name: 🏃🏻‍♀️ Check Secret-Independence
+        run: |
+          cargo clean
+          cargo check --lib -F check-secret-independence --verbose
+
+  # Split out from `build` because the sanitizer flags require nightly.
+  asan:
+    if: ${{ github.event_name != 'merge_group' }}
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: libcrux-iot/p256
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: nightly
+
+      - name: 🏃🏻 Asan MacOS
+        run: RUSTDOCFLAGS=-Zsanitizer=address RUSTFLAGS=-Zsanitizer=address cargo test --release --target aarch64-apple-darwin
+
+  p256-build-test-status:
+    if: ${{ always() }}
+    needs: [build, asan]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Successful
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failing
+        if: ${{ (contains(needs.*.result, 'failure')) }}
+        run: exit 1
