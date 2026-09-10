@@ -24,5 +24,5 @@ rev = "v0.3.17"
 [[require]]
 name = "HacspecMlDsa"
 git = "https://github.com/celabshq/libcrux"
-rev = "15a52a974fea3c632748148cc9fb11d88d7fd8c0"
+rev = "7b6063dbf94f73a748d8f5b69198373a37c6eba7"
 subDir = "specs/ml-dsa/proofs/hacspec-ml-dsa/lean"

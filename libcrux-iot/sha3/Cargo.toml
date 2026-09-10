@@ -22,7 +22,7 @@ hax-lib.workspace = true
 # The machine-extracted FIPS-202 hacspec. A NORMAL (not dev-) dependency
 # because `sha256_ema`'s `#[ensures]` names `hacspec_sha3::sha3_256` directly,
 # so it must be in scope for the hax build; `cargo test` sees it too.
-hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "15a52a974fea3c632748148cc9fb11d88d7fd8c0" }
+hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "7b6063dbf94f73a748d8f5b69198373a37c6eba7" }
 
 # XXX: Unfortunately, it's not possible to use certain hax attributes
 # with `cfg_attr`, which means we can't have hax-lib as a `cfg(hax)`
