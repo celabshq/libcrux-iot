@@ -223,49 +223,33 @@ trusted extracted spec, not an independently trusted artifact.
 ### Prerequisites
 
 - For running the proofs:
-  - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
-  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.17` (provides the
-    `CoreModels` library; pulled in by the lakefile).
-  - The extracted hacspec (`HacspecMlDsa`, from `specs/ml-dsa` of
-    https://github.com/cryspen/libcrux) at commit `962ac24d92c229cae810398869f52eb85f6fc823`
-    (pinned by commit in `lakefile.toml`).
+  - [Lean](https://lean-lang.org/install/)
 - For extraction:
-  - Mainline Hax `cargo-hax-v0.4.0` (rev `f8fe6933`; the Lean/Aeneas backend
-    lives in `cryspen/hax` main, the old `aeneas-lean` backend was renamed to
-    `lean`), with the **prebuilt** charon/aeneas binaries pinned workspace-wide
-    in `libcrux-iot/hax.toml`:
-    - Charon `nightly-2026.09.02`
-    - Aeneas `nightly-2026.09.03` (commit `6852e64`)
-  - Easiest via the flake: `nix develop .#lean` from the repo root provides
-    `cargo hax` @ `f8fe6933` + cargo; `cargo hax tools install` fetches the
-    pinned charon/aeneas.
+  - [cargo](https://rust-lang.org/tools/install/)
+  - [cargo-binstall](https://github.com/cargo-bins/cargo-binstall#installation)
+  - (hax, charon, aeneas will be downloaded automatically)
 
-### Verifying the Lean proof
+### Building
 
-From `libcrux-iot/ml-dsa/proofs/lean/`:
+From `libcrux-iot/ml-dsa/proofs/libcrux-iot-ml-dsa/lean`:
 
 ```bash
-lake exe cache get   # fetch the mathlib build cache
-lake build
+lake exe cache get        # downloading the Mathlib cache
+lake build                # building the project
 ```
 
-A clean build reports ~1794 jobs and no errors. Each top-level `*_fc` theorem
-carries a `#print axioms` guard (`#guard_msgs`) that fails the build if the
-axiom set drifts from the one documented under [Axioms](#axioms).
+A clean build reports ~1786 jobs and no errors. The `#guard_msgs` axiom guards
+fail the build if the axiom set drifts from the one documented under
+[Axioms](#axioms).
 
 ### Extraction from Rust into Lean
 
-The impl side is a plain hax scenario: `libcrux-iot/ml-dsa/hax.toml` declares
-`[scenario.libcrux-iot-ml-dsa]` (Lean backend, `proofs/lean` output, and the
-charon `--start-from`/`--opaque` scope), and needs no post-processing. Run it
-inside the `nix develop .#lean` environment described above:
-
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
-cd specs/ml-dsa/
-./hax_aeneas.py
+cd specs
+cargo hax extract hacspec-ml-dsa
 
 # Impl side:
-cd libcrux-iot/ml-dsa/
-cargo hax extract
+cd libcrux-iot
+cargo hax extract libcrux-iot-ml-dsa
 ```

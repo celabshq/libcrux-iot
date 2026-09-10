@@ -364,35 +364,23 @@ The proof is structured into layers L0 to L7:
 ### Prerequisites
 
 - For running the proofs:
-  - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
-  - The Hax Lean proof-lib `cryspen/hax-lean` tag `v0.3.17` (provides the
-    `CoreModels` library; pulled in by the lakefile).
-  - The extracted hacspec (`HacspecMlKem`, from `specs/ml-kem` of
-    https://github.com/cryspen/libcrux) at commit `ee9bfe56e4dfe532c52573425a5d4a187ed326ca`
-    (pinned by commit in `lakefile.toml`).
+  - [Lean](https://lean-lang.org/install/)
 - For extraction:
-  - Mainline Hax `cargo-hax-v0.4.0` (rev `f8fe6933`; the Lean/Aeneas backend
-    lives in `cryspen/hax` main, the old `aeneas-lean` backend was renamed to
-    `lean`), with the **prebuilt** charon/aeneas binaries pinned workspace-wide
-    in `libcrux-iot/hax.toml`:
-    - Charon `nightly-2026.09.02`
-    - Aeneas `nightly-2026.09.03` (commit `6852e64`)
-  - Easiest via the flake: `nix develop .#lean` from the repo root provides
-    `cargo hax` @ `f8fe6933` + cargo; `cargo hax tools install` fetches the
-    pinned charon/aeneas.
+  - [cargo](https://rust-lang.org/tools/install/)
+  - [cargo-binstall](https://github.com/cargo-bins/cargo-binstall#installation)
+  - (hax, charon, aeneas will be downloaded automatically)
 
-### Verifying the Lean proof
+### Building
 
-From `libcrux-iot/ml-kem/proofs/lean/`:
+From `libcrux-iot/ml-kem/proofs/libcrux-iot-ml-kem/lean`:
 
 ```bash
-lake exe cache get   # fetch the mathlib build cache
-lake build
+lake exe cache get        # downloading the Mathlib cache
+lake build                # building the project
 ```
 
-A clean build reports ~1810 jobs and no errors. Each top-level `*_fc`
-theorem carries a `#print axioms` guard (`#guard_msgs`) that fails the build
-if the axiom set drifts from the one documented above.
+A clean build reports ~1806 jobs and no errors. The `#guard_msgs` axiom guards
+fail the build if the axiom set drifts from the one documented above.
 
 ### Cross-spec regression (Rust)
 
@@ -400,27 +388,25 @@ We have a couple of Rust tests in place as a first sanity check that
 implementation and specification agree:
 
 ```bash
-cargo test --tests cross_spec
+cargo test --test cross_spec              # 15 tests, KeyGen/Encaps/Decaps at all three sizes
+cargo test --test cross_spec_proptests    # the same surface, property-based (slower)
 ```
 
 This catches mismatches at the Rust level before they propagate into Lean proof failures.
 
 ### Extraction from Rust into Lean
 
-The impl side is the hax scenario `[scenario.libcrux-iot-ml-kem]` declared in
-`libcrux-iot/ml-kem/hax.toml` (Lean backend, `proofs/lean` output, and the
-charon `--start-from`/`--opaque` scope), followed by the residual fix-ups in
-`libcrux-iot/hax_mlkem.py` (its docstring lists them exactly: trait-clause
-instance arguments that the pipeline drops at generated call sites, 10 in
-`Funs.lean` and 5 in `Specs.lean`). Run inside the `nix develop .#lean`
-environment described above:
+The impl side needs the residual fix-ups in `libcrux-iot/hax_mlkem.py` on top
+of its scenario: the pipeline drops trait-clause instance arguments at some
+generated call sites, and that script re-inserts them (its docstring lists
+them exactly).
 
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
-cd specs/ml-kem/
-./hax_aeneas.py
+cd specs
+cargo hax extract hacspec-ml-kem
 
 # Impl side:
-cd libcrux-iot/
-./hax_mlkem.py          # = `cargo hax extract libcrux-iot-ml-kem` + fix-ups
+cd libcrux-iot
+./hax_mlkem.py            # = `cargo hax extract libcrux-iot-ml-kem` + fix-ups
 ```
