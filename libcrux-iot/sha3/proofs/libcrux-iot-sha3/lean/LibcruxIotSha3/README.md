@@ -240,43 +240,20 @@ and proceeds as follows:
   instantiates `keccak_keccak_spec` at concrete `(RATE, DELIM)` pairs to
   yield `shake128_spec`, `shake256_spec`, and the SHA3-ema variants.
 
-
-## Extraction pipeline
-
-The specification and the implementation are extracted separately. The
-implementation is a plain hax scenario declared in
-[`libcrux-iot/sha3/hax.toml`](../../../hax.toml) and run with `cargo hax extract`
-(no post-processing); the specification is extracted by
-`specs/sha3/hax_aeneas.py` in the [`cryspen/libcrux`](https://github.com/cryspen/libcrux)
-repo, which calls `cargo hax into lean` and applies small fixes to the output.
-The resulting Lean files are:
-* `specs/sha3/proofs/lean/HacspecSha3/Extraction/Funs.lean` (in `cryspen/libcrux`)
-* [`libcrux-iot/sha3/proofs/lean/LibcruxIotSha3/Extraction/Funs.lean`](Extraction/Funs.lean)
-
 ## Reproduction
 
 ### Prerequisites
 
 - For running the proofs:
-  - Lean 4 toolchain `leanprover/lean4:v4.31.0` (pinned in `lean-toolchain`).
-  - The Hax Lean proof library `cryspen/hax-lean` at `v0.3.17` (pulled in as a
-    `lake` dependency via `lakefile.toml`).
-  - The extracted hacspec (`HacspecSha3`, from `specs/sha3` of
-    https://github.com/cryspen/libcrux) at commit `daba41a6bffa3bbdbb0e3f5710590086f95da1d0`
-    (pinned in `lakefile.toml`; the same commit `Cargo.toml` pins for the
-    `hacspec_sha3` crate the contracts name).
+  - [Lean](https://lean-lang.org/install/)
 - For extraction:
-  - Hax at commit `f8fe69339b69e48a01b8a6a6bcb2ab5e5c5e424d` (`cargo-hax-v0.4.0`)
-    (mainline https://github.com/cryspen/hax) providing the `lean` backend,
-    with the charon/aeneas binaries pinned workspace-wide in `libcrux-iot/hax.toml`:
-    - Charon at https://github.com/AeneasVerif/charon/releases/tag/nightly-2026.09.02
-    - Aeneas at https://github.com/cryspen/aeneas/releases/tag/nightly-2026.09.03-6852e64
-    These are fetched automatically by `cargo hax tools install` inside the
-    `nix develop .#lean` shell.
+  - [cargo](https://rust-lang.org/tools/install/)
+  - [cargo-binstall](https://github.com/cargo-bins/cargo-binstall#installation)
+  - (hax, charon, aeneas will be downloaded automatically)
 
 ### Building
 
-From `libcrux-iot/sha3/proofs/lean/`:
+From `libcrux-iot/sha3/proofs/libcrux-iot-sha3/lean`:
 
 ```bash
 lake exe cache get        # downloading the Mathlib cache
@@ -299,11 +276,11 @@ the Rust level, before they propagate into Lean proof failures.
 
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
-cd specs/sha3/
-./hax_aeneas.py
+cd specs
+cargo hax extract hacspec-sha3
 
 # Impl side:
-cd libcrux-iot/sha3/
-cargo hax extract
+cd libcrux-iot
+cargo hax extract libcrux-iot-sha3
 ```
 
