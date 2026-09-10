@@ -74,33 +74,33 @@ custom integer type `U8` and Rust's integers `u8`.
         == &hacspec_sha3::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
 ```
+Informally: the IOT-friendly implementation `sha256_ema` yields the same result as
+`hacspec_sha3::sha3_256`. The precondition is that the payload length is at most
+`u32::MAX` and that the `digest` slice has the expected length.
 
+The first part of the `ensures` clause (`future(digest).len() == SHA3_256_DIGEST_SIZE`) seems
+redundant because a Rust function cannot change the length of a mutable slice reference.
+And for the Lean verification here, it is indeed unnecessary, but it is helpful for F* verification.
 
-hax generates a `<fn>.spec` from each contract in
-[`Extraction/Specs.lean`](Extraction/Specs.lean), and
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean)
-discharges all six (`<fn>_spec_proof`) from the corollaries of
-`keccak_keccak_spec` in [`Sponge/Shake.lean`](Sponge/Shake.lean) (and, as
-described above, the `keccak_fc` contract from `keccak_keccak_spec` itself):
+The `[..]` is technically unnecessary, too, but we need it because hax's model of Rust core
+currently models `==` only between two slices or two arrays, not between one slice and one array.
 
-| impl function | `ensures` (hacspec function) | instance of `keccak_keccak_spec` | Lean corollary |
-|---|---|---|---|
-| `shake128::<BYTES>` | `hacspec_sha3::shake128::<BYTES>` | RATE 168, DELIM 0x1f | `shake128_spec` |
-| `shake256::<BYTES>` | `hacspec_sha3::shake256::<BYTES>` | RATE 136, DELIM 0x1f | `shake256_spec` |
-| `sha224_ema` | `hacspec_sha3::sha3_224`, 28-byte digest | RATE 144, DELIM 0x06 | `sha224_ema_spec` |
-| `sha256_ema` | `hacspec_sha3::sha3_256`, 32-byte digest | RATE 136, DELIM 0x06 | `sha256_ema_spec` |
-| `sha384_ema` | `hacspec_sha3::sha3_384`, 48-byte digest | RATE 104, DELIM 0x06 | `sha384_ema_spec` |
-| `sha512_ema` | `hacspec_sha3::sha3_512`, 64-byte digest | RATE  72, DELIM 0x06 | `sha512_ema_spec` |
+We have analogous annotations on `shake256`, 
+`sha224_ema`, `sha384_ema`, and `sha512_ema`.
+hax generates a proof obligation for each of these, and they are discharged
+by Lean theorems in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean):
 
-All six require `payload.len() <= u32::MAX as usize` (resp. `BYTES <= u32::MAX
-as usize`), and the `_ema` variants a correctly sized `digest` buffer. The
-`declassify`/`declassify_ref` calls only strip the secret-independence wrapper `U8`. The
-`_ema` variants compare through `[..]` because their `digest` is a slice while the hacspec
-returns an array, and CoreModels models `==` only between two slices or two arrays.
+| impl function | hacspec function | Lean theorem |
+|---|---|---|
+| `shake128` | `hacspec_sha3::shake128` | `shake128_spec_proof` |
+| `shake256` | `hacspec_sha3::shake256` | `shake256_spec_proof` |
+| `sha224_ema` | `hacspec_sha3::sha3_224` | `sha224_ema_spec_proof` |
+| `sha256_ema` | `hacspec_sha3::sha3_256` | `sha256_ema_spec_proof` |
+| `sha384_ema` | `hacspec_sha3::sha3_384` | `sha384_ema_spec_proof` |
+| `sha512_ema` | `hacspec_sha3::sha3_512` | `sha512_ema_spec_proof` |
 
-The incremental API is not part of this verification.
-
-### Axiom hygiene
+### Assumptions
 
 All of the main theorems presented above are proved using only
 Lean's three standard axioms `propext`,
@@ -111,16 +111,26 @@ This set of axioms is checked on every build by `#guard_msgs` guards in
 Beyond Lean's axioms, the proof trusts the hand-written models in
 [`Assumptions/`](Assumptions/), which stand in for what hax leaves external.
 `FunsExternal.lean` models the `libcrux_secrets` helpers the extraction does
-not define — `classify`, the blanket `declassify`, `declassify_ref` on a
-shared slice, and the `u32`/`u64` casts — each as an identity or a no-op,
-which is what those secret-independence wrappers are at the value level. The
-shared `CoreModels.core.*` helpers are NOT redefined here: they come from the
-`HacspecSha3` spec's own `FunsExternal`, since defining them twice clashes in
-any proof that imports both. `TypesExternal.lean` declares no external types.
-`HaxLibAlias.lean` aliases `hax_lib_1.*` onto `hax_lib.*`, a name-only repair
-for the duplicate hax-lib crate in the dependency graph. Being definitions
-rather than axioms, none of these show up in `#print axioms`, so they are a
-trust item to read separately from the guards above.
+not define. We do not verify secret-independence, so these are modeled as identities
+and no-ops.
+In addition, a duplicate hax-lib crate in the dependency graph currently causes
+some references to `hax_lib` to use the name `hax_lib_1`.
+The file `HaxLibAlias.lean` aliases `hax_lib_1.*` onto `hax_lib.*` to work around this issue.
+
+Moreover, the correctness of the verification depends on:
+* the hacspec-style specification correctly reflecting the FIPS standard;
+* the hacspec-style specification being extracted faithfully;
+* the extraction of the hacspec-style specification being pinned correctly in the lakefile;
+* hax extracting the implementation faithfully;
+* hax's Lean libraries modeling Rust faithfully;
+* Lean checking the proofs correctly (we could aim for more confidence here by using [comparator](https://github.com/leanprover/comparator), but this is not set up yet);
+* the Rust compiler correctly translating into machine code;
+* the environment on which the compilation, extraction, and verification is executed functioning correctly.
+
+### What is left out
+
+We do not verify the incremental API here (neither buffered nor unbuffered), and we do note verify the `Digest`/`Hasher` implementations.
+There are more Rust specification in the code base, but only the ones above are verified in Lean.
 
 ## Proof architecture
 
@@ -133,7 +143,7 @@ The tree divides as follows, bottom to top:
 | directory | holds |
 |---|---|
 | [`Extraction/`](Extraction/) | the hax/aeneas output: `Funs`/`Types`/`Specs` plus the `*External` templates. Generated, never edited. Its `ProofObligations.lean` is the generated, `sorry`-filled statement of every Rust contract; the lakefile keeps it out of the build (see [Extraction pipeline](#extraction-pipeline)) |
-| [`Assumptions/`](Assumptions/) | the hand-written models for the items hax leaves external, described under [Axiom hygiene](#axiom-hygiene) |
+| [`Assumptions/`](Assumptions/) | the hand-written models for the items hax leaves external, described under [Assumptions](#assumptions) |
 | [`Foundation/`](Foundation/) | the `lift` bridge, the θ and π-ρ-χ round-level lemmas (`ThetaLift*`, `PrcLift*`), round-constant equivalence (`RcEquiv`), and the loop-spec helpers everything above reuses |
 | [`BitSpec/`](BitSpec/) | the pure-Lean intermediate bit spec `bit_keccak_spec` and its state isomorphism |
 | `StructuralEquiv.lean`, `AlgebraicEquiv.lean` | the two halves of the permutation argument, detailed below |
