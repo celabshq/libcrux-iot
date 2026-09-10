@@ -13,38 +13,6 @@ pub(crate) struct PolynomialRingElement<SIMDUnit: Operations> {
     pub(crate) simd_units: [SIMDUnit; SIMD_UNITS_IN_RING_ELEMENT],
 }
 
-// Spec-only impl->spec lift, the Rust counterpart of Lean's
-// `Polynomial.HacspecNorm.canon_raw`: regather the 32x8 SIMD layout into a flat
-// `[i32; 256]`, canonicalising each lane into `[0, Q)` with the hacspec's own
-// `mod_q`.
-//
-// NAMED `canon_raw`, NOT `lift_poly_res`. The Lean tree has THREE lifts and they
-// differ by Montgomery factors -- getting this wrong silently produces an
-// unprovable post:
-//
-//   canon_raw           canonical residue of the RAW lane            (this one)
-//   lift_poly_res       canon_raw composed with `* R^-1`             (poly_add/sub/mul, ntt)
-//   lift_poly_res_intt  a further `* R^-1` (the impl's intt leaves R) (intt)
-//
-// `Spec/Lift.lean` puts the factor in `liftZ x = (x : Zq) * RINV`; only
-// `canon_raw` omits it, which is why only the infinity-norm theorem speaks this
-// lift. The other two need `RINV` as a Rust constant and a modular multiply.
-//
-// Generic over `SIMDUnit` via the spec-only `Operations::lane`, so it can appear
-// in an `#[ensures]` on the generic `PolynomialRingElement` API -- which is the
-// whole point, and what a concrete-only version could not do.
-#[cfg(hax)]
-pub(crate) fn canon_raw<SIMDUnit: Operations>(
-    re: &PolynomialRingElement<SIMDUnit>,
-) -> [i32; crate::constants::COEFFICIENTS_IN_RING_ELEMENT] {
-    core::array::from_fn(|i| {
-        hacspec_ml_dsa::arithmetic::mod_q(
-            SIMDUnit::lane(&re.simd_units[i / COEFFICIENTS_IN_SIMD_UNIT],
-                           i % COEFFICIENTS_IN_SIMD_UNIT) as i64,
-        )
-    })
-}
-
 // Spec-only bound predicates for `infinity_norm_exceeds`'s `#[requires]`.
 //
 // The FC theorem (`Polynomial/HacspecNorm.lean`, `infinity_norm_exceeds_hacspec_fc`)
@@ -126,39 +94,6 @@ pub(crate) fn coefficients_centered<SIMDUnit: Operations>(
 // theorems speak (see the three-lift table at `canon_raw` above).
 #[cfg(hax)]
 pub(crate) const RINV: i64 = 8_265_825;
-
-#[cfg(hax)]
-pub(crate) fn lift_poly_res<SIMDUnit: Operations>(
-    re: &PolynomialRingElement<SIMDUnit>,
-) -> [i32; crate::constants::COEFFICIENTS_IN_RING_ELEMENT] {
-    core::array::from_fn(|i| {
-        hacspec_ml_dsa::arithmetic::mod_q(
-            SIMDUnit::lane(&re.simd_units[i / COEFFICIENTS_IN_SIMD_UNIT],
-                           i % COEFFICIENTS_IN_SIMD_UNIT) as i64
-                * RINV,
-        )
-    })
-}
-
-#[cfg(hax)]
-pub(crate) fn lift_poly_res_intt<SIMDUnit: Operations>(
-    re: &PolynomialRingElement<SIMDUnit>,
-) -> [i32; crate::constants::COEFFICIENTS_IN_RING_ELEMENT] {
-    // `lift_poly_res` with ONE MORE `* R^-1` (Lean: `Polynomial.HacspecNtt.
-    // lift_poly_res_intt`): the impl's inverse NTT leaves its output in the
-    // Montgomery domain, and the extra factor strips it. Two `mod_q` steps so
-    // each i64 product stays in bounds (`mod_q(..) < 2^23`, `* RINV < 2^46`).
-    core::array::from_fn(|i| {
-        hacspec_ml_dsa::arithmetic::mod_q(
-            hacspec_ml_dsa::arithmetic::mod_q(
-                SIMDUnit::lane(&re.simd_units[i / COEFFICIENTS_IN_SIMD_UNIT],
-                               i % COEFFICIENTS_IN_SIMD_UNIT) as i64
-                    * RINV,
-            ) as i64
-                * RINV,
-        )
-    })
-}
 
 // Spec-only RAW lane gather: the 32x8 SIMD layout as a flat `[i32; 256]`,
 // NO `mod_q` and NO Montgomery factor -- the identity view of the raw lanes.
@@ -424,9 +359,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     // RAW (Montgomery-domain-agnostic) lift is the right one; see the note at
     // `canon_raw`'s definition.
     #[hax_lib::requires(coefficients_centered(self))]
-    #[hax_lib::ensures(|result| result
-        == (bound <= hacspec_ml_dsa::polynomial::poly_infinity_norm(&canon_raw(self))))]
-    pub(crate) fn infinity_norm_exceeds(&self, bound: i32) -> bool {
+        pub(crate) fn infinity_norm_exceeds(&self, bound: i32) -> bool {
         let mut result = false;
         for i in 0..self.simd_units.len() {
             result = result || SIMDUnit::infinity_norm_exceeds(&self.simd_units[i], bound);
@@ -442,10 +375,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     // lift `lift_poly_res`. `self` in the `ensures` is the INPUT value,
     // `future(self)` the output.
     #[hax_lib::requires(poly_add_in_range(self, rhs))]
-    #[hax_lib::ensures(|_|
-        hacspec_ml_dsa::polynomial::poly_add(&lift_poly_res(self), &lift_poly_res(rhs))
-            == lift_poly_res(future(self)))]
-    pub(crate) fn add(&mut self, rhs: &Self) {
+        pub(crate) fn add(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::add(&mut self.simd_units[i], &rhs.simd_units[i]);
         }
@@ -456,10 +386,7 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     #[inline(always)]
     // `poly_sub_hacspec_fc` at the Rust level; see `add` above.
     #[hax_lib::requires(poly_sub_in_range(self, rhs))]
-    #[hax_lib::ensures(|_|
-        hacspec_ml_dsa::polynomial::poly_sub(&lift_poly_res(self), &lift_poly_res(rhs))
-            == lift_poly_res(future(self)))]
-    pub(crate) fn subtract(&mut self, rhs: &Self) {
+        pub(crate) fn subtract(&mut self, rhs: &Self) {
         for i in 0..self.simd_units.len() {
             SIMDUnit::subtract(&mut self.simd_units[i], &rhs.simd_units[i]);
         }

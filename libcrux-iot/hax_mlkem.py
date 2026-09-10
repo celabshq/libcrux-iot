@@ -84,14 +84,11 @@ def extract():
 # ---- pass 1: re-insert dropped trait-clause instances at spec-side calls --------
 SPEC_CALL_FIXES = [
     # (old, new, expected count)
-    ("matrix.lift_t_as_ntt_from_public_key K public_key",
-     "matrix.lift_t_as_ntt_from_public_key K vectortraitsOperationsInst public_key", 2),
-    ("matrix.lift_matrix_from_seed K seed",
-     "matrix.lift_matrix_from_seed K vectortraitsOperationsInst hash_functionsHashInst seed", 1),
+    # The `lift_*` and `compute_u_and_v` entries went with the top-level
+    # functional-correctness annotations they served; only `compute_vector_u`'s
+    # own spec still loses its Hasher instance.
     ("matrix.compute_vector_u K vectortraitsOperationsInst matrix_entry seed",
      "matrix.compute_vector_u K vectortraitsOperationsInst hash_functionsHashInst matrix_entry seed", 1),
-    ("matrix.compute_u_and_v K vectortraitsOperationsInst seed public_key",
-     "matrix.compute_u_and_v K vectortraitsOperationsInst hash_functionsHashInst seed public_key", 1),
 ]
 
 

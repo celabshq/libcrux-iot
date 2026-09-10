@@ -74,26 +74,8 @@ structure simd.traits.Operations (Self : Type) where
 structure polynomial.PolynomialRingElement (SIMDUnit : Type) where
   simd_units : Array SIMDUnit 32#usize
 
-/-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res::closure]
-    Source: 'ml-dsa/src/polynomial.rs', lines 134:25-140:5 -/
-@[reducible]
-def polynomial.lift_poly_res.closure (SIMDUnit : Type) :=
-  polynomial.PolynomialRingElement SIMDUnit
-
-/-- [libcrux_iot_ml_dsa::polynomial::lift_poly_res_intt::closure]
-    Source: 'ml-dsa/src/polynomial.rs', lines 151:25-160:5 -/
-@[reducible]
-def polynomial.lift_poly_res_intt.closure (SIMDUnit : Type) :=
-  polynomial.PolynomialRingElement SIMDUnit
-
-/-- [libcrux_iot_ml_dsa::polynomial::canon_raw::closure]
-    Source: 'ml-dsa/src/polynomial.rs', lines 40:25-45:5 -/
-@[reducible]
-def polynomial.canon_raw.closure (SIMDUnit : Type) :=
-  polynomial.PolynomialRingElement SIMDUnit
-
 /-- [libcrux_iot_ml_dsa::polynomial::raw_gather::closure]
-    Source: 'ml-dsa/src/polynomial.rs', lines 173:25-176:5 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 108:25-111:5 -/
 @[reducible]
 def polynomial.raw_gather.closure (SIMDUnit : Type) :=
   polynomial.PolynomialRingElement SIMDUnit

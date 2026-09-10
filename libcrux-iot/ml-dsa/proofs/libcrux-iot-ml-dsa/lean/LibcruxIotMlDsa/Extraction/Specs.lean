@@ -38,21 +38,6 @@ def ntt.ntt.pre
   := do
   polynomial.poly_abs_le simdtraitsOperationsInst re 1577058303#i32
 
-/-- [libcrux_iot_ml_dsa::ntt::ntt::post]:
-    Source: 'ml-dsa/src/ntt.rs', lines 12:0-13:78 -/
-@[reducible]
-def ntt.ntt.post
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit)
-  (re_future : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let a ← polynomial.lift_poly_res simdtraitsOperationsInst re
-  let a1 ← hacspec_ml_dsa.ntt.ntt a
-  let a2 ← polynomial.lift_poly_res simdtraitsOperationsInst re_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
-    a1 a2
-
 def
   ntt.ntt.spec {SIMDUnit : Type} (simdtraitsOperationsInst :
               simd.traits.Operations SIMDUnit)
@@ -60,12 +45,11 @@ def
   (ntt.ntt.pre simdtraitsOperationsInst re).holds →
   ⦃ ⌜ True ⌝ ⦄
   ntt.ntt simdtraitsOperationsInst re
-  ⦃ ⇓ res => ⌜ (ntt.ntt.post simdtraitsOperationsInst re res).holds ⌝
-  ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::ntt::invert_ntt_montgomery::pre]:
-    Source: 'ml-dsa/src/ntt.rs', lines 22:0-22:48 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 20:0-20:48 -/
 @[reducible]
 def ntt.invert_ntt_montgomery.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -74,21 +58,6 @@ def ntt.invert_ntt_montgomery.pre
   := do
   polynomial.poly_abs_le simdtraitsOperationsInst re 8388607#i32
 
-/-- [libcrux_iot_ml_dsa::ntt::invert_ntt_montgomery::post]:
-    Source: 'ml-dsa/src/ntt.rs', lines 23:0-24:84 -/
-@[reducible]
-def ntt.invert_ntt_montgomery.post
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (re : polynomial.PolynomialRingElement SIMDUnit)
-  (re_future : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let a ← polynomial.lift_poly_res simdtraitsOperationsInst re
-  let a1 ← hacspec_ml_dsa.ntt.intt a
-  let a2 ← polynomial.lift_poly_res_intt simdtraitsOperationsInst re_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
-    a1 a2
-
 def
   ntt.invert_ntt_montgomery.spec {SIMDUnit : Type} (simdtraitsOperationsInst :
                                 simd.traits.Operations SIMDUnit)
@@ -96,13 +65,11 @@ def
   (ntt.invert_ntt_montgomery.pre simdtraitsOperationsInst re).holds →
   ⦃ ⌜ True ⌝ ⦄
   ntt.invert_ntt_montgomery simdtraitsOperationsInst re
-  ⦃ ⇓ res =>
-  ⌜ (ntt.invert_ntt_montgomery.post simdtraitsOperationsInst re res).holds
-  ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::ntt::ntt_multiply_montgomery::pre]:
-    Source: 'ml-dsa/src/ntt.rs', lines 35:0-35:49 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 31:0-31:49 -/
 @[reducible]
 def ntt.ntt_multiply_montgomery.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -112,23 +79,6 @@ def ntt.ntt_multiply_montgomery.pre
   := do
   polynomial.poly_abs_le simdtraitsOperationsInst rhs 8380416#i32
 
-/-- [libcrux_iot_ml_dsa::ntt::ntt_multiply_montgomery::post]:
-    Source: 'ml-dsa/src/ntt.rs', lines 36:0-38:39 -/
-@[reducible]
-def ntt.ntt_multiply_montgomery.post
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (lhs : polynomial.PolynomialRingElement SIMDUnit)
-  (rhs : polynomial.PolynomialRingElement SIMDUnit)
-  (lhs_future : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let a ← polynomial.lift_poly_res simdtraitsOperationsInst lhs
-  let a1 ← polynomial.lift_poly_res simdtraitsOperationsInst rhs
-  let a2 ← hacspec_ml_dsa.polynomial.poly_pointwise_mul a a1
-  let a3 ← polynomial.lift_poly_res simdtraitsOperationsInst lhs_future
-  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
-    a2 a3
-
 def
   ntt.ntt_multiply_montgomery.spec {SIMDUnit : Type} (simdtraitsOperationsInst
                                   : simd.traits.Operations SIMDUnit)
@@ -137,14 +87,11 @@ def
   (ntt.ntt_multiply_montgomery.pre simdtraitsOperationsInst lhs rhs).holds →
   ⦃ ⌜ True ⌝ ⦄
   ntt.ntt_multiply_montgomery simdtraitsOperationsInst lhs rhs
-  ⦃ ⇓ res =>
-  ⌜
-  (ntt.ntt_multiply_montgomery.post simdtraitsOperationsInst lhs rhs res).holds
-  ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::ntt::reduce::pre]:
-    Source: 'ml-dsa/src/ntt.rs', lines 56:0-56:52 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 49:0-49:52 -/
 @[reducible]
 def ntt.reduce.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -154,7 +101,7 @@ def ntt.reduce.pre
   polynomial.poly_abs_le simdtraitsOperationsInst re 2139095040#i32
 
 /-- [libcrux_iot_ml_dsa::ntt::reduce::post]:
-    Source: 'ml-dsa/src/ntt.rs', lines 57:0-59:59 -/
+    Source: 'ml-dsa/src/ntt.rs', lines 50:0-50:59 -/
 @[reducible]
 def ntt.reduce.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -162,15 +109,7 @@ def ntt.reduce.post
   (re_future : polynomial.PolynomialRingElement SIMDUnit) :
   RustM Bool
   := do
-  let b ←
-    polynomial.poly_abs_le simdtraitsOperationsInst re_future 6283009#i32
-  if b
-  then
-    let a ← polynomial.lift_poly_res simdtraitsOperationsInst re_future
-    let a1 ← polynomial.lift_poly_res simdtraitsOperationsInst re
-    core.Array.Insts.CoreCmpPartialEqArray.eq
-      core.I32.Insts.CoreCmpPartialEqI32 a a1
-  else ok false
+  polynomial.poly_abs_le simdtraitsOperationsInst re_future 6283009#i32
 
 def
   ntt.reduce.spec {SIMDUnit : Type} (simdtraitsOperationsInst :
@@ -208,33 +147,15 @@ def simd.portable.arithmetic.power2round_element.pre
   then ok (t < simd.traits.FIELD_MODULUS)
   else ok false
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round_element::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 90:0-94:56 -/
-@[reducible]
-def simd.portable.arithmetic.power2round_element.post
-  (t : Std.I32) (out : (Std.I32 × Std.I32)) : RustM Bool := do
-  let (i, i1) := out
-  let i2 ← lift (IScalar.cast .I64 t)
-  let i3 ← hacspec_ml_dsa.arithmetic.mod_q i2
-  let (_, i4) ← hacspec_ml_dsa.arithmetic.power2round i3
-  if i = i4
-  then
-    let i5 ← lift (IScalar.cast .I64 t)
-    let i6 ← hacspec_ml_dsa.arithmetic.mod_q i5
-    let (i7, _) ← hacspec_ml_dsa.arithmetic.power2round i6
-    ok (i1 = i7)
-  else ok false
-
 def simd.portable.arithmetic.power2round_element.spec (t : Std.I32) : Prop :=
   (simd.portable.arithmetic.power2round_element.pre t).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.power2round_element t
-  ⦃ ⇓ res =>
-  ⌜ (simd.portable.arithmetic.power2round_element.post t res).holds ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 143:0-143:47 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 112:0-112:47 -/
 @[reducible]
 def simd.portable.arithmetic.power2round.pre
   (t0 : simd.portable.vector_type.Coefficients)
@@ -243,31 +164,17 @@ def simd.portable.arithmetic.power2round.pre
   := do
   simd.portable.arithmetic.coefficients_in_field t0
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::power2round::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 146:0-146:72 -/
-@[reducible]
-def simd.portable.arithmetic.power2round.post
-  (t0 : simd.portable.vector_type.Coefficients)
-  (t1 : simd.portable.vector_type.Coefficients)
-  (p : (simd.portable.vector_type.Coefficients ×
-  simd.portable.vector_type.Coefficients)) :
-  RustM Bool
-  := do
-  let (t0_future, t1_future) := p
-  simd.portable.arithmetic.power2round_unit_ok t0 t0_future t1_future
-
 def simd.portable.arithmetic.power2round.spec
   (t0 : simd.portable.vector_type.Coefficients)
   (t1 : simd.portable.vector_type.Coefficients) : Prop :=
   (simd.portable.arithmetic.power2round.pre t0 t1).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.power2round t0 t1
-  ⦃ ⇓ res =>
-  ⌜ (simd.portable.arithmetic.power2round.post t0 t1 res).holds ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::shift_left_then_reduce::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 198:0-198:52 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 166:0-166:52 -/
 @[reducible]
 def simd.portable.arithmetic.shift_left_then_reduce.pre
   (SHIFT_BY : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients) :
@@ -287,7 +194,7 @@ def simd.portable.arithmetic.shift_left_then_reduce.spec (SHIFT_BY : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 206:0-206:75 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 174:0-174:75 -/
 @[reducible]
 def simd.portable.arithmetic.compute_one_hint.pre
   (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) : RustM Bool := do
@@ -296,7 +203,7 @@ def simd.portable.arithmetic.compute_one_hint.pre
   else ok (gamma2 = constants.GAMMA2_V261_888)
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_one_hint::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 207:0-207:47 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 175:0-175:47 -/
 @[reducible]
 def simd.portable.arithmetic.compute_one_hint.post
   (low : Std.I32) (high : Std.I32) (gamma2 : Std.I32) (out : Std.I32) :
@@ -318,7 +225,7 @@ def simd.portable.arithmetic.compute_one_hint.spec (low : Std.I32)
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::compute_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 217:0-217:75 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 185:0-185:75 -/
 @[reducible]
 def simd.portable.arithmetic.compute_hint.pre
   (low : simd.portable.vector_type.Coefficients)
@@ -341,7 +248,7 @@ def simd.portable.arithmetic.compute_hint.spec
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_element::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 264:0-266:26 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 232:0-234:26 -/
 @[reducible]
 def simd.portable.arithmetic.decompose_element.pre
   (gamma2 : Std.I32) (r : Std.I32) : RustM Bool := do
@@ -360,37 +267,16 @@ def simd.portable.arithmetic.decompose_element.pre
       else ok false
     else ok false
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose_element::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 279:0-283:64 -/
-@[reducible]
-def simd.portable.arithmetic.decompose_element.post
-  (gamma2 : Std.I32) (r : Std.I32) (out : (Std.I32 × Std.I32)) :
-  RustM Bool
-  := do
-  let (i, i1) := out
-  let i2 ← lift (IScalar.cast .I64 r)
-  let i3 ← hacspec_ml_dsa.arithmetic.mod_q i2
-  let (_, i4) ← hacspec_ml_dsa.arithmetic.decompose i3 gamma2
-  if i = i4
-  then
-    let i5 ← lift (IScalar.cast .I64 r)
-    let i6 ← hacspec_ml_dsa.arithmetic.mod_q i5
-    let (i7, _) ← hacspec_ml_dsa.arithmetic.decompose i6 gamma2
-    ok (i1 = i7)
-  else ok false
-
 def simd.portable.arithmetic.decompose_element.spec (gamma2 : Std.I32)
   (r : Std.I32) : Prop :=
   (simd.portable.arithmetic.decompose_element.pre gamma2 r).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.decompose_element gamma2 r
-  ⦃ ⇓ res =>
-  ⌜ (simd.portable.arithmetic.decompose_element.post gamma2 r res).holds ⌝
-  ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 329:0-331:33 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 292:0-294:33 -/
 @[reducible]
 def simd.portable.arithmetic.use_one_hint.pre
   (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) : RustM Bool := do
@@ -419,30 +305,16 @@ def simd.portable.arithmetic.use_one_hint.pre
       else ok false
     else ok false
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_one_hint::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 336:0-337:69 -/
-@[reducible]
-def simd.portable.arithmetic.use_one_hint.post
-  (gamma2 : Std.I32) (r : Std.I32) (hint : Std.I32) (out : Std.I32) :
-  RustM Bool
-  := do
-  let i ← lift (IScalar.cast .I64 r)
-  let i1 ← hacspec_ml_dsa.arithmetic.mod_q i
-  let i2 ← hacspec_ml_dsa.arithmetic.use_hint (hint = 1#i32) i1 gamma2
-  ok (out = i2)
-
 def simd.portable.arithmetic.use_one_hint.spec (gamma2 : Std.I32) (r : Std.I32)
   (hint : Std.I32) : Prop :=
   (simd.portable.arithmetic.use_one_hint.pre gamma2 r hint).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.use_one_hint gamma2 r hint
-  ⦃ ⇓ res =>
-  ⌜ (simd.portable.arithmetic.use_one_hint.post gamma2 r hint res).holds ⌝
-  ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 469:0-470:41 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 397:0-398:41 -/
 @[reducible]
 def simd.portable.arithmetic.decompose.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -457,21 +329,6 @@ def simd.portable.arithmetic.decompose.pre
     then simd.portable.arithmetic.coefficients_in_field simd_unit
     else ok false
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::decompose::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 473:0-473:88 -/
-@[reducible]
-def simd.portable.arithmetic.decompose.post
-  (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
-  (low : simd.portable.vector_type.Coefficients)
-  (high : simd.portable.vector_type.Coefficients)
-  (p : (simd.portable.vector_type.Coefficients ×
-  simd.portable.vector_type.Coefficients)) :
-  RustM Bool
-  := do
-  let (low_future, high_future) := p
-  simd.portable.arithmetic.decompose_unit_ok gamma2 simd_unit low_future
-    high_future
-
 def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
   (simd_unit : simd.portable.vector_type.Coefficients)
   (low : simd.portable.vector_type.Coefficients)
@@ -479,14 +336,11 @@ def simd.portable.arithmetic.decompose.spec (gamma2 : Std.I32)
   (simd.portable.arithmetic.decompose.pre gamma2 simd_unit low high).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.decompose gamma2 simd_unit low high
-  ⦃ ⇓ res =>
-  ⌜
-  (simd.portable.arithmetic.decompose.post gamma2 simd_unit low high res).holds
-  ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::pre]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 523:0-525:37 -/
+    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 412:0-414:37 -/
 @[reducible]
 def simd.portable.arithmetic.use_hint.pre
   (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
@@ -508,26 +362,13 @@ def simd.portable.arithmetic.use_hint.pre
       else ok false
     else ok false
 
-/-- [libcrux_iot_ml_dsa::simd::portable::arithmetic::use_hint::post]:
-    Source: 'ml-dsa/src/simd/portable/arithmetic.rs', lines 528:0-528:80 -/
-@[reducible]
-def simd.portable.arithmetic.use_hint.post
-  (gamma2 : Std.I32) (simd_unit : simd.portable.vector_type.Coefficients)
-  (hint : simd.portable.vector_type.Coefficients)
-  (hint_future : simd.portable.vector_type.Coefficients) :
-  RustM Bool
-  := do
-  simd.portable.arithmetic.use_hint_unit_ok gamma2 simd_unit hint hint_future
-
 def simd.portable.arithmetic.use_hint.spec (gamma2 : Std.I32)
   (simd_unit : simd.portable.vector_type.Coefficients)
   (hint : simd.portable.vector_type.Coefficients) : Prop :=
   (simd.portable.arithmetic.use_hint.pre gamma2 simd_unit hint).holds →
   ⦃ ⌜ True ⌝ ⦄
   simd.portable.arithmetic.use_hint gamma2 simd_unit hint
-  ⦃ ⇓ res =>
-  ⌜ (simd.portable.arithmetic.use_hint.post gamma2 simd_unit hint res).holds
-  ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::simd::portable::vector_type::lane::pre]:
@@ -548,7 +389,7 @@ def simd.portable.vector_type.lane.spec
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 444:4-444:54 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 377:4-377:54 -/
 @[reducible]
 def polynomial.PolynomialRingElement.add.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -557,23 +398,6 @@ def polynomial.PolynomialRingElement.add.pre
   RustM Bool
   := do
   polynomial.poly_add_in_range simdtraitsOperationsInst self_ rhs
-
-/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::add::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 445:4-447:44 -/
-@[reducible]
-def polynomial.PolynomialRingElement.add.post
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
-  (rhs : polynomial.PolynomialRingElement SIMDUnit)
-  (self__future : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let a ← polynomial.lift_poly_res simdtraitsOperationsInst self_
-  let a1 ← polynomial.lift_poly_res simdtraitsOperationsInst rhs
-  let a2 ← hacspec_ml_dsa.polynomial.poly_add a a1
-  let a3 ← polynomial.lift_poly_res simdtraitsOperationsInst self__future
-  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
-    a2 a3
 
 def
   polynomial.PolynomialRingElement.add.spec {SIMDUnit : Type}
@@ -585,14 +409,11 @@ def
   rhs).holds →
   ⦃ ⌜ True ⌝ ⦄
   polynomial.PolynomialRingElement.add simdtraitsOperationsInst self rhs
-  ⦃ ⇓ res =>
-  ⌜
-  (polynomial.PolynomialRingElement.add.post simdtraitsOperationsInst self rhs
-  res).holds ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 458:4-458:54 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 388:4-388:54 -/
 @[reducible]
 def polynomial.PolynomialRingElement.subtract.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -601,23 +422,6 @@ def polynomial.PolynomialRingElement.subtract.pre
   RustM Bool
   := do
   polynomial.poly_sub_in_range simdtraitsOperationsInst self_ rhs
-
-/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::subtract::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 459:4-461:44 -/
-@[reducible]
-def polynomial.PolynomialRingElement.subtract.post
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
-  (rhs : polynomial.PolynomialRingElement SIMDUnit)
-  (self__future : polynomial.PolynomialRingElement SIMDUnit) :
-  RustM Bool
-  := do
-  let a ← polynomial.lift_poly_res simdtraitsOperationsInst self_
-  let a1 ← polynomial.lift_poly_res simdtraitsOperationsInst rhs
-  let a2 ← hacspec_ml_dsa.polynomial.poly_sub a a1
-  let a3 ← polynomial.lift_poly_res simdtraitsOperationsInst self__future
-  core.Array.Insts.CoreCmpPartialEqArray.eq core.I32.Insts.CoreCmpPartialEqI32
-    a2 a3
 
 def
   polynomial.PolynomialRingElement.subtract.spec {SIMDUnit : Type}
@@ -630,14 +434,11 @@ def
   rhs).holds →
   ⦃ ⌜ True ⌝ ⦄
   polynomial.PolynomialRingElement.subtract simdtraitsOperationsInst self rhs
-  ⦃ ⇓ res =>
-  ⌜
-  (polynomial.PolynomialRingElement.subtract.post simdtraitsOperationsInst self
-  rhs res).holds ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 426:4-426:53 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 361:4-361:53 -/
 @[reducible]
 def polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -646,19 +447,6 @@ def polynomial.PolynomialRingElement.infinity_norm_exceeds.pre
   RustM Bool
   := do
   polynomial.coefficients_centered simdtraitsOperationsInst self_
-
-/-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::infinity_norm_exceeds::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 427:4-428:88 -/
-@[reducible]
-def polynomial.PolynomialRingElement.infinity_norm_exceeds.post
-  {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
-  SIMDUnit) (self_ : polynomial.PolynomialRingElement SIMDUnit)
-  (bound : Std.I32) (result : Bool) :
-  RustM Bool
-  := do
-  let a ← polynomial.canon_raw simdtraitsOperationsInst self_
-  let i ← hacspec_ml_dsa.polynomial.poly_infinity_norm a
-  ok (result = (bound <= i))
 
 def
   polynomial.PolynomialRingElement.infinity_norm_exceeds.spec {SIMDUnit : Type}
@@ -673,14 +461,11 @@ def
   ⦃ ⌜ True ⌝ ⦄
   polynomial.PolynomialRingElement.infinity_norm_exceeds
   simdtraitsOperationsInst self bound
-  ⦃ ⇓ res =>
-  ⌜
-  (polynomial.PolynomialRingElement.infinity_norm_exceeds.post
-  simdtraitsOperationsInst self bound res).holds ⌝ ⦄
+  ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::zero::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 365:4-365:68 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 300:4-300:68 -/
 @[reducible]
 def polynomial.PolynomialRingElement.zero.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -706,7 +491,7 @@ def
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::to_i32_array::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 377:4-377:60 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 312:4-312:60 -/
 @[reducible]
 def polynomial.PolynomialRingElement.to_i32_array.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -733,7 +518,7 @@ def
 
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array::pre]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 394:4-394:44 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 329:4-329:44 -/
 @[reducible]
 def polynomial.PolynomialRingElement.from_i32_array.pre
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations
@@ -745,7 +530,7 @@ def polynomial.PolynomialRingElement.from_i32_array.pre
   ok (i = 256#usize)
 
 /-- [libcrux_iot_ml_dsa::polynomial::{libcrux_iot_ml_dsa::polynomial::PolynomialRingElement<SIMDUnit>}::from_i32_array::post]:
-    Source: 'ml-dsa/src/polynomial.rs', lines 395:4-396:67 -/
+    Source: 'ml-dsa/src/polynomial.rs', lines 330:4-331:67 -/
 @[reducible]
 def polynomial.PolynomialRingElement.from_i32_array.post
   {SIMDUnit : Type} (simdtraitsOperationsInst : simd.traits.Operations

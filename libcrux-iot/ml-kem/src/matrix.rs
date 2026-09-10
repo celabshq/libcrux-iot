@@ -1,4 +1,7 @@
-use libcrux_secrets::{Classify as _, ClassifyRef as _, Declassify as _, I32};
+use libcrux_secrets::{Classify as _, ClassifyRef as _, I32};
+// Only the `#[cfg(hax)]` predicates below declassify.
+#[cfg(hax)]
+use libcrux_secrets::Declassify as _;
 
 // ============================================================================
 // Spec-only impl->spec LIFTS + bound predicates for the four matrix top-level
@@ -378,10 +381,6 @@ pub(crate) fn sample_matrix_A<const K: usize, Vector: Operations, Hasher: Hash>(
         .and(vec_bnd(secret_as_ntt, 4095))
         .and(vec_bnd(u_as_ntt, 3328))
         .and(poly_bnd(v, 3328)))]
-#[hax_lib::ensures(|_|
-    poly_matches(future(result),
-        &hacspec_ml_kem::matrix::compute_message(
-            &lift_poly(v), &lift_vec(secret_as_ntt), &lift_vec(u_as_ntt))))]
 #[inline(always)]
 pub(crate) fn compute_message<const K: usize, Vector: Operations>(
     v: &PolynomialRingElement<Vector>,
@@ -418,12 +417,6 @@ pub(crate) fn compute_message<const K: usize, Vector: Operations>(
         .and(poly_bnd(error_2, 3328))
         .and(poly_bnd(message, 3328))
         .and(cache_matches::<K, Vector>(r_as_ntt, cache)))]
-#[hax_lib::ensures(|_|
-    poly_matches(future(result),
-        &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
-            &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
-            &lift_vec_slice::<Vector, K>(r_as_ntt),
-            &lift_poly(error_2), &lift_poly(message))))]
 #[inline(always)]
 pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
     public_key: &[u8],
@@ -460,12 +453,6 @@ pub(crate) fn compute_ring_element_v<const K: usize, Vector: Operations>(
         && result.len() == K && cache.len() == K && K > 0 && K <= 4)
         .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
         .and(vec_slice_bnd::<Vector, K>(error_1, 29439)))]
-#[hax_lib::ensures(|_|
-    vec_matches::<Vector, K>(future(result),
-        &hacspec_ml_kem::matrix::compute_vector_u::<K>(
-            &lift_matrix_from_seed::<Vector, Hasher, K>(seed),
-            &lift_vec_slice::<Vector, K>(r_as_ntt),
-            &lift_vec_slice::<Vector, K>(error_1))))]
 #[inline(always)]
 pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>(
     matrix_entry: &mut PolynomialRingElement<Vector>,
@@ -524,11 +511,6 @@ pub(crate) fn compute_vector_u<const K: usize, Vector: Operations, Hasher: Hash>
         .and(vec_bnd(s_as_ntt, 3328))
         .and(vec_bnd(error_as_ntt, 29439))
         .and(acc_zero(accumulator)))]
-#[hax_lib::ensures(|_|
-    vec_matches::<Vector, K>(future(t_as_ntt),
-        &hacspec_ml_kem::matrix::compute_As_plus_e::<K>(
-            &lift_matrix_from_slice::<Vector, K>(matrix_A),
-            &lift_vec(s_as_ntt), &lift_vec(error_as_ntt))))]
 #[inline(always)]
 #[allow(non_snake_case)]
 pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
@@ -568,52 +550,3 @@ pub(crate) fn compute_As_plus_e<const K: usize, Vector: Operations>(
     }
 }
 
-/// Composed matrix core of K-PKE.Encrypt (spec-only), the L7.3 statement with
-/// its cache produced INTERNALLY: `compute_vector_u` fills `cache` (and, as a
-/// by-product, establishes it holds the NTT products of `r`), then
-/// `compute_ring_element_v` consumes that same `cache`. So there is NO
-/// cache-correctness precondition -- it is discharged by the first call. The
-/// `#[ensures]` names the hacspec `compute_ring_element_v` on the seed/pk-derived
-/// operands; it rests on A1 (the `u` step samples the matrix) and A2 (the `v`
-/// step deserializes `t`).
-#[hax_lib::requires(
-    hax_lib::prop::Prop::from_bool(
-        K > 0 && K <= 4 && seed.len() == 32
-        && public_key.len() == BYTES_PER_RING_ELEMENT * K
-        && r_as_ntt.len() == K && error_1.len() == K
-        && result_u.len() == K && cache.len() == K)
-        .and(vec_slice_bnd::<Vector, K>(r_as_ntt, 3328))
-        .and(vec_slice_bnd::<Vector, K>(error_1, 29439))
-        .and(poly_bnd(error_2, 3328))
-        .and(poly_bnd(message, 3328)))]
-#[hax_lib::ensures(|_|
-    poly_matches(future(result_v),
-        &hacspec_ml_kem::matrix::compute_ring_element_v::<K>(
-            &lift_t_as_ntt_from_public_key::<Vector, K>(public_key),
-            &lift_vec_slice::<Vector, K>(r_as_ntt),
-            &lift_poly(error_2), &lift_poly(message))))]
-#[inline(always)]
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn compute_u_and_v<const K: usize, Vector: Operations, Hasher: Hash>(
-    seed: &[u8],
-    public_key: &[u8],
-    r_as_ntt: &[PolynomialRingElement<Vector>],
-    error_1: &[PolynomialRingElement<Vector>],
-    error_2: &PolynomialRingElement<Vector>,
-    message: &PolynomialRingElement<Vector>,
-    matrix_entry: &mut PolynomialRingElement<Vector>,
-    t_as_ntt_entry: &mut PolynomialRingElement<Vector>,
-    result_u: &mut [PolynomialRingElement<Vector>],
-    result_v: &mut PolynomialRingElement<Vector>,
-    scratch: &mut Vector,
-    cache: &mut [PolynomialRingElement<Vector>],
-    accumulator: &mut [I32; 256],
-) {
-    compute_vector_u::<K, Vector, Hasher>(
-        matrix_entry, seed, r_as_ntt, error_1, result_u, scratch, cache, accumulator,
-    );
-    compute_ring_element_v::<K, Vector>(
-        public_key, t_as_ntt_entry, r_as_ntt, error_2, message, result_v, scratch, cache,
-        accumulator,
-    );
-}

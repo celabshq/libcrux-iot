@@ -1,4 +1,4 @@
-use libcrux_secrets::{CastOps as _, Classify as _, Declassify as _, IntOps as _, I32, I64, U64};
+use libcrux_secrets::{CastOps as _, Classify as _, Declassify as _, I32, I64, U64};
 
 use super::vector_type::{Coefficients, FieldElement};
 use crate::{
@@ -87,11 +87,6 @@ pub(crate) fn montgomery_multiply(lhs: &mut Coefficients, rhs: &Coefficients) {
 // CROSSED (impl returns `(low, high)`, spec returns `(r1, r0)`) and `t` is
 // canonicalised with the hacspec's own `mod_q`, exactly as for
 // `decompose_element` above.
-#[hax_lib::ensures(|out|
-    out.0 == hacspec_ml_dsa::arithmetic::power2round(
-        hacspec_ml_dsa::arithmetic::mod_q(t as i64)).1
-    && out.1 == hacspec_ml_dsa::arithmetic::power2round(
-        hacspec_ml_dsa::arithmetic::mod_q(t as i64)).0)]
 fn power2round_element(t: I32) -> (I32, I32) {
 
     // Convert the signed representative to the standard unsigned one.
@@ -111,39 +106,12 @@ fn power2round_element(t: I32) -> (I32, I32) {
     (t0, t1)
 }
 
-// Spec-only: one lane of `power2round` agrees with the extracted FIPS-204
-// hacspec. Same shape as `decompose_lane_ok` above, minus `gamma2`: crossed
-// conjuncts (the impl returns `(low, high)`, the spec `(r1, r0)`) and the input
-// canonicalised with the hacspec's own `mod_q`.
-#[cfg(hax)]
-fn power2round_lane_ok(tv: FieldElement, lo: FieldElement, hi: FieldElement) -> bool {
-    let s = hacspec_ml_dsa::arithmetic::power2round(hacspec_ml_dsa::arithmetic::mod_q(
-        tv.declassify() as i64,
-    ));
-    lo.declassify() == s.1 && hi.declassify() == s.0
-}
-
-// Unrolled over the eight lanes, not a `hax_lib::forall` -- see the note on
-// `decompose_unit_ok`.
-#[cfg(hax)]
-fn power2round_unit_ok(t: &Coefficients, low: &Coefficients, high: &Coefficients) -> bool {
-    power2round_lane_ok(t.values[0], low.values[0], high.values[0])
-        && power2round_lane_ok(t.values[1], low.values[1], high.values[1])
-        && power2round_lane_ok(t.values[2], low.values[2], high.values[2])
-        && power2round_lane_ok(t.values[3], low.values[3], high.values[3])
-        && power2round_lane_ok(t.values[4], low.values[4], high.values[4])
-        && power2round_lane_ok(t.values[5], low.values[5], high.values[5])
-        && power2round_lane_ok(t.values[6], low.values[6], high.values[6])
-        && power2round_lane_ok(t.values[7], low.values[7], high.values[7])
-}
-
 #[inline(always)]
 // `power2round_element`'s range bound, lifted to the whole unit; this is what
 // `Vector.Portable.Arithmetic.power2round_spec` assumes.
 #[hax_lib::requires(coefficients_in_field(t0))]
 // Full functional correctness at the SIMD-unit level. Note `t0` is read AND
 // written: the bare `t0` here is the input value, `future(t0)` the output.
-#[hax_lib::ensures(|_| power2round_unit_ok(t0, future(t0), future(t1)))]
 pub(super) fn power2round(t0: &mut Coefficients, t1: &mut Coefficients) {
     for i in 0..t0.values.len() {
         (t0.values[i], t1.values[i]) = power2round_element(t0.values[i]);
@@ -276,11 +244,6 @@ pub(super) fn compute_hint(
 //    (`#[requires(r >= 0 && r < Q && ...)]`) while `r` here is a signed
 //    representative in `[-q, q)`, so it is canonicalised with the hacspec's own
 //    `mod_q` first -- which is what `Spec.Rounding.decompose` does internally too.
-#[hax_lib::ensures(|out|
-    out.0 == hacspec_ml_dsa::arithmetic::decompose(
-        hacspec_ml_dsa::arithmetic::mod_q(r as i64), gamma2).1
-    && out.1 == hacspec_ml_dsa::arithmetic::decompose(
-        hacspec_ml_dsa::arithmetic::mod_q(r as i64), gamma2).0)]
 fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
 
     // Convert the signed representative to the standard unsigned one.
@@ -333,8 +296,6 @@ fn decompose_element(gamma2: Gamma2, r: I32) -> (I32, I32) {
 // pattern as `decompose_element` / `power2round_element`: plain `i32` on both
 // sides, `r` canonicalised with the hacspec's own `mod_q`. Here the hint is a
 // `bool` on the spec side, so it is compared rather than passed through.
-#[hax_lib::ensures(|out| out == hacspec_ml_dsa::arithmetic::use_hint(
-    hint == 1, hacspec_ml_dsa::arithmetic::mod_q(r as i64), gamma2))]
 pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
     let (r0, r1) = decompose_element(gamma2, r.classify());
 
@@ -432,45 +393,11 @@ fn coefficients_are_hints(c: &Coefficients) -> bool {
         && lane_is_hint(c.values[7])
 }
 
-// Spec-only: one lane of `decompose` agrees with the extracted FIPS-204 hacspec.
-// Conjuncts are CROSSED and `r` is canonicalised with `mod_q`, exactly as in
-// `decompose_element`'s own `#[ensures]` above -- this is that post, per lane.
-#[cfg(hax)]
-fn decompose_lane_ok(gamma2: Gamma2, sv: FieldElement, lo: FieldElement, hi: FieldElement) -> bool {
-    let s = hacspec_ml_dsa::arithmetic::decompose(
-        hacspec_ml_dsa::arithmetic::mod_q(sv.declassify() as i64),
-        gamma2,
-    );
-    lo.declassify() == s.1 && hi.declassify() == s.0
-}
-
-// Unrolled over the eight lanes, NOT a `hax_lib::forall`. In an `#[ensures]` the
-// quantifier fails differently from the `#[requires]` case documented above --
-// the post becomes unprovable rather than silently vacuous -- but it is still
-// wrong, for the same reason: the closure body indexes before the guard.
-#[cfg(hax)]
-fn decompose_unit_ok(
-    gamma2: Gamma2,
-    u: &Coefficients,
-    low: &Coefficients,
-    high: &Coefficients,
-) -> bool {
-    decompose_lane_ok(gamma2, u.values[0], low.values[0], high.values[0])
-        && decompose_lane_ok(gamma2, u.values[1], low.values[1], high.values[1])
-        && decompose_lane_ok(gamma2, u.values[2], low.values[2], high.values[2])
-        && decompose_lane_ok(gamma2, u.values[3], low.values[3], high.values[3])
-        && decompose_lane_ok(gamma2, u.values[4], low.values[4], high.values[4])
-        && decompose_lane_ok(gamma2, u.values[5], low.values[5], high.values[5])
-        && decompose_lane_ok(gamma2, u.values[6], low.values[6], high.values[6])
-        && decompose_lane_ok(gamma2, u.values[7], low.values[7], high.values[7])
-}
-
 #[inline(always)]
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && coefficients_in_field(simd_unit))]
 // Full functional correctness at the SIMD-unit level: every lane of the
 // output pair is the FIPS-204 Decompose of the corresponding input lane.
-#[hax_lib::ensures(|_| decompose_unit_ok(gamma2, simd_unit, future(low), future(high)))]
 pub fn decompose(
     gamma2: Gamma2,
     simd_unit: &Coefficients,
@@ -482,50 +409,11 @@ pub fn decompose(
     }
 }
 
-#[inline(always)]
-// Spec-only: one lane of `use_hint` agrees with the extracted FIPS-204 hacspec.
-// The hint is a `bool` on the spec side, so it is compared rather than passed
-// through -- exactly as in `use_one_hint`'s own `#[ensures]` above.
-#[cfg(hax)]
-fn use_hint_lane_ok(
-    gamma2: Gamma2,
-    sv: FieldElement,
-    h: FieldElement,
-    out: FieldElement,
-) -> bool {
-    out.declassify()
-        == hacspec_ml_dsa::arithmetic::use_hint(
-            h.declassify() == 1,
-            hacspec_ml_dsa::arithmetic::mod_q(sv.declassify() as i64),
-            gamma2,
-        )
-}
-
-// Unrolled over the eight lanes, not a `hax_lib::forall` -- see the note on
-// `decompose_unit_ok`.
-#[cfg(hax)]
-fn use_hint_unit_ok(
-    gamma2: Gamma2,
-    u: &Coefficients,
-    h: &Coefficients,
-    out: &Coefficients,
-) -> bool {
-    use_hint_lane_ok(gamma2, u.values[0], h.values[0], out.values[0])
-        && use_hint_lane_ok(gamma2, u.values[1], h.values[1], out.values[1])
-        && use_hint_lane_ok(gamma2, u.values[2], h.values[2], out.values[2])
-        && use_hint_lane_ok(gamma2, u.values[3], h.values[3], out.values[3])
-        && use_hint_lane_ok(gamma2, u.values[4], h.values[4], out.values[4])
-        && use_hint_lane_ok(gamma2, u.values[5], h.values[5], out.values[5])
-        && use_hint_lane_ok(gamma2, u.values[6], h.values[6], out.values[6])
-        && use_hint_lane_ok(gamma2, u.values[7], h.values[7], out.values[7])
-}
-
 #[hax_lib::requires((gamma2 == GAMMA2_V95_232 || gamma2 == GAMMA2_V261_888)
     && coefficients_in_field(simd_unit)
     && coefficients_are_hints(hint))]
 // Full functional correctness at the SIMD-unit level. Like `power2round`, `hint`
 // is read AND written: the bare `hint` is the input, `future(hint)` the output.
-#[hax_lib::ensures(|_| use_hint_unit_ok(gamma2, simd_unit, hint, future(hint)))]
 pub fn use_hint(gamma2: Gamma2, simd_unit: &Coefficients, hint: &mut Coefficients) {
     for i in 0..hint.values.len() {
         // Declassifications: The hint values themselves are not

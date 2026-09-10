@@ -135,90 +135,90 @@ def ind_cpa.decrypt.closure (Vector : Type) (K : Std.Usize) (CIPHERTEXT_SIZE :
 Unit
 
 /-- [libcrux_iot_ml_kem::matrix::lift_poly::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 19:25-23:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 22:25-26:5 -/
 @[reducible]
 def matrix.lift_poly.closure (Vector : Type) :=
   polynomial.PolynomialRingElement Vector
 
 /-- [libcrux_iot_ml_kem::matrix::lift_vec::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 31:25-31:45 -/
+    Source: 'ml-kem/src/matrix.rs', lines 34:25-34:45 -/
 @[reducible]
 def matrix.lift_vec.closure (Vector : Type) (K : Std.Usize) :=
   Array (polynomial.PolynomialRingElement Vector) K
 
 /-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 40:25-40:83 -/
+    Source: 'ml-kem/src/matrix.rs', lines 43:25-43:83 -/
 @[reducible]
 def matrix.lift_matrix_from_slice.closure (Vector : Type) (K : Std.Usize) :=
   Slice (polynomial.PolynomialRingElement Vector)
 
 /-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_slice::closure::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 40:50-40:82 -/
+    Source: 'ml-kem/src/matrix.rs', lines 43:50-43:82 -/
 def matrix.lift_matrix_from_slice.closure.closure (Vector : Type) (K :
   Std.Usize) :=
   Slice (polynomial.PolynomialRingElement Vector) × Std.Usize
 
 /-- [libcrux_iot_ml_kem::matrix::lift_vec_slice::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 48:25-48:45 -/
+    Source: 'ml-kem/src/matrix.rs', lines 51:25-51:45 -/
 @[reducible]
 def matrix.lift_vec_slice.closure (Vector : Type) (K : Std.Usize) :=
   Slice (polynomial.PolynomialRingElement Vector)
 
 /-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 59:25-65:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 62:25-68:5 -/
 @[reducible]
 def matrix.lift_matrix_from_seed.closure (Vector : Type) (Hasher : Type) (K :
   Std.Usize) :=
   Slice Std.U8
 
 /-- [libcrux_iot_ml_kem::matrix::lift_matrix_from_seed::closure::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 60:29-64:9 -/
+    Source: 'ml-kem/src/matrix.rs', lines 63:29-67:9 -/
 def matrix.lift_matrix_from_seed.closure.closure (Vector : Type) (Hasher :
   Type) (K : Std.Usize) :=
   Slice Std.U8 × Std.Usize
 
 /-- [libcrux_iot_ml_kem::matrix::lift_t_as_ntt_from_public_key::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 76:25-83:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 79:25-86:5 -/
 @[reducible]
 def matrix.lift_t_as_ntt_from_public_key.closure (Vector : Type) (K :
   Std.Usize) :=
   Slice Std.U8
 
 /-- [libcrux_iot_ml_kem::matrix::compute_cache::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 95:25-101:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 98:25-104:5 -/
 @[reducible]
 def matrix.compute_cache.closure (Vector : Type) (K : Std.Usize) :=
   Slice (polynomial.PolynomialRingElement Vector)
 
 /-- [libcrux_iot_ml_kem::matrix::poly_matches::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 135:20-141:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 138:20-144:5 -/
 def matrix.poly_matches.closure (Vector : Type) :=
   polynomial.PolynomialRingElement Vector × Array
   hacspec_ml_kem.parameters.FieldElement 256#usize
 
 /-- [libcrux_iot_ml_kem::matrix::vec_matches::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 151:20-160:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 154:20-163:5 -/
 def matrix.vec_matches.closure (Vector : Type) (K : Std.Usize) :=
   Slice (polynomial.PolynomialRingElement Vector) × Array (Array
   hacspec_ml_kem.parameters.FieldElement 256#usize) K
 
 /-- [libcrux_iot_ml_kem::matrix::vec_bnd::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 225:20-231:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 228:20-234:5 -/
 def matrix.vec_bnd.closure (Vector : Type) (K : Std.Usize) :=
   Array (polynomial.PolynomialRingElement Vector) K × Std.I16
 
 /-- [libcrux_iot_ml_kem::matrix::vec_slice_bnd::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 241:20-247:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 244:20-250:5 -/
 def matrix.vec_slice_bnd.closure (Vector : Type) (K : Std.Usize) :=
   Slice (polynomial.PolynomialRingElement Vector) × Std.I16
 
 /-- [libcrux_iot_ml_kem::matrix::matrix_slice_bnd::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 257:20-263:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 260:20-266:5 -/
 def matrix.matrix_slice_bnd.closure (Vector : Type) (K : Std.Usize) :=
   Slice (polynomial.PolynomialRingElement Vector) × Std.I16
 
 /-- [libcrux_iot_ml_kem::matrix::acc_zero::closure]
-    Source: 'ml-kem/src/matrix.rs', lines 270:20-276:5 -/
+    Source: 'ml-kem/src/matrix.rs', lines 273:20-279:5 -/
 @[reducible]
 def matrix.acc_zero.closure := Array Std.I32 256#usize
 

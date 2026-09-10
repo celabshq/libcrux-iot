@@ -212,29 +212,6 @@ theorem
 
 @[spec]
 theorem
-  matrix.compute_u_and_v.spec.proof {Vector : Type} {Hasher : Type} (K :
-                                   Std.Usize) (vectortraitsOperationsInst :
-                                   vector.traits.Operations Vector)
-                                   (hash_functionsHashInst :
-                                   hash_functions.Hash Hasher)
-  (seed : Slice Std.U8) (public_key : Slice Std.U8)
-  (r_as_ntt : Slice (polynomial.PolynomialRingElement Vector))
-  (error_1 : Slice (polynomial.PolynomialRingElement Vector))
-  (error_2 : polynomial.PolynomialRingElement Vector)
-  (message : polynomial.PolynomialRingElement Vector)
-  (matrix_entry : polynomial.PolynomialRingElement Vector)
-  (t_as_ntt_entry : polynomial.PolynomialRingElement Vector)
-  (result_u : Slice (polynomial.PolynomialRingElement Vector))
-  (result_v : polynomial.PolynomialRingElement Vector) (scratch : Vector)
-  (cache : Slice (polynomial.PolynomialRingElement Vector))
-  (accumulator : Array Std.I32 256#usize) :
-  matrix.compute_u_and_v.spec K vectortraitsOperationsInst
-  hash_functionsHashInst seed public_key r_as_ntt error_1 error_2 message
-  matrix_entry t_as_ntt_entry result_u result_v scratch cache accumulator
-  := by sorry
-
-@[spec]
-theorem
   serialize.compress_then_serialize_message.spec.proof {Vector : Type}
                                                       (vectortraitsOperationsInst
                                                       :

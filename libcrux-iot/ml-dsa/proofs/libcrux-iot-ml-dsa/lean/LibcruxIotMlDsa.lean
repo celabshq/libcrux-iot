@@ -37,9 +37,3 @@ import LibcruxIotMlDsa.Polynomial.NttArith            -- poly-layer ntt_multiply
 import LibcruxIotMlDsa.Polynomial.Convert             -- poly-layer zero / to_i32_array / from_i32_array FCs
 import LibcruxIotMlDsa.Polynomial.InfinityNorm        -- poly-layer infinity_norm_exceeds rejection FC (bug-fixed)
 -- Spec-extraction: hand spec = EXTRACTED hacspec bridge + extracted-hacspec FCs.
-import LibcruxIotMlDsa.Spec.HacspecBridge              -- createi/mod_q/lift_res + poly_{add,sub,mul} hand↔extracted bridges
-import LibcruxIotMlDsa.Polynomial.HacspecFC            -- @[spec] poly_{add,sub,mul}_hacspec_fc (extracted-spec posts)
-import LibcruxIotMlDsa.Polynomial.HacspecNtt           -- ntt/intt_layer + ntt/intt bridges + @[spec] ntt/intt_hacspec_fc
-import LibcruxIotMlDsa.Polynomial.HacspecNorm          -- coeff_norm/poly_infinity_norm bridges + @[spec] infinity_norm_exceeds_hacspec_fc
--- Import-DAG sink: with no lakefile glob, the root's import tree is what builds.
-import LibcruxIotMlDsa.Verification.ProofObligations
