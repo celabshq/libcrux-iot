@@ -287,7 +287,7 @@ fn bn_sqr4(res: &mut [u64], x: &[u64]) {
 }
 
 #[inline]
-fn bn_to_bytes_be4(res: &mut [u8], f: &[u64]) {
+pub(crate) fn bn_to_bytes_be4(res: &mut [u8], f: &[u64]) {
     let tmp: [u8; 32] = [0u8; 32usize];
     lowstar::ignore::ignore::<&[u8]>(&tmp);
     krml::unroll_for!(
@@ -303,7 +303,7 @@ fn bn_to_bytes_be4(res: &mut [u8], f: &[u64]) {
 }
 
 #[inline]
-fn bn_from_bytes_be4(res: &mut [u64], b: &[u8]) {
+pub(crate) fn bn_from_bytes_be4(res: &mut [u64], b: &[u8]) {
     krml::unroll_for!(4, "i", 0u32, 1u32, {
         let u: u64 = lowstar::endianness::load64_be(
             &b[4u32.wrapping_sub(i).wrapping_sub(1u32).wrapping_mul(8u32) as usize..],
@@ -733,7 +733,7 @@ fn fsqrt(res: &mut [u64], a: &[u64]) {
 }
 
 #[inline]
-fn make_base_point(p: &mut [u64]) {
+pub(crate) fn make_base_point(p: &mut [u64]) {
     let x: (&mut [u64], &mut [u64]) = p.split_at_mut(0usize);
     let y: (&mut [u64], &mut [u64]) = x.1.split_at_mut(4usize);
     let z: (&mut [u64], &mut [u64]) = y.1.split_at_mut(4usize);
@@ -839,14 +839,14 @@ fn aff_point_store(res: &mut [u8], p: &[u64]) {
 }
 
 #[inline]
-fn point_store(res: &mut [u8], p: &[u64]) {
+pub(crate) fn point_store(res: &mut [u8], p: &[u64]) {
     let mut aff_p: [u64; 8] = [0u64; 8usize];
     crate::p256::to_aff_point(&mut aff_p, p);
     crate::p256::aff_point_store(res, &aff_p)
 }
 
 #[inline]
-fn aff_point_load_vartime(p: &mut [u64], b: &[u8]) -> bool {
+pub(crate) fn aff_point_load_vartime(p: &mut [u64], b: &[u8]) -> bool {
     let p_x: (&[u8], &[u8]) = b.split_at(0usize);
     let p_y: (&[u8], &[u8]) = p_x.1.split_at(32usize);
     let bn_p_x: (&mut [u64], &mut [u64]) = p.split_at_mut(0usize);
@@ -867,7 +867,7 @@ fn aff_point_load_vartime(p: &mut [u64], b: &[u8]) -> bool {
 }
 
 #[inline]
-fn load_point_vartime(p: &mut [u64], b: &[u8]) -> bool {
+pub(crate) fn load_point_vartime(p: &mut [u64], b: &[u8]) -> bool {
     let mut p_aff: [u64; 8] = [0u64; 8usize];
     let res: bool = crate::p256::aff_point_load_vartime(&mut p_aff, b);
     if res {
@@ -1135,7 +1135,7 @@ fn point_add(res: &mut [u64], p: &[u64], q: &[u64]) {
 }
 
 #[inline]
-fn point_mul(res: &mut [u64], scalar: &[u64], p: &[u64]) {
+pub(crate) fn point_mul(res: &mut [u64], scalar: &[u64], p: &[u64]) {
     let mut table: [u64; 192] = [0u64; 192usize];
     let mut tmp: [u64; 12] = [0u64; 12usize];
     let t0: (&mut [u64], &mut [u64]) = table.split_at_mut(0usize);
@@ -1403,7 +1403,7 @@ fn bn_is_lt_order_mask4(f: &[u64]) -> u64 {
 }
 
 #[inline]
-fn bn_is_lt_order_and_gt_zero_mask4(f: &[u64]) -> u64 {
+pub(crate) fn bn_is_lt_order_and_gt_zero_mask4(f: &[u64]) -> u64 {
     let is_lt_order: u64 = crate::p256::bn_is_lt_order_mask4(f);
     let is_eq_zero: u64 = crate::p256::bn_is_zero_mask4(f);
     is_lt_order & !is_eq_zero

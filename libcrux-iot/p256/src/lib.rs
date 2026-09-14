@@ -17,5 +17,8 @@ mod p256_precomptable;
 
 pub struct P256;
 
+#[cfg(feature = "embedded-cal")]
+pub mod embedded_cal_integration;
+
 #[cfg(feature = "expose-hacl")]
 pub use p256::*;
