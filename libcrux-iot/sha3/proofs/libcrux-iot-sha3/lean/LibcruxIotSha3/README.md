@@ -21,9 +21,9 @@ The functional correctness property of the `keccak` function is stated as follow
 ```rust
 #[hax_lib::requires(RATE > 0 && RATE % 8 == 0 && RATE <= 168)]
 #[hax_lib::ensures(|_| {
-    let mut result = out;
-    keccak::<RATE, DELIM>(data, &mut result);
-    result.declassify() == hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data.declassify_ref())
+    let mut out = out;
+    keccak::<RATE, DELIM>(data, &mut out);
+    out.declassify() == hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data.declassify_ref())
 })]
 pub(crate) fn keccak_fc<const RATE: usize, const DELIM: u8, const OUT_LEN: usize>(
     data: &[U8],
@@ -55,9 +55,9 @@ The functional correctness of the SHA-3 and SHAKE functions in [`src/lib.rs`](..
 is specified using Rust annotations directly on the functions. For example:
 
 ```rust
-#[cfg_attr(hax, hax_lib::requires(BYTES <= u32::MAX as usize))]
-#[cfg_attr(hax, hax_lib::ensures(|out| out.declassify()
-    == hacspec_sha3::shake128::<BYTES>(data.declassify_ref())))]
+#[hax_lib::requires(BYTES <= u32::MAX as usize)]
+#[hax_lib::ensures(|out| out.declassify()
+    == hacspec_sha3::shake128::<BYTES>(data.declassify_ref()))]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES]
 ```
 Informally: the IOT-friendly implementation `shake128` yields the same result as
