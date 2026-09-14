@@ -1,10 +1,10 @@
 use std::any::type_name_of_val;
 
-use libcrux_kats::wycheproof::{ecdh, ecdsa, TestResult};
 use libcrux_iot_p256::{
     compressed_to_raw, ecdh_api::EcdhSlice, ecdsa_verif_p256_sha2, ecdsa_verif_p256_sha512,
     uncompressed_to_raw,
 };
+use libcrux_kats::wycheproof::{ecdh, ecdsa, TestResult};
 
 fn pad_slice_to_arr(b: &[u8]) -> [u8; 32] {
     let mut out = [0u8; 32];
