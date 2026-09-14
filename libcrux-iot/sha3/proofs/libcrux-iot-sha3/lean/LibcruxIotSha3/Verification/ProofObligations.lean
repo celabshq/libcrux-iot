@@ -11,45 +11,60 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
   `#[hax_lib::ensures]` annotations on the Rust. For each annotated function it
   emits
 
-    * `<fn>.pre  : … → RustM Bool`  -- the `requires` clause, and
+    * `<fn>.pre  : … → RustM Bool`  -- the `requires` clause,
+    * `<fn>.post : … → RustM Bool`  -- the `ensures` clause, when there is one, and
     * `<fn>.spec : Prop := (<fn>.pre args).holds → ⦃⌜True⌝⦄ <fn> args ⦃⇓ res => ⌜post⌝⦄`
 
-  where `post` is `⌜True⌝` when the function has no `ensures`. hax also emits an
-  `Extraction/ProofObligations.lean` with `@[spec] theorem <fn>.spec.proof … := by
-  sorry` for every one of them; the extraction driver DROPS that file, because its
-  bodies are `sorry` and every one is `@[spec]`-tagged, so keeping it would both
-  put sorries in the build and feed unproved specs to `hax_mvcgen`. This file
-  discharges the ones that matter instead.
+  where `post` is `⌜True⌝` when the function has no `ensures`. hax also emits
+  `Extraction/ProofObligations.lean`, one `@[spec] theorem <fn>.spec.proof … := by
+  sorry` per obligation (46 of them). That file stays on disk but is imported by
+  nothing: the lakefile has no `globs`, so the build follows the root module's
+  import tree and leaves it out -- otherwise its sorries would enter the build and
+  feed unproved `@[spec]` lemmas to `hax_mvcgen`. This file discharges the ones
+  that matter instead.
 
   ## What is actually being proved
 
-  The two SHAKE entry points carry `requires` but no `ensures`, so their generated
-  `post` is `⌜True⌝` and `<fn>.spec` says exactly: **under the Rust-annotated
-  precondition, the function neither panics nor diverges**. That follows from the
-  functional-correctness Triple by post-weakening (`triple_true_of_triple`).
+  Every obligation below is discharged by PRODUCING the generated post, not by
+  weakening it: each of these entry points names its hacspec counterpart in its
+  `#[ensures]`.
 
-  The four `*_ema` entry points now also carry
-  `#[ensures(|_| future(digest).len() == SHA3_<n>_DIGEST_SIZE)]`, added so the
-  generated spec says something closer to what the Lean theorems actually prove.
-  Their `post` is therefore a REAL property, and it is one of the conjuncts
-  `Sponge.sha<n>_ema_spec` already establishes, so those four are discharged by
-  producing the post rather than by weakening it.
+    * `shake128` / `shake256` -- the array-returning wrappers -- compare the
+      `[U8; BYTES]` result to `hacspec_sha3::shake{128,256}::<BYTES>(data)`
+      directly, so the post ends in CoreModels' array `==`.
 
-  The content is therefore not in the weakening -- it is in the PRECONDITION
-  MATCH. The four `*_ema` theorems carry hand-written hypotheses
-  (`payload.length ≤ 4294967295` and `digest.length = 28/32/48/64`) that a human
-  wrote by reading the Rust. Deriving exactly those from the *generated* `.pre` is
-  what checks that the hand-written hypotheses really are the annotated
-  precondition rather than a convenient approximation of it. A mismatch there is
-  precisely the kind of gap that makes a green development mean less than it
-  looks, and it stays invisible until the two are connected as they are here.
+    * The four `*_ema` entry points carry
+      `#[ensures(|_| future(digest).declassify_ref()
+          == &hacspec_sha3::sha3_<n>(payload.declassify_ref())[..])]`,
+      so their post is the full functional claim -- the digest IS the FIPS-202
+      hash of the payload -- which is exactly what `Sponge.sha<n>_ema_spec`
+      establishes. (The annotation used to lead with a second conjunct,
+      `future(digest).len() == SHA3_<n>_DIGEST_SIZE`. The equality subsumes it, so
+      it was dropped. The length is still needed INSIDE each proof -- it is what
+      turns the theorem's byte-wise agreement into the list equality the slice
+      `==` reduces to -- but it now comes from the theorem rather than from the
+      generated post.)
 
-  What this does NOT establish: the two SHAKE entry points have a `requires`
-  (`BYTES <= u32::MAX`) that their correctness theorems never needed, so for those
-  the generated precondition is introduced and discarded. That is sound -- a
-  theorem proved without a hypothesis certainly holds with it -- but it means the
-  SHAKE obligations add no information beyond what `Sponge/Shake.lean` already
-  had. The `*_ema` four are where this file has real content.
+    * `keccak`'s correctness rides on the body-less, proof-only `keccak_fc`; see
+      its own section below.
+
+  For the `*_ema` four a second thing is being checked: the PRECONDITION MATCH.
+  Those theorems carry hand-written hypotheses (`payload.length ≤ 4294967295` and
+  `digest.length = 28/32/48/64`) that a human wrote by reading the Rust. Deriving
+  exactly those from the *generated* `.pre` is what checks that the hand-written
+  hypotheses really are the annotated precondition rather than a convenient
+  approximation of it. A mismatch there is precisely the kind of gap that makes a
+  green development mean less than it looks, and it stays invisible until the two
+  are connected as they are here.
+
+  What this does NOT establish: the SHAKE wrappers' `requires` (`BYTES <=
+  u32::MAX`) is a hypothesis their correctness theorems never needed, so both
+  proofs open with `intro _` and discard it. That is sound -- a theorem proved
+  without a hypothesis certainly holds with it -- but those two obligations check
+  the post match only, not the precondition match. And `shake128_ema` /
+  `shake256_ema` carry a `requires` with no `ensures`, so their obligations say
+  only "under the annotated precondition, this neither panics nor diverges"; they
+  are not discharged here and remain `sorry`ed in the unbuilt generated file.
 -/
 import LibcruxIotSha3.Extraction
 import LibcruxIotSha3.Sponge.Shake
@@ -59,22 +74,7 @@ open CoreModels Aeneas Aeneas.Std Std.Do
 
 namespace libcrux_iot_sha3.Verification
 
-/-! ## Two small bridges -/
-
-/-- A Triple with a `⌜True⌝` post says exactly "this computation does not fail
-    and does not diverge", so any stronger post implies it. -/
-private theorem triple_true_of_triple {α : Type} {x : RustM α} {P : α → Prop}
-    (h : ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ r => ⌜ P r ⌝ ⦄) :
-    ⦃ ⌜ True ⌝ ⦄ x ⦃ ⇓ _r => ⌜ True ⌝ ⦄ := by
-  -- `match hx : x` already rewrites `x` inside `h`, so no `rw [hx] at h` is needed.
-  match hx : x with
-  | .ok v => simp [Std.Do.Triple, WP.wp, PredTrans.apply]
-  | .fail e =>
-      exfalso; have h' := h
-      simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h'
-  | .div =>
-      exfalso; have h' := h
-      simp [Std.Do.Triple, WP.wp, PredTrans.apply] at h'
+/-! ## Small bridges between the generated shapes and the Lean theorems -/
 
 /-- Decoding a generated precondition. `<fn>.pre` is a `RustM Bool` while
     `RustM.holds` wants a `RustM Prop`, so the generated `.spec` inserts a
@@ -352,17 +352,9 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
       triple_exists_ok
         (Sponge.sha224_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
-    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_224_DIGEST_SIZE := by
-      apply Aeneas.Std.UScalar.eq_of_val_eq
-      rw [Aeneas.Std.Slice.len_val]
-      show v.val.length = _
-      rw [hv_len]
-      simp [libcrux_iot_sha3.SHA3_224_DIGEST_SIZE]
     have hpost : libcrux_iot_sha3.sha224_ema.post digest payload v = .ok true := by
-      simp only [libcrux_iot_sha3.sha224_ema.post,
-        CoreModels.core.slice.Slice.len,
-        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+      simp only [libcrux_iot_sha3.sha224_ema.post]
+      rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
         decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
@@ -391,17 +383,9 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
       triple_exists_ok
         (Sponge.sha256_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
-    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_256_DIGEST_SIZE := by
-      apply Aeneas.Std.UScalar.eq_of_val_eq
-      rw [Aeneas.Std.Slice.len_val]
-      show v.val.length = _
-      rw [hv_len]
-      simp [libcrux_iot_sha3.SHA3_256_DIGEST_SIZE]
     have hpost : libcrux_iot_sha3.sha256_ema.post digest payload v = .ok true := by
-      simp only [libcrux_iot_sha3.sha256_ema.post,
-        CoreModels.core.slice.Slice.len,
-        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+      simp only [libcrux_iot_sha3.sha256_ema.post]
+      rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
         decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
@@ -430,17 +414,9 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
       triple_exists_ok
         (Sponge.sha384_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
-    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_384_DIGEST_SIZE := by
-      apply Aeneas.Std.UScalar.eq_of_val_eq
-      rw [Aeneas.Std.Slice.len_val]
-      show v.val.length = _
-      rw [hv_len]
-      simp [libcrux_iot_sha3.SHA3_384_DIGEST_SIZE]
     have hpost : libcrux_iot_sha3.sha384_ema.post digest payload v = .ok true := by
-      simp only [libcrux_iot_sha3.sha384_ema.post,
-        CoreModels.core.slice.Slice.len,
-        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+      simp only [libcrux_iot_sha3.sha384_ema.post]
+      rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
         decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
@@ -469,17 +445,9 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
       triple_exists_ok
         (Sponge.sha512_ema_spec digest payload (payload_len_le hcond) hlen)
     refine triple_of_ok hv_eq ?_
-    have hlen_usize : Aeneas.Std.Slice.len v = libcrux_iot_sha3.SHA3_512_DIGEST_SIZE := by
-      apply Aeneas.Std.UScalar.eq_of_val_eq
-      rw [Aeneas.Std.Slice.len_val]
-      show v.val.length = _
-      rw [hv_len]
-      simp [libcrux_iot_sha3.SHA3_512_DIGEST_SIZE]
     have hpost : libcrux_iot_sha3.sha512_ema.post digest payload v = .ok true := by
-      simp only [libcrux_iot_sha3.sha512_ema.post,
-        CoreModels.core.slice.Slice.len,
-        CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok]
-      rw [if_pos hlen_usize, decl_ref_eq v, Aeneas.Std.bind_tc_ok,
+      simp only [libcrux_iot_sha3.sha512_ema.post]
+      rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
         decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)

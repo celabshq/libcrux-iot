@@ -184,8 +184,7 @@ pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_224_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_224_DIGEST_SIZE)]
-#[hax_lib::ensures(|_| future(digest).len() == SHA3_224_DIGEST_SIZE
-    && future(digest).declassify_ref()
+#[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3::sha3_224(payload.declassify_ref())[..])]
 pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
@@ -214,8 +213,7 @@ pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_256_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE)]
-#[hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
-    && future(digest).declassify_ref()
+#[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
@@ -244,8 +242,7 @@ pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_384_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_384_DIGEST_SIZE)]
-#[hax_lib::ensures(|_| future(digest).len() == SHA3_384_DIGEST_SIZE
-    && future(digest).declassify_ref()
+#[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3::sha3_384(payload.declassify_ref())[..])]
 pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]
@@ -274,8 +271,7 @@ pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
 /// - `payload` is at most `u32::MAX` bytes long
 /// - `digest` is exactly [`SHA3_512_DIGEST_SIZE`] bytes long
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_512_DIGEST_SIZE)]
-#[hax_lib::ensures(|_| future(digest).len() == SHA3_512_DIGEST_SIZE
-    && future(digest).declassify_ref()
+#[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3::sha3_512(payload.declassify_ref())[..])]
 pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
     #[cfg(not(eurydice))]

@@ -55,24 +55,24 @@ inductive Algorithm where
 | Sha512 : Algorithm
 
 /-- Trait declaration: [libcrux_iot_sha3::incremental::private::Sealed]
-    Source: 'sha3/src/lib.rs', lines 360:8-360:27
+    Source: 'sha3/src/lib.rs', lines 356:8-356:27
     Visibility: public -/
 structure incremental.private.Sealed (Self : Type) where
 
 /-- [libcrux_iot_sha3::incremental::Shake128Xof]
-    Source: 'sha3/src/lib.rs', lines 367:4-369:5
+    Source: 'sha3/src/lib.rs', lines 363:4-365:5
     Visibility: public -/
 structure incremental.Shake128Xof where
   state : keccak.KeccakXofState 168#usize
 
 /-- [libcrux_iot_sha3::incremental::Shake256Xof]
-    Source: 'sha3/src/lib.rs', lines 372:4-374:5
+    Source: 'sha3/src/lib.rs', lines 368:4-370:5
     Visibility: public -/
 structure incremental.Shake256Xof where
   state : keccak.KeccakXofState 136#usize
 
 /-- Trait declaration: [libcrux_iot_sha3::incremental::Xof]
-    Source: 'sha3/src/lib.rs', lines 379:4-418:5
+    Source: 'sha3/src/lib.rs', lines 375:4-414:5
     Visibility: public -/
 structure incremental.Xof (Self : Type) (RATE : Std.Usize) where
   privateSealedInst : incremental.private.Sealed Self

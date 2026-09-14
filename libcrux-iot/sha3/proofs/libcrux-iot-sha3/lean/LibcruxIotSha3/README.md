@@ -69,18 +69,13 @@ custom integer type `U8` and Rust's integers `u8`.
 
 ```rust
 #[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE)]
-#[hax_lib::ensures(|_| future(digest).len() == SHA3_256_DIGEST_SIZE
-    && future(digest).declassify_ref()
+#[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
 ```
 Informally: the IOT-friendly implementation `sha256_ema` yields the same result as
 `hacspec_sha3::sha3_256`. The precondition is that the payload length is at most
 `u32::MAX` and that the `digest` slice has the expected length.
-
-The first part of the `ensures` clause (`future(digest).len() == SHA3_256_DIGEST_SIZE`) seems
-redundant because a Rust function cannot change the length of a mutable slice reference.
-And for the Lean verification here, it is indeed unnecessary, but it is helpful for F* verification.
 
 The `[..]` is technically unnecessary, too, but we need it because hax's model of Rust core
 currently models `==` only between two slices or two arrays, not between one slice and one array.
