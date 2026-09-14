@@ -2,15 +2,11 @@
 
 This directory contains the Lean 4 proof that the Rust implementation of
 ML-DSA's **polynomial API** in `libcrux-iot/ml-dsa/src/` computes the same functions
-as the ML-DSA specification in `https://github.com/cryspen/libcrux/tree/main/specs`. Both sides are machine-extracted to Lean by the `cargo hax into lean` pipeline.
+as the ML-DSA specification in `https://github.com/cryspen/libcrux/tree/main/specs`. Both sides are machine-extracted to Lean by the hax/Lean pipeline.
 
 **Every** theorem below depends only on Lean's three standard axioms
-(`propext`, `Classical.choice`, `Quot.sound`). The two array-conversion theorems
-`to_i32_array_fc` / `from_i32_array_fc` used to additionally carry two
-**subslice** axioms; those are **discharged** as of the hax v0.4.0-rc.1 /
-aeneas nightly-2026.08.24 migration — see
-[the note below](#the-two-former-subslice-axioms-a1--a2). ML-DSA's polynomial
-API involves no sampling/XOF, so there are also **no deferred leaf axioms**.
+(`propext`, `Classical.choice`, `Quot.sound`). ML-DSA's polynomial API involves
+no sampling/XOF, so there are **no deferred leaf axioms** either.
 
 ## Top-level theorems — the `PolynomialRingElement` API
 
@@ -42,7 +38,6 @@ theorem ntt_hacspec_fc (re : PolynomialRingElement Coefficients)
 | `poly_add_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.add` | `hacspec_ml_dsa.polynomial.poly_add (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
 | `poly_sub_hacspec_fc` ([`Polynomial/HacspecFC.lean`](Polynomial/HacspecFC.lean)) | `…PolynomialRingElement.subtract` | `hacspec_ml_dsa.polynomial.poly_sub (lift_poly_res self) (lift_poly_res rhs) = .ok (lift_poly_res r)` |
 | `infinity_norm_exceeds_hacspec_fc` ([`Polynomial/HacspecNorm.lean`](Polynomial/HacspecNorm.lean)) | `…PolynomialRingElement.infinity_norm_exceeds` | `∃ n, hacspec_ml_dsa.polynomial.poly_infinity_norm (canon_raw self) = .ok n ∧ (r = decide (bound.val ≤ n.val))` (The spec does not have a direct equivalent to `infinity_norm_exceeds`. So the postcondition needs to establish equivalence using `poly_infinity_norm`.) |
-
 
 Four impl ops have no non-trivial counterpart in the spec (it treats them as
 identity / a constant / a copy), so they are stated as direct value equations:
@@ -92,51 +87,16 @@ drifts, so the table below is machine-checked.
 
 ### Per-theorem axiom status
 
-| Theorem | Standard | Subslice (A1/A2) |
-|---------|----------|------------------|
-| `ntt_hacspec_fc`, `intt_hacspec_fc`, `poly_add_hacspec_fc`, `poly_sub_hacspec_fc`, `poly_pointwise_mul_hacspec_fc`, `infinity_norm_exceeds_hacspec_fc`, `reduce_fc`, `zero_fc` | ✓ | — |
-| `from_i32_array_fc` | ✓ | discharged |
-| `to_i32_array_fc`   | ✓ | discharged |
+| Theorem | Standard | Anything else |
+|---------|----------|---------------|
+| `ntt_hacspec_fc`, `intt_hacspec_fc`, `poly_add_hacspec_fc`, `poly_sub_hacspec_fc`, `poly_pointwise_mul_hacspec_fc`, `infinity_norm_exceeds_hacspec_fc`, `reduce_fc`, `zero_fc`, `to_i32_array_fc`, `from_i32_array_fc` | ✓ | — |
 
 There are **no deferred leaf axioms** — unlike ML-KEM's matrix layer, the
 polynomial API involves no sampling/XOF/deserialization, so nothing is stated
-as an opaque leaf. Since A1/A2 are discharged, every theorem in the table is now
-proven down to the three standard axioms and nothing else.
+as an opaque leaf. Every theorem in the table is proven down to the three
+standard axioms and nothing else.
 
-### The two former subslice axioms (A1 / A2)
-
-**Resolved by the hax v0.4.0-rc.1 migration — no longer axioms.**
-
-The migration to mainline hax / the CoreModels v0.2 library introduced these:
-Aeneas's `Slice.subslice` / `Array.update_subslice` primitives required a
-**strict** `start < end` range and failed on empty ranges, whereas Rust's
-`&xs[i..i]` is a valid empty slice. The intended `≤` behaviour was localized to
-two `≤`-range specs tagged `AENEAS-SUBSLICE-STRICT` and *axiomatized*, to be
-discharged once the aeneas primitive was fixed:
-
-- **A1** `libcrux_iot_ml_dsa.Util.SliceSpecs.Slice.subslice_le_eq` — reading a
-  sub-slice `s[a..b]` for `a ≤ b ≤ s.length` returns `s.val.slice a b`.
-- **A2** `libcrux_iot_ml_dsa.Util.SliceSpecs.Array.update_subslice_le_eq` —
-  writing back a sub-slice over `a ≤ b ≤ length` yields the expected
-  `setSlice!`. (The slice-level `Slice.update_subslice_le_eq` is subsumed.)
-
-As of aeneas nightly-2026.08.24 all three primitives guard on `start ≤ end`, so
-the aeneas primitive **is** fixed and all three statements are now **theorems**
-proved directly from the definitions (`if_pos`/`dif_pos` + `rfl`), kept verbatim
-in [`Util/SliceSpecs.lean`](Util/SliceSpecs.lean) so no use site changed.
-
-This also closes a **soundness** gap, not merely a bookkeeping one. While the old
-model was strict, A1 asserted success exactly where the definition failed, so
-`False` was derivable from it at `s = ⟨[], _⟩`, `r = ⟨0,0⟩`. Because the
-`@[spec]`-tagged range-index specs are selected automatically by `hax_mvcgen` on
-any slice-range subscript, that axiom could be inherited without a deliberate
-citation. With A1/A2 discharged against the real definitions the exposure is gone:
-there is no longer an inconsistent axiom in the development to inherit. (ML-KEM's
-tree carried the same two axioms and closes them on the same fix.)
-
-Only `to_i32_array` / `from_i32_array` use range-slice reads/writes (packing the
-32×8 SIMD lanes into a flat 256-array and back), so only those two theorems ever
-depended on A1/A2. The remaining ML-DSA opaque functions in
+The remaining ML-DSA opaque functions in
 [`Extraction/FunsExternal.lean`](Extraction/FunsExternal.lean) (the
 encoding/sample/decompose entry points outside the polynomial API's scope) are
 `opaque` **definitions**, not axioms, so they do not appear in any theorem's
@@ -175,7 +135,7 @@ handled by the `lift` family in [`Spec/Lift.lean`](Spec/Lift.lean) (`liftZ`
 strips one Montgomery factor; `lift_poly` / `lift_poly_res` flatten the lanes).
 
 **3. Lean spec ↔ Rust spec.** The Rust spec is `hacspec_ml_dsa.*` — the
-`specs/ml-dsa` crate machine-extracted to Lean by the same `cargo hax` pipeline
+`specs/ml-dsa` crate machine-extracted to Lean by the same hax/Lean pipeline
 as the impl and wired in as the `HacspecMlDsa` Lake dependency. The *bridge*
 lemmas prove each `Spec.Pure.*` function equals its extracted `hacspec_ml_dsa.*`
 counterpart under the residue map: see

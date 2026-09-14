@@ -4,7 +4,7 @@ This directory contains the Lean 4 proof that the Rust implementation of
 ML-KEM's **matrix-arithmetic core** in `libcrux-iot/ml-kem/src/`
 computes the same functions as the hacspec-style specification in
 `https://github.com/cryspen/libcrux`. Both sides are auto-extracted via the
-`cargo hax into lean` pipeline; this directory then proves their
+hax/Lean pipeline; this directory then proves their
 functional-correctness (FC) equivalence.
 
 The four top-level results are the arithmetic heart of ML-KEM

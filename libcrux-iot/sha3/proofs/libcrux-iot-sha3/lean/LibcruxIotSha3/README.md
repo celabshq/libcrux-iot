@@ -6,7 +6,7 @@ the same function as the hacspec-style FIPS-202 specification in
 the `hacspec_sha3` crate (from
 [`cryspen/libcrux`](https://github.com/cryspen/libcrux)). Both sides are
 extracted from Rust into Lean
-via the `cargo hax into lean` pipeline. Most of the verification
+via the hax/Lean pipeline. Most of the verification
 code is AI-generated.
 
 ## Main theorems
