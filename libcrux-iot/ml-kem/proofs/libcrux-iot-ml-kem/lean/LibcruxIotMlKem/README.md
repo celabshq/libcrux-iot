@@ -16,54 +16,100 @@ trust boundary.
 
 ## Matrix-level theorems
 
-Each of the four functions has its functional correctness stated and proven on
-the Lean side, as the `*_fc` theorem named with the function below: the impl's
-result, lifted, equals the hacspec function applied to the lifted inputs, at the
-portable `Vector` instance. The Rust source ([`src/matrix.rs`](../../../../src/matrix.rs))
-carries only the length and bound `#[requires]` these functions need, not the
-correctness statement.
-
-The lifts that relate the two representations live on the Lean side, in
-[`Spec/Lift.lean`](Spec/Lift.lean): the impl uses potentially non-canonical
-values mod 3329, stores coefficients in the Montgomery domain, and stores ring
-elements as 16 SIMD-shaped chunks of 16 lanes each, whereas the spec uses
-canonical representatives, plain coefficients, and a flat array of 256 field
-elements.
+All four main results are `mvcgen` Triples of the form
+`⦃ True ⦄ <impl> ⦃ ⇓ p => ⌜ <hacspec> (lift args…) = .ok (lift p…) ⌝ ⦄`
+— i.e. they link the Aeneas-extracted impl to the hacspec spec through a `lift` bridge.
+The `lift` bridge accounts for different representations of the input/output data:
+The impl uses potentially non-canonical values mod 3329,
+stores coefficients in the Montgomery domain, and
+stores ring elements as 16 SIMD-shaped chunks of 16 lanes each.
+In contrast, the spec uses canonical representations, plain coefficients, 
+and a flat array of 256 field elements.
 
 ### L7.1 — key generation: `Â · ŝ + ê`
 
-The impl's `compute_As_plus_e`, lifted, equals the hacspec `compute_As_plus_e`.
-The matrix is read from a **stored** array, so this result is fully axiom-clean.
-Stated and proven as `Matrix.ComputeAsPlusE.compute_As_plus_e_fc`
-([`Matrix/ComputeAsPlusE.lean`](Matrix/ComputeAsPlusE.lean)).
+[`Matrix/ComputeAsPlusE.lean`](Matrix/ComputeAsPlusE.lean) — `libcrux_iot_ml_kem.Matrix.ComputeAsPlusE.compute_As_plus_e_fc`:
+
+```lean
+⦃ ⌜ True ⌝ ⦄
+  libcrux_iot_ml_kem.matrix.compute_As_plus_e
+    (vectortraitsOperationsInst := portable_ops_inst)
+    t_as_ntt matrix_A s_as_ntt error_as_ntt s_cache accumulator
+⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_As_plus_e
+              (lift_matrix_from_slice matrix_A K)
+              (lift_vec s_as_ntt) (lift_vec error_as_ntt)
+            = .ok (lift_vec p.1) ⌝ ⦄ 
+```
+
+The impl's `compute_As_plus_e`, lifted, equals
+the hacspec `compute_As_plus_e`. The matrix is read from a **stored**
+array, so this theorem is fully
+axiom-clean.
 
 ### L7.2 — encryption: `Âᵀ · r̂ + ê₁`
 
-The impl's `compute_vector_u`, lifted, equals the hacspec `compute_vector_u`.
-Here the matrix is **sampled on the fly** from `seed` (`lift_matrix_from_seed`),
-so this result is conditional on the matrix-sampling leaf axiom **A1** (see
-[Assumptions](#assumptions-trust-boundary)). Stated and proven as
-`Matrix.ComputeVectorU.FC.compute_vector_u_fc`
-([`Matrix/ComputeVectorU/FC.lean`](Matrix/ComputeVectorU/FC.lean)).
+[`Matrix/ComputeVectorU/FC.lean`](Matrix/ComputeVectorU/FC.lean) — `libcrux_iot_ml_kem.Matrix.ComputeVectorU.FC.compute_vector_u_fc`:
+
+```lean
+⦃ ⌜ True ⌝ ⦄
+  libcrux_iot_ml_kem.matrix.compute_vector_u
+    K (vectortraitsOperationsInst := portable_ops_inst) hash_functionsHashInst
+    matrix_entry seed r_as_ntt error_1 result scratch cache accumulator
+⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_vector_u
+              (lift_matrix_from_seed seed K)
+              (lift_vec_slice r_as_ntt K)
+              (lift_vec_slice error_1 K)
+            = .ok (lift_vec_slice p.2.1 K) ⌝ ⦄
+```
+The impl's `compute_vector_u`, lifted, equals
+the hacspec `compute_vector_u`. Here the matrix is
+**sampled on the fly** from `seed` (`lift_matrix_from_seed`), so this
+theorem is conditional on the matrix-sampling leaf axiom **A1** (see
+[Assumptions](#assumptions-trust-boundary)).
 
 ### L7.3 — encryption: `t̂ · r̂ + e₂ + Decompress(message)`
 
-The impl's `compute_ring_element_v`, lifted, equals the hacspec
-`compute_ring_element_v`. The function consumes the NTT-multiplication cache that
-`compute_vector_u` filled, so the theorem assumes the cache is the canonical one
-for `r_as_ntt`. The first vector `t̂` is **deserialized** from
-the public key (`lift_t_as_ntt_from_public_key`), so this result is conditional
-on the deserialization leaf axiom **A2** (see
-[Assumptions](#assumptions-trust-boundary)). Stated and proven as
-`Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc`
-([`Matrix/ComputeRingElementV/FC.lean`](Matrix/ComputeRingElementV/FC.lean)).
+[`Matrix/ComputeRingElementV/FC.lean`](Matrix/ComputeRingElementV/FC.lean) — `libcrux_iot_ml_kem.Matrix.ComputeRingElementV.FC.compute_ring_element_v_fc`:
+
+```lean
+⦃ ⌜ True ⌝ ⦄
+  libcrux_iot_ml_kem.matrix.compute_ring_element_v
+    K (vectortraitsOperationsInst := portable_ops_inst)
+    public_key t_as_ntt_entry r_as_ntt error_2 message result scratch
+    cache accumulator
+⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_ring_element_v
+              (lift_t_as_ntt_from_public_key public_key K)
+              (lift_vec_slice r_as_ntt K)
+              (lift_poly error_2) (lift_poly message)
+            = .ok (lift_poly p.2.1) ⌝ ⦄
+```
+
+The impl's `compute_ring_element_v`, lifted, equals
+the hacspec `compute_ring_element_v`. The first vector `t̂` is **deserialized**
+from the public key (`lift_t_as_ntt_from_public_key`), so this theorem
+is conditional on the deserialization leaf axiom **A2** (see
+[Assumptions](#assumptions-trust-boundary)).
 
 ### L7.4 — decryption: `NTT⁻¹(v̂ − ŝ · û)`
 
-The impl's `compute_message`, lifted, equals the hacspec `compute_message`. All
-inputs are passed-in polynomials, so this result is fully axiom-clean.
-Stated and proven as `Matrix.ComputeMessage.FC.compute_message_fc`
-([`Matrix/ComputeMessage/FC.lean`](Matrix/ComputeMessage/FC.lean)).
+[`Matrix/ComputeMessage/FC.lean`](Matrix/ComputeMessage/FC.lean) — `libcrux_iot_ml_kem.Matrix.ComputeMessage.FC.compute_message_fc`:
+
+```lean
+⦃ ⌜ True ⌝ ⦄
+  libcrux_iot_ml_kem.matrix.compute_message
+    (vectortraitsOperationsInst := portable_ops_inst)
+    v secret_as_ntt u_as_ntt result scratch accumulator
+⦃ ⇓ p => ⌜ hacspec_ml_kem.matrix.compute_message
+              (lift_poly v)
+              (lift_vec secret_as_ntt) (lift_vec u_as_ntt)
+            = .ok (lift_poly p.1)
+          ∧ ∀ chunk < 16, ∀ ℓ < 16,
+              ((p.1.coefficients.val[chunk]!).elements.val[ℓ]!).val.natAbs ≤ 3328 ⌝ ⦄ 
+```
+
+The impl's `compute_message`, lifted, equals
+the hacspec `compute_message`. All inputs are passed-in polynomials,
+so this theorem is fully axiom-clean.
 
 ## Polynomial-level theorems
 
