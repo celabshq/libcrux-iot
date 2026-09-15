@@ -12,8 +12,8 @@
 //! It also works as a fallback where no accelerator is available, but note that it is
 //! slower than calling `crate::p256` directly: [`EcPrimitives`] has no "multiply the base
 //! point" operation, so the initiator gives up the precomputed tables of `point_mul_g` for
-//! the generic `point_mul`, and [`LibcruxEc::multiply_scalar_point`] re-validates the point
-//! that the caller has already checked.
+//! the generic `point_mul`, and [`LibcruxEc::point`] and [`LibcruxEc::multiply_scalar_point`]
+//! both re-validate the point that the caller has already checked.
 
 // The base point coordinates are the ones `crate::p256` holds in `make_g_x`/`make_g_y`, but
 // those are in Montgomery form, an internal representation of that implementation and not
@@ -224,13 +224,19 @@ impl EcPrimitives<P256> for LibcruxEc {
     type Scalar = LibcruxScalar;
     type Point = LibcruxPoint;
 
+    /// Performs a scalar × point multiplication on P256.
+    ///
+    /// The method validates that the point `b` is on the curve, but **does not** validate
+    /// the scalar `a`.
+    ///
     /// # Panics
     ///
-    /// Panics if `b` is not a point on the curve. Per the [`EcPrimitives::point`] contract
-    /// that is the caller's responsibility; this implementation is in a position to check it
-    /// cheaply and does so.
+    /// Panics if `b` is not a point on the curve. [`Self::point`] rejects those already; what
+    /// remains for this check is the point at infinity, which an earlier multiplication may
+    /// have returned.
     fn multiply_scalar_point(&mut self, a: &Self::Scalar, b: &Self::Point) -> Self::Point {
         let mut p = [0u64; 12];
+        // The check is free: the projective point is needed either way.
         assert!(
             crate::p256::load_point_vartime(&mut p, &b.0),
             "point is not on the curve"
@@ -251,10 +257,19 @@ impl EcPrimitives<P256> for LibcruxEc {
             .map_err(|_| ImportError)
     }
 
+    /// # Panics
+    ///
+    /// Panics if `x`, `y` is not a point on the curve. Per the [`EcPrimitives::point`]
+    /// contract that is the caller's responsibility.
     fn point(&mut self, x: Self::Scalar, y: Self::Scalar) -> Self::Point {
         let mut out = [0u8; 64];
         out[..32].copy_from_slice(&x.0);
         out[32..].copy_from_slice(&y.0);
+        let mut aff = [0u64; 8];
+        assert!(
+            crate::p256::aff_point_load_vartime(&mut aff, &out),
+            "point is not on the curve"
+        );
         LibcruxPoint(out)
     }
 
