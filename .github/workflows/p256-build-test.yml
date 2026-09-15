@@ -63,6 +63,12 @@ jobs:
           cargo clean
           cargo test --verbose --release
 
+      # `embedded-cal` is off by default, so it needs its own run.
+      - name: 🏃🏻‍♀️ Test embedded-cal
+        run: |
+          cargo clean
+          cargo test --verbose -F embedded-cal
+
       # Only the library is checked here: the test harness passes
       # public `u8` slices into the secret-independent API and thus
       # doesn't compile with this feature enabled.

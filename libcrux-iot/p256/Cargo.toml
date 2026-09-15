@@ -18,9 +18,13 @@ libcrux-secrets.workspace = true
 libcrux-sha2 = { workspace = true, features = [
     "expose-hacl",
 ] }
+embedded-cal = { git = "https://github.com/lake-rs/embedded-cal.git", rev = "14f8f93bbf1bce8e4275c33a88209fbdcd8610a2", optional = true }
 
 [features]
 expose-hacl = []
+
+# ECDH with the curve operations delegated to an `embedded-cal` backend.
+embedded-cal = ["dep:embedded-cal"]
 
 # Checking secret independence
 check-secret-independence = [
