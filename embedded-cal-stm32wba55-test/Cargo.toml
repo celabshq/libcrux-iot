@@ -5,7 +5,6 @@
 name = "embedded-cal-stm32wba55-test"
 edition = "2024"
 license = "(MIT OR Apache-2.0) AND MIT OR Apache-2.0"
-readme = "README.md"
 repository = "https://github.com/celabshq/libcrux-iot"
 version = "0.0.1-alpha"
 

@@ -50,7 +50,6 @@ mod tests {
 
 pub struct EccVector {
     // extend as needed
-    ecdh_curve: i8,
     alice_private: &'static [u8],
     alice_public: &'static [u8],
     bob_private: &'static [u8],
@@ -101,7 +100,6 @@ impl EccVector {
 }
 
 pub const RFC5903_P256: &[EccVector] = &[EccVector {
-    ecdh_curve: 1,
     // "initiator"
     alice_private: &hex!("C88F01F5 10D9AC3F 70A292DA A2316DE5 44E9AAB8 AFE84049 C62A9C57 862D1433"),
     alice_public: &hex!("DAD0B653 94221CF9 B051E1FE CA5787D0 98DFE637 FC90B9EF 945D0C37 72581180"),
