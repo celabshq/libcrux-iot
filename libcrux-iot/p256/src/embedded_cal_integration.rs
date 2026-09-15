@@ -138,6 +138,9 @@ pub(crate) fn ecp256dh_r_ec<EC: EcPrimitives<P256>>(
 fn store_point<EC: EcPrimitives<P256>>(ec: &mut EC, res: &mut [u8], p: &EC::Point) {
     let p_x = ec.x_coord(p);
     let p_y = ec.y_coord(p);
+    // This assumes that ec.export_scalar_bytes correctly exports the field elements in
+    // big-endian order as, e.g. specified in https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Ar3.pdf
+    // Appendix C
     (res[0usize..32usize]).copy_from_slice(ec.export_scalar_bytes(&p_x).as_ref());
     (res[32usize..64usize]).copy_from_slice(ec.export_scalar_bytes(&p_y).as_ref());
 }
