@@ -718,7 +718,7 @@ This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof f
 */
 static inline void
 libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(
-  libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
   Eurydice_borrow_slice_u8 input
 )
 {
@@ -730,7 +730,7 @@ This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof f
 */
 static inline void
 libcrux_iot_ml_dsa_hash_functions_portable_absorb_final_88(
-  libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
   Eurydice_borrow_slice_u8 input
 )
 {
@@ -740,7 +740,7 @@ libcrux_iot_ml_dsa_hash_functions_portable_absorb_final_88(
 /**
 This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof for libcrux_iot_ml_dsa::hash_functions::portable::Shake256Xof}
 */
-static inline libcrux_iot_sha3_keccak_KeccakXofState_bd
+static inline libcrux_iot_sha3_keccak_KeccakSpongeState_bd
 libcrux_iot_ml_dsa_hash_functions_portable_init_88(void)
 {
   return libcrux_iot_sha3_incremental_new_e2();
@@ -751,7 +751,7 @@ This function found in impl {libcrux_iot_ml_dsa::hash_functions::shake256::Xof f
 */
 static inline void
 libcrux_iot_ml_dsa_hash_functions_portable_squeeze_88(
-  libcrux_iot_sha3_keccak_KeccakXofState_bd *self,
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd *self,
   Eurydice_mut_borrow_slice_u8 out
 )
 {
@@ -6460,11 +6460,11 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_44_generate_key_pair_c4(
     repeat_expression0[i] = libcrux_secrets_int_public_integers_classify_27_90(0U);
   }
   memcpy(seed_expanded0.data, repeat_expression0, (size_t)128U * sizeof (uint8_t));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd
   shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
     Eurydice_array_to_slice_shared_01(&randomness));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd *uu____0 = &shake;
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd *uu____0 = &shake;
   /* original Rust expression is not an lvalue in C */
   Eurydice_array_u8x2
   lvalue =
@@ -6944,7 +6944,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_derive_message_representative_fd(
   Eurydice_arr_c7 *message_representative
 )
 {
-  libcrux_iot_sha3_keccak_KeccakXofState_bd
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd
   shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
     libcrux_secrets_int_classify_public_classify_ref_6d_90(verification_key_hash));
@@ -6953,7 +6953,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_derive_message_representative_fd(
     const
     libcrux_iot_ml_dsa_pre_hash_DomainSeparationContext
     *domain_separation_context0 = &domain_separation_context->f0;
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *uu____0 = &shake;
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *uu____0 = &shake;
     /* original Rust expression is not an lvalue in C */
     Eurydice_arr_82
     lvalue0 =
@@ -6966,7 +6966,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_derive_message_representative_fd(
       };
     libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(uu____0,
       Eurydice_array_to_slice_shared_79(&lvalue0));
-    libcrux_iot_sha3_keccak_KeccakXofState_bd *uu____1 = &shake;
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd *uu____1 = &shake;
     /* original Rust expression is not an lvalue in C */
     Eurydice_arr_82
     lvalue =
@@ -6985,7 +6985,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_derive_message_representative_fd(
     if (uu____2->tag == core_option_Some)
     {
       const Eurydice_arr_c9 *pre_hash_oid = &uu____2->f0;
-      libcrux_iot_sha3_keccak_KeccakXofState_bd *uu____3 = &shake;
+      libcrux_iot_sha3_keccak_KeccakSpongeState_bd *uu____3 = &shake;
       libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(uu____3,
         Eurydice_array_to_slice_shared_2f(libcrux_secrets_int_public_integers_classify_ref_c5_95(pre_hash_oid)));
     }
@@ -7962,7 +7962,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_44_sign_internal_c4(
     repeat_expression5[i] = libcrux_secrets_int_public_integers_classify_27_90(0U);
   }
   memcpy(mask_seed.data, repeat_expression5, (size_t)64U * sizeof (uint8_t));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd
   shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake, seed_for_signing);
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
@@ -8050,7 +8050,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_44_sign_internal_c4(
     libcrux_iot_ml_dsa_encoding_commitment_serialize_vector_08(LIBCRUX_IOT_ML_DSA_ML_DSA_GENERIC_ML_DSA_44_COMMITMENT_RING_ELEMENT_SIZE,
       Eurydice_array_to_slice_shared_710(&commitment),
       Eurydice_array_to_slice_mut_27(&commitment_serialized));
-    libcrux_iot_sha3_keccak_KeccakXofState_bd
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd
     shake0 = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
     libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake0,
       Eurydice_array_to_slice_shared_17(&message_representative));
@@ -9068,7 +9068,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_44_verify_internal_c4(
       libcrux_iot_ml_dsa_encoding_commitment_serialize_vector_08(LIBCRUX_IOT_ML_DSA_ML_DSA_GENERIC_ML_DSA_44_COMMITMENT_RING_ELEMENT_SIZE,
         Eurydice_array_to_slice_shared_710(&t1),
         Eurydice_array_to_slice_mut_27(&commitment_serialized));
-      libcrux_iot_sha3_keccak_KeccakXofState_bd
+      libcrux_iot_sha3_keccak_KeccakSpongeState_bd
       shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
       libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
         Eurydice_array_to_slice_shared_17(&message_representative));
@@ -9426,11 +9426,11 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_65_generate_key_pair_c4(
     repeat_expression0[i] = libcrux_secrets_int_public_integers_classify_27_90(0U);
   }
   memcpy(seed_expanded0.data, repeat_expression0, (size_t)128U * sizeof (uint8_t));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd
   shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
     Eurydice_array_to_slice_shared_01(&randomness));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd *uu____0 = &shake;
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd *uu____0 = &shake;
   /* original Rust expression is not an lvalue in C */
   Eurydice_array_u8x2
   lvalue =
@@ -9735,7 +9735,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_65_sign_internal_c4(
     repeat_expression5[i] = libcrux_secrets_int_public_integers_classify_27_90(0U);
   }
   memcpy(mask_seed.data, repeat_expression5, (size_t)64U * sizeof (uint8_t));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd
   shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake, seed_for_signing);
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
@@ -9823,7 +9823,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_65_sign_internal_c4(
     libcrux_iot_ml_dsa_encoding_commitment_serialize_vector_08(LIBCRUX_IOT_ML_DSA_ML_DSA_GENERIC_ML_DSA_65_COMMITMENT_RING_ELEMENT_SIZE,
       Eurydice_array_to_slice_shared_715(&commitment),
       Eurydice_array_to_slice_mut_27(&commitment_serialized));
-    libcrux_iot_sha3_keccak_KeccakXofState_bd
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd
     shake0 = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
     libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake0,
       Eurydice_array_to_slice_shared_17(&message_representative));
@@ -10415,7 +10415,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_65_verify_internal_c4(
       libcrux_iot_ml_dsa_encoding_commitment_serialize_vector_08(LIBCRUX_IOT_ML_DSA_ML_DSA_GENERIC_ML_DSA_65_COMMITMENT_RING_ELEMENT_SIZE,
         Eurydice_array_to_slice_shared_715(&t1),
         Eurydice_array_to_slice_mut_27(&commitment_serialized));
-      libcrux_iot_sha3_keccak_KeccakXofState_bd
+      libcrux_iot_sha3_keccak_KeccakSpongeState_bd
       shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
       libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
         Eurydice_array_to_slice_shared_17(&message_representative));
@@ -10736,11 +10736,11 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_generate_key_pair_c4(
     repeat_expression0[i] = libcrux_secrets_int_public_integers_classify_27_90(0U);
   }
   memcpy(seed_expanded0.data, repeat_expression0, (size_t)128U * sizeof (uint8_t));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd
   shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
     Eurydice_array_to_slice_shared_01(&randomness));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd *uu____0 = &shake;
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd *uu____0 = &shake;
   /* original Rust expression is not an lvalue in C */
   Eurydice_array_u8x2
   lvalue =
@@ -11045,7 +11045,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_internal_c4(
     repeat_expression5[i] = libcrux_secrets_int_public_integers_classify_27_90(0U);
   }
   memcpy(mask_seed.data, repeat_expression5, (size_t)64U * sizeof (uint8_t));
-  libcrux_iot_sha3_keccak_KeccakXofState_bd
+  libcrux_iot_sha3_keccak_KeccakSpongeState_bd
   shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake, seed_for_signing);
   libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
@@ -11133,7 +11133,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_sign_internal_c4(
     libcrux_iot_ml_dsa_encoding_commitment_serialize_vector_08(LIBCRUX_IOT_ML_DSA_ML_DSA_GENERIC_ML_DSA_87_COMMITMENT_RING_ELEMENT_SIZE,
       Eurydice_array_to_slice_shared_711(&commitment),
       Eurydice_array_to_slice_mut_68(&commitment_serialized));
-    libcrux_iot_sha3_keccak_KeccakXofState_bd
+    libcrux_iot_sha3_keccak_KeccakSpongeState_bd
     shake0 = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
     libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake0,
       Eurydice_array_to_slice_shared_17(&message_representative));
@@ -11725,7 +11725,7 @@ libcrux_iot_ml_dsa_ml_dsa_generic_ml_dsa_87_verify_internal_c4(
       libcrux_iot_ml_dsa_encoding_commitment_serialize_vector_08(LIBCRUX_IOT_ML_DSA_ML_DSA_GENERIC_ML_DSA_87_COMMITMENT_RING_ELEMENT_SIZE,
         Eurydice_array_to_slice_shared_711(&t1),
         Eurydice_array_to_slice_mut_68(&commitment_serialized));
-      libcrux_iot_sha3_keccak_KeccakXofState_bd
+      libcrux_iot_sha3_keccak_KeccakSpongeState_bd
       shake = libcrux_iot_ml_dsa_hash_functions_portable_init_88();
       libcrux_iot_ml_dsa_hash_functions_portable_absorb_88(&shake,
         Eurydice_array_to_slice_shared_17(&message_representative));

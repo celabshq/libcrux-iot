@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: dirty
+ * Libcrux: eeb10e030981128f3c8dce2ffcb86b40032b404f
  */
 
 #include "internal/libcrux_iot_core.h"

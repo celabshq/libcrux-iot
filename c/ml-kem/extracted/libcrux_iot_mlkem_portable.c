@@ -8,7 +8,7 @@
  * Eurydice: aaa9fa657fb6f09802edb890252040d94cd93982
  * Karamel: 8c19d41458ce5cbfea029ebc03334ba96d149039
  * F*: unset
- * Libcrux: 5db7272c7ac7c1933d461a7c12ea5d00fdf450d2
+ * Libcrux: eeb10e030981128f3c8dce2ffcb86b40032b404f
  */
 
 #include "internal/libcrux_iot_mlkem_portable.h"
@@ -2267,12 +2267,6 @@ static KRML_MUSTINLINE void serialize_public_key_mut_df(
       t_as_ntt,
       libcrux_secrets_int_classify_public_classify_ref_mut_a1_75(&lvalue)[0U],
       scratch);
-  Eurydice_mut_borrow_slice_u8 uu____0 = Eurydice_slice_subslice_mut_c8(
-      serialized,
-      (KRML_CLITERAL(core_ops_range_Range_87){
-          .start = (size_t)0U,
-          .end = libcrux_iot_ml_kem_constants_ranked_bytes_per_ring_element(
-              (size_t)4U)}));
   Eurydice_slice_copy(
       Eurydice_slice_subslice_from_mut_6d(
           serialized,
@@ -5826,12 +5820,6 @@ static KRML_MUSTINLINE void serialize_public_key_mut_21(
       t_as_ntt,
       libcrux_secrets_int_classify_public_classify_ref_mut_a1_75(&lvalue)[0U],
       scratch);
-  Eurydice_mut_borrow_slice_u8 uu____0 = Eurydice_slice_subslice_mut_c8(
-      serialized,
-      (KRML_CLITERAL(core_ops_range_Range_87){
-          .start = (size_t)0U,
-          .end = libcrux_iot_ml_kem_constants_ranked_bytes_per_ring_element(
-              (size_t)3U)}));
   Eurydice_slice_copy(
       Eurydice_slice_subslice_from_mut_6d(
           serialized,
