@@ -22,6 +22,7 @@ harness = false
 [dependencies]
 
 [dev-dependencies]
+embedded-alloc = "0.6.0"
 nrf-pac = { version = "0.2.0", features = ["nrf54l15-app", "rt"] }
 embedded-cal = { git = "https://github.com/lake-rs/embedded-cal", rev = "14f8f93bbf1bce8e4275c33a88209fbdcd8610a2" }
 embedded-cal-nrf54l15 = { git = "https://github.com/lake-rs/embedded-cal", rev = "14f8f93bbf1bce8e4275c33a88209fbdcd8610a2" }

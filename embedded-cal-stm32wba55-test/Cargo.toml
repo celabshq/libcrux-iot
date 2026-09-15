@@ -22,6 +22,7 @@ harness = false
 [dependencies]
 
 [dev-dependencies]
+embedded-alloc = "0.6.0"
 stm32-metapac = { version = "18.0", features = ["stm32wba55cg", "rt"] }
 cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
 cortex-m-rt = { version = "0.7", features = ["device"] }

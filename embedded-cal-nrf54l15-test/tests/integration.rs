@@ -4,10 +4,16 @@
 #![no_main]
 
 use defmt_rtt as _;
+use embedded_alloc::LlffHeap as Heap;
 use embedded_cal::plumbing::ec::P256;
 use embedded_cal_nrf54l15::Nrf54l15Cal;
 use hexlit::hex;
 use panic_probe as _;
+
+// XXX: `libcrux-iot-p256` still depends on a version of `libcrux-hacl-rs`
+// that needs a global allocator.
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
 
 struct TestState {
     board_cal: Nrf54l15Cal,
