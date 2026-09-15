@@ -282,7 +282,7 @@ the Rust level, before they propagate into Lean proof failures.
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
 cd specs
-cargo hax extract hacspec-sha3
+cargo bin cargo-hax extract hacspec-sha3
 
 # Impl side:
 cd libcrux-iot

@@ -255,7 +255,7 @@ them exactly).
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
 cd specs
-cargo hax extract hacspec-ml-kem
+cargo bin cargo-hax extract hacspec-ml-kem
 
 # Impl side:
 cd libcrux-iot

@@ -185,7 +185,7 @@ fail the build if the axiom set drifts from the one documented under
 ```bash
 # Spec side (from a checkout of cryspen/libcrux):
 cd specs
-cargo hax extract hacspec-ml-dsa
+cargo bin cargo-hax extract hacspec-ml-dsa
 
 # Impl side:
 cd libcrux-iot
