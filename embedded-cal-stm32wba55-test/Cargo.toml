@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# SPDX-FileCopyrightText: Inria-AIO, Cryspen, and Christian Amsüss
+
+[package]
+name = "embedded-cal-stm32wba55-test"
+edition = "2024"
+license = "(MIT OR Apache-2.0) AND MIT OR Apache-2.0"
+repository = "https://github.com/celabshq/libcrux-iot"
+version = "0.0.1-alpha"
+
+[lib]
+# While the crate is already excluded from the workspace's defaults, setting
+# this also means that when `cargo test` is run in here, cargo reaches into the
+# local .cargo that sets up target and runner.
+test = false
+
+[[test]]
+name = "integration"
+harness = false
+
+[dependencies]
+
+[dev-dependencies]
+embedded-alloc = "0.6.0"
+stm32-metapac = { version = "18.0", features = ["stm32wba55cg", "rt"] }
+cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
+cortex-m-rt = { version = "0.7", features = ["device"] }
+defmt = "1.0"
+defmt-rtt = "1.0"
+defmt-test = "0.4"
+panic-probe = { version = "1.0", features = ["print-defmt"] }
+embedded-cal = { git = "https://github.com/lake-rs/embedded-cal", rev = "14f8f93bbf1bce8e4275c33a88209fbdcd8610a2" }
+embedded-cal-stm32wba55 = { git = "https://github.com/lake-rs/embedded-cal", rev = "14f8f93bbf1bce8e4275c33a88209fbdcd8610a2" }
+libcrux-iot-p256 = { path = "../libcrux-iot/p256", features = ["embedded-cal"] }
+hexlit = "0.5.5"
