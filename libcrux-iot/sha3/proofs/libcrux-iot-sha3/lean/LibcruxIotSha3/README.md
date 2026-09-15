@@ -124,7 +124,7 @@ Moreover, the correctness of the verification depends on:
 
 ### What is left out
 
-We do not verify the incremental API here (neither buffered nor unbuffered), and we do note verify the `Digest`/`Hasher` implementations.
+We do not verify the incremental API here (neither buffered nor unbuffered), and we do not verify the `Digest`/`Hasher` implementations.
 There are more Rust specification in the code base, but only the ones above are verified in Lean.
 
 ## Proof architecture
