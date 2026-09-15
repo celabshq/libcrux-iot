@@ -25,5 +25,5 @@ rev = "v0.3.17"
 [[require]]
 name = "HacspecSha3"
 git = "https://github.com/celabshq/libcrux"
-rev = "6b2bcb8d579d78be23ae504b7dc17392f6930151"
+rev = "88609e5386442caebfa22c4e124f448a359a346b"
 subDir = "specs/sha3/proofs/hacspec-sha3/lean"

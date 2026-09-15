@@ -34,7 +34,7 @@ hax-lib.workspace = true
 # NORMAL (not dev-) dependency: the matrix top-level `#[ensures]` name
 # `hacspec_ml_kem::matrix::*` directly, so the hacspec must be in scope for
 # the hax build.
-hacspec_ml_kem = { git = "https://github.com/celabshq/libcrux", rev = "6b2bcb8d579d78be23ae504b7dc17392f6930151" }
+hacspec_ml_kem = { git = "https://github.com/celabshq/libcrux", rev = "88609e5386442caebfa22c4e124f448a359a346b" }
 libcrux-secrets.workspace = true
 libcrux-traits = { version = "0.0.7", features = ["generic-tests"] }
 tls_codec = { version = "0.4.2", features = [
