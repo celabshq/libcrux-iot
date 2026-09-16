@@ -15,10 +15,8 @@ libcrux-macros.workspace = true
 libcrux-traits.workspace = true
 libcrux-hacl-rs.workspace = true
 libcrux-secrets.workspace = true
-libcrux-sha2 = { workspace = true, features = [
-    "expose-hacl",
-] }
-embedded-cal = { git = "https://github.com/lake-rs/embedded-cal.git", rev = "14f8f93bbf1bce8e4275c33a88209fbdcd8610a2", optional = true }
+libcrux-sha2 = { workspace = true, features = ["expose-hacl"] }
+embedded-cal = { git = "https://github.com/lake-rs/embedded-cal.git", optional = true }
 
 [features]
 expose-hacl = []
@@ -36,7 +34,5 @@ check-secret-independence = [
 [dev-dependencies]
 der = "0.8.0"
 libcrux-iot-p256 = { path = ".", features = ["expose-hacl"] }
-libcrux-traits = { workspace = true, features = [
-    "generic-tests",
-] }
+libcrux-traits = { workspace = true, features = ["generic-tests"] }
 libcrux-kats = { workspace = true, features = ["ecdh", "ecdsa"] }
