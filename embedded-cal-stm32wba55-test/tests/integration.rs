@@ -69,7 +69,7 @@ impl EccVector {
             &mut alice_public_computed,
             self.alice_private
         ));
-        assert_eq!(self.alice_public, alice_public_computed.as_ref());
+        assert_eq!(self.alice_public, &alice_public_computed[..32]);
 
         let mut bob_public_computed = [0u8; 64];
         assert!(libcrux_iot_p256::embedded_cal_integration::dh_initiator_ec(
@@ -77,25 +77,25 @@ impl EccVector {
             &mut bob_public_computed,
             self.bob_private
         ));
-        assert_eq!(self.bob_public, bob_public_computed.as_ref());
+        assert_eq!(self.bob_public, &bob_public_computed[..32]);
 
-        let mut alice_shared_secret = [0u8; 32];
+        let mut alice_shared_secret = [0u8; 64];
         assert!(libcrux_iot_p256::embedded_cal_integration::dh_responder_ec(
             ec,
             &mut alice_shared_secret,
             self.bob_public,
             self.alice_private,
         ));
-        assert_eq!(alice_shared_secret, self.shared_secret.as_ref());
+        assert_eq!(&alice_shared_secret[..32], self.shared_secret);
 
-        let mut bob_shared_secret = [0u8; 32];
+        let mut bob_shared_secret = [0u8; 64];
         assert!(libcrux_iot_p256::embedded_cal_integration::dh_responder_ec(
             ec,
             &mut bob_shared_secret,
             self.alice_public,
             self.bob_private,
         ));
-        assert_eq!(bob_shared_secret, self.shared_secret.as_ref());
+        assert_eq!(&bob_shared_secret[..32], self.shared_secret);
     }
 }
 
