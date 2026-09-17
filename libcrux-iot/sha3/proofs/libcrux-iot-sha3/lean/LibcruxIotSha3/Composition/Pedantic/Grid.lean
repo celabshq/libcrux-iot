@@ -95,4 +95,18 @@ theorem cAt_setCBit (c : CArr) (x z : Std.Usize) (b : Bool) (x' z' : Nat)
   by_cases hxx : x' = x.val <;> by_cases hzz : z' = z.val <;>
     simp_all [cAt, setCBit]
 
+
+/-- The zero state array the mappings start their output from. -/
+theorem stateArray_zero_eq :
+    hacspec_sha3_pedantic.state_array.StateArray.zero 64#usize
+      = ok (mkSA fun _ _ _ => false) := by
+  unfold hacspec_sha3_pedantic.state_array.StateArray.zero
+  apply congrArg
+  refine ext (fun x y z hx hy hz => ?_)
+  rw [bitAt_mkSA _ hx hy hz]
+  have h5 : (5#usize : Std.Usize).val = 5 := by simp
+  have h64 : (64#usize : Std.Usize).val = 64 := by simp
+  simp only [bitAt, Std.Array.repeat_val, List.getElem!_eq_getElem?_getD,
+    List.getElem?_replicate, h5, h64, hx, hy, hz, if_true, Option.getD_some]
+
 end LibcruxIotSha3.Composition.Pedantic

@@ -220,17 +220,7 @@ theorem chi_eq (A : SA) :
       simp only [hne, if_false]
   obtain ⟨r, hr, hbits⟩ := h
   unfold hacspec_sha3_pedantic.step_mappings.chi
-  have hzero : hacspec_sha3_pedantic.state_array.StateArray.zero 64#usize
-      = ok (mkSA fun _ _ _ => false) := by
-    unfold hacspec_sha3_pedantic.state_array.StateArray.zero
-    apply congrArg
-    refine ext (fun x y z hx hy hz => ?_)
-    rw [bitAt_mkSA _ hx hy hz]
-    have h5 : (5#usize : Std.Usize).val = 5 := by simp
-    have h64 : (64#usize : Std.Usize).val = 64 := by simp
-    simp only [bitAt, Std.Array.repeat_val, List.getElem!_eq_getElem?_getD,
-      List.getElem?_replicate, h5, h64, hx, hy, hz, if_true, Option.getD_some]
-  rw [hzero]
+  rw [stateArray_zero_eq]
   simp only [bind_tc_ok]
   unfold hacspec_sha3_pedantic.step_mappings.chi_loop0
   rw [hr]

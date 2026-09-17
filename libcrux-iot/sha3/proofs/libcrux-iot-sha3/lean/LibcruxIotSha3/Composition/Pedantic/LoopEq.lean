@@ -33,8 +33,39 @@ set_option mvcgen.warning false
 set_option maxRecDepth 8000
 
 /-- The induction itself, over any index type: `val` reads an index as an
-    integer, and the two hypotheses say what one iteration and the final
-    iteration do.  `Range Usize` and `Range I64` both instantiate it. -/
+    integer, `Inv` is whatever the accumulator has to satisfy for the body to
+    behave (ρ needs it -- its accumulator carries the lane the walk has reached),
+    and `P i acc r` says "running from `i` with `acc` yields `r`". -/
+theorem loop_range_eq_inv {ι β γ : Type} (val : ι → Int)
+    (hinj : ∀ i j : ι, val i = val j → i = j)
+    (body : (core.ops.range.Range ι × β) →
+      RustM (ControlFlow (core.ops.range.Range ι × β) γ))
+    (e : ι) (Inv : ι → β → Prop) (P : ι → β → γ → Prop)
+    (hstep : ∀ (i : ι) (acc : β), val i < val e → Inv i acc →
+      ∃ (s : ι) (acc' : β), val s = val i + 1 ∧ Inv s acc' ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (acc : β), Inv e acc →
+      ∃ r, body ({ start := e, «end» := e }, acc) = ok (.done r) ∧ P e acc r) :
+    ∀ (k : Nat) (i : ι) (acc : β), val i + k = val e → Inv i acc →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r := by
+  intro k
+  induction k with
+  | zero =>
+    intro i acc hik hinv
+    have hie : i = e := hinj i e (by omega)
+    subst hie
+    obtain ⟨r, hb, hP⟩ := hdone acc hinv
+    exact ⟨r, by rw [loop.eq_def, hb], hP⟩
+  | succ k ih =>
+    intro i acc hik hinv
+    obtain ⟨s, acc', hs, hinv', hb, hP⟩ := hstep i acc (by omega) hinv
+    obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega) hinv'
+    exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
+
+/-- The invariant-free version, for the loops whose bodies behave on any
+    accumulator. -/
 theorem loop_range_eq_gen {ι β γ : Type} (val : ι → Int)
     (hinj : ∀ i j : ι, val i = val j → i = j)
     (body : (core.ops.range.Range ι × β) →
@@ -49,19 +80,12 @@ theorem loop_range_eq_gen {ι β γ : Type} (val : ι → Int)
       ∃ r, body ({ start := e, «end» := e }, acc) = ok (.done r) ∧ P e acc r) :
     ∀ (k : Nat) (i : ι) (acc : β), val i + k = val e →
       ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r := by
-  intro k
-  induction k with
-  | zero =>
-    intro i acc hik
-    have hie : i = e := hinj i e (by omega)
-    subst hie
-    obtain ⟨r, hb, hP⟩ := hdone acc
-    exact ⟨r, by rw [loop.eq_def, hb], hP⟩
-  | succ k ih =>
-    intro i acc hik
-    obtain ⟨s, acc', hs, hb, hP⟩ := hstep i acc (by omega)
-    obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega)
-    exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
+  intro k i acc hik
+  refine loop_range_eq_inv val hinj body e (fun _ _ => True) P ?_ (fun acc _ => hdone acc)
+    k i acc hik trivial
+  intro j acc' hj _
+  obtain ⟨s, acc'', hs, hb, hP⟩ := hstep j acc' hj
+  exact ⟨s, acc'', hs, trivial, hb, hP⟩
 
 /-- The `Usize` instance, the one the `for x in 0..5` nests use. -/
 theorem loop_range_eq {β γ : Type}
@@ -169,6 +193,26 @@ theorem usize_mul_eq (x y : Std.Usize) (h : x.val * y.val ≤ Std.Usize.max) :
   | ok z => rw [hm] at he; exact ⟨z, rfl, he.2.1⟩
   | fail e => rw [hm] at he; exact absurd he.2 (by scalar_tac)
   | div => rw [hm] at he; exact he.elim
+
+theorem i64_mul_eq (x y : Std.I64)
+    (h0 : Std.IScalar.min .I64 ≤ x.val * y.val) (h1 : x.val * y.val ≤ Std.IScalar.max .I64) :
+    ∃ z : Std.I64, x * y = ok z ∧ z.val = x.val * y.val := by
+  have he := Std.IScalar.mul_equiv x y
+  have hdef : (x * y : RustM Std.I64) = Std.IScalar.mul x y := rfl
+  rw [hdef]
+  cases hm : Std.IScalar.mul x y with
+  | ok z => rw [hm] at he; exact ⟨z, rfl, he.2.2.1⟩
+  | fail e => rw [hm] at he; exact absurd he.2 (by simp only [not_and, not_le]; omega)
+  | div => rw [hm] at he; exact he.elim
+
+theorem i64_div_eq (x y : Std.I64) (hy : y.val ≠ 0) (hmin : x.val ≠ Std.I64.min) :
+    ∃ z : Std.I64, x / y = ok z ∧ z.val = Int.tdiv x.val y.val := by
+  have hs := Std.I64.div_spec (x := x) (y := y)
+  unfold WP.partialSpec at hs
+  cases hxy : (x / y : RustM Std.I64) with
+  | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs⟩
+  | fail e => rw [hxy] at hs; cases e <;> simp_all
+  | div => rw [hxy] at hs; exact hs.elim
 
 /-! ## The signed side: `imod`
 
@@ -373,5 +417,23 @@ theorem loop_range_eq_i64 {β γ : Type}
       ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r :=
   loop_range_eq_gen (fun x : Std.I64 => x.val)
     (fun i j h => (Std.IScalar.eq_equiv i j).mpr h) body e P hstep hdone
+
+
+/-- The `I64` instance of `loop_range_eq_inv`, for ρ's walk. -/
+theorem loop_range_eq_inv_i64 {β γ : Type}
+    (body : (core.ops.range.Range Std.I64 × β) →
+      RustM (ControlFlow (core.ops.range.Range Std.I64 × β) γ))
+    (e : Std.I64) (Inv : Std.I64 → β → Prop) (P : Std.I64 → β → γ → Prop)
+    (hstep : ∀ (i : Std.I64) (acc : β), i.val < e.val → Inv i acc →
+      ∃ (s : Std.I64) (acc' : β), s.val = i.val + 1 ∧ Inv s acc' ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (acc : β), Inv e acc →
+      ∃ r, body ({ start := e, «end» := e }, acc) = ok (.done r) ∧ P e acc r) :
+    ∀ (k : Nat) (i : Std.I64) (acc : β), i.val + k = e.val → Inv i acc →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r :=
+  loop_range_eq_inv (fun x : Std.I64 => x.val)
+    (fun i j h => (Std.IScalar.eq_equiv i j).mpr h) body e Inv P hstep hdone
 
 end LibcruxIotSha3.Composition.Pedantic
