@@ -316,6 +316,8 @@ bridge is therefore bit-level throughout, and runs bottom-up:
 | file | holds |
 |---|---|
 | `../../Tables.lean` | the two Keccak constant tables (`RC[0..23]`, ρ's rotation offsets), local copies so that no proof has to name a specification's |
+| `../../Foundation/LaneEq.lean` | `Foundation/`'s five `*_applied` step semantics are the lane model's, and its 24-fold `spec_chain` is `keccakFLanes` |
+| `../../Composition/LaneBridge.lean` | `keccakf1600_equiv_lanes`: the implementation computes `keccakFLanes`. No specification appears in it |
 | `../../LaneModel.lean` | the lane model: the state as 25 `u64` lanes, the five step mappings, `roundsUpTo` / `keccakFLanes` and `lanesToBits`, all as ordinary total functions. This is the midpoint the two proof halves meet at |
 | `Parameters.lean`, `StateMap.lean`, `Grid.lean` | the state correspondence: `ofLanes` / `toLanes` between 25 lanes and `A[x, y, z]`, mutually inverse |
 | `LoopEq.lean` | the reusable equational loop inductions and scalar/container equations the rest is written with |

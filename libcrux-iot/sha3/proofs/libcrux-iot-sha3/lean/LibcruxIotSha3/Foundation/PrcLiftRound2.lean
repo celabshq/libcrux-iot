@@ -611,7 +611,7 @@ private theorem list_getElem!_set_eq {α} [Inhabited α] {l : List α} {i : Nat}
 /-! ## Main composition: `prc_lift_spec_2`
 
 Couples the round-2 `keccakf1600_round2_pi_rho_chi_{1,2}` chain to the spec
-`iota ∘ keccak_f.chi ∘ keccak_f.pi ∘ keccak_f.rho` applied to the round-1
+`prc_spec` (that is, `ι ∘ χ ∘ π ∘ ρ`) applied to the round-1
 layout state. Output is in round-2 layout (`(impl_perm ∘ impl_perm ∘
 impl_perm, impl_swap_k 3)`). Mirrors `prc_lift_spec_1` but with the round-2
 parameters on both sides. -/
@@ -622,19 +622,12 @@ theorem prc_lift_spec_2 (s : state.KeccakState) (hi_lt : s.i.val < 24) :
     (do let r1 ← keccak.keccakf1600_round2_pi_rho_chi_1 0#usize s
         keccak.keccakf1600_round2_pi_rho_chi_2 r1)
     ⦃ ⇓ r_impl => ⌜
-      (do let a1 ← keccak_f.rho
-            (lift_theta_applied_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))
-          let a2 ← keccak_f.pi a1
-          let a3 ← keccak_f.chi a2
-          let r_spec ← keccak_f.iota a3 s.i
-          pure (r_spec = lift_perm r_impl
-                  (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3))).holds ⌝ ⦄ := by
+      prc_spec (lift_theta_applied_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2)) s.i
+        = lift_perm r_impl (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3) ⌝ ⦄ := by
   unfold keccak.keccakf1600_round2_pi_rho_chi_1
   unfold keccak.keccakf1600_round2_pi_rho_chi_2
   hax_mvcgen
   all_goals try scalar_tac
-  subst_vars
-  rw [prc_spec_eq_composed]
   casesm* _ ∧ _
   have hlane : ∀ (L : lane.Lane2U32), L.val.length = 2 := fun L => L.2
   have hss : (↑s.st : List lane.Lane2U32).length = 25 := s.st.2

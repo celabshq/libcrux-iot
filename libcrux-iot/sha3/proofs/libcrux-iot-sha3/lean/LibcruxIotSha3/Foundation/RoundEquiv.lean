@@ -1,7 +1,7 @@
 /-
   Per-round functional equivalence (impl-side `keccakf1600_round{N}_*`
-  composed against the spec-side `keccak_f.theta ∘ keccak_f.rho ∘
-  keccak_f.pi ∘ keccak_f.chi ∘ iota`).
+  composed against the spec-side round `prc_spec ∘ theta_applied`,
+  i.e. `ι ∘ χ ∘ π ∘ ρ ∘ θ` written out cell by cell).
 
   This file composes `theta_lift_spec` and `prc_lift_spec` (round 0)
   into a single Triple establishing the full per-round equivalence.
@@ -14,16 +14,13 @@
   `simp_all`) and each is tagged `@[spec]` for the top-level composition.
 
   ### Key discipline (don't break)
-  Each `round{k}_post` is declared `@[irreducible]`. This is load-bearing:
-  without it, `hax_mvcgen` unfolds the post, sees the spec do-block
-  `(do θ; ρ; π; χ; ι _ s.i).holds`, and recursively dispatches
-  `theta_spec / rho_spec / …` *in addition to* the
-  impl-side `theta_lift_spec + chain_spec` dispatches — blowing the
-  heartbeat budget past 32M. With `@[irreducible]` the post stays
-  opaque during impl-side mvcgen; we then unfold it and run a
-  *second* `hax_mvcgen` (the spec do-block has the chain hypotheses
-  already in scope from the first mvcgen, so the spec dispatch is
-  cheap). See `feedback_irreducible_post_def_for_mvcgen` memory.
+  Each `round{k}_post` is declared `@[irreducible]`, so that `hax_mvcgen`
+  advances only the implementation and leaves the post alone; we unfold
+  it afterwards, with the chain hypotheses already in scope. The post is
+  an equation between pure states (`prc_spec ∘ theta_applied` against the
+  lifted implementation result), so once it is unfolded there is nothing
+  left to advance and `simp_all` closes it. See
+  `feedback_irreducible_post_def_for_mvcgen` memory.
 
   ## Architecture
 
@@ -36,8 +33,8 @@
     package `pi_rho_chi_1 ; pi_rho_chi_2` so the @[spec] matcher
     fires on a single named function in chain context.
   - `round{k}_post` (each `@[irreducible]`) names the spec-side
-    `(do θ; ρ; π; χ; ι _ s.i).holds` predicate so `hax_mvcgen` does
-    not recursively dispatch the 5 spec lemmas during impl
+    `prc_spec (theta_applied …) s.i = lift_perm …` equation so that
+    `hax_mvcgen` leaves it alone during impl
     advancement.
 
   ## Round dependencies
@@ -84,27 +81,17 @@ theorem keccakf1600_round0_pi_rho_chi_chain_spec
     ⦃ ⌜ True ⌝ ⦄
     keccakf1600_round0_pi_rho_chi_chain s
     ⦃ ⇓ r_impl => ⌜
-      (do let a1 ← keccak_f.rho (lift_theta_applied s)
-          let a2 ← keccak_f.pi a1
-          let a3 ← keccak_f.chi a2
-          let r_spec ← keccak_f.iota a3 s.i
-          pure (r_spec = lift_perm r_impl impl_perm impl_swap)).holds ⌝ ⦄ := by
+      prc_spec (lift_theta_applied s) s.i
+        = lift_perm r_impl impl_perm impl_swap ⌝ ⦄ := by
   unfold keccakf1600_round0_pi_rho_chi_chain
   exact prc_lift_spec s hi
 
-/-- Spec-chain claim for round 0 (opaque to `mvcgen`). Wrapping the
-    spec do-block in this `def` prevents `mvcgen` from trying to
-    advance `wp⟦keccak_f.theta (lift s)⟧` in the post during impl
-    advancement. -/
+/-- Spec-chain claim for round 0 (opaque to `mvcgen`). Naming the
+    equation in this `def` keeps `mvcgen` from working on the post while
+    it advances the implementation. -/
 @[irreducible]
 def round0_post (s : state.KeccakState) (r_impl : state.KeccakState) : Prop :=
-  (do
-    let s_theta ← keccak_f.theta (lift s)
-    let s_rho ← keccak_f.rho s_theta
-    let s_pi ← keccak_f.pi s_rho
-    let s_chi ← keccak_f.chi s_pi
-    let r_spec ← keccak_f.iota s_chi s.i
-    pure (r_spec = lift_perm r_impl impl_perm impl_swap)).holds
+  prc_spec (theta_applied (lift s)) s.i = lift_perm r_impl impl_perm impl_swap
 
 set_option maxHeartbeats 16000000 in
 theorem round0_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
@@ -117,12 +104,11 @@ theorem round0_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
     | scalar_tac
     | (casesm* _ ∧ _; scalar_tac)
     | (unfold round0_post
-       -- Spec post is now `(do θ; ρ; π; χ; ι _ s.i).holds`.
-       -- Use the chain hypotheses (already in scope from mvcgen's
-       -- dispatch of chain_spec) to thread through each spec.
+       -- The chain hypotheses are already in scope from mvcgen's dispatch
+       -- of `chain_spec`; the post is now an equation between pure states,
+       -- so there is nothing left to advance.
        casesm* _ ∧ _
-       hax_mvcgen
-       all_goals first | scalar_tac | simp_all)
+       simp_all)
 
 /-! ## Chain wrappers + round equivs for rounds 1, 2, 3
 
@@ -143,12 +129,8 @@ theorem keccakf1600_round1_pi_rho_chi_chain_spec
     ⦃ ⌜ True ⌝ ⦄
     keccakf1600_round1_pi_rho_chi_chain s
     ⦃ ⇓ r_impl => ⌜
-      (do let a1 ← keccak_f.rho
-            (lift_theta_applied_perm s impl_perm (impl_swap_k 1))
-          let a2 ← keccak_f.pi a1
-          let a3 ← keccak_f.chi a2
-          let r_spec ← keccak_f.iota a3 s.i
-          pure (r_spec = lift_perm r_impl (impl_perm ∘ impl_perm) (impl_swap_k 2))).holds ⌝ ⦄ := by
+      prc_spec (lift_theta_applied_perm s impl_perm (impl_swap_k 1)) s.i
+        = lift_perm r_impl (impl_perm ∘ impl_perm) (impl_swap_k 2) ⌝ ⦄ := by
   unfold keccakf1600_round1_pi_rho_chi_chain
   exact prc_lift_spec_1 s hi
 
@@ -163,13 +145,8 @@ theorem keccakf1600_round2_pi_rho_chi_chain_spec
     ⦃ ⌜ True ⌝ ⦄
     keccakf1600_round2_pi_rho_chi_chain s
     ⦃ ⇓ r_impl => ⌜
-      (do let a1 ← keccak_f.rho
-            (lift_theta_applied_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))
-          let a2 ← keccak_f.pi a1
-          let a3 ← keccak_f.chi a2
-          let r_spec ← keccak_f.iota a3 s.i
-          pure (r_spec = lift_perm r_impl
-            (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3))).holds ⌝ ⦄ := by
+      prc_spec (lift_theta_applied_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2)) s.i
+        = lift_perm r_impl (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3) ⌝ ⦄ := by
   unfold keccakf1600_round2_pi_rho_chi_chain
   exact prc_lift_spec_2 s hi
 
@@ -184,15 +161,11 @@ theorem keccakf1600_round3_pi_rho_chi_chain_spec
     ⦃ ⌜ True ⌝ ⦄
     keccakf1600_round3_pi_rho_chi_chain s
     ⦃ ⇓ r_impl => ⌜
-      (do let a1 ← keccak_f.rho
-            (lift_theta_applied_perm s
-              (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3))
-          let a2 ← keccak_f.pi a1
-          let a3 ← keccak_f.chi a2
-          let r_spec ← keccak_f.iota a3 s.i
-          -- Round 3 output uses canonical `lift` (= `lift_perm _ id swZero`,
-          -- via `impl_perm^[4] = id` and `impl_swap_k 4 = swZero`).
-          pure (r_spec = Foundation.lift r_impl)).holds ⌝ ⦄ := by
+      -- Round 3 output uses canonical `lift` (= `lift_perm _ id swZero`,
+      -- via `impl_perm^[4] = id` and `impl_swap_k 4 = swZero`).
+      prc_spec (lift_theta_applied_perm s
+          (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3)) s.i
+        = Foundation.lift r_impl ⌝ ⦄ := by
   unfold keccakf1600_round3_pi_rho_chi_chain
   exact prc_lift_spec_3 s hi
 
@@ -201,13 +174,8 @@ theorem keccakf1600_round3_pi_rho_chi_chain_spec
     `impl_swap_k 1 = impl_swap`). Output uses `impl_swap_k 2`. -/
 @[irreducible]
 def round1_post (s : state.KeccakState) (r_impl : state.KeccakState) : Prop :=
-  (do
-    let s_theta ← keccak_f.theta (lift_perm s impl_perm (impl_swap_k 1))
-    let s_rho ← keccak_f.rho s_theta
-    let s_pi ← keccak_f.pi s_rho
-    let s_chi ← keccak_f.chi s_pi
-    let r_spec ← keccak_f.iota s_chi s.i
-    pure (r_spec = lift_perm r_impl (impl_perm ∘ impl_perm) (impl_swap_k 2))).holds
+  prc_spec (theta_applied (lift_perm s impl_perm (impl_swap_k 1))) s.i
+    = lift_perm r_impl (impl_perm ∘ impl_perm) (impl_swap_k 2)
 
 set_option maxHeartbeats 16000000 in
 theorem round1_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
@@ -221,19 +189,12 @@ theorem round1_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
     | (casesm* _ ∧ _; scalar_tac)
     | (unfold round1_post
        casesm* _ ∧ _
-       hax_mvcgen
-       all_goals first | scalar_tac | simp_all)
+       simp_all)
 
 @[irreducible]
 def round2_post (s : state.KeccakState) (r_impl : state.KeccakState) : Prop :=
-  (do
-    let s_theta ← keccak_f.theta
-      (lift_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))
-    let s_rho ← keccak_f.rho s_theta
-    let s_pi ← keccak_f.pi s_rho
-    let s_chi ← keccak_f.chi s_pi
-    let r_spec ← keccak_f.iota s_chi s.i
-    pure (r_spec = lift_perm r_impl (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3))).holds
+  prc_spec (theta_applied (lift_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))) s.i
+    = lift_perm r_impl (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3)
 
 set_option maxHeartbeats 16000000 in
 theorem round2_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
@@ -247,21 +208,15 @@ theorem round2_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
     | (casesm* _ ∧ _; scalar_tac)
     | (unfold round2_post
        casesm* _ ∧ _
-       hax_mvcgen
-       all_goals first | scalar_tac | simp_all)
+       simp_all)
 
 @[irreducible]
 def round3_post (s : state.KeccakState) (r_impl : state.KeccakState) : Prop :=
-  (do
-    let s_theta ← keccak_f.theta
-      (lift_perm s (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3))
-    let s_rho ← keccak_f.rho s_theta
-    let s_pi ← keccak_f.pi s_rho
-    let s_chi ← keccak_f.chi s_pi
-    let r_spec ← keccak_f.iota s_chi s.i
-    -- Output uses `impl_swap_k 4 = (fun _ => false)`, i.e. the canonical
-    -- `lift` (after `impl_perm^[4] = id`). Equivalent to `lift r_impl`.
-    pure (r_spec = Foundation.lift r_impl)).holds
+  -- Output uses `impl_swap_k 4 = (fun _ => false)`, i.e. the canonical
+  -- `lift` (after `impl_perm^[4] = id`). Equivalent to `lift r_impl`.
+  prc_spec (theta_applied
+      (lift_perm s (impl_perm ∘ impl_perm ∘ impl_perm) (impl_swap_k 3))) s.i
+    = Foundation.lift r_impl
 
 set_option maxHeartbeats 16000000 in
 theorem round3_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
@@ -275,8 +230,7 @@ theorem round3_equiv_spec (s : state.KeccakState) (hi : s.i.val < 24) :
     | (casesm* _ ∧ _; scalar_tac)
     | (unfold round3_post
        casesm* _ ∧ _
-       hax_mvcgen
-       all_goals first | scalar_tac | simp_all)
+       simp_all)
 
 /-! ## Triple combinators
 

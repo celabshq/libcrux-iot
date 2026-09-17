@@ -32,16 +32,15 @@ theorem holds_chain_eq_ok {α : Type} {C : Aeneas.Std.RustM α} {X : α}
 
 /-! ## Spec-side one-round step (theta + rho + pi + chi + iota)
 
-Bundles the 5-step spec round into a single function so we can talk
-about iterating it. -/
+Bundles the 5-step spec round into a single function so we can talk about
+iterating it.  `prc_spec ∘ theta_applied` is ρ·π·χ·ι after θ written out cell
+by cell; `Foundation/LaneEq.lean` identifies it with the lane model's
+`roundLanes`.  It stays in `RustM` only because the 24-fold in
+`keccakf1600_post_canonical` and `spec_chain` are phrased there. -/
 
 def spec_round_step (state : Std.Array Std.U64 25#usize) (round : Std.Usize) :
-    RustM (Std.Array Std.U64 25#usize) := do
-  let s_theta ← keccak_f.theta state
-  let s_rho ← keccak_f.rho s_theta
-  let s_pi ← keccak_f.pi s_rho
-  let s_chi ← keccak_f.chi s_pi
-  keccak_f.iota s_chi round
+    RustM (Std.Array Std.U64 25#usize) :=
+  .ok (prc_spec (theta_applied state) round)
 
 /-- Convert a `Nat` ≤ 24 to `Std.Usize`. Used in `keccakf1600_post_canonical`
     to bridge `Nat.fold` indices into the `Std.Usize` argument that

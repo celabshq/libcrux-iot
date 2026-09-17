@@ -923,17 +923,12 @@ theorem prc_lift_spec (s : state.KeccakState) (hi_lt : s.i.val < 24) :
     (do let r1 ← keccak.keccakf1600_round0_pi_rho_chi_1 0#usize s
         keccak.keccakf1600_round0_pi_rho_chi_2 r1)
     ⦃ ⇓ r_impl => ⌜
-      (do let a1 ← keccak_f.rho (lift_theta_applied s)
-          let a2 ← keccak_f.pi a1
-          let a3 ← keccak_f.chi a2
-          let r_spec ← keccak_f.iota a3 s.i
-          pure (r_spec = lift_perm r_impl impl_perm impl_swap)).holds ⌝ ⦄ := by
+      prc_spec (lift_theta_applied s) s.i
+        = lift_perm r_impl impl_perm impl_swap ⌝ ⦄ := by
   unfold keccak.keccakf1600_round0_pi_rho_chi_1
   unfold keccak.keccakf1600_round0_pi_rho_chi_2
   hax_mvcgen
   all_goals try scalar_tac
-  subst_vars
-  rw [prc_spec_eq_composed]
   casesm* _ ∧ _
   have hlane : ∀ (L : lane.Lane2U32), L.val.length = 2 := fun L => L.2
   have hss : (↑s.st : List lane.Lane2U32).length = 25 := s.st.2

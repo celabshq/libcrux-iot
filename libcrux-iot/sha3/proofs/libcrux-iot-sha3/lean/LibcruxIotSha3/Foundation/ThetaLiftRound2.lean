@@ -687,21 +687,14 @@ theorem theta_lift_spec_2 (s : state.KeccakState) :
     keccak.keccakf1600_round2_theta s
     ⦃ ⇓ r_impl => ⌜
       r_impl.i = s.i ∧
-      (do
-        let r_spec ← keccak_f.theta
-          (lift_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))
-        pure (r_spec = lift_theta_applied_perm r_impl
-          (impl_perm ∘ impl_perm) (impl_swap_k 2))).holds ⌝ ⦄ := by
+      theta_applied (lift_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))
+        = lift_theta_applied_perm r_impl
+            (impl_perm ∘ impl_perm) (impl_swap_k 2) ⌝ ⦄ := by
   apply Triple.of_entails_right _ (theta_comp_spec_local_2 s)
   rw [PostCond.entails_noThrow]
   intro r_impl hpost
   dsimp only [PostCond.noThrow, Std.Do.SPred.down_pure]
   refine ⟨hpost.2.1, ?_⟩
-  rw [show keccak_f.theta (lift_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))
-          = .ok (theta_applied (lift_perm s (impl_perm ∘ impl_perm) (impl_swap_k 2))) from
-        result_eq_of_triple (theta_spec _)]
-  show ⦃⌜True⌝⦄ RustM.ok _ ⦃PostCond.noThrow fun p => ⌜p⌝⦄
-  simp [Std.Do.Triple, Std.Do.WP.wp]
   obtain ⟨hst, _, hd0z0, hd0z1, hd1z0, hd1z1, hd2z0, hd2z1,
           hd3z0, hd3z1, hd4z0, hd4z1⟩ := hpost
   apply Subtype.ext

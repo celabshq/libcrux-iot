@@ -636,15 +636,34 @@ theorem keccak_f_loop_eq_spec_chain_hacspec
 
 /-! ## Bridge 1 closure: spec_round_step / spec_chain equality
 
-`spec_round_step_hacspec` and `spec_round_step` are identical (both go
-through `keccak_f.theta / rho / pi / chi`), so the equality is
-definitional. -/
+`spec_round_step` is the pure round `prc_spec ∘ theta_applied`;
+`spec_round_step_hacspec` is the `keccak_f.theta / rho / pi / chi / iota`
+chain.  The five `@[spec]` lemmas drive the chain onto the pure round --
+this, and `keccak_f_loop_eq_spec_chain_hacspec` above, are all that is
+left of `hacspec_sha3` in the `Keccak-f[1600]` half of the proof.
+
+The round index has to be in range: the pure round reads the constant
+table with `!` (total, `default` off the end) while `keccak_f.iota` reads
+it with `index_usize` (a `.fail`).  Both `_at` wrappers guard on
+`i < 24`, so the bound is there when it is needed. -/
 
 theorem spec_round_step_hacspec_eq_spec_round_step
-    (state : Std.Array Std.U64 25#usize) (round : Std.Usize) :
+    (state : Std.Array Std.U64 25#usize) (round : Std.Usize) (hr : round.val < 24) :
     spec_round_step_hacspec state round = spec_round_step state round := by
   unfold spec_round_step_hacspec spec_round_step
-  rfl
+  rw [result_eq_of_triple (theta_spec _)]; simp only [bind_tc_ok]
+  rw [result_eq_of_triple (rho_spec _)]; simp only [bind_tc_ok]
+  rw [result_eq_of_triple (pi_spec _)]; simp only [bind_tc_ok]
+  rw [result_eq_of_triple (chi_spec _)]; simp only [bind_tc_ok]
+  rw [result_eq_of_triple (iota_spec _ _ hr), prc_spec_eq_composed]
+
+theorem spec_round_step_hacspec_at_eq (i : Nat) (st : Std.Array Std.U64 25#usize) :
+    spec_round_step_hacspec_at i st = spec_round_step_at i st := by
+  unfold spec_round_step_hacspec_at spec_round_step_at
+  by_cases h : i < 24
+  · simp only [dif_pos h]
+    exact spec_round_step_hacspec_eq_spec_round_step st _ (by simpa [roundOfNat] using h)
+  · simp only [dif_neg h]
 
 theorem spec_chain_hacspec_eq_spec_chain
     (s : Std.Array Std.U64 25#usize) (n : Nat) :
@@ -653,9 +672,7 @@ theorem spec_chain_hacspec_eq_spec_chain
   | zero => rw [spec_chain_hacspec_zero, spec_chain_zero]
   | succ k ih =>
     rw [spec_chain_hacspec_succ, spec_chain_succ, ih]
-    -- `spec_round_step_hacspec_at` and `spec_round_step_at` are
-    -- definitionally equal — `congr 1` closes.
-    congr 1
+    simp only [spec_round_step_hacspec_at_eq]
 
 /-! ## Top-level theorem: impl ↔ hacspec
 
