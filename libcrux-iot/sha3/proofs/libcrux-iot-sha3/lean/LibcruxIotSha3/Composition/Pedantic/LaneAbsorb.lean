@@ -9,6 +9,7 @@ bit string.  This module lines the two up.
 
 open CoreModels Aeneas
 open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow
 open Std.Do
@@ -302,6 +303,59 @@ theorem padBlockList_drop (M : List Std.U8) (a rem rate : Nat) (delim : Std.U8) 
   simp only [padBlockList, padBlockPre, List.slice, Nat.sub_zero, List.drop_zero,
     Nat.add_sub_cancel_left, Nat.zero_add]
 
+/-- The rate-sized prefix of the padded last block, as a `Slice`. -/
+private def lastBlockSlice (message : Slice Std.U8) (off rem rate : Std.Usize)
+    (delim : Std.U8) (hrate200 : rate.val ≤ 200) : Slice Std.U8 :=
+  ⟨(padBlockList message.val off.val rem.val rate.val delim).take rate.val, by
+    rw [List.length_take, padBlockList_len]; scalar_tac⟩
+
+private theorem lastBlockSlice_len (message : Slice Std.U8) (off rem rate : Std.Usize)
+    (delim : Std.U8) (hrate200 : rate.val ≤ 200) :
+    (lastBlockSlice message off rem rate delim hrate200).val.length = rate.val := by
+  show ((padBlockList message.val off.val rem.val rate.val delim).take rate.val).length = _
+  rw [List.length_take, padBlockList_len]; omega
+
+/-- (b) `hacspec_sha3`'s last-block absorb is the model's. -/
+theorem absorb_final_lanes_eq (s : Lanes) (message : Slice Std.U8) (off rem rate : Std.Usize)
+    (delim : Std.U8) (hrem : rem.val < rate.val) (hrate200 : rate.val ≤ 200)
+    (hrate1 : 1 ≤ rate.val) (hmsg : off.val + rem.val ≤ message.val.length) :
+    hacspec_sha3.sponge.absorb_final s message off rem rate delim
+      = ok (absorbFinalLanes s message.val off.val rem.val rate.val delim) := by
+  have hblen : (padBlockList message.val off.val rem.val rate.val delim).length = 200 :=
+    padBlockList_len _ _ _ _ _
+  have hslice : (padBlockList message.val off.val rem.val rate.val delim).slice 0 rate.val
+      = (padBlockList message.val off.val rem.val rate.val delim).take rate.val := by
+    simp only [List.slice, List.drop_zero, Nat.sub_zero]
+  have hz : (0#usize : Std.Usize).val = 0 := rfl
+  unfold hacspec_sha3.sponge.absorb_final
+  rw [pad_last_block_eq message off rem rate delim hrem hrate200 hrate1 hmsg, bind_tc_ok,
+    array_index_range_eq _ 0#usize rate (by simp) (by rw [hblen]; omega), bind_tc_ok]
+  rw [absorb_block_lanes_eq _ _ rate
+    (by show 8 * (rate.val / 8)
+          ≤ ((padBlockList message.val off.val rem.val rate.val delim).slice
+              (0#usize : Std.Usize).val rate.val).length
+        rw [hz, hslice, List.length_take, hblen]; omega)]
+  -- `slice 0 rate` and `take rate` are the same list, definitionally.
+  unfold absorbFinalLanes
+  congr 2
+
+/-- (c) The last block on the bits. -/
+theorem lanesToBits_absorbFinalLanes (s : Lanes) (message : Slice Std.U8)
+    (off rem rate : Std.Usize) (delim : Std.U8) (hrate200 : rate.val ≤ 200)
+    (hrate1 : 1 ≤ rate.val) (hrate8 : rate.val % 8 = 0) :
+    lanesToBits (absorbFinalLanes s message.val off.val rem.val rate.val delim)
+      = keccakF (List.zipWith (· ^^ ·) (lanesToBits s)
+        (h2bList ((padBlockList message.val off.val rem.val rate.val delim).take rate.val)
+          ++ List.replicate (1600 - 8 * rate.val) false)) := by
+  have hslen := lastBlockSlice_len message off rem rate delim hrate200
+  have hbits := lanesToBits_absorbBlockLanes s
+    (lastBlockSlice message off rem rate delim hrate200) rate (by omega)
+    (by rw [hslen]; omega)
+  show lanesToBits (absorbBlockLanes s
+    (lastBlockSlice message off rem rate delim hrate200).val rate.val) = _
+  rw [hbits, blockMask_exact _ rate.val hrate8 hslen (by omega)]
+  rfl
+
 theorem absorb_final_eq (s : Lanes) (message : Slice Std.U8) (off rem rate : Std.Usize)
     (delim : Std.U8) (hrem : rem.val < rate.val) (hrate200 : rate.val ≤ 200)
     (hrate1 : 1 ≤ rate.val) (hrate8 : rate.val % 8 = 0)
@@ -309,32 +363,10 @@ theorem absorb_final_eq (s : Lanes) (message : Slice Std.U8) (off rem rate : Std
     ∃ s' : Lanes, hacspec_sha3.sponge.absorb_final s message off rem rate delim = ok s' ∧
       lanesToBits s' = keccakF (List.zipWith (· ^^ ·) (lanesToBits s)
         (h2bList ((padBlockList message.val off.val rem.val rate.val delim).take rate.val)
-          ++ List.replicate (1600 - 8 * rate.val) false)) := by
-  have hblen : (padBlockList message.val off.val rem.val rate.val delim).length = 200 :=
-    padBlockList_len _ _ _ _ _
-  have hslice : (padBlockList message.val off.val rem.val rate.val delim).slice 0 rate.val
-      = (padBlockList message.val off.val rem.val rate.val delim).take rate.val := by
-    simp only [List.slice, List.drop_zero, Nat.sub_zero]
-  have hslen : ((padBlockList message.val off.val rem.val rate.val delim).slice 0 rate.val).length
-      = rate.val := by rw [hslice, List.length_take, hblen]; omega
-  obtain ⟨s', hs', hbits⟩ := absorb_block_eq s
-    ⟨(padBlockList message.val off.val rem.val rate.val delim).slice 0 rate.val, by
-      rw [hslen]; scalar_tac⟩ rate (by omega)
-    (show 8 * (rate.val / 8)
-        ≤ ((padBlockList message.val off.val rem.val rate.val delim).slice 0 rate.val).length from by
-      rw [hslen]; omega)
-  refine ⟨s', ?_, ?_⟩
-  · unfold hacspec_sha3.sponge.absorb_final
-    rw [pad_last_block_eq message off rem rate delim hrem hrate200 hrate1 hmsg, bind_tc_ok,
-      array_index_range_eq _ 0#usize rate (by simp) (by rw [hblen]; omega), bind_tc_ok]
-    exact hs'
-  · rw [hbits,
-      blockMask_exact _ rate.val hrate8
-        (show ((padBlockList message.val off.val rem.val rate.val delim).slice 0
-          rate.val).length = rate.val from hslen) (by omega)]
-    rw [show ((⟨(padBlockList message.val off.val rem.val rate.val delim).slice 0 rate.val, by
-        rw [hslen]; scalar_tac⟩ : Slice Std.U8)).val
-      = (padBlockList message.val off.val rem.val rate.val delim).take rate.val from hslice]
+          ++ List.replicate (1600 - 8 * rate.val) false)) :=
+  ⟨absorbFinalLanes s message.val off.val rem.val rate.val delim,
+    absorb_final_lanes_eq s message off rem rate delim hrem hrate200 hrate1 hmsg,
+    lanesToBits_absorbFinalLanes s message off rem rate delim hrate200 hrate1 hrate8⟩
 
 
 /-! ### The absorb recursion -/

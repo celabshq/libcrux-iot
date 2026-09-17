@@ -401,7 +401,7 @@ theorem lanesToBits_get (s : Lanes) {x y z : Nat} (hx : x < 5) (hy : y < 5) (hz 
   have h3 : bitPos x y z % 64 = z := by simp only [bitPos]; omega
   simp only [lanesToBits]
   rw [getElem!_pos _ _ (by simp only [List.length_map, List.length_range]; exact hlt)]
-  simp only [List.getElem_map, List.getElem_range, h1, h2, h3]
+  simp only [List.getElem_map, List.getElem_range, laneBitAt, h1, h2, h3]
 
 theorem bitsOfList_lanesToBits (s : Lanes) :
     AgreeInRange (bitsOfList (lanesToBits s)) (laneBit s) :=

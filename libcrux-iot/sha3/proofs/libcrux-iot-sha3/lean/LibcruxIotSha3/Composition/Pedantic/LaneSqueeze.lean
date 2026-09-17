@@ -10,6 +10,7 @@ specs' byte-level results be compared.
 
 open CoreModels Aeneas
 open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow
 open Std.Do
@@ -102,7 +103,7 @@ theorem lanesToBits_zero :
   apply List.map_congr_left
   intro p hp
   have hp' : p < 1600 := by simpa using hp
-  rw [laneBit, show 5 * (p / 320) + p / 64 % 5 = p / 64 from by omega, h (p / 64) (by omega)]
+  rw [laneBitAt, laneBit, show 5 * (p / 320) + p / 64 % 5 = p / 64 from by omega, h (p / 64) (by omega)]
   simp
 
 theorem absorb_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)

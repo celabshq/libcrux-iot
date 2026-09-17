@@ -1,4 +1,5 @@
 import LibcruxIotSha3.Composition.Pedantic.BitsOps
+import LibcruxIotSha3.SpongeModel
 /-!
 # Bytes and bits (FIPS 202, App. B.1)
 
@@ -8,6 +9,7 @@ bytes and, for each, its eight bits; `b2h` does the reverse.
 -/
 
 open CoreModels Aeneas
+open LibcruxIotSha3.SpongeModel
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow
 open Std.Do
@@ -205,11 +207,6 @@ theorem h2b_full_eq (h : Slice Std.U8) (hb : 8 * h.val.length ≤ Std.Usize.max)
 
 
 /-! ### `b2h` -/
-
-/-- The byte whose bit `j` is `f j` (FIPS 202, Algorithm 11 assembles it this
-    way: start at zero and set the bits that are on). -/
-def byteOf (f : Nat → Bool) : Std.U8 :=
-  ⟨(List.range 8).foldl (fun acc j => if f j then acc ||| BitVec.twoPow 8 j else acc) 0#8⟩
 
 /-- A bit string as a byte string: zero-pad to a multiple of eight, then take
     the bits eight at a time. -/

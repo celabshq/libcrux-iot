@@ -1,5 +1,6 @@
 import LibcruxIotSha3.Composition.Pedantic.Lanes
 import LibcruxIotSha3.Composition.Pedantic.Sha3
+import LibcruxIotSha3.SpongeModel
 /-!
 # `hacspec_sha3`'s byte-rate sponge, read bit by bit
 
@@ -10,6 +11,7 @@ XORed into the bit string, in the same order `h2b` produces them.
 -/
 
 open CoreModels Aeneas
+open LibcruxIotSha3.SpongeModel
 open LibcruxIotSha3.LaneModel
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow
@@ -120,17 +122,10 @@ theorem mkArr_congr {T : Type} (N : Std.Usize) {g h : Nat → T}
 
 /-! ### `xor_block_into_state` -/
 
-/-- The `u64` lane the block's bytes `8t … 8t+7` make up. -/
-def blockLane (blk : Slice Std.U8) (t : Nat) : Std.U64 :=
-  Std.core.num.U64.from_le_bytes (mkArr 8#usize (fun j => blk.val[8 * t + j]!))
-
-/-- XORing a rate-sized block into the state, lane by lane. -/
-def xorLanes (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize) : Lanes :=
-  mkArr 25#usize (fun t => if t < rate.val / 8 then s.val[t]! ^^^ blockLane blk t else s.val[t]!)
-
 theorem xor_block_into_state_eq (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
     (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
-    hacspec_sha3.sponge.xor_block_into_state s blk rate = ok (xorLanes s blk rate) := by
+    hacspec_sha3.sponge.xor_block_into_state s blk rate
+      = ok (xorLanes s blk.val rate.val) := by
   unfold hacspec_sha3.sponge.xor_block_into_state
   refine createi_eq _ _ _ _ (by simp) ?_
   intro t ht
@@ -252,7 +247,7 @@ theorem blockMask_get (blk : Slice Std.U8) (L : Nat) (hL : L ≤ 25)
 /-- XORing a block into the lanes is XORing its bits into the bit string. -/
 theorem lanesToBits_xorLanes (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
     (hL : rate.val / 8 ≤ 25) (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
-    lanesToBits (xorLanes s blk rate)
+    lanesToBits (xorLanes s blk.val rate.val)
       = List.zipWith (· ^^ ·) (lanesToBits s) (blockMask blk (rate.val / 8)) := by
   have hmlen := blockMask_len blk (rate.val / 8) hL hblk
   apply list_ext_getElem!
@@ -317,29 +312,32 @@ theorem h2bList_drop (l : List Std.U8) (n : Nat) :
 
 /-! ### `absorb_block` -/
 
+/-- (b) `hacspec_sha3`'s absorb step is the model's. -/
+theorem absorb_block_lanes_eq (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
+    (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
+    hacspec_sha3.sponge.absorb_block s blk rate
+      = ok (absorbBlockLanes s blk.val rate.val) := by
+  unfold hacspec_sha3.sponge.absorb_block
+  rw [xor_block_into_state_eq s blk rate hblk, bind_tc_ok, keccak_f_lanes_eq]
+  rfl
+
+/-- (c) One absorb step on the bits: XOR the block's bits into the rate, then
+    permute. -/
+theorem lanesToBits_absorbBlockLanes (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
+    (hL : rate.val / 8 ≤ 25) (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
+    lanesToBits (absorbBlockLanes s blk.val rate.val)
+      = keccakF (List.zipWith (· ^^ ·) (lanesToBits s) (blockMask blk (rate.val / 8))) := by
+  rw [absorbBlockLanes, ← keccakF_lanesToBits, lanesToBits_xorLanes s blk rate hL hblk]
+
 theorem absorb_block_eq (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
     (hL : rate.val / 8 ≤ 25) (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
     ∃ s' : Lanes, hacspec_sha3.sponge.absorb_block s blk rate = ok s' ∧
       lanesToBits s'
-        = keccakF (List.zipWith (· ^^ ·) (lanesToBits s) (blockMask blk (rate.val / 8))) := by
-  obtain ⟨s', hs', hbits⟩ := keccakF_lanes_eq (xorLanes s blk rate)
-  refine ⟨s', ?_, ?_⟩
-  · unfold hacspec_sha3.sponge.absorb_block
-    rw [xor_block_into_state_eq s blk rate hblk, bind_tc_ok]
-    exact hs'
-  · rw [← hbits, lanesToBits_xorLanes s blk rate hL hblk]
+        = keccakF (List.zipWith (· ^^ ·) (lanesToBits s) (blockMask blk (rate.val / 8))) :=
+  ⟨absorbBlockLanes s blk.val rate.val, absorb_block_lanes_eq s blk rate hblk,
+    lanesToBits_absorbBlockLanes s blk rate hL hblk⟩
 
 /-! ### `pad_last_block` -/
-
-/-- The 200-byte buffer before the trailing `0x80` is set: the message tail,
-    then the domain-separation byte, then zeros. -/
-def padBlockPre (msg : List Std.U8) (off rem : Nat) (delim : Std.U8) : List Std.U8 :=
-  ((List.replicate 200 (0#u8)).setSlice! 0 (msg.slice off (off + rem))).set rem delim
-
-/-- The whole padded last block. -/
-def padBlockList (msg : List Std.U8) (off rem rate : Nat) (delim : Std.U8) : List Std.U8 :=
-  (padBlockPre msg off rem delim).set (rate - 1)
-    ((padBlockPre msg off rem delim)[rate - 1]! ||| 128#u8)
 
 theorem padBlockPre_len (msg : List Std.U8) (off rem : Nat) (delim : Std.U8) :
     (padBlockPre msg off rem delim).length = 200 := by
@@ -404,10 +402,6 @@ theorem list_slice_get {α : Type} [Inhabited α] (l : List α) (a b k : Nat)
     (hb : b ≤ l.length) (hk : a + k < b) : (l.slice a b)[k]! = l[a + k]! := by
   rw [getElem!_pos _ k (by rw [List.slice_length]; omega),
     getElem!_pos l (a + k) (by omega), List.getElem_slice _ _ _ _ (by omega)]
-
-/-- The byte the padded block holds at `k`, before the trailing `0x80`. -/
-def padBlockBase (msg : List Std.U8) (off rem : Nat) (delim : Std.U8) (k : Nat) : Std.U8 :=
-  if k < rem then msg[off + k]! else if k = rem then delim else 0#u8
 
 theorem padBlockPre_get (msg : List Std.U8) (off rem : Nat) (delim : Std.U8)
     (hrem : rem < 200) (hmsg : off + rem ≤ msg.length) (k : Nat) (hk : k < 200) :

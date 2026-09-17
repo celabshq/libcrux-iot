@@ -116,9 +116,14 @@ def keccakFLanes (s : Lanes) : Lanes := roundsUpTo s 24
 
 /-! ### The lane state as a flat bit string -/
 
+/-- Bit `p` of the state read as a flat 1600-bit string: FIPS 202's
+    `S[w(5y + x) + z] = A[x, y, z]` solved for `(x, y, z)`. -/
+def laneBitAt (s : Lanes) (p : Nat) : Bool :=
+  laneBit s ((p / 64) % 5) (p / 320) (p % 64)
+
 /-- The 1600 bits of a 25-lane state, in the FIPS order `S[64(5y + x) + z]`. -/
 def lanesToBits (s : Lanes) : List Bool :=
-  (List.range 1600).map (fun p => laneBit s ((p / 64) % 5) (p / 320) (p % 64))
+  (List.range 1600).map (laneBitAt s)
 
 @[simp]
 theorem lanesToBits_len (s : Lanes) : (lanesToBits s).length = 1600 := by

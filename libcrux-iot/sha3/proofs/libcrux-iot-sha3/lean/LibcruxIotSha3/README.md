@@ -316,6 +316,7 @@ bridge is therefore bit-level throughout, and runs bottom-up:
 | file | holds |
 |---|---|
 | `../../Tables.lean` | the two Keccak constant tables (`RC[0..23]`, ρ's rotation offsets), local copies so that no proof has to name a specification's |
+| `../../SpongeModel.lean` | the lane model of the sponge: a block XOR-ed in lane by lane, `pad10*1` in a 200-byte buffer, the absorb recursion, squeezing. Total functions over `List`s and `Nat`s |
 | `../../Foundation/LaneEq.lean` | `Foundation/`'s five `*_applied` step semantics are the lane model's, and its 24-fold `spec_chain` is `keccakFLanes` |
 | `../../Composition/LaneBridge.lean` | `keccakf1600_equiv_lanes`: the implementation computes `keccakFLanes`. No specification appears in it |
 | `../../LaneModel.lean` | the lane model: the state as 25 `u64` lanes, the five step mappings, `roundsUpTo` / `keccakFLanes` and `lanesToBits`, all as ordinary total functions. This is the midpoint the two proof halves meet at |
