@@ -308,6 +308,19 @@ theorem i64_sub_eq (x y : Std.I64)
   | fail e => rw [hxy] at he; exact absurd he.2 (by simp only [Std.IScalar.inBounds, not_not]; constructor <;> scalar_tac)
   | div => rw [hxy] at he; exact he.elim
 
+theorem i64_neg_eq (x : Std.I64) (h : x.val ≠ Std.I64.min) :
+    ∃ z : Std.I64, -.x = ok z ∧ z.val = -x.val := by
+  have hs := Std.IScalar.neg_step x
+  unfold WP.partialSpec at hs
+  have hdef : (-.x : RustM Std.I64) = Std.IScalar.neg x := rfl
+  rw [hdef]
+  cases hxy : (Std.IScalar.neg x) with
+  | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs⟩
+  | fail e =>
+    rw [hxy] at hs
+    cases e <;> simp_all
+  | div => rw [hxy] at hs; exact hs.elim
+
 theorem i64_rem_eq (x y : Std.I64) (hy : y.val ≠ 0) (hmin : x.val ≠ Std.I64.min) :
     ∃ z : Std.I64, x % y = ok z ∧ z.val = Int.tmod x.val y.val := by
   have hs := Std.I64.rem_spec (x := x) (y := y)
@@ -318,15 +331,13 @@ theorem i64_rem_eq (x y : Std.I64) (hy : y.val ≠ 0) (hmin : x.val ≠ Std.I64.
   | div => rw [hxy] at hs; exact hs.elim
 
 set_option maxRecDepth 8000 in
-/-- `imod a b` is the mathematical modulus, `Int.emod`, for every positive `b`
-    that leaves the intermediate `a % b + b` in range.  Rust's `%` truncates
-    towards zero, which is why the spec needs the `+ b` and the second `%` at
-    all; `Int.tmod_eq_emod` is what connects the two. -/
-theorem imod_eq (a b : Std.I64) (hb : 0 < b.val)
-    (hamin : a.val ≠ Std.I64.min) (hmax : 2 * b.val ≤ Std.IScalar.max .I64)
-    (hbu : b.val ≤ Std.UScalar.max Std.UScalarTy.Usize) :
-    ∃ m : Std.Usize, hacspec_sha3_pedantic.step_mappings.imod a b = ok m
-      ∧ (m.val : Int) = a.val % b.val := by
+/-- The truncating-remainder dance `((a % b) + b) % b` is the mathematical
+    modulus, `Int.emod`, for every positive `b` that leaves the intermediate in
+    range.  Both `imod` and `pad10*1` compute it. -/
+theorem i64_emod_chain (a b : Std.I64) (hb : 0 < b.val)
+    (hamin : a.val ≠ Std.I64.min) (hmax : 2 * b.val ≤ Std.IScalar.max .I64) :
+    ∃ i i1 z : Std.I64,
+      a % b = ok i ∧ i + b = ok i1 ∧ i1 % b = ok z ∧ z.val = a.val % b.val := by
   have hminI : Std.IScalar.min Std.IScalarTy.I64 = -9223372036854775808 := by
     rw [Std.IScalar.min_IScalarTy_I64_eq, Std.I64.min_eq]
   have hmaxI : Std.IScalar.max Std.IScalarTy.I64 = 9223372036854775807 := by
@@ -340,7 +351,6 @@ theorem imod_eq (a b : Std.I64) (hb : 0 < b.val)
   have hem0 : 0 ≤ a.val % b.val := Int.emod_nonneg _ (by omega)
   have hem1 : a.val % b.val < b.val := Int.emod_lt_of_pos _ hb
   obtain ⟨i, hi, hiv⟩ := i64_rem_eq a b (by omega) hamin
-  -- the truncating remainder differs from `emod` by at most one `b`
   have hib : i.val = a.val % b.val ∨ i.val = a.val % b.val - b.val := by
     rw [hiv, Int.tmod_eq_emod]
     by_cases hc : 0 ≤ a.val ∨ b.val ∣ a.val
@@ -367,10 +377,22 @@ theorem imod_eq (a b : Std.I64) (hb : 0 < b.val)
         simp
       rw [hstep]
       simp
-  refine ⟨Std.IScalar.hcast Std.UScalarTy.Usize i2, ?_, ?_⟩
+  exact ⟨i, i1, i2, hi, hi1, hi2, hi2a⟩
+
+/-- With `|a| < b` or not, `imod` is `Int.emod`; it is `i64_emod_chain` plus the
+    cast back to an index. -/
+theorem imod_eq (a b : Std.I64) (hb : 0 < b.val)
+    (hamin : a.val ≠ Std.I64.min) (hmax : 2 * b.val ≤ Std.IScalar.max .I64)
+    (hbu : b.val ≤ Std.UScalar.max Std.UScalarTy.Usize) :
+    ∃ m : Std.Usize, hacspec_sha3_pedantic.step_mappings.imod a b = ok m
+      ∧ (m.val : Int) = a.val % b.val := by
+  obtain ⟨i, i1, z, hi, hi1, hz, hzv⟩ := i64_emod_chain a b hb hamin hmax
+  have hem0 : 0 ≤ a.val % b.val := Int.emod_nonneg _ (by omega)
+  have hem1 : a.val % b.val < b.val := Int.emod_lt_of_pos _ hb
+  refine ⟨Std.IScalar.hcast Std.UScalarTy.Usize z, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.step_mappings.imod
-    rw [hi, bind_tc_ok, hi1, bind_tc_ok, hi2, bind_tc_ok]
-  · rw [i64_to_usize_val i2 (by omega) (by omega), hi2a]
+    rw [hi, bind_tc_ok, hi1, bind_tc_ok, hz, bind_tc_ok]
+  · rw [i64_to_usize_val z (by omega) (by omega), hzv]
 
 /-! ## `Iterator::next` on a `Range I64`
 
@@ -758,6 +780,39 @@ theorem push_loop_eq
     simp
   case hdone =>
     intro acc hinv
+    exact ⟨acc, hdone acc, hinv⟩
+
+/-- A loop over an `i64` range that pushes the same bit each time (the `0*` of
+    `pad10*1`). -/
+theorem push_const_loop_i64
+    (body : (core.ops.range.Range Std.I64 × alloc.vec.Vec Bool) →
+      RustM (ControlFlow (core.ops.range.Range Std.I64 × alloc.vec.Vec Bool)
+        (alloc.vec.Vec Bool)))
+    (n : Std.I64) (hn : 0 ≤ n.val) (v : Bool) (out0 : alloc.vec.Vec Bool)
+    (hstep : ∀ (i : Std.I64) (acc : alloc.vec.Vec Bool), i.val < n.val →
+      acc.val = out0.val ++ List.replicate i.val.toNat v →
+      ∃ (s : Std.I64) (acc' : alloc.vec.Vec Bool), s.val = i.val + 1 ∧
+        acc'.val = acc.val ++ [v] ∧
+        body ({ start := i, «end» := n }, acc)
+          = ok (.cont ({ start := s, «end» := n }, acc')))
+    (hdone : ∀ acc : alloc.vec.Vec Bool,
+      body ({ start := n, «end» := n }, acc) = ok (.done acc)) :
+    ∃ out : alloc.vec.Vec Bool,
+      loop body ({ start := 0#i64, «end» := n }, out0) = ok out ∧
+      out.val = out0.val ++ List.replicate n.val.toNat v := by
+  refine loop_range_eq_inv_i64 body n
+    (fun i acc => 0 ≤ i.val ∧ i.val ≤ n.val ∧
+      acc.val = out0.val ++ List.replicate i.val.toNat v)
+    (fun _ _ r => r.val = out0.val ++ List.replicate n.val.toNat v)
+    ?hstep ?hdone n.val.toNat 0#i64 out0 (by simp; omega) ⟨by simp, by simpa using hn, by simp⟩
+  case hstep =>
+    rintro i acc hi ⟨hi0, hin, hinv⟩
+    obtain ⟨s, acc', hs, hacc', hbody⟩ := hstep i acc hi hinv
+    refine ⟨s, acc', hs, ⟨by omega, by omega, ?_⟩, hbody, fun r hr => hr⟩
+    rw [hacc', hinv, show s.val.toNat = i.val.toNat + 1 by omega,
+      List.replicate_succ', List.append_assoc]
+  case hdone =>
+    rintro acc ⟨_, _, hinv⟩
     exact ⟨acc, hdone acc, hinv⟩
 
 /-! ## Copying a slice of `bool`s
