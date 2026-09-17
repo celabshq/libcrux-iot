@@ -26,6 +26,10 @@ open Std.Do
 
 namespace LibcruxIotSha3.Composition.Pedantic
 
+-- `scalar_tac` normalises the `i64` bounds through `2 ^ 63`, which overruns the
+-- default recursion limit in the `imod` proof.
+set_option maxRecDepth 8000
+
 theorem loop_range_eq {β γ : Type}
     (body : (core.ops.range.Range Std.Usize × β) →
       RustM (ControlFlow (core.ops.range.Range Std.Usize × β) γ))
@@ -141,5 +145,107 @@ theorem usize_mul_eq (x y : Std.Usize) (h : x.val * y.val ≤ Std.Usize.max) :
   | ok z => rw [hm] at he; exact ⟨z, rfl, he.2.1⟩
   | fail e => rw [hm] at he; exact absurd he.2 (by scalar_tac)
   | div => rw [hm] at he; exact he.elim
+
+/-! ## The signed side: `imod`
+
+`theta`'s D loop indexes with `x - 1` and `z - 1`, which FIPS 202 reads modulo 5
+and modulo `w`.  Rust's `%` truncates towards zero, so the spec spells the
+mathematical modulus out as `imod a b = ((a % b) + b) % b` over `i64`, casting
+the result back to an index.  `imod_eq` says that is the mathematical modulus
+whenever `|a| < b`, which is all the spec ever uses it at. -/
+
+theorem usize_to_i64 (x : Std.Usize) (h : (x.val : Int) ≤ Std.IScalar.max .I64) :
+    ∃ i : Std.I64, lift (Std.UScalar.hcast .I64 x) = ok i ∧ i.val = (x.val : Int) :=
+  WP.spec_imp_exists (Std.UScalar.hcast_inBounds_spec .I64 x h)
+
+theorem i64_to_usize_val (i : Std.I64)
+    (h0 : 0 ≤ i.val) (h1 : i.val ≤ Std.UScalar.max .Usize) :
+    ((Std.IScalar.hcast Std.UScalarTy.Usize i).val : Int) = i.val := by
+  obtain ⟨y, hy, hyv⟩ := WP.spec_imp_exists (Std.IScalar.hcast_inBounds_spec .Usize i ⟨h0, h1⟩)
+  have hlift : lift (Std.IScalar.hcast Std.UScalarTy.Usize i)
+      = ok (Std.IScalar.hcast Std.UScalarTy.Usize i) := rfl
+  rw [hlift] at hy
+  cases hy
+  exact hyv
+
+theorem i64_add_eq (x y : Std.I64)
+    (h0 : Std.IScalar.min .I64 ≤ x.val + y.val) (h1 : x.val + y.val ≤ Std.IScalar.max .I64) :
+    ∃ z : Std.I64, x + y = ok z ∧ z.val = x.val + y.val := by
+  have he := Std.IScalar.add_equiv x y
+  cases hxy : (x + y : RustM Std.I64) with
+  | ok z => rw [hxy] at he; exact ⟨z, rfl, he.2.1⟩
+  | fail e => rw [hxy] at he; exact absurd he.2 (by simp only [Std.IScalar.inBounds, not_not]; constructor <;> scalar_tac)
+  | div => rw [hxy] at he; exact he.elim
+
+theorem i64_sub_eq (x y : Std.I64)
+    (h0 : Std.IScalar.min .I64 ≤ x.val - y.val) (h1 : x.val - y.val ≤ Std.IScalar.max .I64) :
+    ∃ z : Std.I64, x - y = ok z ∧ z.val = x.val - y.val := by
+  have he := Std.IScalar.sub_equiv x y
+  cases hxy : (x - y : RustM Std.I64) with
+  | ok z => rw [hxy] at he; exact ⟨z, rfl, he.2.1⟩
+  | fail e => rw [hxy] at he; exact absurd he.2 (by simp only [Std.IScalar.inBounds, not_not]; constructor <;> scalar_tac)
+  | div => rw [hxy] at he; exact he.elim
+
+theorem i64_rem_eq (x y : Std.I64) (hy : y.val ≠ 0) (hmin : x.val ≠ Std.I64.min) :
+    ∃ z : Std.I64, x % y = ok z ∧ z.val = Int.tmod x.val y.val := by
+  have hs := Std.I64.rem_spec (x := x) (y := y)
+  unfold WP.partialSpec at hs
+  cases hxy : (x % y : RustM Std.I64) with
+  | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs⟩
+  | fail e => rw [hxy] at hs; cases e <;> simp_all
+  | div => rw [hxy] at hs; exact hs.elim
+
+set_option maxRecDepth 8000 in
+/-- With `|a| < b` -- the only way the spec calls it -- `imod` is the mathematical
+    modulus, `Int.emod`. -/
+theorem imod_eq (a b : Std.I64) (hb : 0 < b.val) (hlo : -b.val < a.val) (hhi : a.val < b.val)
+    (hmax : a.val + b.val ≤ Std.IScalar.max .I64)
+    (hbu : b.val ≤ Std.UScalar.max Std.UScalarTy.Usize) :
+    ∃ m : Std.Usize, hacspec_sha3_pedantic.step_mappings.imod a b = ok m
+      ∧ (m.val : Int) = a.val % b.val := by
+  have hminval : Std.I64.min = -9223372036854775808 := Std.I64.min_eq
+  have hminI : Std.IScalar.min Std.IScalarTy.I64 = -9223372036854775808 := by
+    rw [Std.IScalar.min_IScalarTy_I64_eq, Std.I64.min_eq]
+  have hmaxI : Std.IScalar.max Std.IScalarTy.I64 = 9223372036854775807 := by
+    rw [Std.IScalar.max_IScalarTy_I64_eq, Std.I64.max_eq]
+  have hpow : (2:Int) ^ (Std.IScalarTy.I64.numBits - 1) = 9223372036854775808 := by
+    norm_num [Std.IScalarTy.numBits]
+  have hbb := b.hBounds
+  have hab := a.hBounds
+  rw [hpow] at hbb hab
+  have hamin : a.val ≠ Std.I64.min := by omega
+  obtain ⟨i, hi, hiv⟩ := i64_rem_eq a b (by omega) hamin
+  -- `a % b` truncates towards zero, and with `|a| < b` that leaves `a` alone.
+  have hia : i.val = a.val := by
+    rw [hiv, Int.tmod_eq_emod]
+    by_cases hpos : 0 ≤ a.val
+    · rw [if_pos (Or.inl hpos), Int.emod_eq_of_lt hpos hhi]; ring
+    · have hnd : ¬ (b.val ∣ a.val) := by
+        intro hdvd
+        have : b.val ≤ -a.val := Int.le_of_dvd (by omega) ((dvd_neg).mpr hdvd)
+        omega
+      rw [if_neg (by tauto)]
+      have hb' : (b.val.natAbs : Int) = b.val := by omega
+      have : a.val % b.val = a.val + b.val := by
+        have h1 : (a.val + b.val) % b.val = a.val % b.val := by
+          simp
+        rw [← h1, Int.emod_eq_of_lt (by omega) (by omega)]
+      rw [this, hb']
+      ring
+  obtain ⟨i1, hi1, hi1v⟩ := i64_add_eq i b (by rw [hia]; omega) (by rw [hia]; omega)
+  obtain ⟨i2, hi2, hi2v⟩ := i64_rem_eq i1 b (by omega) (by rw [hi1v, hia]; omega)
+  have hi2a : i2.val = a.val % b.val := by
+    rw [hi2v, hi1v, hia, Int.tmod_eq_emod, if_pos (Or.inl (by omega))]
+    have : (a.val + b.val) % b.val = a.val % b.val := by
+      simp
+    rw [this]
+    ring
+  refine ⟨Std.IScalar.hcast Std.UScalarTy.Usize i2, ?_, ?_⟩
+  · unfold hacspec_sha3_pedantic.step_mappings.imod
+    rw [hi, bind_tc_ok, hi1, bind_tc_ok, hi2, bind_tc_ok]
+  · rw [i64_to_usize_val i2 (by rw [hi2a]; exact Int.emod_nonneg _ (by omega)) (by
+      rw [hi2a]
+      have : a.val % b.val < b.val := Int.emod_lt_of_pos _ hb
+      omega), hi2a]
 
 end LibcruxIotSha3.Composition.Pedantic
