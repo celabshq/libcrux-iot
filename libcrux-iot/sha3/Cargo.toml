@@ -19,19 +19,12 @@ bench = false # so libtest doesn't eat the arguments to criterion
 libcrux-secrets.workspace = true
 libcrux-traits.workspace = true
 hax-lib.workspace = true
-# The two machine-extracted FIPS-202 hacspecs. NORMAL (not dev-) dependencies
-# because the `#[ensures]` clauses name `hacspec_sha3{,_pedantic}::…` directly,
-# so they must be in scope for the hax build; `cargo test` sees them too.
-#
-# `hacspec_sha3_pedantic` is the FIPS 202 transcript: it is what the six public
-# `#[ensures]` clauses name, and the spec the trust argument rests on.
-# `hacspec_sha3` is the spec the sponge proof was built against; it survives as an
-# internal stepping stone (the Lean tree's `Composition/Pedantic/` proves the two
-# agree) and as the counterpart in the cross-spec Rust tests and in `keccak_fc`,
-# which has no pedantic equivalent.  Both are pinned by COMMIT SHA,
-# at the same revision as the corresponding `[[require]]`s in
+# The FIPS 202 transcript: what the six public `#[ensures]` clauses name, and the
+# spec the trust argument rests on. A NORMAL (not dev-) dependency because those
+# clauses name `hacspec_sha3_pedantic::bytes::…` directly, so it must be in scope
+# for the hax build; `cargo test` sees it too. Pinned by COMMIT SHA (never by
+# branch) at the same revision as the corresponding `[[require]]` in
 # `proofs/libcrux-iot-sha3/lean/lakefile.toml`.
-hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }
 hacspec_sha3_pedantic = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }
 
 # XXX: Unfortunately, it's not possible to use certain hax attributes
@@ -56,6 +49,13 @@ check-secret-independence = [
 ]
 
 [dev-dependencies]
+# The spec the sponge proof was built against (25 u64 lanes, rate in bytes). No
+# `#[ensures]` names it any more -- the Lean tree's `Composition/Pedantic/` proves
+# it agrees with the transcript, so it is an internal stepping stone rather than
+# part of the trusted base -- but the cross-spec tests in `src/keccak.rs` and
+# `src/state.rs` still compare against it, which is what keeps it here. Same
+# revision as the transcript above.
+hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }
 criterion = "0.5.1"
 hex = "0.4.3"
 rand = "0.8.5"

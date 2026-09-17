@@ -2682,29 +2682,15 @@ pub(crate) fn squeeze_first_and_last<const RATE: usize>(s: &KeccakState, out: &m
 // in bytes; this is the 1600 (in bits) in keccak-f[1600]
 const WIDTH: usize = 200;
 
-/// Functional correctness of `keccak` against the hacspec, stated as the contract of
-/// a body-less function. hax turns the `#[ensures]` into `keccak_fc.spec`, and since
-/// the body does nothing that spec says exactly: for every `data` and every `out`
-/// of any length `OUT_LEN`, running `keccak::<RATE, DELIM>` on `out` yields
-/// `hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data)`. It has to live on a
-/// separate function because the hacspec takes the output length as a const
-/// generic, which `keccak`'s own `out: &mut [U8]` cannot provide. Proof-only
-/// (`#[cfg(hax)]`); discharged in Verification/ProofObligations.lean from the Lean
-/// theorem `keccak.keccak_keccak_spec`.
-#[cfg(hax)]
-#[allow(unused_variables)]
-#[hax_lib::requires(RATE > 0 && RATE % 8 == 0 && RATE <= 168)]
-#[hax_lib::ensures(|_| {
-    let mut out = out;
-    keccak::<RATE, DELIM>(data, &mut out);
-    out.declassify() == hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data.declassify_ref())
-})]
-pub(crate) fn keccak_fc<const RATE: usize, const DELIM: u8, const OUT_LEN: usize>(
-    data: &[U8],
-    out: [U8; OUT_LEN],
-) {
-}
-
+/// `keccak`'s functional correctness is not stated as a Rust contract. It used to be,
+/// on a body-less proof-only `keccak_fc`, because the hacspec it was compared against
+/// took the output length as a const generic that `keccak`'s own `out: &mut [U8]`
+/// cannot provide. That comparison was against `hacspec_sha3::sponge::keccak`, which
+/// is no longer the specification this crate's contracts name -- the FIPS-202
+/// transcript has no rate-and-delimiter-parameterised byte sponge to name in its
+/// place -- so the wrapper was carrying a claim about an internal stepping stone.
+/// The Lean theorem it was discharged from, `keccak.keccak_keccak_spec`, is unaffected
+/// and is what the six public `#[ensures]` clauses in `lib.rs` are proved through.
 #[inline(always)]
 pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut [U8]) {
     let n = data.len() / RATE;

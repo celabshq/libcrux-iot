@@ -4230,7 +4230,7 @@ def keccak.squeeze_first_and_last
 @[global_simps, irreducible] def keccak.WIDTH : Std.Usize := 200#usize
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop body 0:
-    Source: 'sha3/src/keccak.rs', lines 2720:4-2727:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2706:4-2713:5 -/
 @[rust_loop_body]
 def keccak.keccak_loop0.body
   (RATE : Std.Usize) (data : Slice Std.U8)
@@ -4250,7 +4250,7 @@ def keccak.keccak_loop0.body
     ok (cont (iter1, s1, start1))
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop 0:
-    Source: 'sha3/src/keccak.rs', lines 2720:4-2727:5 -/
+    Source: 'sha3/src/keccak.rs', lines 2706:4-2713:5 -/
 @[rust_loop]
 def keccak.keccak_loop0
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4263,7 +4263,7 @@ def keccak.keccak_loop0
     (iter, s, start)
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop body 1:
-    Source: 'sha3/src/keccak.rs', lines 2736:8-2744:9 -/
+    Source: 'sha3/src/keccak.rs', lines 2722:8-2730:9 -/
 @[rust_loop_body]
 def keccak.keccak_loop1.body
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4288,7 +4288,7 @@ def keccak.keccak_loop1.body
     ok (cont (iter1, out1, s2, offset1))
 
 /-- [libcrux_iot_sha3::keccak::keccak]: loop 1:
-    Source: 'sha3/src/keccak.rs', lines 2736:8-2744:9 -/
+    Source: 'sha3/src/keccak.rs', lines 2722:8-2730:9 -/
 @[rust_loop]
 def keccak.keccak_loop1
   (RATE : Std.Usize) (iter : core.ops.range.Range Std.Usize)
@@ -4301,7 +4301,7 @@ def keccak.keccak_loop1
     (iter, out, s, offset)
 
 /-- [libcrux_iot_sha3::keccak::keccak]:
-    Source: 'sha3/src/keccak.rs', lines 2709:0-2750:1 -/
+    Source: 'sha3/src/keccak.rs', lines 2695:0-2736:1 -/
 def keccak.keccak
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
   (out : Slice Std.U8) :
@@ -4337,15 +4337,6 @@ def keccak.keccak
       let s5 ← keccak.squeeze_last RATE s3 s4
       ok (index_mut_back s5)
     else ok out2
-
-/-- [libcrux_iot_sha3::keccak::keccak_fc]:
-    Source: 'sha3/src/keccak.rs', lines 2702:0-2706:1 -/
-def keccak.keccak_fc
-  (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
-  (data : Slice Std.U8) (out : Array Std.U8 OUT_LEN) :
-  RustM Unit
-  := do
-  ok ()
 
 /-- [libcrux_iot_sha3::lane::{impl core::clone::Clone for libcrux_iot_sha3::lane::Lane2U32}::clone]:
     Source: 'sha3/src/lane.rs', lines 6:9-6:14

@@ -446,14 +446,14 @@ def keccak.absorb_block.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
       let i4 ← core.slice.Slice.len blocks
-      let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
+      let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
     else ok false
   else ok false
 
@@ -482,14 +482,14 @@ def keccak.absorb_final.pre
       then
         if len < RATE
         then
-          let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int len
+          let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int len
           let i3 ←
-            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
           let i4 ← core.slice.Slice.len last
-          let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
+          let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
         else ok false
       else ok false
     else ok false
@@ -627,52 +627,6 @@ def keccak.squeeze_first_and_last.spec (RATE : Std.Usize)
   ⦃ ⇓ res => ⌜ True ⌝ ⦄
 
 
-/-- [libcrux_iot_sha3::keccak::keccak_fc::pre]:
-    Source: 'sha3/src/keccak.rs', lines 2696:0-2696:62 -/
-@[reducible]
-def keccak.keccak_fc.pre
-  (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
-  (data : Slice Std.U8) (out : Array Std.U8 OUT_LEN) :
-  RustM Bool
-  := do
-  if RATE > 0#usize
-  then
-    let i ← RATE % 8#usize
-    if i = 0#usize
-    then ok (RATE <= 168#usize)
-    else ok false
-  else ok false
-
-/-- [libcrux_iot_sha3::keccak::keccak_fc::post]:
-    Source: 'sha3/src/keccak.rs', lines 2697:0-2701:3 -/
-@[reducible]
-def keccak.keccak_fc.post
-  (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
-  (data : Slice Std.U8) (out : Array Std.U8 OUT_LEN) (_ : Unit) :
-  RustM Bool
-  := do
-  let (s, to_slice_mut_back) ← lift (Array.to_slice_mut out)
-  let s1 ← keccak.keccak RATE DELIM data s
-  let out1 := to_slice_mut_back s1
-  let a ← libcrux_secrets.traits.Declassify.Blanket.declassify out1
-  let s2 ←
-    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
-      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar data
-  let a1 ← hacspec_sha3.sponge.keccak OUT_LEN RATE DELIM s2
-  core.Array.Insts.CoreCmpPartialEqArray.eq core.U8.Insts.CoreCmpPartialEqU8 a
-    a1
-
-def
-  keccak.keccak_fc.spec (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN :
-                       Std.Usize} (data : Slice Std.U8)
-  (out : Array Std.U8 OUT_LEN) : Prop :=
-  (keccak.keccak_fc.pre RATE DELIM data out).holds →
-  ⦃ ⌜ True ⌝ ⦄
-  keccak.keccak_fc RATE DELIM data out
-  ⦃ ⇓ res => ⌜ (keccak.keccak_fc.post RATE DELIM data out res).holds ⌝
-  ⦄
-
-
 /-- [libcrux_iot_sha3::state::load_block_2u32::pre]:
     Source: 'sha3/src/state.rs', lines 131:0-131:109 -/
 @[reducible]
@@ -686,14 +640,14 @@ def state.load_block_2u32.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
       let i4 ← core.slice.Slice.len blocks
-      let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
+      let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
     else ok false
   else ok false
 
@@ -719,13 +673,13 @@ def state.load_block_full_2u32.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-      let i4 ← hax_lib.I32.Insts.Hax_lib_2IntToInt.to_int 200#i32
+        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+      let i4 ← hax_lib.I32.Insts.Hax_lib_1IntToInt.to_int 200#i32
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
     else ok false
   else ok false
 
@@ -800,14 +754,14 @@ def keccak.KeccakXofState.absorb.pre
         if self_.buf_len < RATE
         then
           let i1 ← core.slice.Slice.len inputs
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i1
-          let i3 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i1
+          let i3 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
           let i4 ←
-            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
+            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
           let i5 ←
-            hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+            hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
+            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
         else ok false
       else ok false
     else ok false
@@ -839,14 +793,14 @@ def keccak.KeccakXofState.absorb_full.pre
         if self_.buf_len < RATE
         then
           let i1 ← core.slice.Slice.len inputs
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i1
-          let i3 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i1
+          let i3 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
           let i4 ←
-            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
+            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
           let i5 ←
-            hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+            hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
+            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
         else ok false
       else ok false
     else ok false
@@ -869,14 +823,14 @@ def keccak.KeccakXofState.absorb_full.post
       if self__future.buf_len <= RATE
       then
         let i1 ←
-          hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self__future.buf_len
-        let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int remainder
+          hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self__future.buf_len
+        let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int remainder
         let i3 ←
-          hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+          hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
         let i4 ←
-          hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+          hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
         core.cmp.PartialOrd.lt.default
-          hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+          hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
       else ok false
     else ok false
   else ok false
@@ -901,12 +855,12 @@ def keccak.KeccakXofState.fill_buffer.pre
   if self_.buf_len <= RATE
   then
     let i ← core.slice.Slice.len inputs
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
-    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
+    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::fill_buffer::post]:
@@ -915,25 +869,25 @@ def keccak.KeccakXofState.fill_buffer.pre
 def keccak.KeccakXofState.fill_buffer.post
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
   (inputs : Slice Std.U8) (p : (Std.Usize × (keccak.KeccakXofState RATE))) :
-  RustM hax_lib_2.prop.Prop
+  RustM hax_lib_1.prop.Prop
   := do
   let (res, self__future) := p
-  let p1 ← hax_lib.Bool.Insts.Hax_lib_2PropToProp.to_prop (res <= RATE)
+  let p1 ← hax_lib.Bool.Insts.Hax_lib_1PropToProp.to_prop (res <= RATE)
   let p2 ←
-    hax_lib.Bool.Insts.Hax_lib_2PropToProp.to_prop (self__future.buf_len <=
+    hax_lib.Bool.Insts.Hax_lib_1PropToProp.to_prop (self__future.buf_len <=
       RATE)
   let p3 ←
-    hax_lib.hax_lib_2.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
+    hax_lib.hax_lib_1.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
       (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib_2.prop.Prop)) p1 p2
+      hax_lib_1.prop.Prop)) p1 p2
   let p4 ←
-    hax_lib_2.prop.implies (core.convert.Into.Blanket
-      hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
+    hax_lib_1.prop.implies (core.convert.Into.Blanket
+      hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
       (core.convert.Into.Blanket
-      hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool) (res > 0#usize)
+      hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) (res > 0#usize)
       (self__future.buf_len = RATE)
-  hax_lib.hax_lib_2.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
-    (core.convert.Into.Blanket (core.convert.From.Blanket hax_lib_2.prop.Prop))
+  hax_lib.hax_lib_1.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
+    (core.convert.Into.Blanket (core.convert.From.Blanket hax_lib_1.prop.Prop))
     p3 p4
 
 def keccak.KeccakXofState.fill_buffer.spec {RATE : Std.Usize}
@@ -963,14 +917,14 @@ def keccak.KeccakXofState.absorb_final.pre
         if self_.buf_len < RATE
         then
           let i1 ← core.slice.Slice.len inputs
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i1
-          let i3 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i1
+          let i3 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
           let i4 ←
-            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
+            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
           let i5 ←
-            hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+            hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
+            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
         else ok false
       else ok false
     else ok false
@@ -1143,14 +1097,14 @@ def state.KeccakState.load_block.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
       let i4 ← core.slice.Slice.len blocks
-      let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
+      let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
     else ok false
   else ok false
 
@@ -1284,12 +1238,12 @@ def incremental.XofShake128Xof168.absorb.pre
   if self_.state.buf_len < 168#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.absorb.spec
@@ -1309,12 +1263,12 @@ def incremental.XofShake128Xof168.absorb_final.pre
   if self_.state.buf_len < 168#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def
@@ -1335,12 +1289,12 @@ def incremental.XofShake256Xof136.absorb.pre
   if self_.state.buf_len < 136#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.absorb.spec
@@ -1360,12 +1314,12 @@ def incremental.XofShake256Xof136.absorb_final.pre
   if self_.state.buf_len < 136#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def

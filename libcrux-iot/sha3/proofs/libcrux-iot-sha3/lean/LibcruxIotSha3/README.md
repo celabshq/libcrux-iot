@@ -16,49 +16,26 @@ the two specifications agree. See [The two specifications](#the-two-specificatio
 
 ## Main theorems
 
-The top-level results are the Keccak equivalence theorem and its corollaries, 
-which state equivalence of the SHA-3 and SHAKE functions.
+The top-level results are the six SHA-3 and SHAKE functions' contracts. They rest on a
+Keccak sponge equivalence theorem, which in turn rests on a Keccak-f[1600] permutation
+equivalence theorem; only the six are stated in Rust.
 
 ### Keccak
 
-The functional correctness property of the `keccak` function is stated as follows in [`src/keccak.rs`](../../../../src/keccak.rs):
+The internal `keccak` function in [`src/keccak.rs`](../../../../src/keccak.rs) carries no
+Rust contract. Its correctness is the Lean theorem
+`keccak.keccak_keccak_spec` in [`Sponge/Keccak.lean`](Sponge/Keccak.lean), which is what
+the six contracts below are proved through.
 
-```rust
-#[hax_lib::requires(RATE > 0 && RATE % 8 == 0 && RATE <= 168)]
-#[hax_lib::ensures(|_| {
-    let mut out = out;
-    keccak::<RATE, DELIM>(data, &mut out);
-    out.declassify() == hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data.declassify_ref())
-})]
-pub(crate) fn keccak_fc<const RATE: usize, const DELIM: u8, const OUT_LEN: usize>(
-    data: &[U8],
-    out: [U8; OUT_LEN],
-) {
-}
-```
-Informally: the IOT-friendly implementation `keccak` (for some rate `RATE`,
-delimiter `DELIM`, input `data`, output buffer `out`) produces the same
-byte sequence as the hacspec-style specification `hacspec_sha3::sponge::keccak`.
-The preconditions are that `RATE` is a multiple of 8 and that `0 < RATE <= 168`;
-if these are not fulfilled, our verification makes no claims about what the implementation might do.
-The signatures of `keccak` and `hacspec_sha3::sponge::keccak` are slighty different: The
-`keccak` function expects an externally allocated array for the result and it used a custom
-integer type `U8` instead of `u8`, which is why we must call `declassify()` before comparing with
-with `hacspec_sha3::sponge::keccak`.
-
-We would prefer to state the property directly as annotations on the `keccak` function,
-but this is not possible in this case because the hacspec-variant expects `OUT_LEN` as a const
-generic, which is not part of `keccak`'s signature.
-
-The corresponding Lean theorem is
-`keccak_fc_spec_proof` in
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean).
-
-This one contract still names `hacspec_sha3` rather than the FIPS-202 transcript: the
-transcript has no rate-and-delimiter-parameterised byte sponge to name in its place (it
-exposes `KECCAK[c]` and the six standard functions, not a generic one). `keccak_fc` is
-body-less and `#[cfg(hax)]`-only -- a proof-only stepping stone towards the six public
-contracts below, not a claim the crate makes to its callers.
+It used to be stated in Rust too, as the `#[ensures]` of a body-less, `#[cfg(hax)]`-only
+`keccak_fc` -- a separate function because the specification it was compared against took
+the output length as a const generic that `keccak`'s own `out: &mut [U8]` cannot provide.
+That comparison was against `hacspec_sha3::sponge::keccak`, which is no longer the
+specification this crate's contracts name, and which the FIPS-202 transcript has no
+counterpart for: the transcript exposes `KECCAK[c]` and the six standard functions, not a
+rate-and-delimiter-parameterised byte sponge. So the wrapper was asserting, to no
+audience, a claim about an internal stepping stone, and it is gone. Nothing about the
+proof changed with it.
 
 ### SHA-3 and SHAKE
 
@@ -162,9 +139,12 @@ and no-ops. That file is also where the two specification packages enter the gen
 extraction's import tree: hax emits `Extraction/FunsExternal.lean` as a one-line shim
 onto it and adds no specification imports of its own, so the `#[ensures]` clauses'
 `hacspec_sha3_pedantic::bytes::*` are in scope only because they are imported there.
-In addition, a duplicate hax-lib crate in the dependency graph currently causes
-some references to `hax_lib` to use the name `hax_lib_1`.
-The file `HaxLibAlias.lean` aliases `hax_lib_1.*` onto `hax_lib.*` to work around this issue.
+In addition, a duplicate hax-lib crate in the dependency graph currently causes some
+references to `hax_lib` to be emitted under a mangled name, `hax_lib_1` or `hax_lib_2`,
+with the index assigned by dependency order -- so it shifts if a dependency moves between
+`[dependencies]` and `[dev-dependencies]`. The file `HaxLibAlias.lean` aliases both onto
+`hax_lib.*` to work around this. Every abbreviation in it is an alias, not a definition,
+so nothing is assumed there.
 
 Because the FIPS-202 transcript is now the specification the contracts name, its own two
 hand-written models are part of the trusted base as well. Both live in

@@ -67,8 +67,14 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
   will hash, and the price of stating correctness against the Standard's own text
   instead of against a spec shaped like the implementation.
 
-    * `keccak`'s correctness rides on the body-less, proof-only `keccak_fc`; see
-      its own section below.
+  `keccak` itself carries no contract. Its correctness used to be stated on a
+  body-less, proof-only `keccak_fc`, whose `#[ensures]` compared it to
+  `hacspec_sha3::sponge::keccak` -- an internal stepping stone, not the specification
+  this crate's contracts name, and one the FIPS-202 transcript has no counterpart for
+  (it exposes `KECCAK[c]` and the six standard functions, not a
+  rate-and-delimiter-parameterised byte sponge). The Lean theorem that discharged it,
+  `Sponge.keccak.keccak_keccak_spec`, is untouched: it is what the six obligations
+  below are proved through.
 
   For all six a second thing is being checked: the PRECONDITION MATCH. The
   `*_ema` theorems carry hand-written hypotheses (`payload.length ≤ 4294967295` and
@@ -83,10 +89,7 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
   What this does NOT establish: `shake128_ema` / `shake256_ema` carry a `requires`
   with no `ensures`, so their obligations say only "under the annotated
   precondition, this neither panics nor diverges"; they are not discharged here and
-  remain `sorry`ed in the unbuilt generated file. And `keccak_fc`'s `#[ensures]`
-  still names `hacspec_sha3::sponge::keccak`: the transcript has no
-  rate-and-delimiter-parameterised byte sponge to name in its place, and it is a
-  proof-only stepping stone rather than a public claim.
+  remain `sorry`ed in the unbuilt generated file.
 -/
 import LibcruxIotSha3.Extraction
 import LibcruxIotSha3.Sponge.Shake
@@ -586,93 +589,6 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
 
-/-! ## `keccak` -- functional correctness as the contract of `keccak_fc`
-
-    `keccak`'s correctness is stated in Rust as the `#[ensures]` of the body-less,
-    proof-only `keccak_fc::<RATE, DELIM, OUT_LEN>(data, out)`: running `keccak` on a
-    copy of `out` yields `hacspec_sha3::sponge::keccak::<OUT_LEN>(RATE, DELIM, data)`.
-    Since the body is `ok ()`, `keccak_fc.spec` is that statement for every `data`
-    and every `out`, with the output length a const generic -- what the hacspec
-    needs and `keccak`'s own `&mut [U8]` cannot provide. The discharge is
-    `Sponge.keccak.keccak_keccak_spec` applied to `out` as a slice, plus the
-    array/slice bookkeeping (`to_slice_mut`, `from_slice`) and the transport of the
-    hacspec result from length `Slice.len (to_slice out)` to `OUT_LEN`. -/
-
-/-- Transport a `sponge.keccak` result across an equality of output lengths. -/
-private theorem keccak_len_transport {RATE : Std.Usize} {DELIM : Std.U8} {data : Slice Std.U8}
-    (N M : Std.Usize) (h : N = M) (so : Std.Array Std.U8 N)
-    (heq : hacspec_sha3.sponge.keccak N RATE DELIM data = .ok so) :
-    ∃ so' : Std.Array Std.U8 M,
-      hacspec_sha3.sponge.keccak M RATE DELIM data = .ok so' ∧ so'.val = so.val := by
-  subst h; exact ⟨so, heq, rfl⟩
-
-theorem keccak_fc_spec_proof (RATE : Std.Usize) (DELIM : Std.U8) {OUT_LEN : Std.Usize}
-    (data : Slice Std.U8) (out : Std.Array Std.U8 OUT_LEN) :
-    libcrux_iot_sha3.keccak.keccak_fc.spec RATE DELIM data out := by
-  intro hpre
-  -- Decode the generated `pre`: RATE > 0, RATE % 8 = 0, RATE ≤ 168.
-  simp only [libcrux_iot_sha3.keccak.keccak_fc.pre] at hpre
-  by_cases hpos : RATE > 0#usize
-  · rw [if_pos hpos] at hpre
-    obtain ⟨m, hm_eq, hm_val⟩ :=
-      Aeneas.Std.WP.spec_imp_exists (Aeneas.Std.UScalar.rem_spec RATE (y := 8#usize) (by decide))
-    rw [hm_eq] at hpre
-    simp only [Aeneas.Std.bind_tc_ok] at hpre
-    by_cases hm0 : m = 0#usize
-    · rw [if_pos hm0] at hpre
-      have hle : RATE ≤ 168#usize := of_decide_eq_true (bool_of_holds_map_ok hpre)
-      have h_ge1 : 1 ≤ RATE.val := by scalar_tac
-      have h_le200 : RATE.val ≤ 200 := by scalar_tac
-      have h_mod : RATE.val % 8 = 0 := by
-        have h1 : m.val = RATE.val % 8 := by rw [hm_val]; rfl
-        have h2 : m.val = 0 := by rw [hm0]; rfl
-        omega
-      -- The body is `ok ()`.
-      refine triple_of_ok (rfl : libcrux_iot_sha3.keccak.keccak_fc RATE DELIM data out = .ok ()) ?_
-      -- `out` as a slice.
-      set s : Slice Std.U8 := Aeneas.Std.Array.to_slice out with hs_def
-      have h_s_len : s.val.length = OUT_LEN.val := by
-        show out.to_slice.val.length = OUT_LEN.val
-        rw [Aeneas.Std.Array.val_to_slice]; exact out.property
-      have h_slice_len_s : Aeneas.Std.Slice.len s = OUT_LEN := by
-        apply Aeneas.Std.UScalar.eq_of_val_eq
-        rw [Aeneas.Std.Slice.len_val]; exact h_s_len
-      -- The Lean theorem on that slice, and the transported hacspec result.
-      obtain ⟨r, hr_eq, spec_out, hspec_eq, hr_len, hr_bytes⟩ :=
-        triple_exists_ok (Sponge.keccak.keccak_keccak_spec RATE DELIM data s h_mod h_ge1 h_le200)
-      obtain ⟨so, hso_eq, hso_val⟩ := keccak_len_transport _ _ h_slice_len_s spec_out hspec_eq
-      have hr_len' : r.val.length = OUT_LEN.val := by rw [hr_len]; exact h_s_len
-      have hspec_len : spec_out.val.length = OUT_LEN.val :=
-        spec_out.property.trans ((Aeneas.Std.Slice.len_val s).trans h_s_len)
-      have hr_val : r.val = spec_out.val := by
-        have h := val_eq_of_bytes (N := OUT_LEN.val) hr_len' hspec_len
-          (fun k hk => hr_bytes k (by rw [h_s_len]; exact hk))
-        rwa [Aeneas.Std.Array.val_to_slice] at h
-      -- The post: `to_slice_mut`, run `keccak`, write back, declassify, compare.
-      have h_to_slice_mut :
-          (Aeneas.Std.lift (Aeneas.Std.Array.to_slice_mut out)
-            : RustM (Slice Std.U8 × (Slice Std.U8 → Std.Array Std.U8 OUT_LEN)))
-            = .ok (s, Aeneas.Std.Array.from_slice out) := rfl
-      have hval : (Aeneas.Std.Array.from_slice out r).val = so.val := by
-        rw [Aeneas.Std.Array.from_slice_val out r hr_len', hr_val, hso_val]
-      have hpost : libcrux_iot_sha3.keccak.keccak_fc.post RATE DELIM data out () = .ok true := by
-        simp only [libcrux_iot_sha3.keccak.keccak_fc.post, h_to_slice_mut, Aeneas.Std.bind_tc_ok,
-          decl_blanket_eq, decl_ref_eq, hso_eq]
-        -- the `let (s, back) := (s, from_slice out)` destructuring reduces definitionally
-        change (do
-            let s1 ← libcrux_iot_sha3.keccak.keccak RATE DELIM data s
-            CoreModels.core.Array.Insts.CoreCmpPartialEqArray.eq
-              CoreModels.core.U8.Insts.CoreCmpPartialEqU8 (Aeneas.Std.Array.from_slice out s1) so)
-          = .ok true
-        rw [hr_eq, Aeneas.Std.bind_tc_ok]
-        exact array_eq_true hval
-      rw [hpost]
-      exact holds_map_ok_of_bool rfl
-    · rw [if_neg hm0] at hpre
-      exact absurd (bool_of_holds_map_ok hpre) (by simp)
-  · rw [if_neg hpos] at hpre
-    exact absurd (bool_of_holds_map_ok hpre) (by simp)
-
 /-! ## Axiom guards
     Pinned by `#guard_msgs`: the build fails if a result comes to depend on any axiom
     beyond Lean's standard three (an admitted `sorry`, or `Lean.ofReduceBool` from
@@ -712,11 +628,5 @@ info: 'libcrux_iot_sha3.Verification.sha512_ema_spec_proof' depends on axioms: [
 -/
 #guard_msgs in
 #print axioms sha512_ema_spec_proof
-
-/--
-info: 'libcrux_iot_sha3.Verification.keccak_fc_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms keccak_fc_spec_proof
 
 end libcrux_iot_sha3.Verification
