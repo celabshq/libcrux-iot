@@ -108,6 +108,28 @@ theorem loop_range_eq {β γ : Type}
   obtain ⟨s, acc'', hs, hb, hP⟩ := hstep j acc' (by omega)
   exact ⟨s, acc'', by omega, hb, hP⟩
 
+/-- The `Usize` instance with an invariant. -/
+theorem loop_range_eq_inv_usize {β γ : Type}
+    (body : (core.ops.range.Range Std.Usize × β) →
+      RustM (ControlFlow (core.ops.range.Range Std.Usize × β) γ))
+    (e : Std.Usize) (Inv : Std.Usize → β → Prop) (P : Std.Usize → β → γ → Prop)
+    (hstep : ∀ (i : Std.Usize) (acc : β), i.val < e.val → Inv i acc →
+      ∃ (s : Std.Usize) (acc' : β), s.val = i.val + 1 ∧ Inv s acc' ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (acc : β), Inv e acc →
+      ∃ r, body ({ start := e, «end» := e }, acc) = ok (.done r) ∧ P e acc r) :
+    ∀ (k : Nat) (i : Std.Usize) (acc : β), i.val + k = e.val → Inv i acc →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r := by
+  intro k i acc hik hinv
+  refine loop_range_eq_inv (fun x : Std.Usize => (x.val : Int))
+    (fun i j h => (Std.UScalar.eq_equiv i j).mpr (by omega)) body e Inv P ?_ hdone
+    k i acc (by omega) hinv
+  intro j acc' hj hinv'
+  obtain ⟨s, acc'', hs, hinv'', hb, hP⟩ := hstep j acc' (by omega) hinv'
+  exact ⟨s, acc'', by omega, hinv'', hb, hP⟩
+
 /-! ## `Iterator::next` on a `Range Usize`, as equations
 
 `Hax.IteratorRange_next_spec_usize` states this as a Hoare triple; the loops
@@ -166,6 +188,12 @@ theorem usize_add_eq (x y : Std.Usize) (h : x.val + y.val ≤ Std.Usize.max) :
     rw [hxy] at he
     exact absurd he.2 (by simp only [Std.UScalar.inBounds, not_not]; scalar_tac)
   | div => rw [hxy] at he; exact he.elim
+
+theorem slice_index_usize_eq {α : Type} [Inhabited α] (v : Slice α) (i : Std.Usize)
+    (h : i.val < v.val.length) : Std.Slice.index_usize v i = ok v.val[i.val]! := by
+  unfold Std.Slice.index_usize
+  rw [show v[i]? = v.val[i.val]? from rfl, List.getElem?_eq_getElem h,
+    getElem!_pos v.val i.val h]
 
 theorem usize_sub_eq (x y : Std.Usize) (h : y.val ≤ x.val) :
     ∃ z : Std.Usize, x - y = ok z ∧ z.val = x.val - y.val := by
@@ -230,6 +258,15 @@ theorem usize_shl_eq (x y : Std.Usize) (h : y.val < Std.UScalarTy.Usize.numBits)
   | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs.1⟩
   | fail e => rw [hxy] at hs; cases e <;> (simp_all; try omega)
   | div => rw [hxy] at hs; exact hs.elim
+
+/-- `Vec::push`, as an equation: it can only fail on a vector longer than the
+    address space, which nothing here is. -/
+theorem vec_push_eq {α : Type} (v : alloc.vec.Vec α) (x : α)
+    (h : v.val.length < Std.Usize.max) :
+    alloc.vec.Vec.push v x = ok ⟨v.val ++ [x], by simp; scalar_tac⟩ := by
+  unfold alloc.vec.Vec.push rust_primitives.sequence.seq_push
+  rw [dif_pos (by simp; scalar_tac)]
+  rfl
 
 /-! ## The signed side: `imod`
 
