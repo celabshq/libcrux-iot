@@ -2682,15 +2682,11 @@ pub(crate) fn squeeze_first_and_last<const RATE: usize>(s: &KeccakState, out: &m
 // in bytes; this is the 1600 (in bits) in keccak-f[1600]
 const WIDTH: usize = 200;
 
-/// `keccak`'s functional correctness is not stated as a Rust contract. It used to be,
-/// on a body-less proof-only `keccak_fc`, because the hacspec it was compared against
-/// took the output length as a const generic that `keccak`'s own `out: &mut [U8]`
-/// cannot provide. That comparison was against `hacspec_sha3::sponge::keccak`, which
-/// is no longer the specification this crate's contracts name -- the FIPS-202
-/// transcript has no rate-and-delimiter-parameterised byte sponge to name in its
-/// place -- so the wrapper was carrying a claim about an internal stepping stone.
-/// The Lean theorem it was discharged from, `keccak.keccak_keccak_spec`, is unaffected
-/// and is what the six public `#[ensures]` clauses in `lib.rs` are proved through.
+/// `keccak`'s functional correctness is not stated as a Rust contract: the FIPS-202
+/// transcript the crate's contracts name has no rate-and-delimiter-parameterised byte
+/// sponge to compare it against. It is the Lean theorem `keccak.keccak_keccak_spec`,
+/// which is what the six public `#[ensures]` clauses in `lib.rs` are proved through,
+/// and it is exercised here by the `cross_spec` tests below.
 #[inline(always)]
 pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut [U8]) {
     let n = data.len() / RATE;
@@ -2750,16 +2746,50 @@ impl RotateLeft for U32 {
 #[cfg(test)]
 mod cross_spec {
     //! Cross-specification tests: compare every observable stage of the impl
-    //! against the `hacspec_sha3` spec crate. The state
+    //! against `hacspec_sha3_pedantic`, the FIPS 202 transcript. The state
     //! conversion helpers live in `crate::state::cross_spec`.
     //!
     //! Properties have the form `Spec::f(to_spec(input)) == to_spec(Impl::f(input))`.
+    //!
+    //! The transcript works on bit strings, so the comparisons go through
+    //! `lanes_to_bits` / `bits_to_lanes` and are composed out of the Standard's own
+    //! operations -- `h2b`, `b2h`, `xor`, `Trunc`, `pad10*1`, `KECCAK-f` -- rather
+    //! than out of a second spec's matching internals. Where the implementation
+    //! bundles several of those into one function (`absorb_block` is "XOR the block
+    //! in, then permute"), the test spells the bundle out; that composition is
+    //! exactly what Algorithm 8 says, and it is what is being checked.
 
     use super::*;
-    use crate::state::cross_spec::{state_from_spec, state_to_spec};
+    use crate::state::cross_spec::{
+        bits_to_lanes, lanes_to_bits, spec_keccak_f, spec_squeeze, spec_xor_block,
+        state_from_spec, state_to_spec,
+    };
     use libcrux_secrets::{Classify, Declassify};
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
+
+    /// FIPS 202's domain-separation suffix for an implementation delimiter byte.
+    /// SHA-3 appends `01` (Sec. 6.1) and the XOFs `1111` (Sec. 6.2); `DELIM` packs
+    /// that suffix together with the `1` that opens `pad10*1`, which is why a byte
+    /// suffices for both.
+    fn suffix_of_delim(delim: u8) -> alloc::vec::Vec<bool> {
+        match delim {
+            0x06 => alloc::vec![false, true],
+            0x1F => alloc::vec![true, true, true, true],
+            _ => panic!("no FIPS-202 suffix for delimiter {:#x}", delim),
+        }
+    }
+
+    /// The last block of the sponge's input, as bytes: the message tail, the
+    /// domain-separation suffix, and `pad10*1` (Algorithm 8, step 1 with
+    /// Algorithm 9). `RATE` bytes exactly.
+    fn spec_last_block<const RATE: usize>(tail: &[u8], delim: u8) -> alloc::vec::Vec<u8> {
+        use hacspec_sha3_pedantic::{bits, sponge};
+        let n = bits::concat(&bits::h2b_full(tail), &suffix_of_delim(delim));
+        let p = bits::concat(&n, &sponge::pad10_star_1(8 * RATE, n.len()));
+        assert_eq!(p.len(), 8 * RATE);
+        bits::b2h(&p)
+    }
 
     /// Recover the underlying u64 from a `Lane2U32` stored in bit-interleaved
     /// form: deinterleave, then combine the two 32-bit halves.
@@ -2784,10 +2814,12 @@ mod cross_spec {
         core::array::from_fn(|x| c[(x + 4) % 5] ^ c[(x + 1) % 5].rotate_left(1))
     }
 
-    /// Run one spec round = `iota(chi(pi(rho(theta(state)))), round)`.
+    /// Run one spec round, `Rnd(A, i_r) = ι(χ(π(ρ(θ(A)))), i_r)` (FIPS 202, Sec. 3.3),
+    /// on the flat lane form.
     fn spec_one_round(state: [u64; 25], round: usize) -> [u64; 25] {
-        use hacspec_sha3::keccak_f as kf;
-        kf::iota(kf::chi(kf::pi(kf::rho(kf::theta(state)))), round)
+        use hacspec_sha3_pedantic::{keccak_p, StateArray};
+        let a = StateArray::<64>::from_bits(&lanes_to_bits(&state));
+        bits_to_lanes(&keccak_p::rnd(&a, round as i64).to_bits())
     }
 
     /// Run `n` consecutive spec rounds starting at `start`.
@@ -2848,7 +2880,7 @@ mod cross_spec {
         }
 
         for case in cases {
-            let spec_out = hacspec_sha3::keccak_f::keccak_f(case);
+            let spec_out = spec_keccak_f(case);
             let mut s = state_from_spec(case);
             keccakf1600(&mut s);
             assert_eq!(spec_out, state_to_spec(&s));
@@ -2875,7 +2907,7 @@ mod cross_spec {
         }
 
         for (idx, case) in cases.into_iter().enumerate() {
-            let spec_out = hacspec_sha3::keccak_f::keccak_f(case);
+            let spec_out = spec_keccak_f(case);
             let mut s = state_from_spec(case);
             keccakf1600(&mut s);
             assert_eq!(spec_out, state_to_spec(&s), "case #{}", idx);
@@ -2954,8 +2986,7 @@ mod cross_spec {
                 let block_secret: [libcrux_secrets::U8; 200] =
                     core::array::from_fn(|i| block_u8[i].classify());
 
-                let spec_out =
-                    hacspec_sha3::sponge::absorb_block(spec_state, &block_u8[..RATE], RATE);
+                let spec_out = spec_keccak_f(spec_xor_block(spec_state, &block_u8[..RATE]));
 
                 let mut s = state_from_spec(spec_state);
                 absorb_block::<RATE>(&mut s, &block_secret, 0);
@@ -2982,9 +3013,11 @@ mod cross_spec {
                     let msg_secret: [libcrux_secrets::U8; 200] =
                         core::array::from_fn(|i| msg_u8[i].classify());
 
-                    let spec_out = hacspec_sha3::sponge::absorb_final(
-                        spec_state, &msg_u8, 0, len, RATE, DELIM,
-                    );
+                    let spec_out =
+                        spec_keccak_f(spec_xor_block(spec_state, &spec_last_block::<RATE>(
+                            &msg_u8[..len],
+                            DELIM,
+                        )));
 
                     let mut s = state_from_spec(spec_state);
                     absorb_final::<RATE, DELIM>(&mut s, &msg_secret, 0, len);
@@ -3019,8 +3052,7 @@ mod cross_spec {
                 let spec_state: [u64; 25] = core::array::from_fn(|_| rng.gen());
                 let impl_state = state_from_spec(spec_state);
 
-                let spec_out: [u8; RATE] =
-                    hacspec_sha3::sponge::squeeze_state::<RATE>(&spec_state, [0u8; RATE], 0, RATE);
+                let spec_out = spec_squeeze(&spec_state, RATE);
 
                 let mut out_secret = [0u8.classify(); 200];
                 squeeze_first_block::<RATE>(&impl_state, &mut out_secret[..RATE]);
@@ -3044,9 +3076,8 @@ mod cross_spec {
         fn run<const RATE: usize>(rng: &mut StdRng) {
             for _ in 0..4 {
                 let spec_state: [u64; 25] = core::array::from_fn(|_| rng.gen());
-                let permuted = hacspec_sha3::keccak_f::keccak_f(spec_state);
-                let spec_out: [u8; RATE] =
-                    hacspec_sha3::sponge::squeeze_state::<RATE>(&permuted, [0u8; RATE], 0, RATE);
+                let permuted = spec_keccak_f(spec_state);
+                let spec_out = spec_squeeze(&permuted, RATE);
 
                 let mut s = state_from_spec(spec_state);
                 let mut out_secret = [0u8.classify(); 200];
@@ -3106,7 +3137,7 @@ mod cross_spec {
     fn sha3_224_matches_spec() {
         for msg in message_corpus() {
             let impl_d = run_impl_keccak::<144, 0x06, 28>(&msg);
-            let spec_d = hacspec_sha3::sha3_224(&msg);
+            let spec_d = hacspec_sha3_pedantic::bytes::sha3_224(&msg);
             assert_eq!(impl_d, spec_d, "msg.len={}", msg.len());
         }
     }
@@ -3115,7 +3146,7 @@ mod cross_spec {
     fn sha3_256_matches_spec() {
         for msg in message_corpus() {
             let impl_d = run_impl_keccak::<136, 0x06, 32>(&msg);
-            let spec_d = hacspec_sha3::sha3_256(&msg);
+            let spec_d = hacspec_sha3_pedantic::bytes::sha3_256(&msg);
             assert_eq!(impl_d, spec_d, "msg.len={}", msg.len());
         }
     }
@@ -3124,7 +3155,7 @@ mod cross_spec {
     fn sha3_384_matches_spec() {
         for msg in message_corpus() {
             let impl_d = run_impl_keccak::<104, 0x06, 48>(&msg);
-            let spec_d = hacspec_sha3::sha3_384(&msg);
+            let spec_d = hacspec_sha3_pedantic::bytes::sha3_384(&msg);
             assert_eq!(impl_d, spec_d, "msg.len={}", msg.len());
         }
     }
@@ -3133,50 +3164,55 @@ mod cross_spec {
     fn sha3_512_matches_spec() {
         for msg in message_corpus() {
             let impl_d = run_impl_keccak::<72, 0x06, 64>(&msg);
-            let spec_d = hacspec_sha3::sha3_512(&msg);
+            let spec_d = hacspec_sha3_pedantic::bytes::sha3_512(&msg);
             assert_eq!(impl_d, spec_d, "msg.len={}", msg.len());
         }
     }
 
-    fn shake_check<const RATE: usize, const N: usize>(spec_shake: fn(&[u8]) -> [u8; N]) {
+    /// The transcript's SHAKE takes its output length as a runtime argument and
+    /// returns a `Vec<u8>`, so `spec_shake` is `bytes::shake{128,256}` and `N` only
+    /// fixes the implementation's array size.
+    fn shake_check<const RATE: usize, const N: usize>(
+        spec_shake: fn(&[u8], usize) -> alloc::vec::Vec<u8>,
+    ) {
         for msg in message_corpus() {
             let impl_d = run_impl_keccak::<RATE, 0x1F, N>(&msg);
-            let spec_d = spec_shake(&msg);
-            assert_eq!(impl_d, spec_d, "msg.len={} N={}", msg.len(), N);
+            let spec_d = spec_shake(&msg, N);
+            assert_eq!(&impl_d[..], &spec_d[..], "msg.len={} N={}", msg.len(), N);
         }
     }
 
     #[test]
     fn shake128_matches_spec_16() {
-        shake_check::<168, 16>(hacspec_sha3::shake128::<16>);
+        shake_check::<168, 16>(hacspec_sha3_pedantic::bytes::shake128);
     }
     #[test]
     fn shake128_matches_spec_32() {
-        shake_check::<168, 32>(hacspec_sha3::shake128::<32>);
+        shake_check::<168, 32>(hacspec_sha3_pedantic::bytes::shake128);
     }
     #[test]
     fn shake128_matches_spec_200() {
-        shake_check::<168, 200>(hacspec_sha3::shake128::<200>);
+        shake_check::<168, 200>(hacspec_sha3_pedantic::bytes::shake128);
     }
     #[test]
     fn shake128_matches_spec_512() {
-        shake_check::<168, 512>(hacspec_sha3::shake128::<512>);
+        shake_check::<168, 512>(hacspec_sha3_pedantic::bytes::shake128);
     }
     #[test]
     fn shake256_matches_spec_32() {
-        shake_check::<136, 32>(hacspec_sha3::shake256::<32>);
+        shake_check::<136, 32>(hacspec_sha3_pedantic::bytes::shake256);
     }
     #[test]
     fn shake256_matches_spec_64() {
-        shake_check::<136, 64>(hacspec_sha3::shake256::<64>);
+        shake_check::<136, 64>(hacspec_sha3_pedantic::bytes::shake256);
     }
     #[test]
     fn shake256_matches_spec_200() {
-        shake_check::<136, 200>(hacspec_sha3::shake256::<200>);
+        shake_check::<136, 200>(hacspec_sha3_pedantic::bytes::shake256);
     }
     #[test]
     fn shake256_matches_spec_512() {
-        shake_check::<136, 512>(hacspec_sha3::shake256::<512>);
+        shake_check::<136, 512>(hacspec_sha3_pedantic::bytes::shake256);
     }
 
     extern crate alloc;

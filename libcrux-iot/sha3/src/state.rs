@@ -179,7 +179,7 @@ fn store_block_full_2u32<const RATE: usize>(s: &KeccakState, out: &mut [U8; 200]
     store_block_2u32::<RATE>(s, out);
 }
 
-/// Helpers used by cross-specification tests against `hacspec_sha3`.
+/// Helpers used by cross-specification tests against `hacspec_sha3_pedantic`.
 ///
 /// `state_to_spec` is the "deinterleave" function: it converts the
 /// implementation's bit-interleaved `KeccakState` into the spec's flat
@@ -199,6 +199,8 @@ fn store_block_full_2u32<const RATE: usize>(s: &KeccakState, out: &mut [U8; 200]
 /// index `T(l)`, so both helpers map through `T`.
 #[cfg(test)]
 pub(crate) mod cross_spec {
+    extern crate alloc;
+
     use super::KeccakState;
     use crate::lane::Lane2U32;
     use libcrux_secrets::{Classify, Declassify};
@@ -229,6 +231,72 @@ pub(crate) mod cross_spec {
             s.st[transpose(idx)] = Lane2U32::from_ints([lo, hi]).interleave();
         }
         s
+    }
+
+    /// The state as the Standard's bit string `S`, from the flat lane form.
+    ///
+    /// FIPS 202 Sec. 3.1.2 fixes `A[x, y, z] = S[w(5y + x) + z]`, and the flat
+    /// form stores `A[x, y]` at index `5y + x` with bit `z` its `z`-th least
+    /// significant. So `S` is just each lane in turn, least significant bit
+    /// first. This and its inverse are the whole of the correspondence between
+    /// the lane-oriented implementation and the bit-oriented specification;
+    /// nothing else about either is encoded here.
+    pub(crate) fn lanes_to_bits(flat: &[u64; 25]) -> alloc::vec::Vec<bool> {
+        let mut s = alloc::vec::Vec::with_capacity(1600);
+        for lane in flat.iter() {
+            for z in 0..64 {
+                s.push((lane >> z) & 1 == 1);
+            }
+        }
+        s
+    }
+
+    /// Inverse of [`lanes_to_bits`].
+    pub(crate) fn bits_to_lanes(s: &[bool]) -> [u64; 25] {
+        assert_eq!(s.len(), 1600);
+        core::array::from_fn(|i| {
+            let mut lane = 0u64;
+            for z in 0..64 {
+                if s[64 * i + z] {
+                    lane |= 1u64 << z;
+                }
+            }
+            lane
+        })
+    }
+
+    /// `KECCAK-f[1600]` on the flat lane form, by way of the Standard's bit string.
+    pub(crate) fn spec_keccak_f(flat: [u64; 25]) -> [u64; 25] {
+        bits_to_lanes(&hacspec_sha3_pedantic::keccak_p::keccak_f::<64>(
+            &lanes_to_bits(&flat),
+        ))
+    }
+
+    /// The Standard's `0^c`-extension of a rate-sized block of bytes: `h2b` of
+    /// the block, padded with zeros to the full width (FIPS 202, Algorithm 8,
+    /// step 6).
+    pub(crate) fn spec_block_bits(block: &[u8]) -> alloc::vec::Vec<bool> {
+        use hacspec_sha3_pedantic::bits;
+        bits::concat(
+            &bits::h2b_full(block),
+            &bits::zeros(1600 - 8 * block.len()),
+        )
+    }
+
+    /// XOR a rate-sized block into the state (Algorithm 8, step 6, without the
+    /// permutation).
+    pub(crate) fn spec_xor_block(flat: [u64; 25], block: &[u8]) -> [u64; 25] {
+        bits_to_lanes(&hacspec_sha3_pedantic::bits::xor(
+            &lanes_to_bits(&flat),
+            &spec_block_bits(block),
+        ))
+    }
+
+    /// The first `rate` bytes of the state (Algorithm 8, step 8: `Trunc_r`,
+    /// read back as bytes).
+    pub(crate) fn spec_squeeze(flat: &[u64; 25], rate: usize) -> alloc::vec::Vec<u8> {
+        use hacspec_sha3_pedantic::bits;
+        bits::b2h(&bits::trunc(&lanes_to_bits(flat), 8 * rate))
     }
 }
 
@@ -279,7 +347,7 @@ mod cross_spec_tests {
             let block_secret: [libcrux_secrets::U8; RATE] =
                 core::array::from_fn(|i| block_u8[i].classify());
 
-            let spec_out = hacspec_sha3::sponge::xor_block_into_state(initial, &block_u8, RATE);
+            let spec_out = super::cross_spec::spec_xor_block(initial, &block_u8);
 
             let mut s = state_from_spec(initial);
             s.load_block::<RATE>(&block_secret, 0);
@@ -304,8 +372,7 @@ mod cross_spec_tests {
             let spec_state: [u64; 25] = core::array::from_fn(|_| rng.gen());
             let impl_state = state_from_spec(spec_state);
 
-            let spec_out: [u8; RATE] =
-                hacspec_sha3::sponge::squeeze_state::<RATE>(&spec_state, [0u8; RATE], 0, RATE);
+            let spec_out = super::cross_spec::spec_squeeze(&spec_state, RATE);
 
             let mut out_secret = [0u8.classify(); RATE];
             impl_state.store_block::<RATE>(&mut out_secret);

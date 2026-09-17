@@ -49,13 +49,6 @@ check-secret-independence = [
 ]
 
 [dev-dependencies]
-# The spec the sponge proof was built against (25 u64 lanes, rate in bytes). No
-# `#[ensures]` names it any more -- the Lean tree's `Composition/Pedantic/` proves
-# it agrees with the transcript, so it is an internal stepping stone rather than
-# part of the trusted base -- but the cross-spec tests in `src/keccak.rs` and
-# `src/state.rs` still compare against it, which is what keeps it here. Same
-# revision as the transcript above.
-hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }
 criterion = "0.5.1"
 hex = "0.4.3"
 rand = "0.8.5"

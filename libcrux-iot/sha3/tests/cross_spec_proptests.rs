@@ -129,7 +129,7 @@ fn sha3_224_input_boundaries() {
     for &len in &boundary_lens(144) {
         for (p, msg) in patterns(len, 224).iter().enumerate() {
             let imp = ctx::impl_sha3_224(msg);
-            let spc = hacspec_sha3::sha3_224(msg);
+            let spc = hacspec_sha3_pedantic::bytes::sha3_224(msg);
             assert_eq!(imp, spc, "sha3_224 mismatch len={} pattern={}", len, p);
         }
     }
@@ -140,7 +140,7 @@ fn sha3_256_input_boundaries() {
     for &len in &boundary_lens(136) {
         for (p, msg) in patterns(len, 256).iter().enumerate() {
             let imp = ctx::impl_sha3_256(msg);
-            let spc = hacspec_sha3::sha3_256(msg);
+            let spc = hacspec_sha3_pedantic::bytes::sha3_256(msg);
             assert_eq!(imp, spc, "sha3_256 mismatch len={} pattern={}", len, p);
         }
     }
@@ -151,7 +151,7 @@ fn sha3_384_input_boundaries() {
     for &len in &boundary_lens(104) {
         for (p, msg) in patterns(len, 384).iter().enumerate() {
             let imp = ctx::impl_sha3_384(msg);
-            let spc = hacspec_sha3::sha3_384(msg);
+            let spc = hacspec_sha3_pedantic::bytes::sha3_384(msg);
             assert_eq!(imp, spc, "sha3_384 mismatch len={} pattern={}", len, p);
         }
     }
@@ -162,7 +162,7 @@ fn sha3_512_input_boundaries() {
     for &len in &boundary_lens(72) {
         for (p, msg) in patterns(len, 512).iter().enumerate() {
             let imp = ctx::impl_sha3_512(msg);
-            let spc = hacspec_sha3::sha3_512(msg);
+            let spc = hacspec_sha3_pedantic::bytes::sha3_512(msg);
             assert_eq!(imp, spc, "sha3_512 mismatch len={} pattern={}", len, p);
         }
     }
@@ -171,15 +171,13 @@ fn sha3_512_input_boundaries() {
 // ============================================================
 // SHAKE — full Cartesian input-length × output-length boundary.
 //
-// The spec's `shake128/256::<N>` is const-generic in output length,
-// so we cannot vary N at runtime. Instead, call the spec once per
-// (input, pattern) with `N = MAX_OUT` and slice to each runtime
-// `out_len`. The hacspec sponge construction's squeeze stream is
-// stable in its output-length parameter (per-block squeeze loop
-// reads leading bytes of an unbounded keystream), so
-// `shake::<MAX>(msg)[..k] = shake::<k>(msg)` is a property of the
-// spec itself. Combined with the Lean `shake{128,256}_spec`, this
-// gives an equivalent check at every runtime `out_len`.
+// The transcript's `shake128/256` take the output length at runtime, so
+// each `out_len` could be a separate call; instead we call once per
+// (input, pattern) with `MAX_OUT` and slice, which is the same check for
+// a fraction of the work. What makes it the same check is that the
+// sponge's squeeze stream is a prefix-stable keystream (Algorithm 8
+// truncates it at the end), so `shake(msg, MAX)[..k] = shake(msg, k)` is
+// a property of the specification itself.
 // ============================================================
 
 #[test]
@@ -191,7 +189,7 @@ fn shake128_input_output_boundaries() {
 
     for &in_len in &in_lens {
         for (p, msg) in patterns(in_len, 128).iter().enumerate() {
-            let spec_full = hacspec_sha3::shake128::<MAX_OUT>(msg);
+            let spec_full = hacspec_sha3_pedantic::bytes::shake128(msg, MAX_OUT);
             for &out_len in &out_lens {
                 let imp = ctx::impl_shake128_ema(msg, out_len);
                 let spc = &spec_full[..out_len];
@@ -217,7 +215,7 @@ fn shake256_input_output_boundaries() {
 
     for &in_len in &in_lens {
         for (p, msg) in patterns(in_len, 256).iter().enumerate() {
-            let spec_full = hacspec_sha3::shake256::<MAX_OUT>(msg);
+            let spec_full = hacspec_sha3_pedantic::bytes::shake256(msg, MAX_OUT);
             for &out_len in &out_lens {
                 let imp = ctx::impl_shake256_ema(msg, out_len);
                 let spc = &spec_full[..out_len];
@@ -254,22 +252,22 @@ proptest! {
 
     #[test]
     fn sha3_224_random_at_boundaries(msg in length_indexed_strategy(boundary_lens(144))) {
-        prop_assert_eq!(ctx::impl_sha3_224(&msg), hacspec_sha3::sha3_224(&msg));
+        prop_assert_eq!(ctx::impl_sha3_224(&msg), hacspec_sha3_pedantic::bytes::sha3_224(&msg));
     }
 
     #[test]
     fn sha3_256_random_at_boundaries(msg in length_indexed_strategy(boundary_lens(136))) {
-        prop_assert_eq!(ctx::impl_sha3_256(&msg), hacspec_sha3::sha3_256(&msg));
+        prop_assert_eq!(ctx::impl_sha3_256(&msg), hacspec_sha3_pedantic::bytes::sha3_256(&msg));
     }
 
     #[test]
     fn sha3_384_random_at_boundaries(msg in length_indexed_strategy(boundary_lens(104))) {
-        prop_assert_eq!(ctx::impl_sha3_384(&msg), hacspec_sha3::sha3_384(&msg));
+        prop_assert_eq!(ctx::impl_sha3_384(&msg), hacspec_sha3_pedantic::bytes::sha3_384(&msg));
     }
 
     #[test]
     fn sha3_512_random_at_boundaries(msg in length_indexed_strategy(boundary_lens(72))) {
-        prop_assert_eq!(ctx::impl_sha3_512(&msg), hacspec_sha3::sha3_512(&msg));
+        prop_assert_eq!(ctx::impl_sha3_512(&msg), hacspec_sha3_pedantic::bytes::sha3_512(&msg));
     }
 
     #[test]
@@ -277,14 +275,14 @@ proptest! {
         // Single fixed output length (512); the input × output Cartesian
         // is covered by `shake128_input_output_boundaries`.
         let imp = ctx::impl_shake128_ema(&msg, 512);
-        let spc = hacspec_sha3::shake128::<512>(&msg);
+        let spc = hacspec_sha3_pedantic::bytes::shake128(&msg, 512);
         prop_assert_eq!(imp.as_slice(), &spc[..]);
     }
 
     #[test]
     fn shake256_random_at_boundaries(msg in length_indexed_strategy(boundary_lens(136))) {
         let imp = ctx::impl_shake256_ema(&msg, 512);
-        let spc = hacspec_sha3::shake256::<512>(&msg);
+        let spc = hacspec_sha3_pedantic::bytes::shake256(&msg, 512);
         prop_assert_eq!(imp.as_slice(), &spc[..]);
     }
 }

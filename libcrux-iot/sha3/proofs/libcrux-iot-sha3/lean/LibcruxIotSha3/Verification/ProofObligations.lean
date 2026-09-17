@@ -67,14 +67,11 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
   will hash, and the price of stating correctness against the Standard's own text
   instead of against a spec shaped like the implementation.
 
-  `keccak` itself carries no contract. Its correctness used to be stated on a
-  body-less, proof-only `keccak_fc`, whose `#[ensures]` compared it to
-  `hacspec_sha3::sponge::keccak` -- an internal stepping stone, not the specification
-  this crate's contracts name, and one the FIPS-202 transcript has no counterpart for
-  (it exposes `KECCAK[c]` and the six standard functions, not a
-  rate-and-delimiter-parameterised byte sponge). The Lean theorem that discharged it,
-  `Sponge.keccak.keccak_keccak_spec`, is untouched: it is what the six obligations
-  below are proved through.
+  `keccak` itself carries no contract -- the FIPS-202 transcript has no
+  rate-and-delimiter-parameterised byte sponge to compare it against (it exposes
+  `KECCAK[c]` and the six standard functions). Its correctness is the Lean theorem
+  `Sponge.keccak.keccak_keccak_spec`, which is what the six obligations below are
+  proved through.
 
   For all six a second thing is being checked: the PRECONDITION MATCH. The
   `*_ema` theorems carry hand-written hypotheses (`payload.length ≤ 4294967295` and

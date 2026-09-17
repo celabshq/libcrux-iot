@@ -121,7 +121,9 @@ SHA -- never by branch -- in [`lakefile.toml`](../lakefile.toml) and in the crat
   stated against it, and [`Composition/Pedantic/`](Composition/Pedantic/) proves that the
   two agree on all six entry points. It is therefore an internal stepping stone: a
   mistake in it cannot make a contract hold that should not, because the contract is
-  stated against the transcript and the agreement is proved, not assumed.
+  stated against the transcript and the agreement is proved, not assumed. It is a
+  `[[require]]` of this Lean project only -- the implementation crate does not depend on
+  it at all, in any profile.
 
 ### Assumptions
 
@@ -365,10 +367,22 @@ cargo test --lib cross_spec --tests
 This catches lane-layout / round-constant / endianness mismatches at
 the Rust level, before they propagate into Lean proof failures.
 
+They run against the FIPS-202 transcript, the same specification the contracts name.
+Since it works on bit strings, the comparisons go through a lane/bit-string conversion
+(`state::cross_spec::lanes_to_bits` and its inverse, which is Sec. 3.1.2 and nothing
+else) and are composed out of the Standard's own operations -- `h2b`, `b2h`, `xor`,
+`Trunc`, `pad10*1`, `KECCAK-f`. Where the implementation bundles several of those into
+one function, the test spells the bundle out: `absorb_block` is "XOR the block in, then
+permute", and `absorb_final` is "append the domain-separation suffix and `pad10*1`, then
+do that" -- which is how the delimiter byte the implementation carries (`0x06`, `0x1F`)
+gets checked against the suffix the Standard prescribes.
+
 ### Extraction from Rust into Lean
 
 ```bash
-# Spec side (from a checkout of celabshq/libcrux), both specifications:
+# Spec side (from a checkout of celabshq/libcrux), both specifications -- the
+# transcript because the contracts name it, `hacspec_sha3` because the sponge
+# proof is stated against it:
 cd specs
 cargo bin cargo-hax extract hacspec-sha3
 cargo bin cargo-hax extract hacspec-sha3-pedantic
