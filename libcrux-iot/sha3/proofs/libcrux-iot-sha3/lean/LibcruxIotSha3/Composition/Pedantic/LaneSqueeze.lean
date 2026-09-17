@@ -121,6 +121,35 @@ theorem absorb_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
 
 /-! ### `iterate_keccak_f` -/
 
+/-- (b) `hacspec_sha3`'s `iterate_keccak_f` is `keccakFLanes` iterated. -/
+theorem iterate_keccak_f_lanes_eq (s : Lanes) : ∀ (n : Nat) (nU : Std.Usize), nU.val = n →
+    hacspec_sha3.sponge.iterate_keccak_f nU s = ok (keccakFLanes^[n] s) := by
+  intro n
+  induction n generalizing s with
+  | zero =>
+    intro nU hn
+    rw [hacspec_sha3.sponge.iterate_keccak_f,
+      if_pos (show nU = 0#usize from (Std.UScalar.eq_equiv _ _).mpr (by simp [hn]))]
+    rfl
+  | succ n ih =>
+    intro nU hn
+    obtain ⟨m, hm, hmv⟩ := usize_sub_eq nU 1#usize (by simp; omega)
+    rw [hacspec_sha3.sponge.iterate_keccak_f,
+      if_neg (show ¬ (nU = 0#usize) from fun hc => by
+        have h0 : nU.val = (0#usize : Std.Usize).val := by rw [hc]
+        simp at h0
+        omega),
+      hm, bind_tc_ok, ih s m (by rw [hmv]; simp; omega), bind_tc_ok,
+      keccak_f_lanes_eq, Function.iterate_succ_apply']
+
+/-- (b) The whole absorb phase. -/
+theorem absorb_lanes_eq (rate : Std.Usize) (delim : Std.U8)
+    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) (M : Slice Std.U8) :
+    hacspec_sha3.sponge.absorb rate delim M = ok (absorbLanes rate.val delim M.val) := by
+  unfold hacspec_sha3.sponge.absorb
+  exact absorb_rec_lanes_eq rate delim hrate1 hrate200 (M.val.length / rate.val) _ M rfl
+
+
 theorem iterate_keccak_f_eq (s : Lanes) : ∀ (n : Nat) (nU : Std.Usize), nU.val = n →
     ∃ s' : Lanes, hacspec_sha3.sponge.iterate_keccak_f nU s = ok s' ∧
       lanesToBits s' = keccakF^[n] (lanesToBits s) := by
@@ -313,6 +342,46 @@ theorem squeeze_eq (OUTPUT_LEN : Std.Usize) (state : Lanes) (rate : Std.Usize)
 
 
 /-! ### The whole byte-rate sponge -/
+
+/-! ### (b) The sponge's squeeze phase, and `KECCAK[c]`, on the lane model -/
+
+/-- Permuting `n` times commutes with reading the state as bits. -/
+theorem keccakF_iterate_lanesToBits (s : Lanes) (n : Nat) :
+    keccakF^[n] (lanesToBits s) = lanesToBits (keccakFLanes^[n] s) := by
+  induction n generalizing s with
+  | zero => rfl
+  | succ n ih =>
+    rw [Function.iterate_succ_apply, Function.iterate_succ_apply, ← ih, keccakF_lanesToBits]
+
+theorem lanesToBits_getElem (s : Lanes) (p : Nat) (hp : p < 1600) :
+    (lanesToBits s)[p]! = laneBitAt s p := by
+  simp only [lanesToBits]
+  rw [getElem!_pos _ _ (by simp only [List.length_map, List.length_range]; exact hp)]
+  simp
+
+theorem squeeze_lanes_eq (OUTPUT_LEN : Std.Usize) (state : Lanes) (rate : Std.Usize)
+    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200)
+    (hout : OUTPUT_LEN.val ≤ 4294967296) :
+    hacspec_sha3.sponge.squeeze OUTPUT_LEN state rate
+      = ok (squeezeLanes OUTPUT_LEN state rate.val) := by
+  rw [squeeze_eq OUTPUT_LEN state rate hrate1 hrate200 hout]
+  congr 1
+  refine mkArr_congr OUTPUT_LEN ?_
+  intro i _
+  refine byteOf_congr ?_
+  intro t ht
+  have hmod : i % rate.val < rate.val := Nat.mod_lt _ (by omega)
+  rw [keccakF_iterate_lanesToBits, lanesToBits_getElem _ _ (by omega)]
+
+theorem keccak_lanes_eq (OUTPUT_LEN rate : Std.Usize) (delim : Std.U8) (M : Slice Std.U8)
+    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200)
+    (hout : OUTPUT_LEN.val ≤ 4294967296) :
+    hacspec_sha3.sponge.keccak OUTPUT_LEN rate delim M
+      = ok (keccakLanes OUTPUT_LEN rate.val delim M.val) := by
+  unfold hacspec_sha3.sponge.keccak
+  rw [absorb_lanes_eq rate delim hrate1 hrate200 M, bind_tc_ok,
+    squeeze_lanes_eq OUTPUT_LEN _ rate hrate1 hrate200 hout]
+  rfl
 
 theorem b2hList_of_len (bits : List Bool) (n : Nat) (h : bits.length = 8 * n) :
     b2hList bits = (List.range n).map (fun i => byteOf (fun j => bits[8 * i + j]!)) := by
@@ -576,6 +645,111 @@ theorem shake256_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294
   exact ⟨o1, o2, h1, h2, by rw [h1v, h2v]⟩
 
 -- Pin the six agreement theorems to Lean's standard three axioms.
+/-! ### (b) The six entry points on the lane model
+
+Each is `hacspec_sha3`'s entry point rewritten as the lane model's `keccakLanes`
+at that rate and delimiter, and then -- via the `*_agree` theorems above, which
+carry the FIPS-202 content -- the transcript's entry point saying the same thing.
+The first of each pair goes with the rest of the `hacspec_sha3` half; the second
+is what `Sponge/` will be stated against. -/
+
+theorem sha3_224_lanes_eq (M : Slice Std.U8) :
+    hacspec_sha3.sha3.sha3_224 M = ok (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8 M.val) := by
+  unfold hacspec_sha3.sha3.sha3_224
+  rw [show hacspec_sha3.sha3.SHA3_224_RATE = 144#usize from by simp [hacspec_sha3.sha3.SHA3_224_RATE],
+    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
+  exact keccak_lanes_eq 28#usize 144#usize 6#u8 M (by simp) (by simp) (by simp)
+
+/-- `SHA3-224`: the transcript computes the lane model. -/
+theorem sha3_224_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+    hacspec_sha3_pedantic.bytes.sha3_224 M
+      = ok (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8 M.val) := by
+  obtain ⟨o1, h1, h2⟩ := sha3_224_agree M hm
+  rw [sha3_224_lanes_eq] at h1
+  rw [h2, (RustM.ok.injEq _ _).mp h1]
+
+theorem sha3_256_lanes_eq (M : Slice Std.U8) :
+    hacspec_sha3.sha3.sha3_256 M = ok (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8 M.val) := by
+  unfold hacspec_sha3.sha3.sha3_256
+  rw [show hacspec_sha3.sha3.SHA3_256_RATE = 136#usize from by simp [hacspec_sha3.sha3.SHA3_256_RATE],
+    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
+  exact keccak_lanes_eq 32#usize 136#usize 6#u8 M (by simp) (by simp) (by simp)
+
+/-- `SHA3-256`: the transcript computes the lane model. -/
+theorem sha3_256_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+    hacspec_sha3_pedantic.bytes.sha3_256 M
+      = ok (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8 M.val) := by
+  obtain ⟨o1, h1, h2⟩ := sha3_256_agree M hm
+  rw [sha3_256_lanes_eq] at h1
+  rw [h2, (RustM.ok.injEq _ _).mp h1]
+
+theorem sha3_384_lanes_eq (M : Slice Std.U8) :
+    hacspec_sha3.sha3.sha3_384 M = ok (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8 M.val) := by
+  unfold hacspec_sha3.sha3.sha3_384
+  rw [show hacspec_sha3.sha3.SHA3_384_RATE = 104#usize from by simp [hacspec_sha3.sha3.SHA3_384_RATE],
+    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
+  exact keccak_lanes_eq 48#usize 104#usize 6#u8 M (by simp) (by simp) (by simp)
+
+/-- `SHA3-384`: the transcript computes the lane model. -/
+theorem sha3_384_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+    hacspec_sha3_pedantic.bytes.sha3_384 M
+      = ok (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8 M.val) := by
+  obtain ⟨o1, h1, h2⟩ := sha3_384_agree M hm
+  rw [sha3_384_lanes_eq] at h1
+  rw [h2, (RustM.ok.injEq _ _).mp h1]
+
+theorem sha3_512_lanes_eq (M : Slice Std.U8) :
+    hacspec_sha3.sha3.sha3_512 M = ok (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8 M.val) := by
+  unfold hacspec_sha3.sha3.sha3_512
+  rw [show hacspec_sha3.sha3.SHA3_512_RATE = 72#usize from by simp [hacspec_sha3.sha3.SHA3_512_RATE],
+    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
+  exact keccak_lanes_eq 64#usize 72#usize 6#u8 M (by simp) (by simp) (by simp)
+
+/-- `SHA3-512`: the transcript computes the lane model. -/
+theorem sha3_512_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+    hacspec_sha3_pedantic.bytes.sha3_512 M
+      = ok (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8 M.val) := by
+  obtain ⟨o1, h1, h2⟩ := sha3_512_agree M hm
+  rw [sha3_512_lanes_eq] at h1
+  rw [h2, (RustM.ok.injEq _ _).mp h1]
+
+theorem shake128_lanes_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296) :
+    hacspec_sha3.sha3.shake128 NU M
+      = ok (keccakLanes NU (168#usize : Std.Usize).val 31#u8 M.val) := by
+  unfold hacspec_sha3.sha3.shake128
+  rw [show hacspec_sha3.sha3.SHAKE128_RATE = 168#usize from by simp [hacspec_sha3.sha3.SHAKE128_RATE],
+    show hacspec_sha3.sha3.SHAKE_DELIM = 31#u8 from by simp [hacspec_sha3.sha3.SHAKE_DELIM]]
+  exact keccak_lanes_eq NU 168#usize 31#u8 M (by simp) (by simp) hN
+
+/-- `SHAKE128`: the transcript computes the lane model. -/
+theorem shake128_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
+    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
+    ∃ o2 : alloc.vec.Vec Std.U8,
+      hacspec_sha3_pedantic.bytes.shake128 M NU = ok o2 ∧
+      o2.val = (keccakLanes NU (168#usize : Std.Usize).val 31#u8 M.val).val := by
+  obtain ⟨o1, o2, h1, h2, hv⟩ := shake128_agree NU M hN hob hm
+  rw [shake128_lanes_eq NU M hN] at h1
+  exact ⟨o2, h2, by rw [← hv, (RustM.ok.injEq _ _).mp h1]⟩
+
+theorem shake256_lanes_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296) :
+    hacspec_sha3.sha3.shake256 NU M
+      = ok (keccakLanes NU (136#usize : Std.Usize).val 31#u8 M.val) := by
+  unfold hacspec_sha3.sha3.shake256
+  rw [show hacspec_sha3.sha3.SHAKE256_RATE = 136#usize from by simp [hacspec_sha3.sha3.SHAKE256_RATE],
+    show hacspec_sha3.sha3.SHAKE_DELIM = 31#u8 from by simp [hacspec_sha3.sha3.SHAKE_DELIM]]
+  exact keccak_lanes_eq NU 136#usize 31#u8 M (by simp) (by simp) hN
+
+/-- `SHAKE256`: the transcript computes the lane model. -/
+theorem shake256_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
+    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
+    ∃ o2 : alloc.vec.Vec Std.U8,
+      hacspec_sha3_pedantic.bytes.shake256 M NU = ok o2 ∧
+      o2.val = (keccakLanes NU (136#usize : Std.Usize).val 31#u8 M.val).val := by
+  obtain ⟨o1, o2, h1, h2, hv⟩ := shake256_agree NU M hN hob hm
+  rw [shake256_lanes_eq NU M hN] at h1
+  exact ⟨o2, h2, by rw [← hv, (RustM.ok.injEq _ _).mp h1]⟩
+
+
 /--
 info: 'LibcruxIotSha3.Composition.Pedantic.sha3_224_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
@@ -611,5 +785,41 @@ info: 'LibcruxIotSha3.Composition.Pedantic.shake256_agree' depends on axioms: [p
 -/
 #guard_msgs in
 #print axioms shake256_agree
+
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.sha3_224_lanes_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha3_224_lanes_agree
+
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.sha3_256_lanes_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha3_256_lanes_agree
+
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.sha3_384_lanes_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha3_384_lanes_agree
+
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.sha3_512_lanes_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha3_512_lanes_agree
+
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.shake128_lanes_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake128_lanes_agree
+
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.shake256_lanes_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake256_lanes_agree
 
 end LibcruxIotSha3.Composition.Pedantic

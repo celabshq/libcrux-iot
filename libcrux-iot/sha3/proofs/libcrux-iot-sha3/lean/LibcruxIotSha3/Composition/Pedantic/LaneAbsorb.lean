@@ -387,6 +387,80 @@ theorem slice_index_from_eq {α : Type} (v : Slice α) (a : Std.Usize) (ha : a.v
   simp only []
   rw [List.take_of_length_le (by simp)]
 
+/-- (b) `hacspec_sha3`'s absorb recursion is the model's.  The induction is on
+    the number of full blocks left, as in `absorb_rec_bits` below; only the
+    `RustM` half is needed here, so the bit reasoning stays there. -/
+theorem absorb_rec_lanes_eq (rate : Std.Usize) (delim : Std.U8)
+    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) :
+    ∀ (k : Nat) (s : Lanes) (Msuf : Slice Std.U8),
+      Msuf.val.length / rate.val = k →
+      hacspec_sha3.sponge.absorb_rec s rate delim Msuf
+        = ok (absorbRecLanes rate.val delim s Msuf.val) := by
+  intro k
+  induction k with
+  | zero =>
+    intro s Msuf hk
+    have hlt : Msuf.val.length < rate.val := by
+      rcases Nat.lt_or_ge Msuf.val.length rate.val with h | h
+      · exact h
+      · exact absurd hk (by have := Nat.div_pos h (show 0 < rate.val by omega); omega)
+    rw [hacspec_sha3.sponge.absorb_rec, slice_len_eq, bind_tc_ok,
+      if_pos (show (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize) < rate from
+        (Std.UScalar.lt_equiv _ _).mpr (by simpa using hlt)),
+      absorb_final_lanes_eq s Msuf 0#usize
+        (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac)) rate delim
+        (by simpa using hlt) hrate200 hrate1 (by simp)]
+    rw [absorbRecLanes, dif_neg (show ¬ (0 < rate.val ∧ rate.val ≤ Msuf.val.length) from by omega)]
+    congr 2
+  | succ k ih =>
+    intro s Msuf hk
+    have hge : rate.val ≤ Msuf.val.length := by
+      rcases Nat.lt_or_ge Msuf.val.length rate.val with h | h
+      · exact absurd hk (by rw [Nat.div_eq_of_lt h]; omega)
+      · exact h
+    have hz : (0#usize : Std.Usize).val = 0 := by simp
+    have hsl : Msuf.val.slice (0#usize : Std.Usize).val rate.val = Msuf.val.take rate.val := by
+      rw [hz]; simp only [List.slice, List.drop_zero, Nat.sub_zero]
+    have hsllen : (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length = rate.val := by
+      rw [hsl, List.length_take]; omega
+    have hdrop : (Msuf.val.drop rate.val).length / rate.val = k := by
+      have hmod : Msuf.val.length % rate.val < rate.val := Nat.mod_lt _ (by omega)
+      have hdm := Nat.div_add_mod Msuf.val.length rate.val
+      rw [hk] at hdm
+      have hcm2 : rate.val * (k + 1) = k * rate.val + rate.val := by ring
+      rw [List.length_drop,
+        show Msuf.val.length - rate.val = Msuf.val.length % rate.val + k * rate.val from by omega,
+        Nat.add_mul_div_right _ _ (by omega), Nat.div_eq_of_lt hmod]
+      omega
+    rw [hacspec_sha3.sponge.absorb_rec, slice_len_eq, bind_tc_ok,
+      if_neg (show ¬ ((Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize) < rate)
+        from fun hc => by
+          have h := (Std.UScalar.lt_equiv _ _).mp hc
+          simp at h
+          omega),
+      slice_index_range_eq Msuf 0#usize rate (by scalar_tac) (by scalar_tac), bind_tc_ok,
+      absorb_block_lanes_eq s ⟨Msuf.val.slice (0#usize : Std.Usize).val rate.val, by
+        rw [hsllen]; scalar_tac⟩ rate
+        (show 8 * (rate.val / 8)
+            ≤ (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length from by
+          rw [hsllen]; omega),
+      bind_tc_ok, slice_index_from_eq Msuf rate (by omega), bind_tc_ok,
+      ih _ ⟨Msuf.val.drop rate.val, by
+        have := Msuf.property
+        have h2 : (Msuf.val.drop rate.val).length ≤ Msuf.val.length := by simp
+        scalar_tac⟩ hdrop]
+    conv_rhs =>
+      rw [absorbRecLanes,
+        dif_pos (show 0 < rate.val ∧ rate.val ≤ Msuf.val.length from ⟨by omega, hge⟩)]
+    -- Both sides are now the same recursion; only `slice 0 rate` vs `take rate`
+    -- separates them, and `rw` cannot see into the `Slice` literal.
+    show ok (absorbRecLanes rate.val delim
+          (absorbBlockLanes s (Msuf.val.slice (0#usize : Std.Usize).val rate.val) rate.val)
+          (Msuf.val.drop rate.val))
+        = ok (absorbRecLanes rate.val delim
+          (absorbBlockLanes s (Msuf.val.take rate.val) rate.val) (Msuf.val.drop rate.val))
+    rw [hsl]
+
 set_option maxHeartbeats 1000000 in
 set_option maxRecDepth 20000 in
 theorem absorb_rec_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
