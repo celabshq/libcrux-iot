@@ -156,13 +156,16 @@ theorem theta1_body_cont (w : Std.I64) (hw : w.val = 64) (c d : CArr) (x z : Std
   -- the column index `(x - 1) mod 5`
   have h5 : (5#i64 : Std.I64).val = 5 := by simp
   have h1 : (1#i64 : Std.I64).val = 1 := by simp
+  have hminN : Std.I64.min = -9223372036854775808 := Std.I64.min_eq
+  have hmaxI : Std.IScalar.max Std.IScalarTy.I64 = 9223372036854775807 := by
+    rw [Std.IScalar.max_IScalarTy_I64_eq, Std.I64.max_eq]
   have hxlt : (x.val : Int) < 5 := by exact_mod_cast hx
   have hzlt : (z.val : Int) < 64 := by exact_mod_cast hz
   obtain ⟨xi, hxi, hxiv⟩ := usize_to_i64 x (by scalar_tac)
   obtain ⟨xm, hxm, hxmv⟩ := i64_sub_eq xi 1#i64 (by scalar_tac) (by scalar_tac)
   have hxmn : xm.val = (x.val : Int) - 1 := by rw [hxmv, hxiv, h1]
   obtain ⟨m, hm, hmv⟩ := imod_eq xm 5#i64 (by omega) (by omega) (by omega)
-    (by rw [hxmn, h5]; scalar_tac) (by rw [h5]; scalar_tac)
+    (by rw [h5]; scalar_tac)
   have hmn : m.val = (x.val + 4) % 5 := by
     have : (m.val : Int) = ((x.val : Int) - 1) % 5 := by rw [hmv, hxmn, h5]
     omega
@@ -171,7 +174,7 @@ theorem theta1_body_cont (w : Std.I64) (hw : w.val = 64) (c d : CArr) (x z : Std
   obtain ⟨zm, hzm, hzmv⟩ := i64_sub_eq zi 1#i64 (by scalar_tac) (by scalar_tac)
   have hzmn : zm.val = (z.val : Int) - 1 := by rw [hzmv, hziv, h1]
   obtain ⟨n, hn, hnv⟩ := imod_eq zm w (by omega) (by omega) (by omega)
-    (by rw [hzmn, hw]; scalar_tac) (by rw [hw]; scalar_tac)
+    (by rw [hw]; scalar_tac)
   have hnn : n.val = (z.val + 63) % 64 := by
     have : (n.val : Int) = ((z.val : Int) - 1) % 64 := by rw [hnv, hzmn, hw]
     omega

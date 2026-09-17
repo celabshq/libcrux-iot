@@ -220,57 +220,59 @@ theorem i64_rem_eq (x y : Std.I64) (hy : y.val ≠ 0) (hmin : x.val ≠ Std.I64.
   | div => rw [hxy] at hs; exact hs.elim
 
 set_option maxRecDepth 8000 in
-/-- With `|a| < b` -- the only way the spec calls it -- `imod` is the mathematical
-    modulus, `Int.emod`. -/
-theorem imod_eq (a b : Std.I64) (hb : 0 < b.val) (hlo : -b.val < a.val) (hhi : a.val < b.val)
-    (hmax : a.val + b.val ≤ Std.IScalar.max .I64)
+/-- `imod a b` is the mathematical modulus, `Int.emod`, for every positive `b`
+    that leaves the intermediate `a % b + b` in range.  Rust's `%` truncates
+    towards zero, which is why the spec needs the `+ b` and the second `%` at
+    all; `Int.tmod_eq_emod` is what connects the two. -/
+theorem imod_eq (a b : Std.I64) (hb : 0 < b.val)
+    (hamin : a.val ≠ Std.I64.min) (hmax : 2 * b.val ≤ Std.IScalar.max .I64)
     (hbu : b.val ≤ Std.UScalar.max Std.UScalarTy.Usize) :
     ∃ m : Std.Usize, hacspec_sha3_pedantic.step_mappings.imod a b = ok m
       ∧ (m.val : Int) = a.val % b.val := by
-  have hminval : Std.I64.min = -9223372036854775808 := Std.I64.min_eq
   have hminI : Std.IScalar.min Std.IScalarTy.I64 = -9223372036854775808 := by
     rw [Std.IScalar.min_IScalarTy_I64_eq, Std.I64.min_eq]
   have hmaxI : Std.IScalar.max Std.IScalarTy.I64 = 9223372036854775807 := by
     rw [Std.IScalar.max_IScalarTy_I64_eq, Std.I64.max_eq]
+  have hminN : Std.I64.min = -9223372036854775808 := Std.I64.min_eq
   have hpow : (2:Int) ^ (Std.IScalarTy.I64.numBits - 1) = 9223372036854775808 := by
     norm_num [Std.IScalarTy.numBits]
-  have hbb := b.hBounds
   have hab := a.hBounds
-  rw [hpow] at hbb hab
-  have hamin : a.val ≠ Std.I64.min := by omega
+  have hbb := b.hBounds
+  rw [hpow] at hab hbb
+  have hem0 : 0 ≤ a.val % b.val := Int.emod_nonneg _ (by omega)
+  have hem1 : a.val % b.val < b.val := Int.emod_lt_of_pos _ hb
   obtain ⟨i, hi, hiv⟩ := i64_rem_eq a b (by omega) hamin
-  -- `a % b` truncates towards zero, and with `|a| < b` that leaves `a` alone.
-  have hia : i.val = a.val := by
+  -- the truncating remainder differs from `emod` by at most one `b`
+  have hib : i.val = a.val % b.val ∨ i.val = a.val % b.val - b.val := by
     rw [hiv, Int.tmod_eq_emod]
-    by_cases hpos : 0 ≤ a.val
-    · rw [if_pos (Or.inl hpos), Int.emod_eq_of_lt hpos hhi]; ring
-    · have hnd : ¬ (b.val ∣ a.val) := by
-        intro hdvd
-        have : b.val ≤ -a.val := Int.le_of_dvd (by omega) ((dvd_neg).mpr hdvd)
-        omega
-      rw [if_neg (by tauto)]
-      have hb' : (b.val.natAbs : Int) = b.val := by omega
-      have : a.val % b.val = a.val + b.val := by
-        have h1 : (a.val + b.val) % b.val = a.val % b.val := by
-          simp
-        rw [← h1, Int.emod_eq_of_lt (by omega) (by omega)]
-      rw [this, hb']
-      ring
-  obtain ⟨i1, hi1, hi1v⟩ := i64_add_eq i b (by rw [hia]; omega) (by rw [hia]; omega)
-  obtain ⟨i2, hi2, hi2v⟩ := i64_rem_eq i1 b (by omega) (by rw [hi1v, hia]; omega)
+    by_cases hc : 0 ≤ a.val ∨ b.val ∣ a.val
+    · rw [if_pos hc]; left; ring
+    · rw [if_neg hc]
+      right
+      have : (b.val.natAbs : Int) = b.val := by omega
+      rw [this]
+  have hirange : -b.val ≤ i.val ∧ i.val < b.val := by omega
+  have hi_lb : 0 ≤ i.val + b.val := by omega
+  have hi_ub : i.val + b.val < 2 * b.val := by omega
+  obtain ⟨i1, hi1, hi1v⟩ := i64_add_eq i b (by omega) (by omega)
+  obtain ⟨i2, hi2, hi2v⟩ := i64_rem_eq i1 b (by omega) (by omega)
   have hi2a : i2.val = a.val % b.val := by
-    rw [hi2v, hi1v, hia, Int.tmod_eq_emod, if_pos (Or.inl (by omega))]
-    have : (a.val + b.val) % b.val = a.val % b.val := by
+    have hi1nn : 0 ≤ i1.val := by omega
+    rw [hi2v, Int.tmod_eq_emod, if_pos (Or.inl hi1nn), hi1v]
+    have hsub : (i.val + b.val) % b.val = i.val % b.val := by simp
+    rw [hsub]
+    rcases hib with h | h
+    · rw [h]
       simp
-    rw [this]
-    ring
+    · rw [h]
+      have hstep : (a.val % b.val - b.val) % b.val = (a.val % b.val) % b.val := by
+        simp
+      rw [hstep]
+      simp
   refine ⟨Std.IScalar.hcast Std.UScalarTy.Usize i2, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.step_mappings.imod
     rw [hi, bind_tc_ok, hi1, bind_tc_ok, hi2, bind_tc_ok]
-  · rw [i64_to_usize_val i2 (by rw [hi2a]; exact Int.emod_nonneg _ (by omega)) (by
-      rw [hi2a]
-      have : a.val % b.val < b.val := Int.emod_lt_of_pos _ hb
-      omega), hi2a]
+  · rw [i64_to_usize_val i2 (by omega) (by omega), hi2a]
 
 /-! ## `Iterator::next` on a `Range I64`
 
