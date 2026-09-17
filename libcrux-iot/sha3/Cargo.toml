@@ -23,9 +23,12 @@ hax-lib.workspace = true
 # because the `#[ensures]` clauses name `hacspec_sha3{,_pedantic}::…` directly,
 # so they must be in scope for the hax build; `cargo test` sees them too.
 #
-# `hacspec_sha3` is the spec the proofs were built against; `hacspec_sha3_pedantic`
-# is the FIPS 202 transcript the proofs are being moved onto (bridged in the Lean
-# tree by `LibcruxIotSha3/Composition/Pedantic/`).  Both are pinned by COMMIT SHA,
+# `hacspec_sha3_pedantic` is the FIPS 202 transcript: it is what the six public
+# `#[ensures]` clauses name, and the spec the trust argument rests on.
+# `hacspec_sha3` is the spec the sponge proof was built against; it survives as an
+# internal stepping stone (the Lean tree's `Composition/Pedantic/` proves the two
+# agree) and as the counterpart in the cross-spec Rust tests and in `keccak_fc`,
+# which has no pedantic equivalent.  Both are pinned by COMMIT SHA,
 # at the same revision as the corresponding `[[require]]`s in
 # `proofs/libcrux-iot-sha3/lean/lakefile.toml`.
 hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }

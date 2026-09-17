@@ -2,12 +2,17 @@
 
 This directory contains the Lean 4 proof that the IOT-friendly
 implementation of SHA-3 in `libcrux-iot/sha3/src/` computes
-the same function as the hacspec-style FIPS-202 specification in
-the `hacspec_sha3` crate (from
-[`cryspen/libcrux`](https://github.com/cryspen/libcrux)). Both sides are
-extracted from Rust into Lean
-via the hax/Lean pipeline. Most of the verification
-code is AI-generated.
+the same function as FIPS 202. The Standard is represented by the
+`hacspec_sha3_pedantic` crate, a hacspec-style *transcript* of it: its modules and
+functions follow the Standard's sections and algorithm numbers, its state is the
+state array `A[x, y, z]` of bits, and its byte layer is nothing but Appendix B.1's
+`h2b`/`b2h`. Both sides are extracted from Rust into Lean via the hax/Lean pipeline.
+Most of the verification code is AI-generated.
+
+A second specification, `hacspec_sha3` -- written the way the implementations are
+structured, with 25 `u64` lanes and the rate in bytes -- sits in the middle: the sponge
+proof is stated against it, and [`Composition/Pedantic/`](Composition/Pedantic/) proves
+the two specifications agree. See [The two specifications](#the-two-specifications).
 
 ## Main theorems
 
@@ -49,33 +54,41 @@ The corresponding Lean theorem is
 `keccak_fc_spec_proof` in
 [`Verification/ProofObligations.lean`](Verification/ProofObligations.lean).
 
+This one contract still names `hacspec_sha3` rather than the FIPS-202 transcript: the
+transcript has no rate-and-delimiter-parameterised byte sponge to name in its place (it
+exposes `KECCAK[c]` and the six standard functions, not a generic one). `keccak_fc` is
+body-less and `#[cfg(hax)]`-only -- a proof-only stepping stone towards the six public
+contracts below, not a claim the crate makes to its callers.
+
 ### SHA-3 and SHAKE
 
 The functional correctness of the SHA-3 and SHAKE functions in [`src/lib.rs`](../../../../src/lib.rs)
 is specified using Rust annotations directly on the functions. For example:
 
 ```rust
-#[hax_lib::requires(BYTES <= u32::MAX as usize)]
-#[hax_lib::ensures(|out| out.declassify()
-    == hacspec_sha3::shake128::<BYTES>(data.declassify_ref()))]
+#[hax_lib::requires(BYTES <= MAX_INPUT_LEN && data.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|out| out.declassify()[..]
+    == hacspec_sha3_pedantic::bytes::shake128(data.declassify_ref(), BYTES)[..])]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES]
 ```
-Informally: the IOT-friendly implementation `shake128` yields the same result as
-`hacspec_sha3::shake128`. The only precondition is that the number of requested output bytes
-must can be at most `u32::MAX`; otherwise, our verification makes no claims about how the
-function might behave. Again, we must call `declassify()` to convert between the implementation's
-custom integer type `U8` and Rust's integers `u8`.
+Informally: the IOT-friendly implementation `shake128` yields the same result as FIPS
+202's SHAKE128. The preconditions bound the requested output length and the input by
+`MAX_INPUT_LEN` (see [The input bound](#the-input-bound)); outside them, our verification
+makes no claims about how the function might behave. Again, we must call `declassify()`
+to convert between the implementation's custom integer type `U8` and Rust's integers
+`u8`, and the `[..]` on both sides because the transcript's SHAKE returns a `Vec<u8>`
+(its output length is a runtime argument, not a const generic).
 
 
 ```rust
-#[hax_lib::requires(payload.len() <= u32::MAX as usize && digest.len() == SHA3_256_DIGEST_SIZE)]
+#[hax_lib::requires(payload.len() <= MAX_INPUT_LEN && digest.len() == SHA3_256_DIGEST_SIZE)]
 #[hax_lib::ensures(|_| future(digest).declassify_ref()
-        == &hacspec_sha3::sha3_256(payload.declassify_ref())[..])]
+        == &hacspec_sha3_pedantic::bytes::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
 ```
-Informally: the IOT-friendly implementation `sha256_ema` yields the same result as
-`hacspec_sha3::sha3_256`. The precondition is that the payload length is at most
-`u32::MAX` and that the `digest` slice has the expected length.
+Informally: the IOT-friendly implementation `sha256_ema` yields the same result as FIPS
+202's SHA3-256. The precondition is that the payload length is at most `MAX_INPUT_LEN`
+and that the `digest` slice has the expected length.
 
 The `[..]` is technically unnecessary, too, but we need it because hax's model of Rust core
 currently models `==` only between two slices or two arrays, not between one slice and one array.
@@ -86,14 +99,52 @@ hax generates a proof obligation for each of these, and they are discharged
 by Lean theorems in
 [`Verification/ProofObligations.lean`](Verification/ProofObligations.lean):
 
-| impl function | hacspec function | Lean theorem |
+| impl function | FIPS-202 function | Lean theorem |
 |---|---|---|
-| `shake128` | `hacspec_sha3::shake128` | `shake128_spec_proof` |
-| `shake256` | `hacspec_sha3::shake256` | `shake256_spec_proof` |
-| `sha224_ema` | `hacspec_sha3::sha3_224` | `sha224_ema_spec_proof` |
-| `sha256_ema` | `hacspec_sha3::sha3_256` | `sha256_ema_spec_proof` |
-| `sha384_ema` | `hacspec_sha3::sha3_384` | `sha384_ema_spec_proof` |
-| `sha512_ema` | `hacspec_sha3::sha3_512` | `sha512_ema_spec_proof` |
+| `shake128` | `hacspec_sha3_pedantic::bytes::shake128` | `shake128_spec_proof` |
+| `shake256` | `hacspec_sha3_pedantic::bytes::shake256` | `shake256_spec_proof` |
+| `sha224_ema` | `hacspec_sha3_pedantic::bytes::sha3_224` | `sha224_ema_spec_proof` |
+| `sha256_ema` | `hacspec_sha3_pedantic::bytes::sha3_256` | `sha256_ema_spec_proof` |
+| `sha384_ema` | `hacspec_sha3_pedantic::bytes::sha3_384` | `sha384_ema_spec_proof` |
+| `sha512_ema` | `hacspec_sha3_pedantic::bytes::sha3_512` | `sha512_ema_spec_proof` |
+
+Each of these is discharged by composing the sponge proof (stated against `hacspec_sha3`)
+with the corresponding agreement theorem from
+[`Composition/Pedantic/`](Composition/Pedantic/) -- `sha3_256_agree`, `shake128_agree`,
+and so on -- so the generated post is *produced*, not weakened.
+
+### The input bound
+
+Naming the transcript costs one thing. It works on BIT strings, so it expands its input
+to `8 * len` bits and then appends the domain-separation suffix and `pad10*1`; that
+padded bit length has to be a representable `usize` on every supported target, the
+smallest being 32-bit. The six contracts therefore bound their input by
+
+```rust
+pub const MAX_INPUT_LEN: usize = 536_870_399; // == (u32::MAX as usize - 4096) / 8
+```
+
+rather than by `u32::MAX` -- a narrowing from 4 GB to 512 MB, far above anything an IoT
+target will hash, and the price of stating correctness against the Standard's own text
+instead of against a specification shaped like the implementation.
+
+### The two specifications
+
+Two hacspec-style FIPS-202 specifications are involved. Both are extracted from
+[`celabshq/libcrux`](https://github.com/celabshq/libcrux) and both are pinned by commit
+SHA -- never by branch -- in [`lakefile.toml`](../lakefile.toml) and in the crate's
+[`Cargo.toml`](../../../../Cargo.toml), at the same revision.
+
+* **`hacspec_sha3_pedantic`** (`specs/sha3-pedantic`) is the transcript of FIPS 202
+  described at the top of this file. **It is what the crate's contracts name**, and the
+  specification the trust argument rests on: auditing this proof means reading it against
+  the Standard.
+* **`hacspec_sha3`** (`specs/sha3`) is the original specification, written the way the
+  implementations are structured. The whole sponge proof in [`Sponge/`](Sponge/) is
+  stated against it, and [`Composition/Pedantic/`](Composition/Pedantic/) proves that the
+  two agree on all six entry points. It is therefore an internal stepping stone: a
+  mistake in it cannot make a contract hold that should not, because the contract is
+  stated against the transcript and the agreement is proved, not assumed.
 
 ### Assumptions
 
@@ -107,15 +158,40 @@ Beyond Lean's axioms, the proof trusts the hand-written models in
 [`Assumptions/`](Assumptions/), which stand in for what hax leaves external.
 `FunsExternal.lean` models the `libcrux_secrets` helpers the extraction does
 not define. We do not verify secret-independence, so these are modeled as identities
-and no-ops.
+and no-ops. That file is also where the two specification packages enter the generated
+extraction's import tree: hax emits `Extraction/FunsExternal.lean` as a one-line shim
+onto it and adds no specification imports of its own, so the `#[ensures]` clauses'
+`hacspec_sha3_pedantic::bytes::*` are in scope only because they are imported there.
 In addition, a duplicate hax-lib crate in the dependency graph currently causes
 some references to `hax_lib` to use the name `hax_lib_1`.
 The file `HaxLibAlias.lean` aliases `hax_lib_1.*` onto `hax_lib.*` to work around this issue.
 
+Because the FIPS-202 transcript is now the specification the contracts name, its own two
+hand-written models are part of the trusted base as well. Both live in
+`HacspecSha3Pedantic`'s `Assumptions/FunsExternal.lean`:
+
+* an `Iterator` instance for `RangeInclusive`. `core-models` declares the type but ships
+  neither `new` nor an iterator, so `for j in a..=b` does not extract; the model is
+  CoreModels' half-open `Range` iterator with `≤` in place of `<`.
+  **Caveat.** Rust's `RangeInclusive` carries an `exhausted` flag that the modelled type
+  does not have -- it is a bare `{ start, end }` -- so `next` cannot distinguish "already
+  yielded `end`" from "start > end" when `end` is the largest value of the type, and the
+  model panics (on the overflow in `forward_checked`) where Rust would yield `A::MAX` and
+  then stop. Every inclusive range in the transcript is small and fixed (`0..=l` with
+  `l ≤ 6`, `1..=t mod 255`, and Algorithm 7's round indices), so the difference is
+  unreachable there -- but a proof about this model is a proof about non-saturating
+  ranges only. The corresponding Lean lemmas in
+  [`Composition/Pedantic/LoopEq.lean`](Composition/Pedantic/LoopEq.lean) carry the
+  side condition (`hsafe`) that keeps the proofs away from that corner.
+* a `marker.Copy` instance for `bool`. CoreModels has `marker.Copy` for every integer
+  type and `clone.Clone` for `Bool`, but not this one, so `copy_from_slice` on a
+  `[bool]` does not resolve. It is the instance those two already determine; nothing is
+  assumed.
+
 Moreover, the correctness of the verification depends on:
-* the hacspec-style specification correctly reflecting the FIPS standard;
-* the hacspec-style specification being extracted faithfully;
-* the extraction of the hacspec-style specification being pinned correctly in the lakefile;
+* the FIPS-202 transcript correctly reflecting the FIPS standard;
+* the transcript being extracted faithfully;
+* the extraction of the transcript being pinned correctly in the lakefile;
 * hax extracting the implementation faithfully;
 * hax's Lean libraries modeling Rust faithfully;
 * Lean checking the proofs correctly (we could aim for more confidence here by using [comparator](https://github.com/leanprover/comparator), but this is not set up yet);
@@ -129,9 +205,10 @@ There are more Rust specification in the code base, but only the ones above are 
 
 ## Proof architecture
 
-The proof has two major stages: first establishing Keccak-f[1600]
+The proof has three major stages: first establishing Keccak-f[1600]
 permutation equivalence as a central intermediate result, then building
-the full sponge construction on top of it.
+the full sponge construction on top of it, and finally moving the result from
+`hacspec_sha3` onto the FIPS-202 transcript.
 
 The tree divides as follows, bottom to top:
 
@@ -143,6 +220,7 @@ The tree divides as follows, bottom to top:
 | [`BitSpec/`](BitSpec/) | the pure-Lean intermediate bit spec `bit_keccak_spec` and its state isomorphism |
 | `StructuralEquiv.lean`, `AlgebraicEquiv.lean` | the two halves of the permutation argument, detailed below |
 | [`Composition/`](Composition/) | composes those halves (`ViaBit`) and bridges the result to the hacspec permutation (`HacspecBridge`), with a slice-equality helper (`SliceEq`) |
+| [`Composition/Pedantic/`](Composition/Pedantic/) | the second bridge: `hacspec_sha3` = the FIPS-202 transcript, detailed below |
 | [`Sponge/`](Sponge/) | absorb, squeeze, padding and the top-level corollaries, plus the loop- and slice-spec helpers they share |
 | [`Verification/`](Verification/) | `ProofObligations.lean`, the hand-written discharge of the generated `<fn>.spec` obligations (so the Rust contracts hold), and the `#guard_msgs` axiom guards |
 
@@ -245,6 +323,36 @@ and proceeds as follows:
   instantiates `keccak_keccak_spec` at concrete `(RATE, DELIM)` pairs to
   yield `shake128_spec`, `shake256_spec`, and the SHA3-ema variants.
 
+### The FIPS-202 transcript bridge
+
+[`Composition/Pedantic/`](Composition/Pedantic/) proves that `hacspec_sha3` and
+`hacspec_sha3_pedantic` compute the same six functions. The two are written against
+different data: the transcript's state is the state array `A[x, y, z]` of bits and its
+sponge absorbs a bit string; `hacspec_sha3` keeps 25 `u64` lanes and absorbs bytes. The
+bridge is therefore bit-level throughout, and runs bottom-up:
+
+| file | holds |
+|---|---|
+| `Parameters.lean`, `StateMap.lean`, `Grid.lean` | the state correspondence: `ofLanes` / `toLanes` between 25 lanes and `A[x, y, z]`, mutually inverse |
+| `LoopEq.lean` | the reusable equational loop inductions and scalar/container equations the rest is written with |
+| `Theta.lean`, `Rho.lean`, `Pi.lean`, `Chi.lean`, `Iota.lean` | the five step mappings (FIPS 202, Algorithms 1-6) as functions of the bits |
+| `RoundConstants.lean` | Algorithm 5's LFSR equals the table `hacspec_sha3` carries -- checked by `decide`, so by the kernel, not by `native_decide` |
+| `Round.lean`, `Permutation.lean`, `Bits.lean`, `KeccakP.lean` | `Rnd`, the round loop, the state-array/bit-string conversions, and `Keccak-p[1600, n_r]` |
+| `BitsOps.lean`, `Padding.lean`, `Sponge.lean`, `KeccakC.lean` | the `bits` operations, `pad10*1` (Algorithm 9), the sponge (Algorithm 8) and `KECCAK[c]` |
+| `Bytes.lean`, `Sha3.lean` | `h2b`/`b2h` (Algorithms 10 and 11) and the six entry points at both the bit and the byte level |
+| `Lanes.lean` | `hacspec_sha3`'s lane-level `Keccak-f[1600]` is the transcript's bit-level permutation (each `createi` over lane indices against each triple loop over `(x, y, z)`) |
+| `LaneSponge.lean`, `LaneAbsorb.lean`, `LaneSqueeze.lean` | the byte-rate sponge: XORing a block into the lanes is XORing its bits into the bit string; the padded last block is the transcript's last block; the absorb recursion is `absorbFrom`; `squeeze` is `squeezeFrom`; and finally the six `*_agree` theorems |
+
+The two ends that make the last step work are worth naming. On the absorb side, the
+delimiter byte is exactly the domain-separation suffix followed by the `1` that opens
+`pad10*1` -- `0x06` is `01` then `1`, `0x1f` is `1111` then `1` -- and the `0x80` OR-ed
+into the last byte of the block is that padding's trailing `1`. On the output side,
+`b2h` inverts `h2b`, which is what lets the two specifications' byte-level results be
+compared at all.
+
+Every result in the directory is `#print axioms`-pinned to Lean's three standard axioms,
+including the `decide` over the round-constant table.
+
 ## Reproduction
 
 ### Prerequisites
@@ -280,12 +388,18 @@ the Rust level, before they propagate into Lean proof failures.
 ### Extraction from Rust into Lean
 
 ```bash
-# Spec side (from a checkout of cryspen/libcrux):
+# Spec side (from a checkout of celabshq/libcrux), both specifications:
 cd specs
 cargo bin cargo-hax extract hacspec-sha3
+cargo bin cargo-hax extract hacspec-sha3-pedantic
 
 # Impl side:
 cd libcrux-iot
 cargo hax extract libcrux-iot-sha3
 ```
+
+Note that hax adds no specification imports to the generated tree: it writes
+`Extraction/FunsExternal.lean` as a one-line shim onto the hand-written
+`Assumptions/FunsExternal.lean`, and that is where `HacspecSha3` and
+`HacspecSha3Pedantic` are imported so the `#[ensures]` clauses resolve.
 
