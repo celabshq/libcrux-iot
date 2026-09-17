@@ -203,6 +203,15 @@ theorem usize_sub_eq (x y : Std.Usize) (h : y.val ≤ x.val) :
   | fail e => rw [hxy] at he; exact absurd he.2 (by omega)
   | div => rw [hxy] at he; exact he.elim
 
+theorem usize_div_eq (x y : Std.Usize) (h : y.val ≠ 0) :
+    ∃ z : Std.Usize, x / y = ok z ∧ z.val = x.val / y.val := by
+  have hs := Std.Usize.div_spec (x := x) (y := y)
+  unfold WP.partialSpec at hs
+  cases hxy : (x / y : RustM Std.Usize) with
+  | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs⟩
+  | fail e => rw [hxy] at hs; cases e <;> simp_all
+  | div => rw [hxy] at hs; exact hs.elim
+
 theorem usize_rem_eq (x y : Std.Usize) (h : y.val ≠ 0) :
     ∃ z : Std.Usize, x % y = ok z ∧ z.val = x.val % y.val := by
   have hs := Std.Usize.rem_spec (x := x) (y := y)
