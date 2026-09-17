@@ -58,8 +58,8 @@ theorem keccakCList_len (c : Nat) (n : List Bool) (d : Nat) (hc : c < 1600) :
 
 /-- `keccak_c` computes `keccakCList`. -/
 theorem keccak_c_list_eq (c : Std.Usize) (hc : c.val < 1600)
-    (n : Slice Bool) (hn : n.val.length ≤ 1000000)
-    (d : Std.Usize) (hd : 0 < d.val) (hdb : d.val ≤ 1000000) :
+    (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
+    (d : Std.Usize) (hd : 0 < d.val) (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sponge.keccak_c c n d = ok out ∧
       out.val = keccakCList c.val n.val d.val :=
@@ -70,8 +70,8 @@ theorem keccak_c_list_eq (c : Std.Usize) (hc : c.val < 1600)
 /-- Every one of the six has the same shape: append a domain-separation suffix
     and call `KECCAK[c]`. -/
 theorem suffix_keccak_eq (m : Slice Bool) (sfx : Slice Bool) (c d : Std.Usize)
-    (hc : c.val < 1600) (hd : 0 < d.val) (hdb : d.val ≤ 1000000)
-    (hm : m.val.length + sfx.val.length ≤ 1000000) :
+    (hc : c.val < 1600) (hd : 0 < d.val) (hdb : d.val ≤ 4294965000)
+    (hm : m.val.length + sfx.val.length ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       (do
         let v ← hacspec_sha3_pedantic.bits.concat m sfx
@@ -100,7 +100,7 @@ theorem xof_suffix_val :
   simp [hacspec_sha3_pedantic.sha3.XOF_SUFFIX, Std.Array.to_slice, Std.Array.repeat]
 
 /-- FIPS 202, §6.1: `SHA3-224(M) = KECCAK[448](M ‖ 01, 224)`. -/
-theorem sha3_224_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
+theorem sha3_224_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sha3.sha3_224 m = ok out ∧
       out.val = keccakCList 448 (m.val ++ [false, true]) 224 := by
@@ -114,7 +114,7 @@ theorem sha3_224_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
     norm_num
 
 /-- FIPS 202, §6.1: `SHA3-256(M) = KECCAK[512](M ‖ 01, 256)`. -/
-theorem sha3_256_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
+theorem sha3_256_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sha3.sha3_256 m = ok out ∧
       out.val = keccakCList 512 (m.val ++ [false, true]) 256 := by
@@ -128,7 +128,7 @@ theorem sha3_256_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
     norm_num
 
 /-- FIPS 202, §6.1: `SHA3-384(M) = KECCAK[768](M ‖ 01, 384)`. -/
-theorem sha3_384_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
+theorem sha3_384_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sha3.sha3_384 m = ok out ∧
       out.val = keccakCList 768 (m.val ++ [false, true]) 384 := by
@@ -142,7 +142,7 @@ theorem sha3_384_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
     norm_num
 
 /-- FIPS 202, §6.1: `SHA3-512(M) = KECCAK[1024](M ‖ 01, 512)`. -/
-theorem sha3_512_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
+theorem sha3_512_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sha3.sha3_512 m = ok out ∧
       out.val = keccakCList 1024 (m.val ++ [false, true]) 512 := by
@@ -157,7 +157,7 @@ theorem sha3_512_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 1000000) :
 
 /-- FIPS 202, §6.2: `SHAKE128(M, d) = KECCAK[256](M ‖ 1111, d)`. -/
 theorem shake128_bits_eq (m : Slice Bool) (d : Std.Usize) (hd : 0 < d.val)
-    (hdb : d.val ≤ 1000000) (hm : m.val.length + 4 ≤ 1000000) :
+    (hdb : d.val ≤ 4294965000) (hm : m.val.length + 4 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sha3.shake128 m d = ok out ∧
       out.val = keccakCList 256 (m.val ++ [true, true, true, true]) d.val := by
@@ -172,7 +172,7 @@ theorem shake128_bits_eq (m : Slice Bool) (d : Std.Usize) (hd : 0 < d.val)
 
 /-- FIPS 202, §6.2: `SHAKE256(M, d) = KECCAK[512](M ‖ 1111, d)`. -/
 theorem shake256_bits_eq (m : Slice Bool) (d : Std.Usize) (hd : 0 < d.val)
-    (hdb : d.val ≤ 1000000) (hm : m.val.length + 4 ≤ 1000000) :
+    (hdb : d.val ≤ 4294965000) (hm : m.val.length + 4 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sha3.shake256 m d = ok out ∧
       out.val = keccakCList 512 (m.val ++ [true, true, true, true]) d.val := by
@@ -237,7 +237,7 @@ theorem copy_into_array_eq {n : Std.Usize} (a : Std.Array Std.U8 n)
   rfl
 
 /-- `SHA3-224` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_224_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000000) :
+theorem sha3_224_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 28#usize,
       hacspec_sha3_pedantic.bytes.sha3_224 m = ok out ∧
       out.val = b2hList (keccakCList 448 (h2bList m.val ++ [false, true]) 224) := by
@@ -263,7 +263,7 @@ theorem sha3_224_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000
   · rw [Std.Array.from_slice_val _ ⟨digest.val, digest.property⟩ hdiglen, hdigv, hv1s]
 
 /-- `SHA3-256` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_256_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000000) :
+theorem sha3_256_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 32#usize,
       hacspec_sha3_pedantic.bytes.sha3_256 m = ok out ∧
       out.val = b2hList (keccakCList 512 (h2bList m.val ++ [false, true]) 256) := by
@@ -289,7 +289,7 @@ theorem sha3_256_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000
   · rw [Std.Array.from_slice_val _ ⟨digest.val, digest.property⟩ hdiglen, hdigv, hv1s]
 
 /-- `SHA3-384` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_384_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000000) :
+theorem sha3_384_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 48#usize,
       hacspec_sha3_pedantic.bytes.sha3_384 m = ok out ∧
       out.val = b2hList (keccakCList 768 (h2bList m.val ++ [false, true]) 384) := by
@@ -315,7 +315,7 @@ theorem sha3_384_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000
   · rw [Std.Array.from_slice_val _ ⟨digest.val, digest.property⟩ hdiglen, hdigv, hv1s]
 
 /-- `SHA3-512` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_512_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000000) :
+theorem sha3_512_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 64#usize,
       hacspec_sha3_pedantic.bytes.sha3_512 m = ok out ∧
       out.val = b2hList (keccakCList 1024 (h2bList m.val ++ [false, true]) 512) := by
@@ -342,8 +342,8 @@ theorem sha3_512_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 1000
 
 /-- `SHAKE128` on byte strings, producing `out_bytes` bytes. -/
 theorem shake128_bytes_eq (m : Slice Std.U8) (out_bytes : Std.Usize)
-    (h0 : 0 < out_bytes.val) (hob : 8 * out_bytes.val ≤ 1000000)
-    (hm : 8 * m.val.length + 4 ≤ 1000000) :
+    (h0 : 0 < out_bytes.val) (hob : 8 * out_bytes.val ≤ 4294965000)
+    (hm : 8 * m.val.length + 4 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake128 m out_bytes = ok out ∧
       out.val = b2hList (keccakCList 256 (h2bList m.val ++ [true, true, true, true])
@@ -371,8 +371,8 @@ theorem shake128_bytes_eq (m : Slice Std.U8) (out_bytes : Std.Usize)
 
 /-- `SHAKE256` on byte strings, producing `out_bytes` bytes. -/
 theorem shake256_bytes_eq (m : Slice Std.U8) (out_bytes : Std.Usize)
-    (h0 : 0 < out_bytes.val) (hob : 8 * out_bytes.val ≤ 1000000)
-    (hm : 8 * m.val.length + 4 ≤ 1000000) :
+    (h0 : 0 < out_bytes.val) (hob : 8 * out_bytes.val ≤ 4294965000)
+    (hm : 8 * m.val.length + 4 ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake256 m out_bytes = ok out ∧
       out.val = b2hList (keccakCList 512 (h2bList m.val ++ [true, true, true, true])

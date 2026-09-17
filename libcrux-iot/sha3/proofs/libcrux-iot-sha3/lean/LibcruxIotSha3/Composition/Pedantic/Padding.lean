@@ -19,7 +19,7 @@ def padBits (x m : Nat) : List Bool :=
   true :: (List.replicate ((-(m : Int) - 2) % (x : Int)).toNat false ++ [true])
 
 theorem pad10_star_1_eq (x m : Std.Usize) (hx : 0 < x.val) (hxb : x.val ≤ 1600)
-    (hmb : m.val ≤ 1000000000) :
+    (hmb : m.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sponge.pad10_star_1 x m = ok out ∧ out.val = padBits x.val m.val := by
   have hminI : Std.IScalar.min Std.IScalarTy.I64 = -9223372036854775808 := by
@@ -30,7 +30,7 @@ theorem pad10_star_1_eq (x m : Std.Usize) (hx : 0 < x.val) (hxb : x.val ≤ 1600
   have hmaxN : Std.I64.max = 9223372036854775807 := Std.I64.max_eq
   have hxn : (x.val : Int) ≤ 1600 := by exact_mod_cast hxb
   have hxpos : (0 : Int) < (x.val : Int) := by exact_mod_cast hx
-  have hmn : (m.val : Int) ≤ 1000000000 := by exact_mod_cast hmb
+  have hmn : (m.val : Int) ≤ 4294965000 := by exact_mod_cast hmb
   -- the modulus `j = (-m - 2) mod x`
   obtain ⟨xi, hxi, hxiv⟩ := usize_to_i64 x (by scalar_tac)
   obtain ⟨mi, hmi, hmiv⟩ := usize_to_i64 m (by scalar_tac)

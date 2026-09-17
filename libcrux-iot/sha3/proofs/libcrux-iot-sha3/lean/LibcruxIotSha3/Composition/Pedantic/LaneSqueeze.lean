@@ -427,7 +427,7 @@ theorem sha3_224_hacspec_eq (M : Slice Std.U8) :
     norm_num
 
 /-- `SHA3-224`: the two specs agree. -/
-theorem sha3_224_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 1000000) :
+theorem sha3_224_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 28#usize,
       hacspec_sha3.sha3.sha3_224 M = ok out ∧
       hacspec_sha3_pedantic.bytes.sha3_224 M = ok out := by
@@ -454,7 +454,7 @@ theorem sha3_256_hacspec_eq (M : Slice Std.U8) :
     norm_num
 
 /-- `SHA3-256`: the two specs agree. -/
-theorem sha3_256_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 1000000) :
+theorem sha3_256_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 32#usize,
       hacspec_sha3.sha3.sha3_256 M = ok out ∧
       hacspec_sha3_pedantic.bytes.sha3_256 M = ok out := by
@@ -481,7 +481,7 @@ theorem sha3_384_hacspec_eq (M : Slice Std.U8) :
     norm_num
 
 /-- `SHA3-384`: the two specs agree. -/
-theorem sha3_384_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 1000000) :
+theorem sha3_384_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 48#usize,
       hacspec_sha3.sha3.sha3_384 M = ok out ∧
       hacspec_sha3_pedantic.bytes.sha3_384 M = ok out := by
@@ -508,7 +508,7 @@ theorem sha3_512_hacspec_eq (M : Slice Std.U8) :
     norm_num
 
 /-- `SHA3-512`: the two specs agree. -/
-theorem sha3_512_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 1000000) :
+theorem sha3_512_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     ∃ out : Std.Array Std.U8 64#usize,
       hacspec_sha3.sha3.sha3_512 M = ok out ∧
       hacspec_sha3_pedantic.bytes.sha3_512 M = ok out := by
@@ -555,7 +555,7 @@ theorem shake256_hacspec_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤
 
 /-- `SHAKE128`: the two specs agree. -/
 theorem shake128_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (h0 : 0 < NU.val) (hob : 8 * NU.val ≤ 1000000) (hm : 8 * M.val.length + 4 ≤ 1000000) :
+    (h0 : 0 < NU.val) (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
     ∃ (o1 : Std.Array Std.U8 NU) (o2 : alloc.vec.Vec Std.U8),
       hacspec_sha3.sha3.shake128 NU M = ok o1 ∧
       hacspec_sha3_pedantic.bytes.shake128 M NU = ok o2 ∧ o1.val = o2.val := by
@@ -565,7 +565,7 @@ theorem shake128_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294
 
 /-- `SHAKE256`: the two specs agree. -/
 theorem shake256_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (h0 : 0 < NU.val) (hob : 8 * NU.val ≤ 1000000) (hm : 8 * M.val.length + 4 ≤ 1000000) :
+    (h0 : 0 < NU.val) (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
     ∃ (o1 : Std.Array Std.U8 NU) (o2 : alloc.vec.Vec Std.U8),
       hacspec_sha3.sha3.shake256 NU M = ok o1 ∧
       hacspec_sha3_pedantic.bytes.shake256 M NU = ok o2 ∧ o1.val = o2.val := by

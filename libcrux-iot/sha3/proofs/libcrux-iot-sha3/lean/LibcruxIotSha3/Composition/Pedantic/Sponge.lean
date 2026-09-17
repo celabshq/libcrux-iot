@@ -326,7 +326,7 @@ variable {C : Type} (inst : hacspec_sha3_pedantic.sponge.Components C) (comps : 
 
 /-- What the `Components` trait's padding has to be: FIPS 202's `pad10*1`. -/
 def PadSpec : Prop :=
-  ∀ r m : Std.Usize, 0 < r.val → r.val ≤ 1600 → m.val ≤ 1000000000 →
+  ∀ r m : Std.Usize, 0 < r.val → r.val ≤ 1600 → m.val ≤ 4294965000 →
     ∃ v : alloc.vec.Vec Bool, inst.pad comps r m = ok v ∧ v.val = padBits r.val m.val
 
 /-- The padded message is a whole number of blocks -- the point of `pad10*1`. -/
@@ -356,8 +356,8 @@ theorem padBits_length (x m : Nat) (hx : 0 < x) :
 theorem sponge_eq (hF : PermSpec inst comps F b) (hP : PadSpec inst comps)
     (bU r d : Std.Usize) (hbU : bU.val = b) (hb : b ≤ 1600)
     (hr0 : 0 < r.val) (hrb : r.val ≤ b)
-    (n : Slice Bool) (hn : n.val.length ≤ 1000000)
-    (hd : 0 < d.val) (hdb : d.val ≤ 1000000) :
+    (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
+    (hd : 0 < d.val) (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sponge.sponge inst comps bU r n d = ok out ∧
       out.val =
@@ -369,7 +369,7 @@ theorem sponge_eq (hF : PermSpec inst comps F b) (hP : PadSpec inst comps)
     intro x hx
     obtain ⟨_, _, _, hlen⟩ := hF ⟨x, by scalar_tac⟩ hx
     exact hlen
-  have husize : (1000000000 : Nat) ≤ Std.Usize.max := by scalar_tac
+  have husize : (4294967295 : Nat) ≤ Std.Usize.max := by scalar_tac
   -- pad, then concatenate
   obtain ⟨v, hv, hvv⟩ := hP r (Std.Usize.ofNatCore n.val.length (by scalar_tac)) hr0 (by omega)
     (by simp; omega)

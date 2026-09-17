@@ -61,8 +61,8 @@ theorem keccak1600_pad :
 
 /-- `KECCAK[c](N, d)` (FIPS 202, Sec. 5.2). -/
 theorem keccak_c_eq (c : Std.Usize) (hc : c.val < 1600)
-    (n : Slice Bool) (hn : n.val.length ≤ 1000000)
-    (d : Std.Usize) (hd : 0 < d.val) (hdb : d.val ≤ 1000000) :
+    (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
+    (d : Std.Usize) (hd : 0 < d.val) (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sponge.keccak_c c n d = ok out ∧
       out.val =
