@@ -329,7 +329,7 @@ theorem iota0_loop (i_r : Std.I64) (hlo : -1000000000 ≤ i_r.val) (hhi : i_r.va
           rw [← hj'z, hjj]
       rw [hacc'z z hz]
       simp only [hiff]
-      split_ifs with h1 h2 h3 <;> first | rfl | (exfalso; omega) | (congr 2 <;> omega)
+      split_ifs with h1 h2 h3 <;> first | rfl | (exfalso; omega) | (congr 2; omega)
   case hdone =>
     intro j acc hj
     refine ⟨acc, iota0_body_done i_r acc j 6#usize hj, fun z hz => ?_⟩

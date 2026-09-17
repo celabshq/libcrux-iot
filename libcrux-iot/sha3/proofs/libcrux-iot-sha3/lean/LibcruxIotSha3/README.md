@@ -316,6 +316,7 @@ bridge is therefore bit-level throughout, and runs bottom-up:
 | file | holds |
 |---|---|
 | `../../Tables.lean` | the two Keccak constant tables (`RC[0..23]`, ρ's rotation offsets), local copies so that no proof has to name a specification's |
+| `../../LaneModel.lean` | the lane model: the state as 25 `u64` lanes, the five step mappings, `roundsUpTo` / `keccakFLanes` and `lanesToBits`, all as ordinary total functions. This is the midpoint the two proof halves meet at |
 | `Parameters.lean`, `StateMap.lean`, `Grid.lean` | the state correspondence: `ofLanes` / `toLanes` between 25 lanes and `A[x, y, z]`, mutually inverse |
 | `LoopEq.lean` | the reusable equational loop inductions and scalar/container equations the rest is written with |
 | `Theta.lean`, `Rho.lean`, `Pi.lean`, `Chi.lean`, `Iota.lean` | the five step mappings (FIPS 202, Algorithms 1-6) as functions of the bits |

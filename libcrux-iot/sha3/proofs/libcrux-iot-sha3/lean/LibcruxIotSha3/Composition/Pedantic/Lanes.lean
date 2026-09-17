@@ -8,6 +8,7 @@ import LibcruxIotSha3.Composition.Pedantic.KeccakC
 -- `Sponge/` are moved onto the `*Lanes` model.
 import HacspecSha3
 import LibcruxIotSha3.TablesBridge
+import LibcruxIotSha3.LaneModel
 /-!
 # `hacspec_sha3`'s lane-level `Keccak-f[1600]` is the pedantic bit-level one
 
@@ -19,6 +20,7 @@ function.
 -/
 
 open CoreModels Aeneas
+open LibcruxIotSha3.LaneModel
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow
 open Std.Do
@@ -66,20 +68,6 @@ theorem array_from_fn_go_eq {T F : Type} (inst : core.ops.function.FnMut F Std.U
 
 /-! ### Reading the lanes -/
 
-/-- The array whose element `i` is `g i`. -/
-def mkArr {T : Type} (N : Std.Usize) (g : Nat → T) : Std.Array T N :=
-  ⟨(List.range N.val).map g, by simp⟩
-
-theorem mkArr_get {T : Type} [Inhabited T] (N : Std.Usize) (g : Nat → T) {i : Nat}
-    (hi : i < N.val) : (mkArr N g).val[i]! = g i := by
-  show ((List.range N.val).map g)[i]! = g i
-  rw [getElem!_pos _ i (by simp; omega)]
-  simp
-
-theorem laneBit_mkArr (g : Nat → Std.U64) {x y z : Nat} (hx : x < 5) (hy : y < 5) :
-    laneBit (mkArr 25#usize g) x y z = (g (5 * y + x)).bv.getLsbD z := by
-  rw [laneBit, mkArr_get 25#usize g (by simp; omega)]
-
 theorem createi_eq {T F : Type} (N : Std.Usize)
     (inst : core.ops.function.FnMut F Std.Usize T) (c : F) (g : Nat → T)
     (hN : N.val ≤ 4294967296)
@@ -102,21 +90,6 @@ theorem get_eq (s : Lanes) (x y : Std.Usize) (hx : x.val < 5) (hy : y.val < 5) :
 
 /-! ### Bit-level arithmetic on lanes -/
 
-theorem u64_xor_bit (a b : Std.U64) (z : Nat) :
-    (a ^^^ b).bv.getLsbD z = (a.bv.getLsbD z ^^ b.bv.getLsbD z) := by
-  show (a.bv ^^^ b.bv).getLsbD z = _
-  simp
-
-theorem u64_and_bit (a b : Std.U64) (z : Nat) :
-    (a &&& b).bv.getLsbD z = (a.bv.getLsbD z && b.bv.getLsbD z) := by
-  show (a.bv &&& b.bv).getLsbD z = _
-  simp
-
-theorem u64_not_bit (a : Std.U64) (z : Nat) (hz : z < 64) :
-    (~~~ a).bv.getLsbD z = !a.bv.getLsbD z := by
-  show (~~~ a.bv).getLsbD z = _
-  simp [hz]
-
 /-- Rotating a lane left by `r` moves bit `(z - r) mod 64` to bit `z`, which is
     exactly the index ρ reads from. -/
 theorem rotate_left_bit (v : Std.U64) (r : Std.U32) (z : Nat) (hz : z < 64) :
@@ -135,19 +108,6 @@ theorem rotate_left_bit (v : Std.U64) (r : Std.U32) (z : Nat) (hz : z < 64) :
     omega
 
 /-! ### θ -/
-
-/-- θ's `C[x]` (FIPS 202, Algorithm 1 step 1). -/
-def cLane (s : Lanes) (x : Nat) : Std.U64 :=
-  (((s.val[5 * 0 + x]! ^^^ s.val[5 * 1 + x]!) ^^^ s.val[5 * 2 + x]!) ^^^ s.val[5 * 3 + x]!)
-    ^^^ s.val[5 * 4 + x]!
-
-/-- θ's `D[x]` (step 2). -/
-def dLane (c : Std.Array Std.U64 5#usize) (x : Nat) : Std.U64 :=
-  c.val[(x + 4) % 5]! ^^^ Std.UScalar.rotate_left c.val[(x + 1) % 5]! 1#u32
-
-/-- θ on lanes (step 3). -/
-def thetaLanes (s : Lanes) : Lanes :=
-  mkArr 25#usize (fun t => s.val[t]! ^^^ (mkArr 5#usize (dLane (mkArr 5#usize (cLane s)))).val[t % 5]!)
 
 theorem theta_lanes_eq (s : Lanes) : hacspec_sha3.keccak_f.theta s = ok (thetaLanes s) := by
   have hc : hacspec_sha3.createi 5#usize
@@ -232,11 +192,6 @@ theorem theta_bit (s : Lanes) (x y z : Nat) (hx : x < 5) (hy : y < 5) (hz : z < 
 
 /-! ### ρ -/
 
-/-- ρ on lanes: rotate each lane by its tabulated offset. -/
-def rhoLanes (s : Lanes) : Lanes :=
-  mkArr 25#usize (fun t =>
-    Std.UScalar.rotate_left s.val[t]! libcrux_iot_sha3.rhoOffsets.val[t]!)
-
 theorem rho_lanes_eq (s : Lanes) : hacspec_sha3.keccak_f.rho s = ok (rhoLanes s) := by
   unfold hacspec_sha3.keccak_f.rho
   refine createi_eq _ _ _ _ (by simp) ?_
@@ -262,10 +217,6 @@ theorem rho_bit (s : Lanes) (x y z : Nat) (hx : x < 5) (hy : y < 5) (hz : z < 64
   simp only [rhoBit, laneBit, rotIndex, rho_offsets_table x hx y hy]
 
 /-! ### π -/
-
-/-- π on lanes: lane `(x, y)` takes the old lane `((x + 3y) mod 5, x)`. -/
-def piLanes (s : Lanes) : Lanes :=
-  mkArr 25#usize (fun t => s.val[5 * (t % 5) + ((t % 5 + 3 * (t / 5)) % 5)]!)
 
 theorem pi_lanes_eq (s : Lanes) : hacspec_sha3.keccak_f.pi s = ok (piLanes s) := by
   unfold hacspec_sha3.keccak_f.pi
@@ -294,13 +245,6 @@ theorem pi_bit (s : Lanes) (x y z : Nat) (hx : x < 5) (hy : y < 5) :
   rfl
 
 /-! ### χ -/
-
-/-- χ on lanes (FIPS 202, Algorithm 4). -/
-def chiLanes (s : Lanes) : Lanes :=
-  mkArr 25#usize (fun t =>
-    s.val[5 * (t / 5) + t % 5]! ^^^
-      ((~~~ s.val[5 * (t / 5) + (t % 5 + 1) % 5]!) &&&
-        s.val[5 * (t / 5) + (t % 5 + 2) % 5]!))
 
 theorem chi_lanes_eq (s : Lanes) : hacspec_sha3.keccak_f.chi s = ok (chiLanes s) := by
   unfold hacspec_sha3.keccak_f.chi
@@ -335,12 +279,8 @@ theorem chi_bit (s : Lanes) (x y z : Nat) (hx : x < 5) (hy : y < 5) (hz : z < 64
 
 /-! ### ι -/
 
-/-- ι on lanes: XOR the round constant into lane `(0, 0)`. -/
-def iotaLanes (s : Lanes) (r : Std.Usize) : Lanes :=
-  s.set 0#usize (s.val[0]! ^^^ libcrux_iot_sha3.roundConstants.val[r.val]!)
-
 theorem iota_lanes_eq (s : Lanes) (r : Std.Usize) (hr : r.val < 24) :
-    hacspec_sha3.keccak_f.iota s r = ok (iotaLanes s r) := by
+    hacspec_sha3.keccak_f.iota s r = ok (iotaLanes s r.val) := by
   unfold hacspec_sha3.keccak_f.iota
   simp only [libcrux_iot_sha3.hacspec_roundConstants_eq,
     index_usize_eq libcrux_iot_sha3.roundConstants r (by simp; omega),
@@ -348,12 +288,12 @@ theorem iota_lanes_eq (s : Lanes) (r : Std.Usize) (hr : r.val < 24) :
     array_update_eq s 0#usize _ (by simp)]
   rfl
 
-theorem iota_bit (s : Lanes) (r : Std.Usize) (hr : r.val < 24) (x y z : Nat)
+theorem iota_bit (s : Lanes) (r : Nat) (hr : r < 24) (x y z : Nat)
     (hx : x < 5) (hy : y < 5) (hz : z < 64) :
-    laneBit (iotaLanes s r) x y z = iotaBit (laneBit s) (r.val : Int) x y z := by
+    laneBit (iotaLanes s r) x y z = iotaBit (laneBit s) (r : Int) x y z := by
   have hset : ∀ i : Nat, i < 25 →
       (iotaLanes s r).val[i]! =
-        if i = 0 then s.val[0]! ^^^ libcrux_iot_sha3.roundConstants.val[r.val]!
+        if i = 0 then s.val[0]! ^^^ libcrux_iot_sha3.roundConstants.val[r]!
         else s.val[i]! := by
     intro i hi
     have hlen : s.val.length = 25 := s.property
@@ -365,7 +305,7 @@ theorem iota_bit (s : Lanes) (r : Std.Usize) (hr : r.val < 24) (x y z : Nat)
   by_cases h : x = 0 ∧ y = 0
   · obtain ⟨rfl, rfl⟩ := h
     rw [if_pos (by omega)]
-    rw [u64_xor_bit, ← rcBitAt_table r.val hr z hz]
+    rw [u64_xor_bit, ← rcBitAt_table r hr z hz]
     simp only [iotaBit, laneBit]
     simp
   · rw [if_neg (show 5 * y + x ≠ 0 from by omega)]
@@ -374,12 +314,8 @@ theorem iota_bit (s : Lanes) (r : Std.Usize) (hr : r.val < 24) (x y z : Nat)
 
 /-! ### One round, and the 24-round permutation -/
 
-/-- One round of `Keccak-f[1600]` on lanes. -/
-def roundLanes (s : Lanes) (r : Std.Usize) : Lanes :=
-  iotaLanes (chiLanes (piLanes (rhoLanes (thetaLanes s)))) r
-
-theorem round_lanes_bit (s : Lanes) (r : Std.Usize) (hr : r.val < 24) :
-    AgreeInRange (laneBit (roundLanes s r)) (roundBit (laneBit s) (r.val : Int)) := by
+theorem round_lanes_bit (s : Lanes) (r : Nat) (hr : r < 24) :
+    AgreeInRange (laneBit (roundLanes s r)) (roundBit (laneBit s) (r : Int)) := by
   have h1 : AgreeInRange (laneBit (thetaLanes s)) (thetaBit (laneBit s)) :=
     fun x hx y hy z hz => theta_bit s x y z hx hy hz
   have h2 : AgreeInRange (laneBit (rhoLanes (thetaLanes s))) (rhoBit (thetaBit (laneBit s))) :=
@@ -396,7 +332,7 @@ theorem round_lanes_bit (s : Lanes) (r : Std.Usize) (hr : r.val < 24) :
 theorem round_body_cont (i : Std.Usize) (acc : Lanes) (hi : i.val < 24) :
     ∃ t : Std.Usize, t.val = i.val + 1 ∧
       hacspec_sha3.keccak_f.keccak_f_loop.body { start := i, «end» := 24#usize } acc
-        = ok (.cont ({ start := t, «end» := 24#usize }, roundLanes acc i)) := by
+        = ok (.cont ({ start := t, «end» := 24#usize }, roundLanes acc i.val)) := by
   obtain ⟨t, ht, hnext⟩ := range_next_lt i 24#usize (by simpa using hi)
   refine ⟨t, ht, ?_⟩
   unfold hacspec_sha3.keccak_f.keccak_f_loop.body
@@ -412,28 +348,27 @@ theorem round_body_cont (i : Std.Usize) (acc : Lanes) (hi : i.val < 24) :
   simp only [bind_tc_ok, theta_lanes_eq, rho_lanes_eq, pi_lanes_eq, chi_lanes_eq,
     iota_lanes_eq _ i hi, roundLanes]
 
-/-- `Keccak-f[1600]` on lanes is the pedantic 24-round permutation. -/
+/-- `hacspec_sha3`'s round loop runs `roundsUpTo`.  The loop invariant is the
+    equation itself, so the conclusion is an equation too rather than the
+    existential the bit-level statement below used to be phrased with. -/
 theorem keccak_f_lanes_eq (s : Lanes) :
-    ∃ s' : Lanes, hacspec_sha3.keccak_f.keccak_f s = ok s' ∧
-      AgreeInRange (laneBit s') (roundsFrom (laneBit s) 0 24) := by
+    hacspec_sha3.keccak_f.keccak_f s = ok (keccakFLanes s) := by
   have h := loop_range_eq_inv_usize (β := Lanes) (γ := Lanes)
     (fun q => hacspec_sha3.keccak_f.keccak_f_loop.body q.1 q.2)
     24#usize
-    (fun i acc => AgreeInRange (laneBit acc) (roundsFrom (laneBit s) 0 i.val))
-    (fun _ _ r => AgreeInRange (laneBit r) (roundsFrom (laneBit s) 0 24))
-    ?hstep ?hdone 24 0#usize s (by simp) (AgreeInRange.refl (laneBit s))
+    (fun i acc => acc = roundsUpTo s i.val)
+    (fun _ _ r => r = roundsUpTo s 24)
+    ?hstep ?hdone 24 0#usize s (by simp) rfl
   · obtain ⟨r, hr, hrv⟩ := h
-    exact ⟨r, hr, hrv⟩
+    subst hrv
+    exact hr
   case hstep =>
     intro i acc hi hinv
     have hi24 : i.val < 24 := by simpa using hi
     obtain ⟨t, ht, hbody⟩ := round_body_cont i acc hi24
-    refine ⟨t, roundLanes acc i, ht, ?_, hbody, fun r hr => hr⟩
-    rw [ht]
-    show AgreeInRange (laneBit (roundLanes acc i))
-      (roundBit (roundsFrom (laneBit s) 0 i.val) (0 + (i.val : Int)))
-    rw [show (0 : Int) + (i.val : Int) = (i.val : Int) from by ring]
-    exact AgreeInRange.trans (round_lanes_bit acc i hi24) (roundBit_congr _ hinv)
+    refine ⟨t, roundLanes acc i.val, ht, ?_, hbody, fun r hr => hr⟩
+    rw [ht, hinv]
+    rfl
   case hdone =>
     intro acc hinv
     refine ⟨acc, ?_, by simpa using hinv⟩
@@ -441,16 +376,22 @@ theorem keccak_f_lanes_eq (s : Lanes) :
     rw [range_next_ge 24#usize 24#usize (le_refl _)]
     simp
 
+/-- Each round of the lane model is the transcript's round, so `n` of them are
+    `roundsFrom … 0 n`.  With `n = 24` this is `Keccak-f[1600]`. -/
+theorem roundsUpTo_bit (s : Lanes) (n : Nat) (hn : n ≤ 24) :
+    AgreeInRange (laneBit (roundsUpTo s n)) (roundsFrom (laneBit s) 0 n) := by
+  induction n with
+  | zero => exact AgreeInRange.refl (laneBit s)
+  | succ k ih =>
+    have hk : k < 24 := by omega
+    show AgreeInRange (laneBit (roundLanes (roundsUpTo s k) k))
+      (roundBit (roundsFrom (laneBit s) 0 k) (0 + (k : Int)))
+    rw [show (0 : Int) + (k : Int) = (k : Int) from by ring]
+    exact AgreeInRange.trans (round_lanes_bit _ k hk)
+      (roundBit_congr _ (ih (by omega)))
+
 
 /-! ### The lane state as a flat bit string -/
-
-/-- The 1600 bits of a 25-lane state, in the FIPS order `S[64(5y + x) + z]`. -/
-def lanesToBits (s : Lanes) : List Bool :=
-  (List.range 1600).map (fun p => laneBit s ((p / 64) % 5) (p / 320) (p % 64))
-
-@[simp]
-theorem lanesToBits_len (s : Lanes) : (lanesToBits s).length = 1600 := by
-  simp [lanesToBits]
 
 theorem lanesToBits_get (s : Lanes) {x y z : Nat} (hx : x < 5) (hy : y < 5) (hz : z < 64) :
     (lanesToBits s)[bitPos x y z]! = laneBit s x y z := by
@@ -466,16 +407,16 @@ theorem bitsOfList_lanesToBits (s : Lanes) :
     AgreeInRange (bitsOfList (lanesToBits s)) (laneBit s) :=
   fun _ hx _ hy _ hz => lanesToBits_get s hx hy hz
 
-/-- `hacspec_sha3`'s `Keccak-f[1600]`, read as a function on the 1600 bits, is
-    the `keccakF` the pedantic sponge uses. -/
-theorem keccakF_lanes_eq (s : Lanes) :
-    ∃ s' : Lanes, hacspec_sha3.keccak_f.keccak_f s = ok s' ∧
-      keccakF (lanesToBits s) = lanesToBits s' := by
-  obtain ⟨s', hs', hbit⟩ := keccak_f_lanes_eq s
-  refine ⟨s', hs', ?_⟩
+/-- The lane model's `Keccak-f[1600]`, read as a function on the 1600 bits, is
+    the `keccakF` the pedantic sponge uses.  This is the statement the rest of
+    the proof rests on: it mentions no specification but the transcript's. -/
+theorem keccakF_lanesToBits (s : Lanes) :
+    keccakF (lanesToBits s) = lanesToBits (keccakFLanes s) := by
+  have hbit := roundsUpTo_bit s 24 (le_refl _)
   have hcongr := roundsFrom_congr (0 : Int) 24 (bitsOfList_lanesToBits s)
   show keccakF (lanesToBits s)
-    = (List.range 1600).map (fun p => laneBit s' ((p / 64) % 5) (p / 320) (p % 64))
+    = (List.range 1600).map
+        (fun p => laneBit (keccakFLanes s) ((p / 64) % 5) (p / 320) (p % 64))
   simp only [keccakF]
   apply List.map_congr_left
   intro p hp
@@ -484,12 +425,21 @@ theorem keccakF_lanes_eq (s : Lanes) :
   have hy : p / 320 < 5 := by omega
   have hz : p % 64 < 64 := by omega
   rw [hcongr _ hx _ hy _ hz, ← hbit _ hx _ hy _ hz]
+  rfl
+
+/-- The form the sponge files consume: `hacspec_sha3`'s permutation succeeds,
+    and its result carries the transcript's bits.  The `hacspec_sha3` half of
+    this goes when `Sponge/` moves onto the lane model. -/
+theorem keccakF_lanes_eq (s : Lanes) :
+    ∃ s' : Lanes, hacspec_sha3.keccak_f.keccak_f s = ok s' ∧
+      keccakF (lanesToBits s) = lanesToBits s' :=
+  ⟨keccakFLanes s, keccak_f_lanes_eq s, keccakF_lanesToBits s⟩
 
 -- Pin the lane-level permutation bridge to Lean's standard three axioms.
 /--
-info: 'LibcruxIotSha3.Composition.Pedantic.keccakF_lanes_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'LibcruxIotSha3.Composition.Pedantic.keccakF_lanesToBits' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms keccakF_lanes_eq
+#print axioms keccakF_lanesToBits
 
 end LibcruxIotSha3.Composition.Pedantic

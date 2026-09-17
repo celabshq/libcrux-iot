@@ -57,7 +57,7 @@ theorem shift_and_one (x : Std.U8) (j : Std.I32) (hj : 0 ≤ j.val) (hjb : j.val
     simp
   | fail e =>
     rw [hxy] at hs
-    cases e <;> simp_all [Std.IScalar.toNat] <;> omega
+    (cases e <;> simp_all [Std.IScalar.toNat]); omega
   | div => rw [hxy] at hs; exact hs.elim
 
 

@@ -8,6 +8,7 @@ bit string.  This module lines the two up.
 -/
 
 open CoreModels Aeneas
+open LibcruxIotSha3.LaneModel
 open Aeneas.Std hiding namespace core alloc
 open RustM ControlFlow
 open Std.Do

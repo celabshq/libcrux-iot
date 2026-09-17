@@ -1,5 +1,6 @@
 import HacspecSha3Pedantic
 import LibcruxIotSha3.Composition.Pedantic.Parameters
+import LibcruxIotSha3.LaneModel
 /-!
 # The state correspondence between the two SHA-3 hacspecs
 
@@ -22,14 +23,12 @@ against a flat bit string at the sponge boundary) are related to them separately
 -/
 
 open Aeneas Aeneas.Std
+open LibcruxIotSha3.LaneModel
 
 namespace LibcruxIotSha3.Composition.Pedantic
 
 /-- The pedantic state array at the Keccak-f[1600] lane width, `w = 64`. -/
 abbrev SA : Type := hacspec_sha3_pedantic.state_array.StateArray 64#usize
-
-/-- The `hacspec_sha3` state: 25 lanes, `A[x, y]` at index `5*y + x`. -/
-abbrev Lanes : Type := Array Std.U64 25#usize
 
 /-! ### Reading a state array
 
@@ -38,9 +37,6 @@ here (rather than `Fin`): the extracted definitions index with `Usize` values
 whose bounds are proof obligations discharged inside `RustM`, and matching that
 shape keeps the step-mapping lemmas free of index coercions. -/
 def bitAt (A : SA) (x y z : Nat) : Bool := A.a.val[x]!.val[y]!.val[z]!
-
-/-- Bit `z` of the lane `A[x, y]` of a `hacspec_sha3` state. -/
-def laneBit (s : Lanes) (x y z : Nat) : Bool := (s.val[5 * y + x]!).bv.getLsbD z
 
 /-! ### The two directions -/
 
