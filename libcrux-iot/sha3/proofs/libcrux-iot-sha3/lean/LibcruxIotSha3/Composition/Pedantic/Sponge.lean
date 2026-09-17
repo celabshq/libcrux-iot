@@ -32,11 +32,12 @@ def absorbFrom (F : List Bool → List Bool) (r c : Nat) (p : List Bool) :
   | s, _, 0 => s
   | s, i0, k + 1 => absorbFrom F r c p (absorbStep F r c p s i0) (i0 + 1) k
 
-/-- Squeezing, with fuel: emit `r` bits, stop once `d` are out (Algorithm 8,
-    steps 8-10). -/
+/-- Squeezing (Algorithm 8, steps 8-10): emit `r` bits, stop once `d` are out.
+    The loop is a `do`-while -- it always emits at least once -- so the fuel `k`
+    counts *further* iterations, and `0` means "this is the last one". -/
 def squeezeFrom (F : List Bool → List Bool) (r d : Nat) :
     Nat → List Bool → List Bool → List Bool
-  | 0, _, z => z
+  | 0, s, z => z ++ s.take r
   | k + 1, s, z =>
     let z' := z ++ s.take r
     if d ≤ z'.length then z' else squeezeFrom F r d k (F s) z'
@@ -184,5 +185,104 @@ theorem absorb_loop_eq (hF : PermSpec inst comps F b)
     simp
 
 end Absorb
+
+
+/-! ### The squeeze loop
+
+The only loop here that is not over a range: its exit test (`d ≤ |Z|`) lives in
+its body, so the induction is on the output still owed rather than on an index. -/
+
+section Squeeze
+
+variable {C : Type} (inst : hacspec_sha3_pedantic.sponge.Components C) (comps : C)
+  (F : List Bool → List Bool) (b : Nat)
+
+theorem squeeze_body_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
+    (hr : r.val ≤ b) (_hb : b ≤ 1600) (s z : alloc.vec.Vec Bool) (hs : s.val.length = b)
+    (hz : z.val.length + r.val ≤ Std.Usize.max) :
+    ∃ z1 : alloc.vec.Vec Bool, z1.val = z.val ++ s.val.take r.val ∧
+      ((d.val ≤ z1.val.length ∧
+          hacspec_sha3_pedantic.sponge.sponge_loop1.body inst comps r d s z
+            = ok (.done z1)) ∨
+       (¬ (d.val ≤ z1.val.length) ∧ ∃ s' : alloc.vec.Vec Bool, s'.val = F s.val ∧
+          hacspec_sha3_pedantic.sponge.sponge_loop1.body inst comps r d s z
+            = ok (.cont (s', z1)))) := by
+  obtain ⟨head, hhead, hheadv⟩ := trunc_eq s r (by omega)
+  obtain ⟨z1, hz1, hz1v⟩ := concat_eq z head (by
+    rw [hheadv]
+    have : (s.val.take r.val).length = r.val := by simp; omega
+    omega)
+  have hz1v' : z1.val = z.val ++ s.val.take r.val := by rw [hz1v, hheadv]
+  refine ⟨z1, hz1v', ?_⟩
+  by_cases hd : d.val ≤ z1.val.length
+  · refine Or.inl ⟨hd, ?_⟩
+    unfold hacspec_sha3_pedantic.sponge.sponge_loop1.body
+    simp [vec_deref_eq, vec_len_eq, hhead, hz1, hd]
+  · obtain ⟨s', hs', hs'v, _⟩ := hF s (by omega)
+    refine Or.inr ⟨hd, s', hs'v, ?_⟩
+    unfold hacspec_sha3_pedantic.sponge.sponge_loop1.body
+    simp [vec_deref_eq, vec_len_eq, hhead, hz1, hd, hs']
+
+/-- The squeeze loop: it emits `r` bits per turn until `d` are out. -/
+theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
+    (hr : r.val ≤ b) (hb : b ≤ 1600) :
+    ∀ (k : Nat) (s z : alloc.vec.Vec Bool), s.val.length = b →
+      d.val ≤ z.val.length + (k + 1) * r.val →
+      z.val.length + (k + 1) * r.val ≤ Std.Usize.max →
+      ∃ out : alloc.vec.Vec Bool,
+        hacspec_sha3_pedantic.sponge.sponge_loop1 inst comps r d s z = ok out ∧
+        out.val = squeezeFrom F r.val d.val k s.val z.val := by
+  intro k
+  induction k with
+  | zero =>
+    intro s z hs hfuel hroom
+    obtain ⟨z1, hz1v, hcase⟩ :=
+      squeeze_body_eq inst comps F b hF r d hr hb s z hs (by omega)
+    have hd : d.val ≤ z1.val.length := by
+      rw [hz1v]
+      simp only [List.length_append, List.length_take]
+      omega
+    rcases hcase with ⟨_, hbody⟩ | ⟨hne, _⟩
+    · refine ⟨z1, ?_, ?_⟩
+      · unfold hacspec_sha3_pedantic.sponge.sponge_loop1
+        simp [loop.eq_def, hbody]
+      · rw [hz1v]
+        rfl
+    · exact absurd hd hne
+  | succ k ih =>
+    intro s z hs hfuel hroom
+    obtain ⟨z1, hz1v, hcase⟩ :=
+      squeeze_body_eq inst comps F b hF r d hr hb s z hs (by
+        have : (k + 1 + 1) * r.val = r.val + (k + 1) * r.val := by ring
+        omega)
+    have hz1len : z1.val.length = z.val.length + r.val := by
+      rw [hz1v]
+      simp only [List.length_append, List.length_take]
+      omega
+    rcases hcase with ⟨hd, hbody⟩ | ⟨hne, s', hs'v, hbody⟩
+    · refine ⟨z1, ?_, ?_⟩
+      · unfold hacspec_sha3_pedantic.sponge.sponge_loop1
+        simp [loop.eq_def, hbody]
+      · rw [hz1v]
+        show _ = (if d.val ≤ (z.val ++ s.val.take r.val).length then _ else _)
+        rw [if_pos (by rw [← hz1v]; exact hd)]
+    · obtain ⟨out, hout, houtv⟩ := ih s' z1 (by
+        rw [hs'v]
+        obtain ⟨_, _, _, hlen⟩ := hF s (by omega)
+        exact hlen) (by
+        have : (k + 1 + 1) * r.val = r.val + (k + 1) * r.val := by ring
+        omega) (by
+        have : (k + 1 + 1) * r.val = r.val + (k + 1) * r.val := by ring
+        omega)
+      refine ⟨out, ?_, ?_⟩
+      · unfold hacspec_sha3_pedantic.sponge.sponge_loop1
+        rw [loop.eq_def]
+        simp only [hbody]
+        exact hout
+      · rw [houtv, hz1v, hs'v]
+        show _ = (if d.val ≤ (z.val ++ s.val.take r.val).length then _ else _)
+        rw [if_neg (by rw [← hz1v]; exact hne)]
+
+end Squeeze
 
 end LibcruxIotSha3.Composition.Pedantic

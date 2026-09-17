@@ -821,6 +821,9 @@ The sponge reads its message a block at a time (`p[i*r .. (i+1)*r]`) and hands
 whole vectors to the permutation, so both the deref and the range index are
 needed as equations. -/
 
+theorem vec_len_eq {α : Type} (v : alloc.vec.Vec α) :
+    alloc.vec.Vec.len v = ok (Std.Usize.ofNatCore v.val.length (by scalar_tac)) := rfl
+
 theorem vec_deref_eq {α : Type} (v : alloc.vec.Vec α) :
     alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref v = ok ⟨v.val, v.property⟩ := rfl
 
