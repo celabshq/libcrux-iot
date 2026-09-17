@@ -259,6 +259,15 @@ theorem i64_div_eq (x y : Std.I64) (hy : y.val ≠ 0) (hmin : x.val ≠ Std.I64.
   | fail e => rw [hxy] at hs; cases e <;> simp_all
   | div => rw [hxy] at hs; exact hs.elim
 
+theorem u8_shl_eq (x : Std.U8) (y : Std.Usize) (h : y.val < 8) :
+    ∃ z : Std.U8, x <<< y = ok z ∧ z.bv = x.bv <<< y.val := by
+  have hs := Std.U8.ShiftLeft_spec x y
+  unfold WP.partialSpec at hs
+  cases hxy : (x <<< y : RustM Std.U8) with
+  | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs.2.1⟩
+  | fail e => rw [hxy] at hs; cases e <;> (simp_all; try omega)
+  | div => rw [hxy] at hs; exact hs.elim
+
 theorem usize_shl_eq (x y : Std.Usize) (h : y.val < Std.UScalarTy.Usize.numBits) :
     ∃ z : Std.Usize, x <<< y = ok z ∧ z.val = (x.val <<< y.val) % Std.Usize.size := by
   have hs := Std.Usize.ShiftLeft_spec x y
@@ -761,20 +770,20 @@ theorem loop_range_incl_eq_i64 {β γ : Type}
 `0 .. n` and push `g i`.  So is each innermost loop of `h2b` / `b2h`.  This is
 that loop, once. -/
 
-theorem push_loop_eq
-    (body : (core.ops.range.Range Std.Usize × alloc.vec.Vec Bool) →
-      RustM (ControlFlow (core.ops.range.Range Std.Usize × alloc.vec.Vec Bool)
-        (alloc.vec.Vec Bool)))
-    (n : Std.Usize) (g : Nat → Bool) (out0 : alloc.vec.Vec Bool)
-    (hstep : ∀ (i : Std.Usize) (acc : alloc.vec.Vec Bool), i.val < n.val →
+theorem push_loop_eq {α : Type}
+    (body : (core.ops.range.Range Std.Usize × alloc.vec.Vec α) →
+      RustM (ControlFlow (core.ops.range.Range Std.Usize × alloc.vec.Vec α)
+        (alloc.vec.Vec α)))
+    (n : Std.Usize) (g : Nat → α) (out0 : alloc.vec.Vec α)
+    (hstep : ∀ (i : Std.Usize) (acc : alloc.vec.Vec α), i.val < n.val →
       acc.val = out0.val ++ (List.range i.val).map g →
-      ∃ (s : Std.Usize) (acc' : alloc.vec.Vec Bool), s.val = i.val + 1 ∧
+      ∃ (s : Std.Usize) (acc' : alloc.vec.Vec α), s.val = i.val + 1 ∧
         acc'.val = acc.val ++ [g i.val] ∧
         body ({ start := i, «end» := n }, acc)
           = ok (.cont ({ start := s, «end» := n }, acc')))
-    (hdone : ∀ acc : alloc.vec.Vec Bool,
+    (hdone : ∀ acc : alloc.vec.Vec α,
       body ({ start := n, «end» := n }, acc) = ok (.done acc)) :
-    ∃ out : alloc.vec.Vec Bool,
+    ∃ out : alloc.vec.Vec α,
       loop body ({ start := 0#usize, «end» := n }, out0) = ok out ∧
       out.val = out0.val ++ (List.range n.val).map g := by
   refine loop_range_eq_inv_usize body n
@@ -835,6 +844,16 @@ theorem vec_len_eq {α : Type} (v : alloc.vec.Vec α) :
 
 theorem vec_deref_eq {α : Type} (v : alloc.vec.Vec α) :
     alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref v = ok ⟨v.val, v.property⟩ := rfl
+
+theorem vec_index_usize_eq (v : alloc.vec.Vec Bool) (i : Std.Usize)
+    (h : i.val < v.val.length) :
+    alloc.vec.Vec.Insts.CoreOpsIndexIndex.index
+      (core.Usize.Insts.CoreSliceIndexSliceIndexSliceT Bool) v i = ok v.val[i.val]! := by
+  simp [alloc.vec.Vec.Insts.CoreOpsIndexIndex.index, core.Slice.Insts.CoreOpsIndexIndex.index,
+    core.Usize.Insts.CoreSliceIndexSliceIndexSliceT.get,
+    rust_primitives.slice.slice_index, rust_primitives.slice.slice_length,
+    alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref, alloc.vec.Vec.as_slice,
+    rust_primitives.sequence.seq_to_slice, h, slice_index_usize_eq]
 
 theorem vec_index_range_eq (v : alloc.vec.Vec Bool) (a b : Std.Usize)
     (hab : a.val ≤ b.val) (hb : b.val ≤ v.val.length) :

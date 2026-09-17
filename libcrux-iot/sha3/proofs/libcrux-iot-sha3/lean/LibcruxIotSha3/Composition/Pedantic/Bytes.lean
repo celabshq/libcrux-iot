@@ -127,7 +127,7 @@ theorem h2b_outer_eq (h : Slice Std.U8) (hb : 8 * h.val.length ≤ Std.Usize.max
       obtain ⟨s, hs, hnext⟩ := range_next_lt i _ hi
       have hacclen : acc.val.length = 8 * i.val := by
         rw [hinv]
-        simp only [vec_new_val, List.nil_append, List.length_flatMap]
+        simp only [List.nil_append, List.length_flatMap]
         rw [show (List.range i.val).map (fun j => (byteBits h.val[j]!).length)
             = (List.range i.val).map (fun _ => 8) from by
           apply List.map_congr_left
@@ -150,7 +150,7 @@ theorem h2b_outer_eq (h : Slice Std.U8) (hb : 8 * h.val.length ≤ Std.Usize.max
   · unfold hacspec_sha3_pedantic.bits.h2b_loop0
     exact hloop
   · rw [hout]
-    simp only [vec_new_val, List.nil_append, h2bList]
+    simp only [List.nil_append, h2bList]
     rw [show (Std.Usize.ofNatCore h.val.length (by scalar_tac) : Std.Usize).val
         = h.val.length from rfl]
     exact flatMap_range_getElem h.val byteBits
@@ -202,5 +202,160 @@ theorem h2b_full_eq (h : Slice Std.U8) (hb : 8 * h.val.length ≤ Std.Usize.max)
     exact hout
   · rw [houtv, hmn, ← h2bList_len h.val]
     simp
+
+
+/-! ### `b2h` -/
+
+/-- The byte whose bit `j` is `f j` (FIPS 202, Algorithm 11 assembles it this
+    way: start at zero and set the bits that are on). -/
+def byteOf (f : Nat → Bool) : Std.U8 :=
+  ⟨(List.range 8).foldl (fun acc j => if f j then acc ||| BitVec.twoPow 8 j else acc) 0#8⟩
+
+/-- A bit string as a byte string: zero-pad to a multiple of eight, then take
+    the bits eight at a time. -/
+def b2hList (s : List Bool) : List Std.U8 :=
+  let t := s ++ List.replicate ((8 - s.length % 8) % 8) false
+  (List.range (t.length / 8)).map (fun i => byteOf (fun j => t[8 * i + j]!))
+
+theorem b2h_inner_eq (t : alloc.vec.Vec Bool) (i : Std.Usize)
+    (hi : 8 * i.val + 8 ≤ t.val.length) :
+    hacspec_sha3_pedantic.bits.b2h_loop0_loop0 { start := 0#usize, «end» := 8#usize } t i 0#u8
+      = ok (byteOf (fun j => t.val[8 * i.val + j]!)) := by
+  have h := loop_range_eq_inv_usize (β := Std.U8) (γ := Std.U8)
+    (fun q => hacspec_sha3_pedantic.bits.b2h_loop0_loop0.body t i q.1 q.2)
+    8#usize
+    (fun j acc => acc.bv = (List.range j.val).foldl
+      (fun acc' k => if t.val[8 * i.val + k]! then acc' ||| BitVec.twoPow 8 k else acc') 0#8)
+    (fun _ _ r => r = byteOf (fun j => t.val[8 * i.val + j]!))
+    ?hstep ?hdone 8 0#usize 0#u8 (by simp) (by simp)
+  · obtain ⟨r, hr, hrv⟩ := h
+    unfold hacspec_sha3_pedantic.bits.b2h_loop0_loop0
+    rw [hr, hrv]
+  case hstep =>
+    intro j acc hj hinv
+    have hj8 : j.val < 8 := by simpa using hj
+    obtain ⟨s, hs, hnext⟩ := range_next_lt j 8#usize hj
+    obtain ⟨m, hm, hmv⟩ := usize_mul_eq 8#usize i (by scalar_tac)
+    obtain ⟨idx, hidx, hidxv⟩ := usize_add_eq m j (by scalar_tac)
+    have hidxn : idx.val = 8 * i.val + j.val := by rw [hidxv, hmv]; simp
+    have hidxlt : idx.val < t.val.length := by omega
+    by_cases hbit : t.val[8 * i.val + j.val]!
+    · obtain ⟨sh, hsh, hshv⟩ := u8_shl_eq 1#u8 j hj8
+      refine ⟨s, acc ||| sh, hs, ?_, ?_, fun r hr => hr⟩
+      · have hor : Std.U8.bv (acc ||| sh) = Std.U8.bv acc ||| Std.U8.bv sh := rfl
+        rw [hor, hinv, hshv, hs, List.range_succ]
+        simp only [List.foldl_append, List.foldl_cons, List.foldl_nil, hbit, if_pos]
+        congr 1
+      · unfold hacspec_sha3_pedantic.bits.b2h_loop0_loop0.body
+        rw [hnext]
+        simp [hm, hidx, vec_index_usize_eq t idx hidxlt, hidxn, hbit, hsh, Aeneas.Std.lift]
+    · refine ⟨s, acc, hs, ?_, ?_, fun r hr => hr⟩
+      · rw [hinv, hs, List.range_succ]
+        simp only [List.foldl_append, List.foldl_cons, List.foldl_nil]
+        simp [hbit]
+      · unfold hacspec_sha3_pedantic.bits.b2h_loop0_loop0.body
+        rw [hnext]
+        simp [hm, hidx, vec_index_usize_eq t idx hidxlt, hidxn, hbit]
+  case hdone =>
+    intro acc hinv
+    refine ⟨acc, ?_, ?_⟩
+    · unfold hacspec_sha3_pedantic.bits.b2h_loop0_loop0.body
+      rw [range_next_ge 8#usize 8#usize (le_refl _)]
+      simp
+    · have h1 : Std.U8.bv acc = Std.U8.bv (byteOf (fun j => t.val[8 * i.val + j]!)) := by
+        rw [hinv]; rfl
+      exact Std.U8.bv_eq_imp_eq _ _ h1
+
+
+/-- The outer loop of `b2h`: one byte assembled per iteration. -/
+theorem b2h_outer_eq (t : alloc.vec.Vec Bool) (m : Std.Usize)
+    (hm : 8 * m.val ≤ t.val.length) :
+    ∃ out : alloc.vec.Vec Std.U8,
+      hacspec_sha3_pedantic.bits.b2h_loop0 { start := 0#usize, «end» := m } t
+        (Aeneas.Std.alloc.vec.Vec.new Std.U8) = ok out ∧
+      out.val = (List.range m.val).map (fun i => byteOf (fun j => t.val[8 * i + j]!)) := by
+  obtain ⟨out, hloop, hout⟩ := push_loop_eq
+    (fun q => hacspec_sha3_pedantic.bits.b2h_loop0.body t q.1 q.2)
+    m (fun i => byteOf (fun j => t.val[8 * i + j]!))
+    (Aeneas.Std.alloc.vec.Vec.new Std.U8)
+    (by
+      intro i acc hi hinv
+      obtain ⟨s, hs, hnext⟩ := range_next_lt i m hi
+      have hinner := b2h_inner_eq t i (by omega)
+      have hacclen : acc.val.length = i.val := by rw [hinv]; simp
+      have hlen : acc.val.length < Std.Usize.max := by
+        rw [hacclen]; scalar_tac
+      refine ⟨s, ⟨acc.val ++ [byteOf (fun j => t.val[8 * i.val + j]!)], by
+        simp; scalar_tac⟩, hs, rfl, ?_⟩
+      unfold hacspec_sha3_pedantic.bits.b2h_loop0.body
+      rw [hnext]
+      simp [hinner, vec_push_eq acc _ hlen])
+    (by
+      intro acc
+      unfold hacspec_sha3_pedantic.bits.b2h_loop0.body
+      rw [range_next_ge _ _ (le_refl _)]
+      simp)
+  refine ⟨out, ?_, ?_⟩
+  · unfold hacspec_sha3_pedantic.bits.b2h_loop0
+    exact hloop
+  · rw [hout]; simp
+
+/-- FIPS 202, Algorithm 11. -/
+theorem b2h_eq (s : Slice Bool) (hb : s.val.length + 8 ≤ Std.Usize.max) :
+    ∃ out : alloc.vec.Vec Std.U8,
+      hacspec_sha3_pedantic.bits.b2h s = ok out ∧ out.val = b2hList s.val := by
+  set n : Std.Usize := Std.Usize.ofNatCore s.val.length (by scalar_tac) with hn
+  have hnv : n.val = s.val.length := by simp [hn]
+  obtain ⟨r, hr, hrv⟩ := usize_rem_eq n 8#usize (by simp)
+  obtain ⟨d, hd, hdv⟩ := usize_sub_eq 8#usize r (by simp at hrv ⊢; omega)
+  obtain ⟨p, hp, hpv⟩ := usize_rem_eq d 8#usize (by simp)
+  have hpn : p.val = (8 - s.val.length % 8) % 8 := by
+    rw [hpv, hdv, hrv, hnv]; simp
+  obtain ⟨v, hv, hvv⟩ := zeros_eq p
+  obtain ⟨t, ht, htv⟩ := concat_eq s ⟨v.val, v.property⟩ (by
+    simp only []
+    rw [hvv]
+    simp only [List.length_replicate]
+    have : p.val ≤ 8 := by rw [hpn]; omega
+    omega)
+  have htlen : t.val.length = s.val.length + (8 - s.val.length % 8) % 8 := by
+    rw [htv]; simp [hvv, hpn]
+  obtain ⟨m, hm, hmv⟩ := usize_div_eq
+    (Std.Usize.ofNatCore t.val.length (by scalar_tac)) 8#usize (by simp)
+  have hmn : m.val = t.val.length / 8 := by rw [hmv]; simp
+  have hdvd : 8 * (t.val.length / 8) = t.val.length := by
+    rw [htlen]; omega
+  obtain ⟨out, hloop, houtv⟩ := b2h_outer_eq t m (by omega)
+  refine ⟨out, ?_, ?_⟩
+  · unfold hacspec_sha3_pedantic.bits.b2h
+    rw [slice_len_eq, bind_tc_ok, ← hn, hr, bind_tc_ok, hd, bind_tc_ok, hp, bind_tc_ok,
+      hv, bind_tc_ok]
+    show (do
+        let t1 ← hacspec_sha3_pedantic.bits.concat s ⟨v.val, v.property⟩
+        let i3 ← alloc.vec.Vec.len t1
+        let m1 ← i3 / 8#usize
+        let h ← alloc.vec.Vec.new Std.U8
+        hacspec_sha3_pedantic.bits.b2h_loop0 { start := 0#usize, «end» := m1 } t1 h) = ok out
+    rw [ht, bind_tc_ok, vec_len_eq, bind_tc_ok, hm, bind_tc_ok]
+    exact hloop
+  · have hteq : t.val = s.val ++ List.replicate ((8 - s.val.length % 8) % 8) false := by
+      rw [htv]; simp [hvv, hpn]
+    rw [houtv, hmn]
+    unfold b2hList
+    rw [← hteq]
+
+
+-- Pin the byte-layer results to Lean's standard three axioms.
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.h2b_full_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms h2b_full_eq
+
+/--
+info: 'LibcruxIotSha3.Composition.Pedantic.b2h_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms b2h_eq
 
 end LibcruxIotSha3.Composition.Pedantic

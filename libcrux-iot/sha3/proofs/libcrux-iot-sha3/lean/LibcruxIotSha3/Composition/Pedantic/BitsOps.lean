@@ -18,11 +18,11 @@ open Std.Do
 namespace LibcruxIotSha3.Composition.Pedantic
 
 /-- The empty `Vec`, as the spec's `Vec::new` produces it. -/
-theorem vec_new_eq :
-    alloc.vec.Vec.new Bool = ok (Aeneas.Std.alloc.vec.Vec.new Bool) := rfl
+theorem vec_new_eq {α : Type} :
+    alloc.vec.Vec.new α = ok (Aeneas.Std.alloc.vec.Vec.new α) := rfl
 
 @[simp]
-theorem vec_new_val : (Aeneas.Std.alloc.vec.Vec.new Bool).val = [] := rfl
+theorem vec_new_val {α : Type} : (Aeneas.Std.alloc.vec.Vec.new α).val = [] := rfl
 
 theorem slice_len_eq {α : Type} (s : Slice α) :
     core.slice.Slice.len s = ok (Std.Usize.ofNatCore s.val.length (by scalar_tac)) := rfl
