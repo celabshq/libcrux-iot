@@ -815,6 +815,30 @@ theorem push_const_loop_i64
     rintro acc ⟨_, _, hinv⟩
     exact ⟨acc, hdone acc, hinv⟩
 
+/-! ## `Vec` as a slice
+
+The sponge reads its message a block at a time (`p[i*r .. (i+1)*r]`) and hands
+whole vectors to the permutation, so both the deref and the range index are
+needed as equations. -/
+
+theorem vec_deref_eq {α : Type} (v : alloc.vec.Vec α) :
+    alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref v = ok ⟨v.val, v.property⟩ := rfl
+
+theorem vec_index_range_eq (v : alloc.vec.Vec Bool) (a b : Std.Usize)
+    (hab : a.val ≤ b.val) (hb : b.val ≤ v.val.length) :
+    alloc.vec.Vec.Insts.CoreOpsIndexIndex.index
+      (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Bool) v
+      { start := a, «end» := b }
+    = ok ⟨v.val.slice a.val b.val, by
+        have := v.val.slice_length_le a.val b.val
+        have := v.property
+        scalar_tac⟩ := by
+  simp [alloc.vec.Vec.Insts.CoreOpsIndexIndex.index, core.Slice.Insts.CoreOpsIndexIndex.index,
+    core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get,
+    rust_primitives.slice.slice_slice, rust_primitives.slice.slice_length, Std.Slice.subslice,
+    alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref, alloc.vec.Vec.as_slice,
+    rust_primitives.sequence.seq_to_slice, hab, hb]
+
 /-! ## Copying a slice of `bool`s
 
 The round-constant LFSR shifts its nine bits with `shifted[1..9]
