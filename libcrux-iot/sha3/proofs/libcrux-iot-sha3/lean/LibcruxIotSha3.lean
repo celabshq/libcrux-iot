@@ -19,3 +19,4 @@ import LibcruxIotSha3.Composition.Pedantic.KeccakP
 import LibcruxIotSha3.Composition.Pedantic.BitsOps
 import LibcruxIotSha3.Composition.Pedantic.Padding
 import LibcruxIotSha3.Composition.Pedantic.Sponge
+import LibcruxIotSha3.Composition.Pedantic.KeccakC
