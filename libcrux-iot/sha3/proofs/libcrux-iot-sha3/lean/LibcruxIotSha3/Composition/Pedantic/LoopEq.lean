@@ -132,4 +132,14 @@ theorem array_update_eq {α : Type} {n : Std.Usize}
   rw [Std.Array.getElem?_Usize_eq, List.getElem?_eq_getElem (by omega)]
   rfl
 
+theorem usize_mul_eq (x y : Std.Usize) (h : x.val * y.val ≤ Std.Usize.max) :
+    ∃ z : Std.Usize, x * y = ok z ∧ z.val = x.val * y.val := by
+  have he := Std.UScalar.mul_equiv x y
+  have hdef : (x * y : RustM Std.Usize) = Std.UScalar.mul x y := rfl
+  rw [hdef]
+  cases hm : Std.UScalar.mul x y with
+  | ok z => rw [hm] at he; exact ⟨z, rfl, he.2.1⟩
+  | fail e => rw [hm] at he; exact absurd he.2 (by scalar_tac)
+  | div => rw [hm] at he; exact he.elim
+
 end LibcruxIotSha3.Composition.Pedantic
