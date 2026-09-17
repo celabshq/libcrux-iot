@@ -6,4 +6,4 @@
 import LibcruxIotSha3.Extraction
 import LibcruxIotSha3.Verification.ProofObligations
 import HacspecSha3
-import LibcruxIotSha3.Composition.Pedantic.Parameters
+import LibcruxIotSha3.Composition.Pedantic.StateMap
