@@ -851,6 +851,102 @@ theorem vec_index_range_eq (v : alloc.vec.Vec Bool) (a b : Std.Usize)
     alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref, alloc.vec.Vec.as_slice,
     rust_primitives.sequence.seq_to_slice, hab, hb]
 
+/-- The chunked version of `push_loop_eq`: each iteration appends a whole list
+    (the eight bits of a byte, for `h2b`). -/
+theorem append_loop_eq
+    (body : (core.ops.range.Range Std.Usize × alloc.vec.Vec Bool) →
+      RustM (ControlFlow (core.ops.range.Range Std.Usize × alloc.vec.Vec Bool)
+        (alloc.vec.Vec Bool)))
+    (n : Std.Usize) (g : Nat → List Bool) (out0 : alloc.vec.Vec Bool)
+    (hstep : ∀ (i : Std.Usize) (acc : alloc.vec.Vec Bool), i.val < n.val →
+      acc.val = out0.val ++ (List.range i.val).flatMap g →
+      ∃ (s : Std.Usize) (acc' : alloc.vec.Vec Bool), s.val = i.val + 1 ∧
+        acc'.val = acc.val ++ g i.val ∧
+        body ({ start := i, «end» := n }, acc)
+          = ok (.cont ({ start := s, «end» := n }, acc')))
+    (hdone : ∀ acc : alloc.vec.Vec Bool,
+      body ({ start := n, «end» := n }, acc) = ok (.done acc)) :
+    ∃ out : alloc.vec.Vec Bool,
+      loop body ({ start := 0#usize, «end» := n }, out0) = ok out ∧
+      out.val = out0.val ++ (List.range n.val).flatMap g := by
+  refine loop_range_eq_inv_usize body n
+    (fun i acc => acc.val = out0.val ++ (List.range i.val).flatMap g)
+    (fun _ _ r => r.val = out0.val ++ (List.range n.val).flatMap g)
+    ?hstep ?hdone n 0#usize out0 (by simp) (by simp)
+  case hstep =>
+    intro i acc hi hinv
+    obtain ⟨s, acc', hs, hacc', hbody⟩ := hstep i acc hi hinv
+    refine ⟨s, acc', hs, ?_, hbody, fun r hr => hr⟩
+    rw [hacc', hinv, hs, List.range_succ]
+    simp
+  case hdone =>
+    intro acc hinv
+    exact ⟨acc, hdone acc, hinv⟩
+
+/-! ## `Iterator::next` on a `Range I32`
+
+`h2b` walks the bits of a byte with `for j in 0..8` over `i32`; hax ships the
+triple for that one, so only the equations are needed. -/
+
+theorem range_next_lt_i32 (i e : Std.I32) (h : i.val < e.val) :
+    ∃ s : Std.I32, s.val = i.val + 1 ∧
+      core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+        core.I32.Insts.CoreIterRangeStep { start := i, «end» := e }
+        = ok (some i, { start := s, «end» := e }) := by
+  have ht := Hax.IteratorRange_next_spec (Q := PostCond.noThrow fun p =>
+      ⌜ ∃ s : Std.I32, s.val = i.val + 1 ∧ p = (some i, { start := s, «end» := e }) ⌝)
+    i e (fun _ s hs => ⟨s, hs, rfl⟩) (fun hge => absurd h (by omega))
+  obtain ⟨v, hv⟩ := Hax.triple_noThrow_exists_ok ht
+  obtain ⟨s, hs, hveq⟩ := Hax.triple_noThrow_elim ht hv
+  refine ⟨s, hs, ?_⟩
+  show core.IteratorRange.next _ _ = _
+  rw [hv, hveq]
+
+theorem range_next_ge_i32 (i e : Std.I32) (h : e.val ≤ i.val) :
+    core.ops.range.Range.Insts.CoreIterTraitsIteratorIterator.next
+      core.I32.Insts.CoreIterRangeStep { start := i, «end» := e }
+      = ok (none, { start := i, «end» := e }) := by
+  have ht := Hax.IteratorRange_next_spec (Q := PostCond.noThrow fun p =>
+      ⌜ p = (none, { start := i, «end» := e }) ⌝)
+    i e (fun hlt _ _ => absurd hlt (by omega)) (fun _ => rfl)
+  obtain ⟨v, hv⟩ := Hax.triple_noThrow_exists_ok ht
+  have hveq := Hax.triple_noThrow_elim ht hv
+  show core.IteratorRange.next _ _ = _
+  rw [hv, hveq]
+
+/-- The `I32` push loop, for the eight bits of a byte. -/
+theorem push_loop_eq_i32
+    (body : (core.ops.range.Range Std.I32 × alloc.vec.Vec Bool) →
+      RustM (ControlFlow (core.ops.range.Range Std.I32 × alloc.vec.Vec Bool)
+        (alloc.vec.Vec Bool)))
+    (n : Std.I32) (hn : 0 ≤ n.val) (g : Nat → Bool) (out0 : alloc.vec.Vec Bool)
+    (hstep : ∀ (i : Std.I32) (acc : alloc.vec.Vec Bool), 0 ≤ i.val → i.val < n.val →
+      acc.val = out0.val ++ (List.range i.val.toNat).map g →
+      ∃ (s : Std.I32) (acc' : alloc.vec.Vec Bool), s.val = i.val + 1 ∧
+        acc'.val = acc.val ++ [g i.val.toNat] ∧
+        body ({ start := i, «end» := n }, acc)
+          = ok (.cont ({ start := s, «end» := n }, acc')))
+    (hdone : ∀ acc : alloc.vec.Vec Bool,
+      body ({ start := n, «end» := n }, acc) = ok (.done acc)) :
+    ∃ out : alloc.vec.Vec Bool,
+      loop body ({ start := 0#i32, «end» := n }, out0) = ok out ∧
+      out.val = out0.val ++ (List.range n.val.toNat).map g := by
+  refine loop_range_eq_inv (fun x : Std.I32 => x.val)
+    (fun i j h => (Std.IScalar.eq_equiv i j).mpr h) body n
+    (fun i acc => 0 ≤ i.val ∧ i.val ≤ n.val ∧
+      acc.val = out0.val ++ (List.range i.val.toNat).map g)
+    (fun _ _ r => r.val = out0.val ++ (List.range n.val.toNat).map g)
+    ?hstep ?hdone n.val.toNat 0#i32 out0 (by simp; omega) ⟨by simp, by simpa using hn, by simp⟩
+  case hstep =>
+    rintro i acc hi ⟨hi0, hin, hinv⟩
+    obtain ⟨s, acc', hs, hacc', hbody⟩ := hstep i acc hi0 hi hinv
+    refine ⟨s, acc', hs, ⟨by omega, by omega, ?_⟩, hbody, fun r hr => hr⟩
+    rw [hacc', hinv, show s.val.toNat = i.val.toNat + 1 by omega, List.range_succ]
+    simp
+  case hdone =>
+    rintro acc ⟨_, _, hinv⟩
+    exact ⟨acc, hdone acc, hinv⟩
+
 /-! ## Copying a slice of `bool`s
 
 The round-constant LFSR shifts its nine bits with `shifted[1..9]
