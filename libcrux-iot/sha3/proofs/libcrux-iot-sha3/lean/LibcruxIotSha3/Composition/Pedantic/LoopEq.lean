@@ -436,4 +436,95 @@ theorem loop_range_eq_inv_i64 {β γ : Type}
   loop_range_eq_inv (fun x : Std.I64 => x.val)
     (fun i j h => (Std.IScalar.eq_equiv i j).mpr h) body e Inv P hstep hdone
 
+/-! ## `Iterator::next` on a `RangeInclusive Usize`
+
+`core-models` ships no `Iterator` instance for `RangeInclusive`, so the spec
+package supplies one itself (`Assumptions/FunsExternal.lean`): the same body as
+the half-open `Range`, with `≤` in place of `<`.  ι iterates `0..=l` and the
+round-constant LFSR iterates `1..=t`, so the bridge needs its equations too.
+
+The model has no `exhausted` flag, so it panics where Rust would yield the
+largest value of the type and stop; `hsafe` below is exactly the hypothesis that
+keeps us away from that corner, and every inclusive range in the spec is small. -/
+
+theorem RangeInclusive_next_spec_usize (i e : Std.Usize) {Q}
+    (hsafe : i.val + 1 ≤ Std.UScalar.max Std.UScalarTy.Usize)
+    (h_le : (h : i.val ≤ e.val) →
+      ∀ (s : Std.Usize), s.val = i.val + 1 →
+        (Q.1 (some i, { start := s, «end» := e })).down)
+    (h_gt : e.val < i.val →
+      (Q.1 (none, { start := i, «end» := e })).down) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep { start := i, «end» := e }
+    ⦃ Q ⦄ := by
+  unfold core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+    core.Usize.Insts.CoreIterRangeStep
+  by_cases h : i.val ≤ e.val
+  · simp_all [compare, compareOfLessAndEq,
+      core.Usize.Insts.CoreCmpPartialOrdUsize, core.mkUPartialOrd,
+      core.Usize.Insts.CoreCloneClone.clone,
+      core.Usize.Insts.CoreIterRangeStep.forward_checked,
+      core.convert.TryFromUTInfallible.Blanket.try_from,
+      core.convert.From.Blanket.from,
+      core.num.Usize.checked_add, core.num.Usize.overflowing_add,
+      rust_primitives.arithmetic.overflowing_add_usize]
+    mvcgen [uncurry]
+      <;> grind [Std.UScalar.overflowing_add_eq i (1#usize)]
+  · have h_gt' := h_gt (by omega)
+    simp_all [core.Usize.Insts.CoreCmpPartialOrdUsize, core.mkUPartialOrd]
+    mvcgen; grind
+
+theorem range_incl_next_le (i e : Std.Usize) (h : i.val ≤ e.val)
+    (hsafe : i.val + 1 ≤ Std.UScalar.max Std.UScalarTy.Usize) :
+    ∃ s : Std.Usize, s.val = i.val + 1 ∧
+      core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+        core.Usize.Insts.CoreIterRangeStep { start := i, «end» := e }
+        = ok (some i, { start := s, «end» := e }) := by
+  have ht := RangeInclusive_next_spec_usize (Q := PostCond.noThrow fun p =>
+      ⌜ ∃ s : Std.Usize, s.val = i.val + 1 ∧ p = (some i, { start := s, «end» := e }) ⌝)
+    i e hsafe (fun _ s hs => ⟨s, hs, rfl⟩) (fun hgt => absurd h (by omega))
+  obtain ⟨v, hv⟩ := Hax.triple_noThrow_exists_ok ht
+  obtain ⟨s, hs, hveq⟩ := Hax.triple_noThrow_elim ht hv
+  exact ⟨s, hs, by rw [hv, hveq]⟩
+
+theorem range_incl_next_gt (i e : Std.Usize) (h : e.val < i.val)
+    (hsafe : i.val + 1 ≤ Std.UScalar.max Std.UScalarTy.Usize) :
+    core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+      core.Usize.Insts.CoreIterRangeStep { start := i, «end» := e }
+      = ok (none, { start := i, «end» := e }) := by
+  have ht := RangeInclusive_next_spec_usize (Q := PostCond.noThrow fun p =>
+      ⌜ p = (none, { start := i, «end» := e }) ⌝)
+    i e hsafe (fun hle _ _ => absurd hle (by omega)) (fun _ => rfl)
+  obtain ⟨v, hv⟩ := Hax.triple_noThrow_exists_ok ht
+  have hveq := Hax.triple_noThrow_elim ht hv
+  rw [hv, hveq]
+
+/-- The loop induction for an inclusive range: one more iteration than the
+    half-open one, and the exit test is `start > end`. -/
+theorem loop_range_incl_eq {β γ : Type}
+    (body : (core.ops.range.RangeInclusive Std.Usize × β) →
+      RustM (ControlFlow (core.ops.range.RangeInclusive Std.Usize × β) γ))
+    (e : Std.Usize) (P : Std.Usize → β → γ → Prop)
+    (hstep : ∀ (i : Std.Usize) (acc : β), i.val ≤ e.val →
+      ∃ (s : Std.Usize) (acc' : β), s.val = i.val + 1 ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (i : Std.Usize) (acc : β), e.val < i.val →
+      ∃ r, body ({ start := i, «end» := e }, acc) = ok (.done r) ∧ P i acc r) :
+    ∀ (k : Nat) (i : Std.Usize) (acc : β), i.val + k = e.val + 1 →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r := by
+  intro k
+  induction k with
+  | zero =>
+    intro i acc hik
+    obtain ⟨r, hb, hP⟩ := hdone i acc (by omega)
+    exact ⟨r, by rw [loop.eq_def, hb], hP⟩
+  | succ k ih =>
+    intro i acc hik
+    obtain ⟨s, acc', hs, hb, hP⟩ := hstep i acc (by omega)
+    obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega)
+    exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
+
 end LibcruxIotSha3.Composition.Pedantic
