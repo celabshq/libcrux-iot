@@ -167,6 +167,14 @@ theorem usize_add_eq (x y : Std.Usize) (h : x.val + y.val ≤ Std.Usize.max) :
     exact absurd he.2 (by simp only [Std.UScalar.inBounds, not_not]; scalar_tac)
   | div => rw [hxy] at he; exact he.elim
 
+theorem usize_sub_eq (x y : Std.Usize) (h : y.val ≤ x.val) :
+    ∃ z : Std.Usize, x - y = ok z ∧ z.val = x.val - y.val := by
+  have he := Std.UScalar.sub_equiv x y
+  cases hxy : (x - y : RustM Std.Usize) with
+  | ok z => rw [hxy] at he; exact ⟨z, rfl, by omega⟩
+  | fail e => rw [hxy] at he; exact absurd he.2 (by omega)
+  | div => rw [hxy] at he; exact he.elim
+
 theorem usize_rem_eq (x y : Std.Usize) (h : y.val ≠ 0) :
     ∃ z : Std.Usize, x % y = ok z ∧ z.val = x.val % y.val := by
   have hs := Std.Usize.rem_spec (x := x) (y := y)
@@ -212,6 +220,15 @@ theorem i64_div_eq (x y : Std.I64) (hy : y.val ≠ 0) (hmin : x.val ≠ Std.I64.
   cases hxy : (x / y : RustM Std.I64) with
   | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs⟩
   | fail e => rw [hxy] at hs; cases e <;> simp_all
+  | div => rw [hxy] at hs; exact hs.elim
+
+theorem usize_shl_eq (x y : Std.Usize) (h : y.val < Std.UScalarTy.Usize.numBits) :
+    ∃ z : Std.Usize, x <<< y = ok z ∧ z.val = (x.val <<< y.val) % Std.Usize.size := by
+  have hs := Std.Usize.ShiftLeft_spec x y
+  unfold WP.partialSpec at hs
+  cases hxy : (x <<< y : RustM Std.Usize) with
+  | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs.1⟩
+  | fail e => rw [hxy] at hs; cases e <;> simp_all <;> try omega
   | div => rw [hxy] at hs; exact hs.elim
 
 /-! ## The signed side: `imod`
@@ -488,17 +505,16 @@ theorem range_incl_next_le (i e : Std.Usize) (h : i.val ≤ e.val)
   obtain ⟨s, hs, hveq⟩ := Hax.triple_noThrow_elim ht hv
   exact ⟨s, hs, by rw [hv, hveq]⟩
 
-theorem range_incl_next_gt (i e : Std.Usize) (h : e.val < i.val)
-    (hsafe : i.val + 1 ≤ Std.UScalar.max Std.UScalarTy.Usize) :
+/-- Past the end there is no `forward_checked` step, so this one needs no
+    safety side condition. -/
+theorem range_incl_next_gt (i e : Std.Usize) (h : e.val < i.val) :
     core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
       core.Usize.Insts.CoreIterRangeStep { start := i, «end» := e }
       = ok (none, { start := i, «end» := e }) := by
-  have ht := RangeInclusive_next_spec_usize (Q := PostCond.noThrow fun p =>
-      ⌜ p = (none, { start := i, «end» := e }) ⌝)
-    i e hsafe (fun hle _ _ => absurd hle (by omega)) (fun _ => rfl)
-  obtain ⟨v, hv⟩ := Hax.triple_noThrow_exists_ok ht
-  have hveq := Hax.triple_noThrow_elim ht hv
-  rw [hv, hveq]
+  unfold core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+    core.Usize.Insts.CoreIterRangeStep
+  have hcmp : compare i.val e.val = Ordering.gt := by rw [Nat.compare_eq_gt]; exact h
+  simp [core.Usize.Insts.CoreCmpPartialOrdUsize, core.mkUPartialOrd, hcmp]
 
 /-- The loop induction for an inclusive range: one more iteration than the
     half-open one, and the exit test is `start > end`. -/
@@ -526,5 +542,40 @@ theorem loop_range_incl_eq {β γ : Type}
     obtain ⟨s, acc', hs, hb, hP⟩ := hstep i acc (by omega)
     obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega)
     exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
+
+/-! ## Copying a slice of `bool`s
+
+The round-constant LFSR shifts its nine bits with `shifted[1..9]
+.copy_from_slice(&r[0..8])`, which bottoms out in a `mapM` of `bool`'s `clone`.
+Cloning a `bool` is the identity, so the copy is just the source. -/
+
+theorem mapM_ok_id {T : Type} (l : List T) : l.mapM (fun x => (ok x : RustM T)) = ok l := by
+  have hloop : ∀ acc : List T,
+      List.mapM.loop (fun x => (ok x : RustM T)) l acc = ok (acc.reverse ++ l) := by
+    intro acc
+    induction l generalizing acc with
+    | nil => simp [List.mapM.loop, pure]
+    | cons a l ih =>
+      simp [List.mapM.loop, bind_tc_ok, ih, List.reverse_cons, List.append_assoc]
+  simp [List.mapM, hloop]
+
+theorem slice_clone_from_slice_bool (dest src : Slice Bool)
+    (h : dest.val.length = src.val.length) :
+    rust_primitives.slice.slice_clone_from_slice core.Bool.Insts.CoreCloneClone dest src
+      = ok src := by
+  have hm : src.val.mapM core.Bool.Insts.CoreCloneClone.clone = ok src.val := mapM_ok_id src.val
+  unfold rust_primitives.slice.slice_clone_from_slice
+  rw [if_pos (by simpa using h)]
+  split
+  · rename_i cloned hc
+    rw [hm] at hc
+    cases hc
+    rfl
+  · rename_i e hc
+    rw [hm] at hc
+    exact absurd hc (by simp)
+  · rename_i hc
+    rw [hm] at hc
+    exact absurd hc (by simp)
 
 end LibcruxIotSha3.Composition.Pedantic
