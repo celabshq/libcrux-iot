@@ -19,10 +19,17 @@ bench = false # so libtest doesn't eat the arguments to criterion
 libcrux-secrets.workspace = true
 libcrux-traits.workspace = true
 hax-lib.workspace = true
-# The machine-extracted FIPS-202 hacspec. A NORMAL (not dev-) dependency
-# because `sha256_ema`'s `#[ensures]` names `hacspec_sha3::sha3_256` directly,
-# so it must be in scope for the hax build; `cargo test` sees it too.
-hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "8f6abd985f81de31ecde9c06d2a92eea75294983" }
+# The two machine-extracted FIPS-202 hacspecs. NORMAL (not dev-) dependencies
+# because the `#[ensures]` clauses name `hacspec_sha3{,_pedantic}::…` directly,
+# so they must be in scope for the hax build; `cargo test` sees them too.
+#
+# `hacspec_sha3` is the spec the proofs were built against; `hacspec_sha3_pedantic`
+# is the FIPS 202 transcript the proofs are being moved onto (bridged in the Lean
+# tree by `LibcruxIotSha3/Composition/Pedantic/`).  Both are pinned by COMMIT SHA,
+# at the same revision as the corresponding `[[require]]`s in
+# `proofs/libcrux-iot-sha3/lean/lakefile.toml`.
+hacspec_sha3 = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }
+hacspec_sha3_pedantic = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }
 
 # XXX: Unfortunately, it's not possible to use certain hax attributes
 # with `cfg_attr`, which means we can't have hax-lib as a `cfg(hax)`

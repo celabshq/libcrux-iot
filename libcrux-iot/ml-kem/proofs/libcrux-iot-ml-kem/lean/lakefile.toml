@@ -23,5 +23,5 @@ rev = "v0.3.17"
 [[require]]
 name = "HacspecMlKem"
 git = "https://github.com/celabshq/libcrux"
-rev = "8f6abd985f81de31ecde9c06d2a92eea75294983"
+rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081"
 subDir = "specs/ml-kem/proofs/hacspec-ml-kem/lean"
