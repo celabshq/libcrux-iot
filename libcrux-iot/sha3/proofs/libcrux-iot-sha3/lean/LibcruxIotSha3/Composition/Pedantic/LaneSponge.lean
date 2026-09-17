@@ -389,4 +389,130 @@ theorem pad_last_block_eq (message : Slice Std.U8) (off rem rate : Std.Usize) (d
   rw [Std.Array.from_slice_val _ _ (by rw [List.length_setSlice!]; exact hblen)]
   simp only [padBlockList, padBlockPre, hbval, hin, hjn]
 
+
+/-! ### The padded block, byte by byte -/
+
+theorem list_getElem!_set {α : Type} [Inhabited α] (l : List α) (i : Nat) (x : α) (k : Nat)
+    (hk : k < l.length) : (l.set i x)[k]! = if k = i then x else l[k]! := by
+  rw [getElem!_pos _ k (by simpa using hk), getElem!_pos l k hk, List.getElem_set]
+  by_cases h : k = i
+  · subst h; simp
+  · rw [if_neg h, if_neg (fun hc => h hc.symm)]
+
+theorem list_slice_get {α : Type} [Inhabited α] (l : List α) (a b k : Nat)
+    (hb : b ≤ l.length) (hk : a + k < b) : (l.slice a b)[k]! = l[a + k]! := by
+  rw [getElem!_pos _ k (by rw [List.slice_length]; omega),
+    getElem!_pos l (a + k) (by omega), List.getElem_slice _ _ _ _ (by omega)]
+
+/-- The byte the padded block holds at `k`, before the trailing `0x80`. -/
+def padBlockBase (msg : List Std.U8) (off rem : Nat) (delim : Std.U8) (k : Nat) : Std.U8 :=
+  if k < rem then msg[off + k]! else if k = rem then delim else 0#u8
+
+theorem padBlockPre_get (msg : List Std.U8) (off rem : Nat) (delim : Std.U8)
+    (hrem : rem < 200) (hmsg : off + rem ≤ msg.length) (k : Nat) (hk : k < 200) :
+    (padBlockPre msg off rem delim)[k]! = padBlockBase msg off rem delim k := by
+  have hsl : (msg.slice off (off + rem)).length = rem := by
+    rw [List.slice_length]; omega
+  have hrl : (List.replicate 200 (0#u8)).length = 200 := List.length_replicate
+  simp only [padBlockPre]
+  rw [list_getElem!_set _ _ _ k (by rw [List.length_setSlice!]; omega)]
+  by_cases hkr : k < rem
+  · rw [if_neg (by omega),
+      List.getElem!_setSlice!_middle (List.replicate 200 (0#u8)) (msg.slice off (off + rem)) 0 k
+        ⟨by omega, by rw [hsl]; omega, by rw [hrl]; omega⟩, Nat.sub_zero,
+      list_slice_get msg off (off + rem) k (by omega) (by omega)]
+    simp only [padBlockBase, if_pos hkr]
+  · by_cases hke : k = rem
+    · rw [if_pos hke]
+      simp only [padBlockBase, if_neg hkr, if_pos hke]
+    · rw [if_neg hke,
+        List.getElem!_setSlice!_suffix (List.replicate 200 (0#u8)) (msg.slice off (off + rem)) 0 k
+          (by rw [hsl]; omega)]
+      rw [getElem!_pos _ k (by rw [hrl]; omega), List.getElem_replicate]
+      simp only [padBlockBase, if_neg hkr, if_neg hke]
+
+theorem padBlockList_get (msg : List Std.U8) (off rem rate : Nat) (delim : Std.U8)
+    (hrem : rem < rate) (hrate200 : rate ≤ 200) (hmsg : off + rem ≤ msg.length)
+    (k : Nat) (hk : k < 200) :
+    (padBlockList msg off rem rate delim)[k]!
+      = (if k = rate - 1 then padBlockBase msg off rem delim k ||| 128#u8
+         else padBlockBase msg off rem delim k) := by
+  simp only [padBlockList]
+  rw [list_getElem!_set _ _ _ k (by rw [padBlockPre_len]; omega)]
+  by_cases hke : k = rate - 1
+  · rw [if_pos hke, if_pos hke, hke,
+      padBlockPre_get msg off rem delim (by omega) hmsg (rate - 1) (by omega)]
+  · rw [if_neg hke, if_neg hke, padBlockPre_get msg off rem delim (by omega) hmsg k hk]
+
+
+/-! ### The padded block, bit by bit -/
+
+theorem byteBits_get (x : Std.U8) (j : Nat) :
+    (byteBits x)[j]! = if j < 8 then x.bv.getLsbD j else false := by
+  by_cases h : j < 8
+  · rw [if_pos h]
+    simp only [byteBits]
+    rw [getElem!_pos _ j (by simp only [List.length_map, List.length_range]; omega)]
+    simp
+  · rw [if_neg h, List.getElem!_eq_getElem?_getD,
+      List.getElem?_eq_none (by rw [byteBits_len]; omega)]
+    rfl
+
+theorem u8_or_bit (a b : Std.U8) (z : Nat) :
+    (a ||| b).bv.getLsbD z = (a.bv.getLsbD z || b.bv.getLsbD z) := by
+  show (a.bv ||| b.bv).getLsbD z = _
+  simp
+
+theorem bit128 : ∀ j < 8, (128#u8 : Std.U8).bv.getLsbD j = decide (j = 7) := by decide
+
+/-- Bit `q` of the `rate`-byte padded last block. -/
+theorem padBlockBits_get (msg : List Std.U8) (off rem rate : Nat) (delim : Std.U8)
+    (hrem : rem < rate) (hrate200 : rate ≤ 200) (hmsg : off + rem ≤ msg.length)
+    (q : Nat) (hq : q < 8 * rate) :
+    (h2bList ((padBlockList msg off rem rate delim).take rate))[q]!
+      = ((if q < 8 * rem then (msg[off + q / 8]!).bv.getLsbD (q % 8)
+          else (byteBits delim)[q - 8 * rem]!) || decide (q = 8 * rate - 1)) := by
+  have hlen : (padBlockList msg off rem rate delim).length = 200 := padBlockList_len _ _ _ _ _
+  have htlen : ((padBlockList msg off rem rate delim).take rate).length = rate := by
+    rw [List.length_take, hlen]; omega
+  have hqe : q = 8 * (q / 8) + q % 8 := by omega
+  rw [show (h2bList ((padBlockList msg off rem rate delim).take rate))[q]!
+      = (((padBlockList msg off rem rate delim).take rate)[q / 8]!).bv.getLsbD (q % 8) from by
+    conv_lhs => rw [hqe]
+    exact h2bList_get _ (q / 8) (q % 8) (by rw [htlen]; omega) (by omega)]
+  rw [getElem!_pos _ (q / 8) (by rw [htlen]; omega), List.getElem_take,
+    ← getElem!_pos (padBlockList msg off rem rate delim) (q / 8) (by rw [hlen]; omega),
+    padBlockList_get msg off rem rate delim hrem hrate200 hmsg (q / 8) (by omega)]
+  by_cases hq8 : q / 8 = rate - 1
+  · rw [if_pos hq8, u8_or_bit, bit128 (q % 8) (by omega)]
+    congr 1
+    · by_cases hkr : q / 8 < rem
+      · rw [if_pos (by omega)]
+        simp only [padBlockBase, if_pos hkr]
+      · by_cases hke : q / 8 = rem
+        · rw [if_neg (by omega)]
+          simp only [padBlockBase, if_neg hkr, if_pos hke]
+          rw [byteBits_get, if_pos (by omega), show q - 8 * rem = q % 8 from by omega]
+        · rw [if_neg (by omega)]
+          simp only [padBlockBase, if_neg hkr, if_neg hke]
+          rw [byteBits_get, if_neg (by omega)]
+          simp
+    · simp only [decide_eq_decide]
+      omega
+  · rw [if_neg hq8]
+    rw [show decide (q = 8 * rate - 1) = false from by
+      simp only [decide_eq_false_iff_not]
+      omega, Bool.or_false]
+    by_cases hkr : q / 8 < rem
+    · rw [if_pos (by omega)]
+      simp only [padBlockBase, if_pos hkr]
+    · by_cases hke : q / 8 = rem
+      · rw [if_neg (by omega)]
+        simp only [padBlockBase, if_neg hkr, if_pos hke]
+        rw [byteBits_get, if_pos (by omega), show q - 8 * rem = q % 8 from by omega]
+      · rw [if_neg (by omega)]
+        simp only [padBlockBase, if_neg hkr, if_neg hke]
+        rw [byteBits_get, if_neg (by omega)]
+        simp
+
 end LibcruxIotSha3.Composition.Pedantic
