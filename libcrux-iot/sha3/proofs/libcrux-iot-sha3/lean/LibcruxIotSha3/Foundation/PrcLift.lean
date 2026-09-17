@@ -16,6 +16,8 @@ import LibcruxIotSha3.Foundation.ThetaLift
 import LibcruxIotSha3.Foundation.RcEquiv
 import Hax
 import Lean
+import LibcruxIotSha3.Tables
+import LibcruxIotSha3.TablesBridge
 
 open Aeneas Aeneas.Std Std.Do libcrux_iot_sha3 hacspec_sha3
 
@@ -448,10 +450,10 @@ computation as a black-box step rather than drilling into each
 function's 25-cell do-block. Crucial for keeping `prc_lift_spec`'s
 WP tractable (without these, the impl+spec WP exceeds delab budget). -/
 
-/-- Pure semantics of `keccak_f.iota`: XORs `ROUND_CONSTANTS[round]` into lane 0. -/
+/-- Pure semantics of `keccak_f.iota`: XORs `roundConstants[round]` into lane 0. -/
 def iota_applied (state : Std.Array Std.U64 25#usize) (round : Std.Usize) :
     Std.Array Std.U64 25#usize :=
-  state.set 0#usize (state.val[0]! ^^^ keccak_f.ROUND_CONSTANTS.val[round.val]!)
+  state.set 0#usize (state.val[0]! ^^^ roundConstants.val[round.val]!)
 
 @[spec]
 theorem iota_spec (state : Std.Array Std.U64 25#usize) (round : Std.Usize)
@@ -463,7 +465,8 @@ theorem iota_spec (state : Std.Array Std.U64 25#usize) (round : Std.Usize)
   all_goals first
     | scalar_tac
     | (unfold iota_applied
-       simp_all only [Std.UScalar.eq_equiv_bv_eq]
+       simp_all only [libcrux_iot_sha3.hacspec_roundConstants_eq,
+         Std.UScalar.eq_equiv_bv_eq]
        congr 1
        apply Std.U64.bv_eq_imp_eq
        simp_all [Std.UScalar.bv_xor])
@@ -701,7 +704,7 @@ def prc_spec (a : Std.Array Std.U64 25#usize) (r : Std.Usize) :
     | _  => rot64 a.val[24]! 14
   Std.Array.make 25#usize [
     -- i=0: π[0]=0, π[1]=6, π[2]=12. Chi row + iota RC.
-    inp 0 ^^^ ((~~~ inp 6) &&& inp 12) ^^^ keccak_f.ROUND_CONSTANTS.val[r.val]!,
+    inp 0 ^^^ ((~~~ inp 6) &&& inp 12) ^^^ roundConstants.val[r.val]!,
     -- i=1: π[1]=6, π[2]=12, π[3]=18
     inp 6 ^^^ ((~~~ inp 12) &&& inp 18),
     -- i=2: π[2]=12, π[3]=18, π[4]=24

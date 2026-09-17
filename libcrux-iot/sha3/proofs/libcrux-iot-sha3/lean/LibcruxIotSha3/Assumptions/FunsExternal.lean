@@ -1,20 +1,16 @@
 -- External function definitions for `libcrux-iot-sha3` (hand-written).
--- The shared `CoreModels.core.*` helpers (mutable-index selectors, `unwrap`,
--- `copy_from_slice`, `TryFromSliceError` `Debug`) live in the `HacspecSha3`
--- spec's `FunsExternal` and are reused from there (defining them here too would
--- clash when a proof file imports both). Only the `libcrux_secrets` helpers,
--- which the spec does not provide, are defined here.
+-- CoreModels supplies every model the extraction references, so what is left
+-- here is the `libcrux_secrets` helpers, which no spec provides. (The
+-- `HaxToRange` helper class this file used to borrow from `HacspecSha3` is gone:
+-- CoreModels' native `index_mut` removed the detour that needed it.)
 --
--- This file is also where the spec packages enter the generated extraction's import
+-- This file is also where the spec package enters the generated extraction's import
 -- tree: hax emits `Extraction/FunsExternal.lean` as a one-line shim onto this file
 -- and never adds spec imports of its own, so the `#[ensures]` clauses'
 -- `hacspec_sha3_pedantic::bytes::*` are in scope in `Extraction/Specs.lean` only
--- because they are imported here. `HacspecSha3` is imported for the shared
--- `CoreModels.core.*` helpers described above, and because the sponge proof is
--- stated against it.
+-- because they are imported here.
 import Aeneas
 import CoreModels
-import HacspecSha3
 import HacspecSha3Pedantic
 import LibcruxIotSha3.Extraction.Types
 open CoreModels Aeneas
@@ -63,3 +59,4 @@ def traits.Declassify.Blanket.declassify {T : Type} (x : T) : Aeneas.Std.RustM T
 
 end libcrux_secrets
 end
+

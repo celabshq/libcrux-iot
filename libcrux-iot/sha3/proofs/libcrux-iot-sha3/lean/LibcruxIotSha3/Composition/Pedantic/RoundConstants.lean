@@ -1,9 +1,9 @@
 import LibcruxIotSha3.Composition.Pedantic.Iota
-import HacspecSha3
+import LibcruxIotSha3.Tables
 /-!
 # The round constants: the LFSR against the table
 
-`hacspec_sha3` carries the twenty-four round constants as a table of `u64`s,
+The implementations carry the twenty-four round constants as a table of `u64`s,
 the way implementations do.  `hacspec_sha3_pedantic` does not carry them at all:
 it derives each bit from the linear feedback shift register of FIPS 202
 Algorithm 5, as the standard defines it (`rcBitAt`, built on `rcOf`).
@@ -28,8 +28,8 @@ set_option maxRecDepth 100000 in
     Algorithm 5 computes exactly the table `hacspec_sha3` carries. -/
 theorem rcBitAt_table : ∀ i_r : Nat, i_r < 24 → ∀ z : Nat, z < 64 →
     rcBitAt (i_r : Int) z
-      = (hacspec_sha3.keccak_f.ROUND_CONSTANTS.val[i_r]!).bv.getLsbD z := by
-  simp only [hacspec_sha3.keccak_f.ROUND_CONSTANTS]
+      = ((libcrux_iot_sha3.roundConstants).val[i_r]!).bv.getLsbD z := by
+  simp only [libcrux_iot_sha3.roundConstants]
   decide
 
 -- Pinned by `#guard_msgs`: the build fails if this comes to depend on any axiom

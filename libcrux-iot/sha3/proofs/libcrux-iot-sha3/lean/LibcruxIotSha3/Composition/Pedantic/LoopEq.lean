@@ -1,4 +1,8 @@
 import LibcruxIotSha3.Composition.Pedantic.StateMap
+-- `Hax.IteratorRange_next_spec{,_usize}`: hax-lean's `Iterator::next` triples for
+-- the half-open `Range` at `I32`/`Usize`, which the equations below are built on.
+-- (Imported explicitly: it used to arrive transitively through `HacspecSha3`.)
+import Hax
 /-!
 # Equational loop-over-range lemma
 

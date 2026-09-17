@@ -3,15 +3,14 @@
 
   The implementation stores each Keccak round constant as two 32-bit
   interleaved halves at indices 0..23 of `RC_INTERLEAVED_0` /
-  `RC_INTERLEAVED_1`. The spec stores the full 64-bit constants at
-  indices 0..23 of `ROUND_CONSTANTS`. We need the bit-interleaved
-  combination of the two halves to equal the spec constant at every
-  round.
+  `RC_INTERLEAVED_1`. `RcTable` carries the full 64-bit constants. We need
+  the bit-interleaved combination of the two halves to equal the table's
+  entry at every round.
 -/
 import LibcruxIotSha3.Foundation.Lift
-import HacspecSha3
+import LibcruxIotSha3.Tables
 
-open Aeneas Aeneas.Std libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std libcrux_iot_sha3
 
 namespace libcrux_iot_sha3.Foundation
 
@@ -21,9 +20,9 @@ private theorem rc_equiv_aux (i : Fin 24) :
     lift_lane_bv
       (keccak.RC_INTERLEAVED_0.val[i.val]!).bv
       (keccak.RC_INTERLEAVED_1.val[i.val]!).bv =
-    (keccak_f.ROUND_CONSTANTS.val[i.val]!).bv := by
+    (roundConstants.val[i.val]!).bv := by
   revert i
-  unfold keccak.RC_INTERLEAVED_0 keccak.RC_INTERLEAVED_1 keccak_f.ROUND_CONSTANTS
+  unfold keccak.RC_INTERLEAVED_0 keccak.RC_INTERLEAVED_1 roundConstants
   decide
 
 /-- Round constant equivalence for `i : Nat` with `i < 24`. -/
@@ -31,7 +30,7 @@ theorem rc_equiv (i : Nat) (hi : i < 24) :
     lift_lane_bv
       (keccak.RC_INTERLEAVED_0.val[i]!).bv
       (keccak.RC_INTERLEAVED_1.val[i]!).bv =
-    (keccak_f.ROUND_CONSTANTS.val[i]!).bv :=
+    (roundConstants.val[i]!).bv :=
   rc_equiv_aux ⟨i, hi⟩
 
 end libcrux_iot_sha3.Foundation

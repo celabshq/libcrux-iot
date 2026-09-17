@@ -315,6 +315,7 @@ bridge is therefore bit-level throughout, and runs bottom-up:
 
 | file | holds |
 |---|---|
+| `../../Tables.lean` | the two Keccak constant tables (`RC[0..23]`, ρ's rotation offsets), local copies so that no proof has to name a specification's |
 | `Parameters.lean`, `StateMap.lean`, `Grid.lean` | the state correspondence: `ofLanes` / `toLanes` between 25 lanes and `A[x, y, z]`, mutually inverse |
 | `LoopEq.lean` | the reusable equational loop inductions and scalar/container equations the rest is written with |
 | `Theta.lean`, `Rho.lean`, `Pi.lean`, `Chi.lean`, `Iota.lean` | the five step mappings (FIPS 202, Algorithms 1-6) as functions of the bits |
@@ -322,7 +323,7 @@ bridge is therefore bit-level throughout, and runs bottom-up:
 | `Round.lean`, `Permutation.lean`, `Bits.lean`, `KeccakP.lean` | `Rnd`, the round loop, the state-array/bit-string conversions, and `Keccak-p[1600, n_r]` |
 | `BitsOps.lean`, `Padding.lean`, `Sponge.lean`, `KeccakC.lean` | the `bits` operations, `pad10*1` (Algorithm 9), the sponge (Algorithm 8) and `KECCAK[c]` |
 | `Bytes.lean`, `Sha3.lean` | `h2b`/`b2h` (Algorithms 10 and 11) and the six entry points at both the bit and the byte level |
-| `Lanes.lean` | `hacspec_sha3`'s lane-level `Keccak-f[1600]` is the transcript's bit-level permutation (each `createi` over lane indices against each triple loop over `(x, y, z)`) |
+| `Lanes.lean` | the lane model *is* the transcript's bit-level permutation (`theta_bit`, `rho_bit`, ..., each triple loop over `(x, y, z)` read off the lanes), and `hacspec_sha3`'s `createi` form computes it |
 | `LaneSponge.lean`, `LaneAbsorb.lean`, `LaneSqueeze.lean` | the byte-rate sponge: XORing a block into the lanes is XORing its bits into the bit string; the padded last block is the transcript's last block; the absorb recursion is `absorbFrom`; `squeeze` is `squeezeFrom`; and finally the six `*_agree` theorems |
 
 The two ends that make the last step work are worth naming. On the absorb side, the

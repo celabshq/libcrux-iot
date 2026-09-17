@@ -289,7 +289,7 @@ theorem array_index_range_eq {N : Std.Usize} (a : Std.Array Std.U8 N) (b e : Std
   exact slice_index_range_eq (Std.Array.to_slice a) b e hbe he
 
 theorem blockMask_exact (blk : Slice Std.U8) (rate : Nat) (h8 : rate % 8 = 0)
-    (hlen : blk.val.length = rate) (hr : 8 * rate ≤ 1600) :
+    (hlen : blk.val.length = rate) (_hr : 8 * rate ≤ 1600) :
     blockMask blk (rate / 8) = h2bList blk.val ++ List.replicate (1600 - 8 * rate) false := by
   have h64 : 64 * (rate / 8) = 8 * rate := by omega
   have hbl : (h2bList blk.val).length = 8 * rate := by rw [h2bList_len, hlen]

@@ -1,4 +1,3 @@
-import HacspecSha3
 import HacspecSha3Pedantic
 /-!
 # Parameter agreement between the two SHA-3 hacspecs
@@ -30,40 +29,18 @@ namespace LibcruxIotSha3.Composition.Pedantic
 theorem b_eq : hacspec_sha3_pedantic.sponge.B.val = 1600 := by
   simp [hacspec_sha3_pedantic.sponge.B]
 
-/-- `r = b - c`, with `r` in bytes on the `hacspec_sha3` side and `c` in bits on
-    the `hacspec_sha3_pedantic` side.  The capacities are the literals passed to
-    `sponge::keccak_c` in `sha3-pedantic/src/sha3.rs`. -/
-theorem rate_capacity_sha3_224 :
-    8 * hacspec_sha3.sha3.SHA3_224_RATE.val + 448 = 1600 := by
-  simp [hacspec_sha3.sha3.SHA3_224_RATE]
-
-theorem rate_capacity_sha3_256 :
-    8 * hacspec_sha3.sha3.SHA3_256_RATE.val + 512 = 1600 := by
-  simp [hacspec_sha3.sha3.SHA3_256_RATE]
-
-theorem rate_capacity_sha3_384 :
-    8 * hacspec_sha3.sha3.SHA3_384_RATE.val + 768 = 1600 := by
-  simp [hacspec_sha3.sha3.SHA3_384_RATE]
-
-theorem rate_capacity_sha3_512 :
-    8 * hacspec_sha3.sha3.SHA3_512_RATE.val + 1024 = 1600 := by
-  simp [hacspec_sha3.sha3.SHA3_512_RATE]
-
-theorem rate_capacity_shake128 :
-    8 * hacspec_sha3.sha3.SHAKE128_RATE.val + 256 = 1600 := by
-  simp [hacspec_sha3.sha3.SHAKE128_RATE]
-
-theorem rate_capacity_shake256 :
-    8 * hacspec_sha3.sha3.SHAKE256_RATE.val + 512 = 1600 := by
-  simp [hacspec_sha3.sha3.SHAKE256_RATE]
+-- The rate/capacity correspondence (`8 * rate + c = 1600` for each of the six
+-- functions) is not pinned here: it is checked where it is used, in
+-- `LaneSqueeze.lean`, where each entry point instantiates `keccak_eq` at its rate
+-- and the capacity falls out of `1600 - 8 * rate` by `norm_num`.
 
 -- Pinned by `#guard_msgs`: the build fails if a result comes to depend on any
 -- axiom beyond Lean's standard three (an admitted `sorry`, or `Lean.ofReduceBool`
 -- from `bv_decide`/`native_decide`).
 /--
-info: 'LibcruxIotSha3.Composition.Pedantic.rate_capacity_sha3_256' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'LibcruxIotSha3.Composition.Pedantic.b_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms rate_capacity_sha3_256
+#print axioms b_eq
 
 end LibcruxIotSha3.Composition.Pedantic

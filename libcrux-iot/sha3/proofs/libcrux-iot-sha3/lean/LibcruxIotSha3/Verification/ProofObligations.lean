@@ -458,7 +458,7 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha224_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
+    Aeneas.Std.bind_tc_ok] at hpre
   by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
     have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
@@ -491,7 +491,7 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha256_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
+    Aeneas.Std.bind_tc_ok] at hpre
   by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
     have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
@@ -524,7 +524,7 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha384_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
+    Aeneas.Std.bind_tc_ok] at hpre
   by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
     have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
@@ -557,7 +557,7 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha512_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
+    Aeneas.Std.bind_tc_ok] at hpre
   by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
     have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond

@@ -1,6 +1,13 @@
 import LibcruxIotSha3.Composition.Pedantic.Permutation
 import LibcruxIotSha3.Composition.Pedantic.RoundConstants
 import LibcruxIotSha3.Composition.Pedantic.KeccakC
+-- The `hacspec_sha3` half of this bridge. This import, and the ones in the three
+-- `Lane*` files below it, are the only places the older specification enters the
+-- proof; every theorem here that mentions it is of the form
+-- `hacspec.f s = ok (fLanes s)`, and is what disappears when `Foundation/` and
+-- `Sponge/` are moved onto the `*Lanes` model.
+import HacspecSha3
+import LibcruxIotSha3.TablesBridge
 /-!
 # `hacspec_sha3`'s lane-level `Keccak-f[1600]` is the pedantic bit-level one
 
@@ -228,7 +235,7 @@ theorem theta_bit (s : Lanes) (x y z : Nat) (hx : x < 5) (hy : y < 5) (hz : z < 
 /-- ρ on lanes: rotate each lane by its tabulated offset. -/
 def rhoLanes (s : Lanes) : Lanes :=
   mkArr 25#usize (fun t =>
-    Std.UScalar.rotate_left s.val[t]! hacspec_sha3.keccak_f.RHO_OFFSETS.val[t]!)
+    Std.UScalar.rotate_left s.val[t]! libcrux_iot_sha3.rhoOffsets.val[t]!)
 
 theorem rho_lanes_eq (s : Lanes) : hacspec_sha3.keccak_f.rho s = ok (rhoLanes s) := by
   unfold hacspec_sha3.keccak_f.rho
@@ -238,15 +245,15 @@ theorem rho_lanes_eq (s : Lanes) : hacspec_sha3.keccak_f.rho s = ok (rhoLanes s)
   unfold hacspec_sha3.keccak_f.rho.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU64
   show hacspec_sha3.keccak_f.rho.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU64.call_mut s i = _
   unfold hacspec_sha3.keccak_f.rho.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU64.call_mut
-  simp only [index_usize_eq s i (by simp; omega),
-    index_usize_eq hacspec_sha3.keccak_f.RHO_OFFSETS i (by simp; omega), bind_tc_ok,
+  simp only [libcrux_iot_sha3.hacspec_rhoOffsets_eq, index_usize_eq s i (by simp; omega),
+    index_usize_eq libcrux_iot_sha3.rhoOffsets i (by simp; omega), bind_tc_ok,
     core.num.U64.rotate_left, rust_primitives.arithmetic.rotate_left_u64]
 
 /-- The tabulated rotation offsets are the ones FIPS 202's ρ walk produces
     (modulo the lane width, which is all `rotIndex` sees). -/
 theorem rho_offsets_table : ∀ x < 5, ∀ y < 5,
-    (hacspec_sha3.keccak_f.RHO_OFFSETS.val[5 * y + x]!).val % 64 = rhoOffsetOf x y % 64 := by
-  simp only [hacspec_sha3.keccak_f.RHO_OFFSETS]
+    (libcrux_iot_sha3.rhoOffsets.val[5 * y + x]!).val % 64 = rhoOffsetOf x y % 64 := by
+  simp only [libcrux_iot_sha3.rhoOffsets]
   decide
 
 theorem rho_bit (s : Lanes) (x y z : Nat) (hx : x < 5) (hy : y < 5) (hz : z < 64) :
@@ -330,12 +337,13 @@ theorem chi_bit (s : Lanes) (x y z : Nat) (hx : x < 5) (hy : y < 5) (hz : z < 64
 
 /-- ι on lanes: XOR the round constant into lane `(0, 0)`. -/
 def iotaLanes (s : Lanes) (r : Std.Usize) : Lanes :=
-  s.set 0#usize (s.val[0]! ^^^ hacspec_sha3.keccak_f.ROUND_CONSTANTS.val[r.val]!)
+  s.set 0#usize (s.val[0]! ^^^ libcrux_iot_sha3.roundConstants.val[r.val]!)
 
 theorem iota_lanes_eq (s : Lanes) (r : Std.Usize) (hr : r.val < 24) :
     hacspec_sha3.keccak_f.iota s r = ok (iotaLanes s r) := by
   unfold hacspec_sha3.keccak_f.iota
-  simp only [index_usize_eq hacspec_sha3.keccak_f.ROUND_CONSTANTS r (by simp; omega),
+  simp only [libcrux_iot_sha3.hacspec_roundConstants_eq,
+    index_usize_eq libcrux_iot_sha3.roundConstants r (by simp; omega),
     index_usize_eq s 0#usize (by simp), bind_tc_ok, Std.lift,
     array_update_eq s 0#usize _ (by simp)]
   rfl
@@ -345,7 +353,7 @@ theorem iota_bit (s : Lanes) (r : Std.Usize) (hr : r.val < 24) (x y z : Nat)
     laneBit (iotaLanes s r) x y z = iotaBit (laneBit s) (r.val : Int) x y z := by
   have hset : ∀ i : Nat, i < 25 →
       (iotaLanes s r).val[i]! =
-        if i = 0 then s.val[0]! ^^^ hacspec_sha3.keccak_f.ROUND_CONSTANTS.val[r.val]!
+        if i = 0 then s.val[0]! ^^^ libcrux_iot_sha3.roundConstants.val[r.val]!
         else s.val[i]! := by
     intro i hi
     have hlen : s.val.length = 25 := s.property
