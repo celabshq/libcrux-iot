@@ -22,4 +22,5 @@ import LibcruxIotSha3.Composition.Pedantic.Sponge
 import LibcruxIotSha3.Composition.Pedantic.KeccakC
 import LibcruxIotSha3.Composition.Pedantic.Sha3
 import LibcruxIotSha3.Composition.Pedantic.Lanes
+import LibcruxIotSha3.Composition.Pedantic.LaneSponge
 import LibcruxIotSha3.Composition.Pedantic.Bytes
