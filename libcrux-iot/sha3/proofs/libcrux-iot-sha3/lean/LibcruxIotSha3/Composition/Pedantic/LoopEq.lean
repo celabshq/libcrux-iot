@@ -724,6 +724,42 @@ theorem loop_range_incl_eq_i64 {β γ : Type}
       ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r :=
   loop_range_incl_eq_gen (fun x : Std.I64 => x.val) body e P hstep hdone
 
+/-! ## Loops that push one element per iteration
+
+`bits::trunc`, `zeros`, `concat` and `xor` are all the same loop: run `i` over
+`0 .. n` and push `g i`.  So is each innermost loop of `h2b` / `b2h`.  This is
+that loop, once. -/
+
+theorem push_loop_eq
+    (body : (core.ops.range.Range Std.Usize × alloc.vec.Vec Bool) →
+      RustM (ControlFlow (core.ops.range.Range Std.Usize × alloc.vec.Vec Bool)
+        (alloc.vec.Vec Bool)))
+    (n : Std.Usize) (g : Nat → Bool) (out0 : alloc.vec.Vec Bool)
+    (hstep : ∀ (i : Std.Usize) (acc : alloc.vec.Vec Bool), i.val < n.val →
+      acc.val = out0.val ++ (List.range i.val).map g →
+      ∃ (s : Std.Usize) (acc' : alloc.vec.Vec Bool), s.val = i.val + 1 ∧
+        acc'.val = acc.val ++ [g i.val] ∧
+        body ({ start := i, «end» := n }, acc)
+          = ok (.cont ({ start := s, «end» := n }, acc')))
+    (hdone : ∀ acc : alloc.vec.Vec Bool,
+      body ({ start := n, «end» := n }, acc) = ok (.done acc)) :
+    ∃ out : alloc.vec.Vec Bool,
+      loop body ({ start := 0#usize, «end» := n }, out0) = ok out ∧
+      out.val = out0.val ++ (List.range n.val).map g := by
+  refine loop_range_eq_inv_usize body n
+    (fun i acc => acc.val = out0.val ++ (List.range i.val).map g)
+    (fun _ _ r => r.val = out0.val ++ (List.range n.val).map g)
+    ?hstep ?hdone n 0#usize out0 (by simp) (by simp)
+  case hstep =>
+    intro i acc hi hinv
+    obtain ⟨s, acc', hs, hacc', hbody⟩ := hstep i acc hi hinv
+    refine ⟨s, acc', hs, ?_, hbody, fun r hr => hr⟩
+    rw [hacc', hinv, hs, List.range_succ]
+    simp
+  case hdone =>
+    intro acc hinv
+    exact ⟨acc, hdone acc, hinv⟩
+
 /-! ## Copying a slice of `bool`s
 
 The round-constant LFSR shifts its nine bits with `shifted[1..9]
