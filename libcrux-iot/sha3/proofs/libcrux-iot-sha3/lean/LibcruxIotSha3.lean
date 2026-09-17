@@ -11,3 +11,5 @@ import LibcruxIotSha3.Composition.Pedantic.Pi
 import LibcruxIotSha3.Composition.Pedantic.Theta
 import LibcruxIotSha3.Composition.Pedantic.Rho
 import LibcruxIotSha3.Composition.Pedantic.Iota
+import LibcruxIotSha3.Composition.Pedantic.RoundConstants
+import LibcruxIotSha3.Composition.Pedantic.Round
