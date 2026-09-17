@@ -228,7 +228,7 @@ theorem usize_shl_eq (x y : Std.Usize) (h : y.val < Std.UScalarTy.Usize.numBits)
   unfold WP.partialSpec at hs
   cases hxy : (x <<< y : RustM Std.Usize) with
   | ok z => rw [hxy] at hs; exact ⟨z, rfl, hs.1⟩
-  | fail e => rw [hxy] at hs; cases e <;> simp_all <;> try omega
+  | fail e => rw [hxy] at hs; cases e <;> (simp_all; try omega)
   | div => rw [hxy] at hs; exact hs.elim
 
 /-! ## The signed side: `imod`
@@ -516,8 +516,57 @@ theorem range_incl_next_gt (i e : Std.Usize) (h : e.val < i.val) :
   have hcmp : compare i.val e.val = Ordering.gt := by rw [Nat.compare_eq_gt]; exact h
   simp [core.Usize.Insts.CoreCmpPartialOrdUsize, core.mkUPartialOrd, hcmp]
 
-/-- The loop induction for an inclusive range: one more iteration than the
-    half-open one, and the exit test is `start > end`. -/
+/-- The loop induction for an inclusive range, over any index type and with an
+    invariant on the accumulator: one more iteration than the half-open one, and
+    the exit test is `start > end`. -/
+theorem loop_range_incl_eq_inv_gen {ι β γ : Type} (val : ι → Int)
+    (body : (core.ops.range.RangeInclusive ι × β) →
+      RustM (ControlFlow (core.ops.range.RangeInclusive ι × β) γ))
+    (e : ι) (Inv : ι → β → Prop) (P : ι → β → γ → Prop)
+    (hstep : ∀ (i : ι) (acc : β), val i ≤ val e → Inv i acc →
+      ∃ (s : ι) (acc' : β), val s = val i + 1 ∧ Inv s acc' ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (i : ι) (acc : β), val e < val i → Inv i acc →
+      ∃ r, body ({ start := i, «end» := e }, acc) = ok (.done r) ∧ P i acc r) :
+    ∀ (k : Nat) (i : ι) (acc : β), val i + k = val e + 1 → Inv i acc →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r := by
+  intro k
+  induction k with
+  | zero =>
+    intro i acc hik hinv
+    obtain ⟨r, hb, hP⟩ := hdone i acc (by omega) hinv
+    exact ⟨r, by rw [loop.eq_def, hb], hP⟩
+  | succ k ih =>
+    intro i acc hik hinv
+    obtain ⟨s, acc', hs, hinv', hb, hP⟩ := hstep i acc (by omega) hinv
+    obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega) hinv'
+    exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
+
+/-- The invariant-free version. -/
+theorem loop_range_incl_eq_gen {ι β γ : Type} (val : ι → Int)
+    (body : (core.ops.range.RangeInclusive ι × β) →
+      RustM (ControlFlow (core.ops.range.RangeInclusive ι × β) γ))
+    (e : ι) (P : ι → β → γ → Prop)
+    (hstep : ∀ (i : ι) (acc : β), val i ≤ val e →
+      ∃ (s : ι) (acc' : β), val s = val i + 1 ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (i : ι) (acc : β), val e < val i →
+      ∃ r, body ({ start := i, «end» := e }, acc) = ok (.done r) ∧ P i acc r) :
+    ∀ (k : Nat) (i : ι) (acc : β), val i + k = val e + 1 →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r := by
+  intro k i acc hik
+  refine loop_range_incl_eq_inv_gen val body e (fun _ _ => True) P ?_ ?_ k i acc hik trivial
+  · intro j acc' hj _
+    obtain ⟨s, acc'', hs, hb, hP⟩ := hstep j acc' hj
+    exact ⟨s, acc'', hs, trivial, hb, hP⟩
+  · intro j acc' hj _
+    exact hdone j acc' hj
+
+/-- The `Usize` instance, used by ι and the round-constant LFSR. -/
 theorem loop_range_incl_eq {β γ : Type}
     (body : (core.ops.range.RangeInclusive Std.Usize × β) →
       RustM (ControlFlow (core.ops.range.RangeInclusive Std.Usize × β) γ))
@@ -531,17 +580,112 @@ theorem loop_range_incl_eq {β γ : Type}
       ∃ r, body ({ start := i, «end» := e }, acc) = ok (.done r) ∧ P i acc r) :
     ∀ (k : Nat) (i : Std.Usize) (acc : β), i.val + k = e.val + 1 →
       ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r := by
-  intro k
-  induction k with
-  | zero =>
-    intro i acc hik
-    obtain ⟨r, hb, hP⟩ := hdone i acc (by omega)
-    exact ⟨r, by rw [loop.eq_def, hb], hP⟩
-  | succ k ih =>
-    intro i acc hik
-    obtain ⟨s, acc', hs, hb, hP⟩ := hstep i acc (by omega)
-    obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega)
-    exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
+  intro k i acc hik
+  refine loop_range_incl_eq_gen (fun x : Std.Usize => (x.val : Int)) body e P ?_ ?_ k i acc
+    (by omega)
+  · intro j acc' hj
+    obtain ⟨s, acc'', hs, hb, hP⟩ := hstep j acc' (by omega)
+    exact ⟨s, acc'', by omega, hb, hP⟩
+  · intro j acc' hj
+    exact hdone j acc' (by omega)
+
+/-! ## `Iterator::next` on a `RangeInclusive I64`
+
+`Keccak-p`'s round loop runs `for i_r in (12 + 2l - n_r)..=(12 + 2l - 1)`, so
+the inclusive iterator is needed at `I64` as well. -/
+
+theorem RangeInclusive_next_spec_i64 (i e : Std.I64) {Q}
+    (hsafe : i.val + 1 ≤ Std.IScalar.max Std.IScalarTy.I64)
+    (h_le : (h : i.val ≤ e.val) →
+      ∀ (s : Std.I64), s.val = i.val + 1 →
+        (Q.1 (some i, { start := s, «end» := e })).down)
+    (h_gt : e.val < i.val →
+      (Q.1 (none, { start := i, «end» := e })).down) :
+    ⦃ ⌜ True ⌝ ⦄
+    core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+      core.I64.Insts.CoreIterRangeStep { start := i, «end» := e }
+    ⦃ Q ⦄ := by
+  unfold core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+    core.I64.Insts.CoreIterRangeStep
+  by_cases h : i.val ≤ e.val
+  · have h_le' := h_le h
+    simp_all [compare, compareOfLessAndEq,
+      core.I64.Insts.CoreCmpPartialOrdI64, core.mkIPartialOrd,
+      core.I64.Insts.CoreCloneClone.clone,
+      core.I64.Insts.CoreIterRangeStep.forward_checked,
+      core.U64.Insts.CoreConvertTryFromUsizeTryFromIntError.try_from,
+      core.num.U64.MAX, core.num.U64.MIN,
+      core.num.I64.wrapping_add, rust_primitives.arithmetic.wrapping_add_i64]
+    mvcgen
+    all_goals
+      try (refine h_le' _ ?_
+           subst_vars
+           exact i64_wrapping_add_one_val i (by scalar_tac) (by scalar_tac))
+    all_goals
+      try simp_all only [Std.U64.rMax, hcast_cast_one_val_i64,
+        Std.UScalar.cast_val_eq, Std.UScalar.ofNatCore_val_eq]
+    all_goals first | scalar_tac | grind
+  · have h_gt' := h_gt (by omega)
+    have hcmp : ¬ (i.val < e.val) := by omega
+    have hne : ¬ (i.val = e.val) := by omega
+    simp only [compare, compareOfLessAndEq, core.I64.Insts.CoreCmpPartialOrdI64,
+      core.mkIPartialOrd, if_neg hcmp, if_neg hne]
+    mvcgen
+
+theorem range_incl_next_le_i64 (i e : Std.I64) (h : i.val ≤ e.val)
+    (hsafe : i.val + 1 ≤ Std.IScalar.max Std.IScalarTy.I64) :
+    ∃ s : Std.I64, s.val = i.val + 1 ∧
+      core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+        core.I64.Insts.CoreIterRangeStep { start := i, «end» := e }
+        = ok (some i, { start := s, «end» := e }) := by
+  have ht := RangeInclusive_next_spec_i64 (Q := PostCond.noThrow fun p =>
+      ⌜ ∃ s : Std.I64, s.val = i.val + 1 ∧ p = (some i, { start := s, «end» := e }) ⌝)
+    i e hsafe (fun _ s hs => ⟨s, hs, rfl⟩) (fun hgt => absurd h (by omega))
+  obtain ⟨v, hv⟩ := Hax.triple_noThrow_exists_ok ht
+  obtain ⟨s, hs, hveq⟩ := Hax.triple_noThrow_elim ht hv
+  exact ⟨s, hs, by rw [hv, hveq]⟩
+
+theorem range_incl_next_gt_i64 (i e : Std.I64) (h : e.val < i.val) :
+    core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+      core.I64.Insts.CoreIterRangeStep { start := i, «end» := e }
+      = ok (none, { start := i, «end» := e }) := by
+  unfold core.ops.range.RangeInclusive.Insts.CoreIterTraitsIteratorIterator.next
+    core.I64.Insts.CoreIterRangeStep
+  have hcmp : compare i.val e.val = Ordering.gt := by rw [Int.compare_eq_gt]; exact h
+  simp [core.I64.Insts.CoreCmpPartialOrdI64, core.mkIPartialOrd, hcmp]
+
+
+/-- The `I64` instance with an invariant, used by `Keccak-p`'s round loop. -/
+theorem loop_range_incl_eq_inv_i64 {β γ : Type}
+    (body : (core.ops.range.RangeInclusive Std.I64 × β) →
+      RustM (ControlFlow (core.ops.range.RangeInclusive Std.I64 × β) γ))
+    (e : Std.I64) (Inv : Std.I64 → β → Prop) (P : Std.I64 → β → γ → Prop)
+    (hstep : ∀ (i : Std.I64) (acc : β), i.val ≤ e.val → Inv i acc →
+      ∃ (s : Std.I64) (acc' : β), s.val = i.val + 1 ∧ Inv s acc' ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (i : Std.I64) (acc : β), e.val < i.val → Inv i acc →
+      ∃ r, body ({ start := i, «end» := e }, acc) = ok (.done r) ∧ P i acc r) :
+    ∀ (k : Nat) (i : Std.I64) (acc : β), i.val + k = e.val + 1 → Inv i acc →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r :=
+  loop_range_incl_eq_inv_gen (fun x : Std.I64 => x.val) body e Inv P hstep hdone
+
+/-- The `I64` instance of the inclusive loop induction. -/
+theorem loop_range_incl_eq_i64 {β γ : Type}
+    (body : (core.ops.range.RangeInclusive Std.I64 × β) →
+      RustM (ControlFlow (core.ops.range.RangeInclusive Std.I64 × β) γ))
+    (e : Std.I64) (P : Std.I64 → β → γ → Prop)
+    (hstep : ∀ (i : Std.I64) (acc : β), i.val ≤ e.val →
+      ∃ (s : Std.I64) (acc' : β), s.val = i.val + 1 ∧
+        body ({ start := i, «end» := e }, acc)
+          = ok (.cont ({ start := s, «end» := e }, acc')) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (i : Std.I64) (acc : β), e.val < i.val →
+      ∃ r, body ({ start := i, «end» := e }, acc) = ok (.done r) ∧ P i acc r) :
+    ∀ (k : Nat) (i : Std.I64) (acc : β), i.val + k = e.val + 1 →
+      ∃ r, loop body ({ start := i, «end» := e }, acc) = ok r ∧ P i acc r :=
+  loop_range_incl_eq_gen (fun x : Std.I64 => x.val) body e P hstep hdone
 
 /-! ## Copying a slice of `bool`s
 

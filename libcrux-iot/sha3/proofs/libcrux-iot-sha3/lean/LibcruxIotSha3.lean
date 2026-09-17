@@ -13,3 +13,4 @@ import LibcruxIotSha3.Composition.Pedantic.Rho
 import LibcruxIotSha3.Composition.Pedantic.Iota
 import LibcruxIotSha3.Composition.Pedantic.RoundConstants
 import LibcruxIotSha3.Composition.Pedantic.Round
+import LibcruxIotSha3.Composition.Pedantic.Permutation
