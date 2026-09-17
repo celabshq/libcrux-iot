@@ -29,46 +29,69 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
   weakening it: each of these entry points names its hacspec counterpart in its
   `#[ensures]`.
 
-    * `shake128` / `shake256` -- the array-returning wrappers -- compare the
-      `[U8; BYTES]` result to `hacspec_sha3::shake{128,256}::<BYTES>(data)`
-      directly, so the post ends in CoreModels' array `==`.
+  Which hacspec? `hacspec_sha3_pedantic` -- the FIPS 202 transcript, whose module
+  structure and naming follow the Standard's sections and algorithms rather than an
+  implementation's convenience. The Lean theorems in `Sponge/` are stated against
+  `hacspec_sha3`, the byte-and-lane spec the proofs were built on;
+  `Composition/Pedantic/` closes the gap, proving the two agree on all six entry
+  points, and the `pedantic_*` lemmas below are that agreement in the shape the
+  generated posts want.
+
+    * `shake128` / `shake256` -- the array-returning wrappers -- compare
+      `out.declassify()[..]` to
+      `hacspec_sha3_pedantic::bytes::shake{128,256}(data, BYTES)[..]`. The
+      transcript's SHAKE returns a `Vec<u8>` (its length is a runtime argument,
+      not a const generic), so both sides are taken as slices and the post ends
+      in CoreModels' slice `==`.
 
     * The four `*_ema` entry points carry
       `#[ensures(|_| future(digest).declassify_ref()
-          == &hacspec_sha3::sha3_<n>(payload.declassify_ref())[..])]`,
+          == &hacspec_sha3_pedantic::bytes::sha3_<n>(payload.declassify_ref())[..])]`,
       so their post is the full functional claim -- the digest IS the FIPS-202
       hash of the payload -- which is exactly what `Sponge.sha<n>_ema_spec`
-      establishes. (The annotation used to lead with a second conjunct,
-      `future(digest).len() == SHA3_<n>_DIGEST_SIZE`. The equality subsumes it, so
-      it was dropped. The length is still needed INSIDE each proof -- it is what
-      turns the theorem's byte-wise agreement into the list equality the slice
-      `==` reduces to -- but it now comes from the theorem rather than from the
-      generated post.)
+      establishes, once transported onto the transcript. (The annotation used to
+      lead with a second conjunct, `future(digest).len() == SHA3_<n>_DIGEST_SIZE`.
+      The equality subsumes it, so it was dropped. The length is still needed
+      INSIDE each proof -- it is what turns the theorem's byte-wise agreement into
+      the list equality the slice `==` reduces to -- but it now comes from the
+      theorem rather than from the generated post.)
+
+  ## The input bound
+
+  Naming the transcript costs one thing: it works on BIT strings, so it expands
+  its input to `8 * len` bits and then appends the domain-separation suffix and
+  `pad10*1`. That padded bit length has to be a representable `usize` on every
+  supported target, the smallest being 32-bit. So the `#[requires]` clauses bound
+  the input by `MAX_INPUT_LEN = (u32::MAX as usize - 4096) / 8` rather than by
+  `u32::MAX` -- a narrowing from 4 GB to 512 MB, far above anything an IoT target
+  will hash, and the price of stating correctness against the Standard's own text
+  instead of against a spec shaped like the implementation.
 
     * `keccak`'s correctness rides on the body-less, proof-only `keccak_fc`; see
       its own section below.
 
-  For the `*_ema` four a second thing is being checked: the PRECONDITION MATCH.
-  Those theorems carry hand-written hypotheses (`payload.length ≤ 4294967295` and
+  For all six a second thing is being checked: the PRECONDITION MATCH. The
+  `*_ema` theorems carry hand-written hypotheses (`payload.length ≤ 4294967295` and
   `digest.length = 28/32/48/64`) that a human wrote by reading the Rust. Deriving
-  exactly those from the *generated* `.pre` is what checks that the hand-written
+  exactly those from the *generated* `.pre` -- via `max_input_len_eq`, which
+  evaluates the annotated `MAX_INPUT_LEN` -- is what checks that the hand-written
   hypotheses really are the annotated precondition rather than a convenient
   approximation of it. A mismatch there is precisely the kind of gap that makes a
   green development mean less than it looks, and it stays invisible until the two
   are connected as they are here.
 
-  What this does NOT establish: the SHAKE wrappers' `requires` (`BYTES <=
-  u32::MAX`) is a hypothesis their correctness theorems never needed, so both
-  proofs open with `intro _` and discard it. That is sound -- a theorem proved
-  without a hypothesis certainly holds with it -- but those two obligations check
-  the post match only, not the precondition match. And `shake128_ema` /
-  `shake256_ema` carry a `requires` with no `ensures`, so their obligations say
-  only "under the annotated precondition, this neither panics nor diverges"; they
-  are not discharged here and remain `sorry`ed in the unbuilt generated file.
+  What this does NOT establish: `shake128_ema` / `shake256_ema` carry a `requires`
+  with no `ensures`, so their obligations say only "under the annotated
+  precondition, this neither panics nor diverges"; they are not discharged here and
+  remain `sorry`ed in the unbuilt generated file. And `keccak_fc`'s `#[ensures]`
+  still names `hacspec_sha3::sponge::keccak`: the transcript has no
+  rate-and-delimiter-parameterised byte sponge to name in its place, and it is a
+  proof-only stepping stone rather than a public claim.
 -/
 import LibcruxIotSha3.Extraction
 import LibcruxIotSha3.Sponge.Shake
 import LibcruxIotSha3.Composition.SliceEq
+import LibcruxIotSha3.Composition.Pedantic.LaneSqueeze
 
 open CoreModels Aeneas Aeneas.Std Std.Do
 
@@ -87,27 +110,16 @@ private theorem bool_of_holds_map_ok {b : Bool}
   rw [hmap] at h
   simpa [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] using h
 
-/-- The `u32::MAX as usize` bound in the generated `pre`, at the `Nat` level.
-    `UScalar.cast_val_eq` leaves a `% 2^Usize.numBits`, which is the identity here
-    because `Usize.numBits >= 32`. -/
-private theorem payload_len_le {payload : Slice Std.U8}
-    (h : Aeneas.Std.Slice.len payload
-          ≤ Aeneas.Std.UScalar.cast Aeneas.Std.UScalarTy.Usize CoreModels.core.num.U32.MAX) :
-    payload.val.length ≤ 4294967295 := by
-  have hmax : (Aeneas.Std.UScalar.cast Aeneas.Std.UScalarTy.Usize
-      CoreModels.core.num.U32.MAX).val = 4294967295 := by
-    rw [Aeneas.Std.UScalar.cast_val_eq]
-    have hlt : (4294967295 : Nat) < 2 ^ Aeneas.Std.UScalarTy.Usize.numBits := by
-      rw [Aeneas.Std.UScalarTy.Usize_numBits_eq]
-      rcases System.Platform.numBits_eq with hb | hb <;> rw [hb] <;> norm_num
-    show (CoreModels.core.num.U32.MAX).val % _ = _
-    rw [show (CoreModels.core.num.U32.MAX).val = 4294967295 from
-      Aeneas.Std.UScalar.ofNatCore_val_eq (by simp [Aeneas.Std.U32.rMax])]
-    exact Nat.mod_eq_of_lt hlt
-  have hv : (Aeneas.Std.Slice.len payload).val
-      ≤ (Aeneas.Std.UScalar.cast Aeneas.Std.UScalarTy.Usize
-            CoreModels.core.num.U32.MAX).val := by scalar_tac
-  rw [Aeneas.Std.Slice.len_val, hmax] at hv
+/-- Decoding the input bound in the generated `pre`. `MAX_INPUT_LEN` is
+    `(u32::MAX as usize - 4096) / 8`: the FIPS-202 transcript the `#[ensures]`
+    clauses name works on BIT strings, so `8 * len`, plus the suffix and
+    `pad10*1`, has to be a representable `usize` on a 32-bit target. -/
+private theorem len_le_of_le_max {s : Slice Std.U8}
+    (h : Aeneas.Std.Slice.len s ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)) :
+    s.val.length ≤ 536870399 := by
+  have hv : (Aeneas.Std.Slice.len s).val
+      ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize).val := by scalar_tac
+  rw [Aeneas.Std.Slice.len_val, Sponge.max_input_len_val] at hv
   exact hv
 
 /-- Converse of `bool_of_holds_map_ok`: build a generated `post`'s `.holds` from
@@ -276,6 +288,83 @@ private theorem array_eq_true {N : Std.Usize} {a b : Std.Array Std.U8 N} (h : a.
   exact array_eq_loop_self _ a (fun j _ => by
       simp [CoreModels.core.U8.Insts.CoreCmpPartialEqU8]) N.val 0#usize (by simp)
 
+/-! ## Transporting the hacspec results onto the FIPS-202 transcript
+
+    The `#[ensures]` clauses name `hacspec_sha3_pedantic`, the FIPS 202 transcript;
+    the Lean theorems in `Sponge/` are stated against `hacspec_sha3`, the spec they
+    were built on.  `Composition/Pedantic/` proves the two agree, and these six
+    lemmas are that agreement in the shape the posts want. -/
+
+private theorem pedantic_sha3_224 {payload : Slice Std.U8}
+    {spec_out : Std.Array Std.U8 28#usize}
+    (hb : 8 * payload.val.length + 2 ≤ 4294965000)
+    (h : hacspec_sha3.sha3.sha3_224 payload = .ok spec_out) :
+    hacspec_sha3_pedantic.bytes.sha3_224 payload = .ok spec_out := by
+  obtain ⟨o, h1, h2⟩ := LibcruxIotSha3.Composition.Pedantic.sha3_224_agree payload hb
+  have ho : o = spec_out := RustM.ok.inj (h1.symm.trans h)
+  exact ho ▸ h2
+
+private theorem pedantic_sha3_256 {payload : Slice Std.U8}
+    {spec_out : Std.Array Std.U8 32#usize}
+    (hb : 8 * payload.val.length + 2 ≤ 4294965000)
+    (h : hacspec_sha3.sha3.sha3_256 payload = .ok spec_out) :
+    hacspec_sha3_pedantic.bytes.sha3_256 payload = .ok spec_out := by
+  obtain ⟨o, h1, h2⟩ := LibcruxIotSha3.Composition.Pedantic.sha3_256_agree payload hb
+  have ho : o = spec_out := RustM.ok.inj (h1.symm.trans h)
+  exact ho ▸ h2
+
+private theorem pedantic_sha3_384 {payload : Slice Std.U8}
+    {spec_out : Std.Array Std.U8 48#usize}
+    (hb : 8 * payload.val.length + 2 ≤ 4294965000)
+    (h : hacspec_sha3.sha3.sha3_384 payload = .ok spec_out) :
+    hacspec_sha3_pedantic.bytes.sha3_384 payload = .ok spec_out := by
+  obtain ⟨o, h1, h2⟩ := LibcruxIotSha3.Composition.Pedantic.sha3_384_agree payload hb
+  have ho : o = spec_out := RustM.ok.inj (h1.symm.trans h)
+  exact ho ▸ h2
+
+private theorem pedantic_sha3_512 {payload : Slice Std.U8}
+    {spec_out : Std.Array Std.U8 64#usize}
+    (hb : 8 * payload.val.length + 2 ≤ 4294965000)
+    (h : hacspec_sha3.sha3.sha3_512 payload = .ok spec_out) :
+    hacspec_sha3_pedantic.bytes.sha3_512 payload = .ok spec_out := by
+  obtain ⟨o, h1, h2⟩ := LibcruxIotSha3.Composition.Pedantic.sha3_512_agree payload hb
+  have ho : o = spec_out := RustM.ok.inj (h1.symm.trans h)
+  exact ho ▸ h2
+
+private theorem pedantic_shake128 {BYTES : Std.Usize} {data : Slice Std.U8}
+    {spec_out : Std.Array Std.U8 BYTES}
+    (hb : 8 * BYTES.val ≤ 4294965000) (hm : 8 * data.val.length + 4 ≤ 4294965000)
+    (h : hacspec_sha3.sha3.shake128 BYTES data = .ok spec_out) :
+    ∃ v : CoreModels.alloc.vec.Vec Std.U8,
+      hacspec_sha3_pedantic.bytes.shake128 data BYTES = .ok v ∧ v.val = spec_out.val := by
+  obtain ⟨o1, o2, h1, h2, hv⟩ :=
+    LibcruxIotSha3.Composition.Pedantic.shake128_agree BYTES data (by omega) hb hm
+  have ho : o1 = spec_out := RustM.ok.inj (h1.symm.trans h)
+  exact ⟨o2, h2, by rw [← hv, ho]⟩
+
+private theorem pedantic_shake256 {BYTES : Std.Usize} {data : Slice Std.U8}
+    {spec_out : Std.Array Std.U8 BYTES}
+    (hb : 8 * BYTES.val ≤ 4294965000) (hm : 8 * data.val.length + 4 ≤ 4294965000)
+    (h : hacspec_sha3.sha3.shake256 BYTES data = .ok spec_out) :
+    ∃ v : CoreModels.alloc.vec.Vec Std.U8,
+      hacspec_sha3_pedantic.bytes.shake256 data BYTES = .ok v ∧ v.val = spec_out.val := by
+  obtain ⟨o1, o2, h1, h2, hv⟩ :=
+    LibcruxIotSha3.Composition.Pedantic.shake256_agree BYTES data (by omega) hb hm
+  have ho : o1 = spec_out := RustM.ok.inj (h1.symm.trans h)
+  exact ⟨o2, h2, by rw [← hv, ho]⟩
+
+/-- `vec[..]` is the vector viewed as a slice (the SHAKE posts end on a `Vec`,
+    since the FIPS-202 transcript's SHAKE returns one). -/
+private theorem vec_range_full_index_eq (v : CoreModels.alloc.vec.Vec Std.U8) :
+    (CoreModels.alloc.vec.Vec.Insts.CoreOpsIndexIndex.index
+      (CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+        Std.U8) v ()) = .ok ⟨v.val, v.property⟩ := by
+  simp [CoreModels.alloc.vec.Vec.Insts.CoreOpsIndexIndex.index,
+    CoreModels.alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref,
+    CoreModels.alloc.vec.Vec.as_slice, CoreModels.rust_primitives.sequence.seq_to_slice,
+    CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index,
+    CoreModels.core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice.get]
+
 /-! ## SHAKE128 / SHAKE256
 
     Discharged OUTRIGHT with the full functional-correctness post. The generated
@@ -290,37 +379,69 @@ private theorem array_eq_true {N : Std.Usize} {a b : Std.Array Std.U8 N} (h : a.
 
 theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     libcrux_iot_sha3.shake128.spec BYTES data := by
-  intro _
-  obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
-    triple_exists_ok (Sponge.shake128_spec BYTES data)
-  refine triple_of_ok hv_eq ?_
-  have hpost : libcrux_iot_sha3.shake128.post data v = .ok true := by
-    simp only [libcrux_iot_sha3.shake128.post]
-    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
-      hspec_eq, Aeneas.Std.bind_tc_ok]
-    have hval : v.val = spec_out.val := by
+  intro hpre
+  simp only [libcrux_iot_sha3.shake128.pre,
+    CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
+    Aeneas.Std.bind_tc_ok] at hpre
+  by_cases hcond : BYTES ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+  · rw [if_pos hcond] at hpre
+    have hB : BYTES.val ≤ 536870399 := by
+      have hv : BYTES.val ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize).val := by scalar_tac
+      rw [Sponge.max_input_len_val] at hv
+      exact hv
+    have hdlen : data.val.length ≤ 536870399 :=
+      len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
+    obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
+      triple_exists_ok (Sponge.shake128_spec BYTES data)
+    obtain ⟨pv, hpv, hpvv⟩ := pedantic_shake128 (by omega) (by omega) hspec_eq
+    refine triple_of_ok hv_eq ?_
+    have hpost : libcrux_iot_sha3.shake128.post data v = .ok true := by
+      simp only [libcrux_iot_sha3.shake128.post]
+      rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, range_full_index_eq v,
+        Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
+        hpv, Aeneas.Std.bind_tc_ok, vec_range_full_index_eq pv, Aeneas.Std.bind_tc_ok]
+      refine slice_eq_true ?_
+      show (Aeneas.Std.Array.to_slice v).val = pv.val
+      rw [hpvv, Aeneas.Std.Array.val_to_slice]
       have h := to_slice_val_eq_of_bytes hv_bytes
       rwa [Aeneas.Std.Array.val_to_slice, Aeneas.Std.Array.val_to_slice] at h
-    exact array_eq_true hval
-  rw [hpost]
-  exact holds_map_ok_of_bool rfl
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
+  · rw [if_neg hcond] at hpre
+    exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
 theorem shake256_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     libcrux_iot_sha3.shake256.spec BYTES data := by
-  intro _
-  obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
-    triple_exists_ok (Sponge.shake256_spec BYTES data)
-  refine triple_of_ok hv_eq ?_
-  have hpost : libcrux_iot_sha3.shake256.post data v = .ok true := by
-    simp only [libcrux_iot_sha3.shake256.post]
-    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
-      hspec_eq, Aeneas.Std.bind_tc_ok]
-    have hval : v.val = spec_out.val := by
+  intro hpre
+  simp only [libcrux_iot_sha3.shake256.pre,
+    CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
+    Aeneas.Std.bind_tc_ok] at hpre
+  by_cases hcond : BYTES ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+  · rw [if_pos hcond] at hpre
+    have hB : BYTES.val ≤ 536870399 := by
+      have hv : BYTES.val ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize).val := by scalar_tac
+      rw [Sponge.max_input_len_val] at hv
+      exact hv
+    have hdlen : data.val.length ≤ 536870399 :=
+      len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
+    obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_bytes⟩ :=
+      triple_exists_ok (Sponge.shake256_spec BYTES data)
+    obtain ⟨pv, hpv, hpvv⟩ := pedantic_shake256 (by omega) (by omega) hspec_eq
+    refine triple_of_ok hv_eq ?_
+    have hpost : libcrux_iot_sha3.shake256.post data v = .ok true := by
+      simp only [libcrux_iot_sha3.shake256.post]
+      rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, range_full_index_eq v,
+        Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
+        hpv, Aeneas.Std.bind_tc_ok, vec_range_full_index_eq pv, Aeneas.Std.bind_tc_ok]
+      refine slice_eq_true ?_
+      show (Aeneas.Std.Array.to_slice v).val = pv.val
+      rw [hpvv, Aeneas.Std.Array.val_to_slice]
       have h := to_slice_val_eq_of_bytes hv_bytes
       rwa [Aeneas.Std.Array.val_to_slice, Aeneas.Std.Array.val_to_slice] at h
-    exact array_eq_true hval
-  rw [hpost]
-  exact holds_map_ok_of_bool rfl
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
+  · rw [if_neg hcond] at hpre
+    exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
 /-! ## SHA3-224/256/384/512 (EMA)
 
@@ -338,9 +459,9 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
   simp only [libcrux_iot_sha3.sha224_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
     Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload
-      ≤ Aeneas.Std.UScalar.cast Aeneas.Std.UScalarTy.Usize CoreModels.core.num.U32.MAX
+  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
+    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_224_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 28 := by
@@ -350,12 +471,14 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
     -- all four conjuncts of the theorem's post are used below
     obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
-        (Sponge.sha224_ema_spec digest payload (payload_len_le hcond) hlen)
+        (Sponge.sha224_ema_spec digest payload (by omega) hlen)
+    have hped : hacspec_sha3_pedantic.bytes.sha3_224 payload = .ok spec_out :=
+      pedantic_sha3_224 (by omega) hspec_eq
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.sha224_ema.post digest payload v = .ok true := by
       simp only [libcrux_iot_sha3.sha224_ema.post]
       rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
-        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hped, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
     rw [hpost]
@@ -369,9 +492,9 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
   simp only [libcrux_iot_sha3.sha256_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
     Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload
-      ≤ Aeneas.Std.UScalar.cast Aeneas.Std.UScalarTy.Usize CoreModels.core.num.U32.MAX
+  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
+    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_256_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 32 := by
@@ -381,12 +504,14 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
     -- all four conjuncts of the theorem's post are used below
     obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
-        (Sponge.sha256_ema_spec digest payload (payload_len_le hcond) hlen)
+        (Sponge.sha256_ema_spec digest payload (by omega) hlen)
+    have hped : hacspec_sha3_pedantic.bytes.sha3_256 payload = .ok spec_out :=
+      pedantic_sha3_256 (by omega) hspec_eq
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.sha256_ema.post digest payload v = .ok true := by
       simp only [libcrux_iot_sha3.sha256_ema.post]
       rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
-        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hped, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
     rw [hpost]
@@ -400,9 +525,9 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
   simp only [libcrux_iot_sha3.sha384_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
     Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload
-      ≤ Aeneas.Std.UScalar.cast Aeneas.Std.UScalarTy.Usize CoreModels.core.num.U32.MAX
+  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
+    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_384_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 48 := by
@@ -412,12 +537,14 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
     -- all four conjuncts of the theorem's post are used below
     obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
-        (Sponge.sha384_ema_spec digest payload (payload_len_le hcond) hlen)
+        (Sponge.sha384_ema_spec digest payload (by omega) hlen)
+    have hped : hacspec_sha3_pedantic.bytes.sha3_384 payload = .ok spec_out :=
+      pedantic_sha3_384 (by omega) hspec_eq
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.sha384_ema.post digest payload v = .ok true := by
       simp only [libcrux_iot_sha3.sha384_ema.post]
       rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
-        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hped, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
     rw [hpost]
@@ -431,9 +558,9 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
   simp only [libcrux_iot_sha3.sha512_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
     Aeneas.Std.bind_tc_ok, Aeneas.Std.lift] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload
-      ≤ Aeneas.Std.UScalar.cast Aeneas.Std.UScalarTy.Usize CoreModels.core.num.U32.MAX
+  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
   · rw [if_pos hcond] at hpre
+    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_512_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 64 := by
@@ -443,12 +570,14 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
     -- all four conjuncts of the theorem's post are used below
     obtain ⟨v, hv_eq, spec_out, hspec_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok
-        (Sponge.sha512_ema_spec digest payload (payload_len_le hcond) hlen)
+        (Sponge.sha512_ema_spec digest payload (by omega) hlen)
+    have hped : hacspec_sha3_pedantic.bytes.sha3_512 payload = .ok spec_out :=
+      pedantic_sha3_512 (by omega) hspec_eq
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.sha512_ema.post digest payload v = .ok true := by
       simp only [libcrux_iot_sha3.sha512_ema.post]
       rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok,
-        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hspec_eq, Aeneas.Std.bind_tc_ok,
+        decl_ref_eq payload, Aeneas.Std.bind_tc_ok, hped, Aeneas.Std.bind_tc_ok,
         range_full_index_eq spec_out, Aeneas.Std.bind_tc_ok]
       exact slice_eq_true (val_eq_of_bytes hv_len (by simp) hv_bytes)
     rw [hpost]

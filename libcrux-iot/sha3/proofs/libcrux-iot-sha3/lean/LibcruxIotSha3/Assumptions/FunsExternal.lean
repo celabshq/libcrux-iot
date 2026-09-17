@@ -4,9 +4,17 @@
 -- spec's `FunsExternal` and are reused from there (defining them here too would
 -- clash when a proof file imports both). Only the `libcrux_secrets` helpers,
 -- which the spec does not provide, are defined here.
+--
+-- This file is also where the two spec packages enter the generated extraction's
+-- import tree: hax emits `Extraction/FunsExternal.lean` as a one-line shim onto
+-- this file and never adds spec imports of its own, so the `#[ensures]` clauses'
+-- `hacspec_sha3_pedantic::bytes::*` (and `hacspec_sha3::sponge::keccak`, still
+-- named by `keccak_fc`) are in scope in `Extraction/Specs.lean` only because they
+-- are imported here.
 import Aeneas
 import CoreModels
 import HacspecSha3
+import HacspecSha3Pedantic
 import LibcruxIotSha3.Extraction.Types
 open CoreModels Aeneas
 open Aeneas.Std hiding namespace core alloc

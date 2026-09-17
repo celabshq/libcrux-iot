@@ -62,7 +62,7 @@ theorem keccak1600_pad :
 /-- `KECCAK[c](N, d)` (FIPS 202, Sec. 5.2). -/
 theorem keccak_c_eq (c : Std.Usize) (hc : c.val < 1600)
     (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
-    (d : Std.Usize) (hd : 0 < d.val) (hdb : d.val ≤ 4294965000) :
+    (d : Std.Usize) (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sponge.keccak_c c n d = ok out ∧
       out.val =
@@ -78,7 +78,7 @@ theorem keccak_c_eq (c : Std.Usize) (hc : c.val < 1600)
   obtain ⟨out, hout, houtv⟩ :=
     sponge_eq hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents
       () keccakF 1600 keccak1600_perm keccak1600_pad hacspec_sha3_pedantic.sponge.B r d hB
-      (by omega) (by omega) (by omega) n hn hd hdb
+      (by omega) (by omega) (by omega) n hn hdb
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.sponge.keccak_c
     rw [hr, bind_tc_ok]

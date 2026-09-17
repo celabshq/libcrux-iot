@@ -357,7 +357,7 @@ theorem sponge_eq (hF : PermSpec inst comps F b) (hP : PadSpec inst comps)
     (bU r d : Std.Usize) (hbU : bU.val = b) (hb : b ≤ 1600)
     (hr0 : 0 < r.val) (hrb : r.val ≤ b)
     (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
-    (hd : 0 < d.val) (hdb : d.val ≤ 4294965000) :
+    (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sponge.sponge inst comps bU r n d = ok out ∧
       out.val =

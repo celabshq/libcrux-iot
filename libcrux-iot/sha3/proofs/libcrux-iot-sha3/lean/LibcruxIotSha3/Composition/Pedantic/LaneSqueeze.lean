@@ -555,22 +555,22 @@ theorem shake256_hacspec_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤
 
 /-- `SHAKE128`: the two specs agree. -/
 theorem shake128_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (h0 : 0 < NU.val) (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
+    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
     ∃ (o1 : Std.Array Std.U8 NU) (o2 : alloc.vec.Vec Std.U8),
       hacspec_sha3.sha3.shake128 NU M = ok o1 ∧
       hacspec_sha3_pedantic.bytes.shake128 M NU = ok o2 ∧ o1.val = o2.val := by
   obtain ⟨o1, h1, h1v⟩ := shake128_hacspec_eq NU M hN
-  obtain ⟨o2, h2, h2v⟩ := shake128_bytes_eq M NU h0 hob hm
+  obtain ⟨o2, h2, h2v⟩ := shake128_bytes_eq M NU hob hm
   exact ⟨o1, o2, h1, h2, by rw [h1v, h2v]⟩
 
 /-- `SHAKE256`: the two specs agree. -/
 theorem shake256_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (h0 : 0 < NU.val) (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
+    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
     ∃ (o1 : Std.Array Std.U8 NU) (o2 : alloc.vec.Vec Std.U8),
       hacspec_sha3.sha3.shake256 NU M = ok o1 ∧
       hacspec_sha3_pedantic.bytes.shake256 M NU = ok o2 ∧ o1.val = o2.val := by
   obtain ⟨o1, h1, h1v⟩ := shake256_hacspec_eq NU M hN
-  obtain ⟨o2, h2, h2v⟩ := shake256_bytes_eq M NU h0 hob hm
+  obtain ⟨o2, h2, h2v⟩ := shake256_bytes_eq M NU hob hm
   exact ⟨o1, o2, h1, h2, by rw [h1v, h2v]⟩
 
 -- Pin the six agreement theorems to Lean's standard three axioms.

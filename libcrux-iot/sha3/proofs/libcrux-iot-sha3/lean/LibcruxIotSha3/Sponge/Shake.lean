@@ -70,20 +70,15 @@ private theorem slice_len_eq_sh (s : Slice Std.U8) :
     CoreModels.core.slice.Slice.len s = .ok (Std.Slice.len s) := by
   unfold CoreModels.core.slice.Slice.len; rfl
 
-/-! ### Helper: `lift (UScalar.cast .Usize U32.MAX) = .ok 4294967295#usize`. -/
+/-! ### Helper: the annotated input bound, as a number.
 
-private theorem lift_cast_U32_MAX :
-    (Std.lift (Std.UScalar.cast .Usize CoreModels.core.num.U32.MAX)
-      : RustM Std.Usize)
-      = .ok 4294967295#usize := by
-  unfold Std.lift
-  congr 1
-  apply Std.UScalar.eq_of_val_eq
-  rw [Std.U32.cast_Usize_val_eq]
-  -- Goal: CoreModels.core.num.U32.MAX.val = 4294967295#usize.val.
-  show CoreModels.core.num.U32.MAX.val = (4294967295#usize : Std.Usize).val
-  simp only [CoreModels.core.num.U32.MAX]
-  rfl
+    `MAX_INPUT_LEN` is `(u32::MAX as usize - 4096) / 8`: the FIPS-202 transcript
+    the `#[ensures]` clauses name works on bit strings, so `8 * len` plus the
+    domain-separation suffix and `pad10*1` has to be a representable `usize` on a
+    32-bit target. -/
+
+theorem max_input_len_val : (MAX_INPUT_LEN : Std.Usize).val = 536870399 := by
+  simp [MAX_INPUT_LEN]
 
 /-! ### Helper: extract Triple post into existential form. -/
 
@@ -287,7 +282,7 @@ theorem shake256_spec
 
 theorem sha224_ema_spec
     (digest : Slice Std.U8) (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 4294967295)
+    (h_payload_bnd : payload.val.length ≤ 536870399)
     (h_digest_len : digest.val.length = 28) :
     ⦃ ⌜ True ⌝ ⦄
     sha224_ema digest payload
@@ -310,12 +305,12 @@ theorem sha224_ema_spec
   have h_slice_len_digest_eq : Std.Slice.len digest = 28#usize := by
     apply Std.UScalar.eq_of_val_eq
     rw [h_digest_len_val, h_digest_len]; rfl
-  -- The `massert (i ≤ i1)` step: `i = Slice.len payload`, `i1 = 4294967295#usize`.
-  have h_le_max : (Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize) := by
-    show (Std.Slice.len payload).val ≤ (4294967295#usize : Std.Usize).val
-    rw [h_payload_len_val]; exact h_payload_bnd
+  -- The `massert (i ≤ MAX_INPUT_LEN)` step, with `i = Slice.len payload`.
+  have h_le_max : (Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize) := by
+    show (Std.Slice.len payload).val ≤ (MAX_INPUT_LEN : Std.Usize).val
+    rw [h_payload_len_val, max_input_len_val]; exact h_payload_bnd
   have h_massert_le :
-      (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
+      (massert ((Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize))
         : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
@@ -341,7 +336,6 @@ theorem sha224_ema_spec
   have h_impl_eq : sha224_ema digest payload = .ok r_out := by
     unfold sha224_ema
     rw [h_slice_len_payload]; simp only [bind_tc_ok]
-    rw [lift_cast_U32_MAX]; simp only [bind_tc_ok]
     rw [h_massert_le]; simp only [bind_tc_ok]
     rw [h_slice_len_digest]; simp only [bind_tc_ok]
     rw [h_massert_eq]; simp only [bind_tc_ok]
@@ -384,7 +378,7 @@ theorem sha224_ema_spec
 
 theorem sha256_ema_spec
     (digest : Slice Std.U8) (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 4294967295)
+    (h_payload_bnd : payload.val.length ≤ 536870399)
     (h_digest_len : digest.val.length = 32) :
     ⦃ ⌜ True ⌝ ⦄
     sha256_ema digest payload
@@ -406,11 +400,11 @@ theorem sha256_ema_spec
   have h_slice_len_digest_eq : Std.Slice.len digest = 32#usize := by
     apply Std.UScalar.eq_of_val_eq
     rw [h_digest_len_val, h_digest_len]; rfl
-  have h_le_max : (Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize) := by
-    show (Std.Slice.len payload).val ≤ (4294967295#usize : Std.Usize).val
-    rw [h_payload_len_val]; exact h_payload_bnd
+  have h_le_max : (Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize) := by
+    show (Std.Slice.len payload).val ≤ (MAX_INPUT_LEN : Std.Usize).val
+    rw [h_payload_len_val, max_input_len_val]; exact h_payload_bnd
   have h_massert_le :
-      (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
+      (massert ((Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize))
         : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
@@ -433,7 +427,6 @@ theorem sha256_ema_spec
   have h_impl_eq : sha256_ema digest payload = .ok r_out := by
     unfold sha256_ema
     rw [h_slice_len_payload]; simp only [bind_tc_ok]
-    rw [lift_cast_U32_MAX]; simp only [bind_tc_ok]
     rw [h_massert_le]; simp only [bind_tc_ok]
     rw [h_slice_len_digest]; simp only [bind_tc_ok]
     rw [h_massert_eq]; simp only [bind_tc_ok]
@@ -473,7 +466,7 @@ theorem sha256_ema_spec
 
 theorem sha384_ema_spec
     (digest : Slice Std.U8) (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 4294967295)
+    (h_payload_bnd : payload.val.length ≤ 536870399)
     (h_digest_len : digest.val.length = 48) :
     ⦃ ⌜ True ⌝ ⦄
     sha384_ema digest payload
@@ -495,11 +488,11 @@ theorem sha384_ema_spec
   have h_slice_len_digest_eq : Std.Slice.len digest = 48#usize := by
     apply Std.UScalar.eq_of_val_eq
     rw [h_digest_len_val, h_digest_len]; rfl
-  have h_le_max : (Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize) := by
-    show (Std.Slice.len payload).val ≤ (4294967295#usize : Std.Usize).val
-    rw [h_payload_len_val]; exact h_payload_bnd
+  have h_le_max : (Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize) := by
+    show (Std.Slice.len payload).val ≤ (MAX_INPUT_LEN : Std.Usize).val
+    rw [h_payload_len_val, max_input_len_val]; exact h_payload_bnd
   have h_massert_le :
-      (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
+      (massert ((Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize))
         : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
@@ -522,7 +515,6 @@ theorem sha384_ema_spec
   have h_impl_eq : sha384_ema digest payload = .ok r_out := by
     unfold sha384_ema
     rw [h_slice_len_payload]; simp only [bind_tc_ok]
-    rw [lift_cast_U32_MAX]; simp only [bind_tc_ok]
     rw [h_massert_le]; simp only [bind_tc_ok]
     rw [h_slice_len_digest]; simp only [bind_tc_ok]
     rw [h_massert_eq]; simp only [bind_tc_ok]
@@ -562,7 +554,7 @@ theorem sha384_ema_spec
 
 theorem sha512_ema_spec
     (digest : Slice Std.U8) (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 4294967295)
+    (h_payload_bnd : payload.val.length ≤ 536870399)
     (h_digest_len : digest.val.length = 64) :
     ⦃ ⌜ True ⌝ ⦄
     sha512_ema digest payload
@@ -584,11 +576,11 @@ theorem sha512_ema_spec
   have h_slice_len_digest_eq : Std.Slice.len digest = 64#usize := by
     apply Std.UScalar.eq_of_val_eq
     rw [h_digest_len_val, h_digest_len]; rfl
-  have h_le_max : (Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize) := by
-    show (Std.Slice.len payload).val ≤ (4294967295#usize : Std.Usize).val
-    rw [h_payload_len_val]; exact h_payload_bnd
+  have h_le_max : (Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize) := by
+    show (Std.Slice.len payload).val ≤ (MAX_INPUT_LEN : Std.Usize).val
+    rw [h_payload_len_val, max_input_len_val]; exact h_payload_bnd
   have h_massert_le :
-      (massert ((Std.Slice.len payload) ≤ (4294967295#usize : Std.Usize))
+      (massert ((Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize))
         : RustM Unit) = .ok () := by
     unfold Aeneas.Std.massert
     rw [if_pos h_le_max]
@@ -611,7 +603,6 @@ theorem sha512_ema_spec
   have h_impl_eq : sha512_ema digest payload = .ok r_out := by
     unfold sha512_ema
     rw [h_slice_len_payload]; simp only [bind_tc_ok]
-    rw [lift_cast_U32_MAX]; simp only [bind_tc_ok]
     rw [h_massert_le]; simp only [bind_tc_ok]
     rw [h_slice_len_digest]; simp only [bind_tc_ok]
     rw [h_massert_eq]; simp only [bind_tc_ok]
