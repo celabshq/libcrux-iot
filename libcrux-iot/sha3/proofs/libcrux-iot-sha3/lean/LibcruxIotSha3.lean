@@ -15,3 +15,4 @@ import LibcruxIotSha3.Composition.Pedantic.RoundConstants
 import LibcruxIotSha3.Composition.Pedantic.Round
 import LibcruxIotSha3.Composition.Pedantic.Permutation
 import LibcruxIotSha3.Composition.Pedantic.Bits
+import LibcruxIotSha3.Composition.Pedantic.KeccakP
