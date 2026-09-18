@@ -17,25 +17,31 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
 
   where `post` is `⌜True⌝` when the function has no `ensures`. hax also emits
   `Extraction/ProofObligations.lean`, one `@[spec] theorem <fn>.spec.proof … := by
-  sorry` per obligation (46 of them). That file stays on disk but is imported by
+  sorry` per obligation (45 of them). That file stays on disk but is imported by
   nothing: the lakefile has no `globs`, so the build follows the root module's
   import tree and leaves it out -- otherwise its sorries would enter the build and
-  feed unproved `@[spec]` lemmas to `hax_mvcgen`. This file discharges the ones
-  that matter instead.
+  feed unproved `@[spec]` lemmas to `hax_mvcgen`. This file discharges 14 of them:
+  the six entry points that carry a transcript-level `#[ensures]`, and the eight
+  wrappers that carry only a `#[hax_lib::requires]`.
 
   ## What is actually being proved
 
-  Every obligation below is discharged by PRODUCING the generated post, not by
-  weakening it: each of these entry points names its hacspec counterpart in its
-  `#[ensures]`.
+  The six are discharged by PRODUCING the generated post, not by weakening it:
+  each names its hacspec counterpart in its `#[ensures]`.
 
   Which hacspec? `hacspec_sha3_pedantic` -- the FIPS 202 transcript, whose module
   structure and naming follow the Standard's sections and algorithms rather than an
   implementation's convenience. The Lean theorems in `Sponge/` are stated against
-  `hacspec_sha3`, the byte-and-lane spec the proofs were built on;
-  `Composition/Pedantic/` closes the gap, proving the two agree on all six entry
-  points, and the `pedantic_*` lemmas below are that agreement in the shape the
-  generated posts want.
+  the lane model of `LaneModel.lean` / `SpongeModel.lean`;
+  `Composition/Pedantic/` closes the gap, proving the model and the transcript
+  agree on all six entry points, and the `pedantic_*` lemmas below are that
+  agreement in the shape the generated posts want.
+
+  The eight wrappers have no `ensures`, so their generated post is `⌜True⌝` and the
+  obligation is freedom from panics, overflow and out-of-bounds indexing under the
+  precondition. They are discharged at the end of this file from
+  `Sponge/Wrappers.lean`; see the note there on what it would take to give them
+  transcript-level posts too.
 
     * `shake128` / `shake256` -- the array-returning wrappers -- compare
       `out.declassify()[..]` to
@@ -90,6 +96,7 @@ about, e.g. `import LibcruxIotSha3.Extraction`. -/
 -/
 import LibcruxIotSha3.Extraction
 import LibcruxIotSha3.Sponge.Shake
+import LibcruxIotSha3.Sponge.Wrappers
 import LibcruxIotSha3.Composition.SliceEq
 import LibcruxIotSha3.Composition.Pedantic.LaneSqueeze
 
@@ -574,6 +581,150 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
 
+/-! ## The wrapper entry points
+
+    `hash`, the four allocating `shaN`, the two `_ema` XOF wrappers and the
+    internal `keccakx1` carry a `#[hax_lib::requires]` but no `#[ensures]`, so
+    the generated post is `⌜True⌝` and the obligation is exactly freedom from
+    panics, overflow and out-of-bounds indexing under the precondition. Each is
+    discharged by producing the `ok` from the matching lemma in
+    `Sponge/Wrappers.lean`, which proves more (the `keccakLanes` value) than
+    the obligation asks for. -/
+
+theorem keccakx1_spec_proof (RATE : Std.Usize) (DELIM : Std.U8)
+    (data out : Slice Std.U8) :
+    libcrux_iot_sha3.keccakx1.spec RATE DELIM data out := by
+  intro hpre
+  simp only [libcrux_iot_sha3.keccakx1.pre] at hpre
+  by_cases hgt : RATE > 0#usize
+  · rw [if_pos hgt] at hpre
+    -- `RATE % 8#usize` never fails: the divisor is a nonzero literal.
+    obtain ⟨r, hr_eq, hr_val, _⟩ :=
+      Aeneas.Std.WP.spec_imp_exists
+        (Aeneas.Std.UScalar.rem_bv_spec RATE (y := (8#usize : Std.Usize)) (by decide))
+    rw [hr_eq, Aeneas.Std.bind_tc_ok] at hpre
+    by_cases hr0 : r = 0#usize
+    · rw [if_pos hr0] at hpre
+      have hle : RATE ≤ (168#usize : Std.Usize) :=
+        of_decide_eq_true (bool_of_holds_map_ok hpre)
+      have hmod : RATE.val % 8 = 0 := by
+        rw [hr0] at hr_val
+        have : (0#usize : Std.Usize).val = RATE.val % (8#usize : Std.Usize).val := hr_val
+        simp at this; omega
+      have hge1 : 1 ≤ RATE.val := by scalar_tac
+      have hle200 : RATE.val ≤ 200 := by scalar_tac
+      obtain ⟨v, hv, _⟩ :=
+        triple_exists_ok (Sponge.keccakx1_spec RATE DELIM data out hmod hge1 hle200)
+      exact triple_of_ok hv trivial
+    · rw [if_neg hr0] at hpre
+      exact absurd (bool_of_holds_map_ok hpre) (by simp)
+  · rw [if_neg hgt] at hpre
+    exact absurd (bool_of_holds_map_ok hpre) (by simp)
+
+theorem shake128_ema_spec_proof (out data : Slice Std.U8) :
+    libcrux_iot_sha3.shake128_ema.spec out data := by
+  intro _
+  obtain ⟨v, hv, _⟩ := triple_exists_ok (Sponge.shake128_ema_spec out data)
+  exact triple_of_ok hv trivial
+
+theorem shake256_ema_spec_proof (out data : Slice Std.U8) :
+    libcrux_iot_sha3.shake256_ema.spec out data := by
+  intro _
+  obtain ⟨v, hv, _⟩ := triple_exists_ok (Sponge.shake256_ema_spec out data)
+  exact triple_of_ok hv trivial
+
+theorem sha224_spec_proof (payload : Slice Std.U8) :
+    libcrux_iot_sha3.sha224.spec payload := by
+  intro hpre
+  simp only [libcrux_iot_sha3.sha224.pre, CoreModels.core.slice.Slice.len,
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
+  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    of_decide_eq_true (bool_of_holds_map_ok hpre)
+  obtain ⟨v, hv, _⟩ :=
+    triple_exists_ok (Sponge.sha224_spec payload (len_le_of_le_max hle))
+  exact triple_of_ok hv trivial
+
+theorem sha256_spec_proof (payload : Slice Std.U8) :
+    libcrux_iot_sha3.sha256.spec payload := by
+  intro hpre
+  simp only [libcrux_iot_sha3.sha256.pre, CoreModels.core.slice.Slice.len,
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
+  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    of_decide_eq_true (bool_of_holds_map_ok hpre)
+  obtain ⟨v, hv, _⟩ :=
+    triple_exists_ok (Sponge.sha256_spec payload (len_le_of_le_max hle))
+  exact triple_of_ok hv trivial
+
+theorem sha384_spec_proof (payload : Slice Std.U8) :
+    libcrux_iot_sha3.sha384.spec payload := by
+  intro hpre
+  simp only [libcrux_iot_sha3.sha384.pre, CoreModels.core.slice.Slice.len,
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
+  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    of_decide_eq_true (bool_of_holds_map_ok hpre)
+  obtain ⟨v, hv, _⟩ :=
+    triple_exists_ok (Sponge.sha384_spec payload (len_le_of_le_max hle))
+  exact triple_of_ok hv trivial
+
+theorem sha512_spec_proof (payload : Slice Std.U8) :
+    libcrux_iot_sha3.sha512.spec payload := by
+  intro hpre
+  simp only [libcrux_iot_sha3.sha512.pre, CoreModels.core.slice.Slice.len,
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
+  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    of_decide_eq_true (bool_of_holds_map_ok hpre)
+  obtain ⟨v, hv, _⟩ :=
+    triple_exists_ok (Sponge.sha512_spec payload (len_le_of_le_max hle))
+  exact triple_of_ok hv trivial
+
+/-- The dispatcher. The precondition ties `LEN` to `digest_size algorithm`, so
+    each branch runs the `shaN` whose digest size is `LEN`. -/
+theorem hash_spec_proof (LEN : Std.Usize) (algorithm : libcrux_iot_sha3.Algorithm)
+    (payload : Slice Std.U8) :
+    libcrux_iot_sha3.hash.spec LEN algorithm payload := by
+  intro hpre
+  simp only [libcrux_iot_sha3.hash.pre, CoreModels.core.slice.Slice.len,
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
+  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+  · rw [if_pos hcond] at hpre
+    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
+    cases algorithm with
+    | Sha224 =>
+      simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
+      have hL : LEN = libcrux_iot_sha3.SHA3_224_DIGEST_SIZE :=
+        of_decide_eq_true (bool_of_holds_map_ok hpre)
+      have hds : libcrux_iot_sha3.digest_size .Sha224 = .ok LEN := by rw [hL]; rfl
+      obtain ⟨v, hv, _⟩ :=
+        triple_exists_ok (Sponge.hash_spec LEN .Sha224 payload hplen hds)
+      exact triple_of_ok hv trivial
+    | Sha256 =>
+      simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
+      have hL : LEN = libcrux_iot_sha3.SHA3_256_DIGEST_SIZE :=
+        of_decide_eq_true (bool_of_holds_map_ok hpre)
+      have hds : libcrux_iot_sha3.digest_size .Sha256 = .ok LEN := by rw [hL]; rfl
+      obtain ⟨v, hv, _⟩ :=
+        triple_exists_ok (Sponge.hash_spec LEN .Sha256 payload hplen hds)
+      exact triple_of_ok hv trivial
+    | Sha384 =>
+      simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
+      have hL : LEN = libcrux_iot_sha3.SHA3_384_DIGEST_SIZE :=
+        of_decide_eq_true (bool_of_holds_map_ok hpre)
+      have hds : libcrux_iot_sha3.digest_size .Sha384 = .ok LEN := by rw [hL]; rfl
+      obtain ⟨v, hv, _⟩ :=
+        triple_exists_ok (Sponge.hash_spec LEN .Sha384 payload hplen hds)
+      exact triple_of_ok hv trivial
+    | Sha512 =>
+      simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
+      have hL : LEN = libcrux_iot_sha3.SHA3_512_DIGEST_SIZE :=
+        of_decide_eq_true (bool_of_holds_map_ok hpre)
+      have hds : libcrux_iot_sha3.digest_size .Sha512 = .ok LEN := by rw [hL]; rfl
+      obtain ⟨v, hv, _⟩ :=
+        triple_exists_ok (Sponge.hash_spec LEN .Sha512 payload hplen hds)
+      exact triple_of_ok hv trivial
+  · rw [if_neg hcond] at hpre
+    exact absurd (bool_of_holds_map_ok hpre) (by simp)
+
+
 /-! ## Axiom guards
     Pinned by `#guard_msgs`: the build fails if a result comes to depend on any axiom
     beyond Lean's standard three (an admitted `sorry`, or `Lean.ofReduceBool` from
@@ -613,5 +764,53 @@ info: 'libcrux_iot_sha3.Verification.sha512_ema_spec_proof' depends on axioms: [
 -/
 #guard_msgs in
 #print axioms sha512_ema_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.keccakx1_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms keccakx1_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.shake128_ema_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake128_ema_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.shake256_ema_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms shake256_ema_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha224_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha224_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha256_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha256_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha384_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha384_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.sha512_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms sha512_spec_proof
+
+/--
+info: 'libcrux_iot_sha3.Verification.hash_spec_proof' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms hash_spec_proof
 
 end libcrux_iot_sha3.Verification

@@ -91,6 +91,31 @@ model's `keccakLanes`) with the corresponding agreement theorem from
 [`Composition/Pedantic/`](Composition/Pedantic/) -- `sha3_256_lanes_agree`,
 `shake128_lanes_agree`, and so on -- so the generated post is *produced*, not weakened.
 
+### The wrappers
+
+Eight further functions carry a `#[hax_lib::requires]` but no `#[ensures]`: the
+dispatcher `hash`, the four allocating `sha224` / `sha256` / `sha384` / `sha512`, the
+caller-allocated `shake128_ema` / `shake256_ema`, and the internal `keccakx1`. With no
+`ensures`, the generated post is `⌜True⌝`, so their obligation says: under the stated
+precondition the function does not panic, overflow or index out of bounds. That is what
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean) discharges for
+each, through the lemmas in [`Sponge/Wrappers.lean`](Sponge/Wrappers.lean).
+
+Those lemmas prove more than the obligation asks, because it is free to: the `keccakLanes`
+value comes out of the same `keccak_keccak_spec` application that establishes the `ok`. So
+`sha224 payload` is known to return the 28 bytes of `keccakLanes 28 144 6 payload`, not
+merely to terminate. What is *not* claimed is a transcript-level statement --
+`hacspec_sha3_pedantic::bytes::sha3_224` -- because saying that in a place the Rust
+contract can see would mean adding an `#[ensures]` to these functions, and for the two
+`_ema` wrappers a tighter `#[requires]` as well: their current bound is
+`out.len() <= u32::MAX`, which does not give the transcript's bit-length arithmetic the
+room that `MAX_INPUT_LEN` does.
+
+Worth noting for anyone extending this: no bound on the *input* is needed for any of the
+eight. `keccak.keccak_keccak_spec` asks only `RATE % 8 = 0` and `1 <= RATE <= 200`. The
+`MAX_INPUT_LEN` precondition exists for the six functions' transcript-level `#[ensures]`,
+not for the implementation's own safety.
+
 ### The input bound
 
 Naming the transcript costs one thing. It works on BIT strings, so it expands its input
@@ -201,8 +226,20 @@ Moreover, the correctness of the verification depends on:
 
 ### What is left out
 
-We do not verify the incremental API here (neither buffered nor unbuffered), and we do not verify the `Digest`/`Hasher` implementations.
-There are more Rust specification in the code base, but only the ones above are verified in Lean.
+We do not verify the incremental API here (neither buffered nor unbuffered), and we do not
+verify the `Digest`/`Hasher` implementations. The unbuffered API is not even extracted: the
+sha3 scenario in `hax.toml` does not enable the `unbuffered-xof` feature, so nothing under
+`#[cfg(feature = "unbuffered-xof")]` reaches Lean. The `Digest`/`Hasher` impls are
+`charon::exclude`d by hand; their content is a payload-length check and a call into the six
+functions above.
+
+The generated `Extraction/ProofObligations.lean` states 45 obligations, one per Rust
+function carrying a `#[hax_lib::requires]` or `#[hax_lib::ensures]`; 14 are discharged in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean). The remaining 31
+are the internal one-shot machinery (`absorb_block`, `absorb_final`, the four `squeeze_*`,
+and the `KeccakState`/`Lane2U32` accessors -- each of which already has a hand-written
+equation lemma under [`Sponge/`](Sponge/) that the `keccak` proof goes through) and the
+buffered incremental API (`KeccakXofState` and the two `Xof` impls), which has none.
 
 ## Proof architecture
 
@@ -227,19 +264,19 @@ The tree divides as follows, bottom to top:
 
 ### Keccak-f[1600] permutation equivalence
 
-[`Composition/HacspecBridge.lean`](Composition/HacspecBridge.lean):
+[`Composition/LaneBridge.lean`](Composition/LaneBridge.lean):
 
 ```lean
-theorem keccakf1600_equiv_hacspec (s : state.KeccakState)
+theorem keccakf1600_equiv_lanes (s : state.KeccakState)
     (h_i : s.i = 0#usize) :
     ⦃ ⌜ True ⌝ ⦄
     keccak.keccakf1600 s
-    ⦃ ⇓ r_impl => ⌜ keccak_f.keccak_f (lift s) = .ok (lift r_impl) ⌝ ⦄
+    ⦃ ⇓ r_impl => ⌜ keccakFLanes (Foundation.lift s) = Foundation.lift r_impl ⌝ ⦄
 ```
 
 Informally: the implementation's `keccak.keccakf1600` result, lifted
-to the specification's state representation, equals what the specification's
-`keccak_f.keccak_f` produces when applied to the same lifted input.
+to the lane model's state representation, equals what the lane model's
+`keccakFLanes` produces when applied to the same lifted input.
 
 The two sides represent state differently. **Spec**: 25 lanes of
 `u64`. **Impl**: 25 lanes split into bit-interleaved 32-bit half
@@ -278,9 +315,9 @@ Three named pieces (one file each at the top of the proof tree):
 - **`Composition/`**:
   - **`ViaBit.lean`** — composes the two equivalences above to show that
     the impl, lifted to `u64`, equals the 24-round spec chain.
-  - **`HacspecBridge.lean`** — bridges the 24-round spec chain to the
-    hacspec `keccak_f.keccak_f` loop to yield `keccakf1600_equiv_hacspec`
-    as stated above.
+  - **`LaneBridge.lean`** — reads the 24-round spec chain as the lane
+    model's `keccakFLanes` to yield `keccakf1600_equiv_lanes` as stated
+    above.
 
 ### Sponge construction proof
 
