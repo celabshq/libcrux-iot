@@ -33,7 +33,7 @@ theorem keccak_p_1600_eq (s : Slice Bool) (hs : s.val.length = 1600) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.keccak_p.keccak_p 64#usize s 24#usize = ok out ∧
       out.val = keccakF s.val := by
-  obtain ⟨out, hout, hlen, hbits⟩ := keccak_p_eq s hs 24#usize (by simp)
+  obtain ⟨out, hout, hlen, hbits⟩ := keccak_p_eq s hs 24#usize (by simp) (by simp)
   refine ⟨out, hout, ?_⟩
   apply List.ext_getElem (by rw [hlen, keccakF_len])
   intro p h1 h2
@@ -60,7 +60,7 @@ theorem keccak1600_pad :
 
 
 /-- `KECCAK[c](N, d)` (FIPS 202, Sec. 5.2). -/
-theorem keccak_c_eq (c : Std.Usize) (hc : c.val < 1600)
+theorem keccak_c_eq (c : Std.Usize) (hc0 : 0 < c.val) (hc : c.val < 1600)
     (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
     (d : Std.Usize) (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
@@ -75,13 +75,34 @@ theorem keccak_c_eq (c : Std.Usize) (hc : c.val < 1600)
     simp [hacspec_sha3_pedantic.sponge.B]
   obtain ⟨r, hr, hrv⟩ := usize_sub_eq hacspec_sha3_pedantic.sponge.B c (by omega)
   have hrn : r.val = 1600 - c.val := by rw [hrv, hB]
+  -- `b` now travels with `f`, as Sec. 4 says it does.
+  have hBok :
+      (hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents).B
+        = ok hacspec_sha3_pedantic.sponge.B := by
+    unfold hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents
+      hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents.B
+    rfl
   obtain ⟨out, hout, houtv⟩ :=
     sponge_eq hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents
-      () keccakF 1600 keccak1600_perm keccak1600_pad hacspec_sha3_pedantic.sponge.B r d hB
+      () keccakF 1600 keccak1600_perm keccak1600_pad hacspec_sha3_pedantic.sponge.B r d hBok hB
       (by omega) (by omega) (by omega) n hn hdb
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sponge.keccak_c
-    rw [hr, bind_tc_ok]
+  · -- `SPONGE[f, pad, r]` is now fixed by `Sponge::new`, which checks Sec. 4's
+    -- `0 < r < b` before the construction exists.
+    have hnew : hacspec_sha3_pedantic.sponge.Sponge.new
+        hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents () r
+        = ok ⟨(), r⟩ := by
+      unfold hacspec_sha3_pedantic.sponge.Sponge.new
+      have h0 : (massert (r > 0#usize) : RustM Unit) = .ok () := by
+        unfold Aeneas.Std.massert
+        rw [if_pos (show r > 0#usize by scalar_tac)]
+      have hlt : (massert (r < hacspec_sha3_pedantic.sponge.B) : RustM Unit) = .ok () := by
+        unfold Aeneas.Std.massert
+        refine if_pos ((Std.UScalar.lt_equiv _ _).mpr ?_)
+        rw [hB, hrn]; omega
+      rw [h0, bind_tc_ok, hBok, bind_tc_ok, hlt, bind_tc_ok]
+    unfold hacspec_sha3_pedantic.sponge.keccak_c
+    rw [hr, bind_tc_ok, hnew, bind_tc_ok]
     exact hout
   · rw [houtv, hrn, show 1600 - (1600 - c.val) = c.val from by omega]
 

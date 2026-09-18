@@ -22,7 +22,7 @@ def bitsOf (s : Slice Bool) : Nat → Nat → Nat → Bool := fun x y z => s.val
 
 /-- `Keccak-p[1600, n_r]`: `n_r` rounds, ending at round index `12 + 2l - 1 = 23`. -/
 theorem keccak_p_eq (s : Slice Bool) (hslen : s.val.length = 1600)
-    (n_r : Std.Usize) (hnr : n_r.val ≤ 24) :
+    (n_r : Std.Usize) (hnr0 : 0 < n_r.val) (hnr : n_r.val ≤ 24) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.keccak_p.keccak_p 64#usize s n_r = ok out ∧
       out.val.length = 1600 ∧
@@ -64,8 +64,13 @@ theorem keccak_p_eq (s : Slice Bool) (hslen : s.val.length = 1600)
   -- and back to a bit string
   obtain ⟨out, hto, htolen, htobits⟩ := to_bits_eq A'
   refine ⟨out, ?_, htolen, fun p hp => ?_⟩
-  · unfold hacspec_sha3_pedantic.keccak_p.keccak_p
-    simp only [hfrom, bind_tc_ok, hL, hl6, hm, htw, hlast, hnri, hd, hfirst, hnew, hloop, hto]
+  · -- Sec. 3 takes a positive number of rounds; Algorithm 7 checks it.
+    have hpos : (massert (n_r > 0#usize) : RustM Unit) = .ok () := by
+      unfold Aeneas.Std.massert
+      rw [if_pos (show n_r > 0#usize by scalar_tac)]
+    unfold hacspec_sha3_pedantic.keccak_p.keccak_p
+    simp only [hpos, bind_tc_ok, hfrom, hL, hl6, hm, htw, hlast, hnri, hd, hfirst, hnew,
+      hloop, hto]
   · rw [htobits p hp]
     have hxlt : (p / 64) % 5 < 5 := Nat.mod_lt _ (by omega)
     have hylt : p / 320 < 5 := by omega

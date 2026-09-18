@@ -116,6 +116,10 @@ never by branch -- in [`lakefile.toml`](../lakefile.toml) and in the crate's
 contracts name, and what the trust argument rests on: auditing this proof means reading
 it against the Standard.
 
+`KECCAK[c]` is stated for `0 < c < 1600`. The lower bound is Sec. 4's: the rate
+`r = 1600 - c` must be *strictly* less than the width, so `c = 0` -- a sponge with no
+capacity -- is not a `KECCAK[c]`, and the specification rejects it in `Sponge::new`.
+
 ### The lane model
 
 FIPS 202 describes the state as an array of bits `A[x, y, z]`; the implementation keeps it

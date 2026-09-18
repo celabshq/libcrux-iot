@@ -63,7 +63,7 @@ theorem absorb_body_cont (hF : PermSpec inst comps F b)
     (s : alloc.vec.Vec Bool) (hs : s.val.length = b) :
     ∃ (t : Std.Usize) (s' : alloc.vec.Vec Bool), t.val = i.val + 1 ∧
       s'.val = absorbStep F r.val c.val p.val s.val i.val ∧
-      hacspec_sha3_pedantic.sponge.sponge_loop0.body inst comps r p c
+      hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body inst ⟨comps, r⟩ comps p c
         { start := i, «end» := blocks } s
         = ok (.cont ({ start := t, «end» := blocks }, s')) := by
   obtain ⟨t, ht, hnext⟩ := range_next_lt i blocks hi
@@ -118,16 +118,16 @@ theorem absorb_body_cont (hF : PermSpec inst comps F b)
     have hxsv' : xs.val = List.zipWith (· ^^ ·) s.val blk.val := by simpa using hxsv
     rw [hov, hxsv', hblkv', hzsv, hslice]
     rfl
-  · unfold hacspec_sha3_pedantic.sponge.sponge_loop0.body
+  · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body
     rw [hnext]
     simp [hi1, hi2, hi3, vec_index_range_eq p i1 i3 hle hub, hzs, vec_deref_eq, hblk, hxs, ho]
 
 
 theorem absorb_body_done (r c : Std.Usize) (p : alloc.vec.Vec Bool)
     (blocks : Std.Usize) (s : alloc.vec.Vec Bool) :
-    hacspec_sha3_pedantic.sponge.sponge_loop0.body inst comps r p c
+    hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body inst ⟨comps, r⟩ comps p c
       { start := blocks, «end» := blocks } s = ok (.done s) := by
-  unfold hacspec_sha3_pedantic.sponge.sponge_loop0.body
+  unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body
   rw [range_next_ge blocks blocks (le_refl _)]
   simp
 
@@ -137,11 +137,11 @@ theorem absorb_loop_eq (hF : PermSpec inst comps F b)
     (p : alloc.vec.Vec Bool) (blocks : Std.Usize) (hblocks : blocks.val * r.val = p.val.length)
     (s : alloc.vec.Vec Bool) (hs : s.val.length = b) :
     ∃ s' : alloc.vec.Vec Bool,
-      hacspec_sha3_pedantic.sponge.sponge_loop0 inst { start := 0#usize, «end» := blocks }
-        comps r p c s = ok s' ∧
+      hacspec_sha3_pedantic.sponge.Sponge.apply_loop0 inst ⟨comps, r⟩ { start := 0#usize, «end» := blocks }
+        comps p c s = ok s' ∧
       s'.val = absorbFrom F r.val c.val p.val s.val 0 blocks.val ∧ s'.val.length = b := by
   have h := loop_range_eq_inv_usize (β := alloc.vec.Vec Bool) (γ := alloc.vec.Vec Bool)
-    (fun q => hacspec_sha3_pedantic.sponge.sponge_loop0.body inst comps r p c q.1 q.2)
+    (fun q => hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body inst ⟨comps, r⟩ comps p c q.1 q.2)
     blocks
     (fun _ acc => acc.val.length = b)
     (fun i acc r' => r'.val = absorbFrom F r.val c.val p.val acc.val i.val (blocks.val - i.val)
@@ -181,7 +181,7 @@ theorem absorb_loop_eq (hF : PermSpec inst comps F b)
     rfl
   obtain ⟨s', hloop, hval, hlen⟩ := h
   refine ⟨s', ?_, ?_, hlen⟩
-  · unfold hacspec_sha3_pedantic.sponge.sponge_loop0
+  · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop0
     exact hloop
   · rw [hval]
     simp
@@ -204,10 +204,10 @@ theorem squeeze_body_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
     (hz : z.val.length + r.val ≤ Std.Usize.max) :
     ∃ z1 : alloc.vec.Vec Bool, z1.val = z.val ++ s.val.take r.val ∧
       ((d.val ≤ z1.val.length ∧
-          hacspec_sha3_pedantic.sponge.sponge_loop1.body inst comps r d s z
+          hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body inst ⟨comps, r⟩ d comps s z
             = ok (.done z1)) ∨
        (¬ (d.val ≤ z1.val.length) ∧ ∃ s' : alloc.vec.Vec Bool, s'.val = F s.val ∧
-          hacspec_sha3_pedantic.sponge.sponge_loop1.body inst comps r d s z
+          hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body inst ⟨comps, r⟩ d comps s z
             = ok (.cont (s', z1)))) := by
   obtain ⟨head, hhead, hheadv⟩ := trunc_eq s r (by omega)
   obtain ⟨z1, hz1, hz1v⟩ := concat_eq z head (by
@@ -218,11 +218,11 @@ theorem squeeze_body_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
   refine ⟨z1, hz1v', ?_⟩
   by_cases hd : d.val ≤ z1.val.length
   · refine Or.inl ⟨hd, ?_⟩
-    unfold hacspec_sha3_pedantic.sponge.sponge_loop1.body
+    unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body
     simp [vec_deref_eq, vec_len_eq, hhead, hz1, hd]
   · obtain ⟨s', hs', hs'v, _⟩ := hF s (by omega)
     refine Or.inr ⟨hd, s', hs'v, ?_⟩
-    unfold hacspec_sha3_pedantic.sponge.sponge_loop1.body
+    unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body
     simp [vec_deref_eq, vec_len_eq, hhead, hz1, hd, hs']
 
 /-- The squeeze loop: it emits `r` bits per turn until `d` are out. -/
@@ -232,7 +232,7 @@ theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
       d.val ≤ z.val.length + (k + 1) * r.val →
       z.val.length + (k + 1) * r.val ≤ Std.Usize.max →
       ∃ out : alloc.vec.Vec Bool,
-        hacspec_sha3_pedantic.sponge.sponge_loop1 inst comps r d s z = ok out ∧
+        hacspec_sha3_pedantic.sponge.Sponge.apply_loop1 inst ⟨comps, r⟩ d comps s z = ok out ∧
         out.val = squeezeFrom F r.val d.val k s.val z.val := by
   intro k
   induction k with
@@ -246,7 +246,7 @@ theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
       omega
     rcases hcase with ⟨_, hbody⟩ | ⟨hne, _⟩
     · refine ⟨z1, ?_, ?_⟩
-      · unfold hacspec_sha3_pedantic.sponge.sponge_loop1
+      · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1
         simp [loop.eq_def, hbody]
       · rw [hz1v]
         rfl
@@ -263,7 +263,7 @@ theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
       omega
     rcases hcase with ⟨hd, hbody⟩ | ⟨hne, s', hs'v, hbody⟩
     · refine ⟨z1, ?_, ?_⟩
-      · unfold hacspec_sha3_pedantic.sponge.sponge_loop1
+      · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1
         simp [loop.eq_def, hbody]
       · rw [hz1v]
         show _ = (if d.val ≤ (z.val ++ s.val.take r.val).length then _ else _)
@@ -277,7 +277,7 @@ theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.Usize)
         have : (k + 1 + 1) * r.val = r.val + (k + 1) * r.val := by ring
         omega)
       refine ⟨out, ?_, ?_⟩
-      · unfold hacspec_sha3_pedantic.sponge.sponge_loop1
+      · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1
         rw [loop.eq_def]
         simp only [hbody]
         exact hout
@@ -354,12 +354,12 @@ theorem padBits_length (x m : Nat) (hx : 0 < x) :
 
 /-- `SPONGE[f, pad, r](N, d)` (FIPS 202, Algorithm 8). -/
 theorem sponge_eq (hF : PermSpec inst comps F b) (hP : PadSpec inst comps)
-    (bU r d : Std.Usize) (hbU : bU.val = b) (hb : b ≤ 1600)
+    (bU r d : Std.Usize) (hB : inst.B = ok bU) (hbU : bU.val = b) (hb : b ≤ 1600)
     (hr0 : 0 < r.val) (hrb : r.val ≤ b)
     (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
     (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
-      hacspec_sha3_pedantic.sponge.sponge inst comps bU r n d = ok out ∧
+      hacspec_sha3_pedantic.sponge.Sponge.apply inst ⟨comps, r⟩ n d = ok out ∧
       out.val =
         (squeezeAll F r.val d.val
           (absorbFrom F r.val (b - r.val) (n.val ++ padBits r.val n.val.length)
@@ -428,13 +428,14 @@ theorem sponge_eq (hF : PermSpec inst comps F b) (hP : PadSpec inst comps)
     omega
   obtain ⟨out, hout, houtv⟩ := trunc_eq z1 d hz1len
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sponge.sponge
+  · unfold hacspec_sha3_pedantic.sponge.Sponge.apply
     have hp' : hacspec_sha3_pedantic.bits.concat n ⟨v.val, v.property⟩ = ok p := hp
     rw [slice_len_eq, bind_tc_ok, hv, bind_tc_ok, vec_deref_eq, bind_tc_ok, hp', bind_tc_ok,
-      vec_len_eq, bind_tc_ok, hblocks, bind_tc_ok, hc, bind_tc_ok, hs1, bind_tc_ok]
+      vec_len_eq, bind_tc_ok, hblocks, bind_tc_ok, hB, bind_tc_ok, hc, bind_tc_ok,
+      hs1, bind_tc_ok]
     rw [habs, bind_tc_ok, vec_new_eq]
     show (do
-        let z1 ← hacspec_sha3_pedantic.sponge.sponge_loop1 inst comps r d s2
+        let z1 ← hacspec_sha3_pedantic.sponge.Sponge.apply_loop1 inst ⟨comps, r⟩ d comps s2
           (Aeneas.Std.alloc.vec.Vec.new Bool)
         hacspec_sha3_pedantic.bits.trunc ⟨z1.val, z1.property⟩ d) = ok out
     rw [hsq, bind_tc_ok]

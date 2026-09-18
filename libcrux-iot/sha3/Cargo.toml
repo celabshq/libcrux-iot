@@ -25,7 +25,7 @@ hax-lib.workspace = true
 # for the hax build; `cargo test` sees it too. Pinned by COMMIT SHA (never by
 # branch) at the same revision as the corresponding `[[require]]` in
 # `proofs/libcrux-iot-sha3/lean/lakefile.toml`.
-hacspec_sha3_pedantic = { git = "https://github.com/celabshq/libcrux.git", rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081" }
+hacspec_sha3_pedantic = { git = "https://github.com/celabshq/libcrux.git", rev = "cc41d7b43c18ac8bc06be1bcedac505e4dfffbf7" }
 
 # XXX: Unfortunately, it's not possible to use certain hax attributes
 # with `cfg_attr`, which means we can't have hax-lib as a `cfg(hax)`

@@ -67,8 +67,13 @@ theorem pad10_star_1_eq (x m : Std.Usize) (hx : 0 < x.val) (hxb : x.val ≤ 1600
       rw [range_next_ge_i64 j j (le_refl _)]
       simp)
   refine ⟨⟨p2.val ++ [true], by simp; scalar_tac⟩, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sponge.pad10_star_1
-    rw [hxi, bind_tc_ok, hmi, bind_tc_ok, hnm, bind_tc_ok, ha, bind_tc_ok, hi3, bind_tc_ok,
+  · -- Algorithm 9 takes a positive `x`; the specification checks it.
+    have hpos : (massert (x > 0#usize) : RustM Unit) = .ok () := by
+      unfold Aeneas.Std.massert
+      rw [if_pos (show x > 0#usize by scalar_tac)]
+    unfold hacspec_sha3_pedantic.sponge.pad10_star_1
+    rw [hpos, bind_tc_ok,
+      hxi, bind_tc_ok, hmi, bind_tc_ok, hnm, bind_tc_ok, ha, bind_tc_ok, hi3, bind_tc_ok,
       hi4, bind_tc_ok, hj, bind_tc_ok, vec_new_eq]
     show (do
         let p1 ← alloc.vec.Vec.push (Aeneas.Std.alloc.vec.Vec.new Bool) true

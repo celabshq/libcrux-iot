@@ -57,20 +57,20 @@ theorem keccakCList_len (c : Nat) (n : List Bool) (d : Nat) (hc : c < 1600) :
   omega
 
 /-- `keccak_c` computes `keccakCList`. -/
-theorem keccak_c_list_eq (c : Std.Usize) (hc : c.val < 1600)
+theorem keccak_c_list_eq (c : Std.Usize) (hc0 : 0 < c.val) (hc : c.val < 1600)
     (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
     (d : Std.Usize) (hdb : d.val ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       hacspec_sha3_pedantic.sponge.keccak_c c n d = ok out ∧
       out.val = keccakCList c.val n.val d.val :=
-  keccak_c_eq c hc n hn d hdb
+  keccak_c_eq c hc0 hc n hn d hdb
 
 /-! ### The bit-level entry points -/
 
 /-- Every one of the six has the same shape: append a domain-separation suffix
     and call `KECCAK[c]`. -/
 theorem suffix_keccak_eq (m : Slice Bool) (sfx : Slice Bool) (c d : Std.Usize)
-    (hc : c.val < 1600) (hdb : d.val ≤ 4294965000)
+    (hc0 : 0 < c.val) (hc : c.val < 1600) (hdb : d.val ≤ 4294965000)
     (hm : m.val.length + sfx.val.length ≤ 4294965000) :
     ∃ out : alloc.vec.Vec Bool,
       (do
@@ -80,7 +80,7 @@ theorem suffix_keccak_eq (m : Slice Bool) (sfx : Slice Bool) (c d : Std.Usize)
       out.val = keccakCList c.val (m.val ++ sfx.val) d.val := by
   obtain ⟨v, hv, hvv⟩ := concat_eq m sfx (by scalar_tac)
   have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = m.val ++ sfx.val := hvv
-  obtain ⟨out, hout, houtv⟩ := keccak_c_eq c hc ⟨v.val, v.property⟩ (by rw [hvs]; simpa using hm)
+  obtain ⟨out, hout, houtv⟩ := keccak_c_eq c hc0 hc ⟨v.val, v.property⟩ (by rw [hvs]; simpa using hm)
     d hdb
   refine ⟨out, ?_, ?_⟩
   · rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok]
@@ -106,7 +106,7 @@ theorem sha3_224_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000)
       out.val = keccakCList 448 (m.val ++ [false, true]) 224 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 448#usize 224#usize
-    (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
+    (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.sha3.sha3_224
     exact hout
@@ -120,7 +120,7 @@ theorem sha3_256_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000)
       out.val = keccakCList 512 (m.val ++ [false, true]) 256 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 512#usize 256#usize
-    (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
+    (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.sha3.sha3_256
     exact hout
@@ -134,7 +134,7 @@ theorem sha3_384_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000)
       out.val = keccakCList 768 (m.val ++ [false, true]) 384 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 768#usize 384#usize
-    (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
+    (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.sha3.sha3_384
     exact hout
@@ -148,7 +148,7 @@ theorem sha3_512_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000)
       out.val = keccakCList 1024 (m.val ++ [false, true]) 512 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 1024#usize 512#usize
-    (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
+    (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.sha3.sha3_512
     exact hout
@@ -163,7 +163,7 @@ theorem shake128_bits_eq (m : Slice Bool) (d : Std.Usize)
       out.val = keccakCList 256 (m.val ++ [true, true, true, true]) d.val := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX) 256#usize d
-    (by simp) hdb (by rw [xof_suffix_val]; simpa using hm)
+    (by simp) (by simp) hdb (by rw [xof_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.sha3.shake128
     exact hout
@@ -178,7 +178,7 @@ theorem shake256_bits_eq (m : Slice Bool) (d : Std.Usize)
       out.val = keccakCList 512 (m.val ++ [true, true, true, true]) d.val := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX) 512#usize d
-    (by simp) hdb (by rw [xof_suffix_val]; simpa using hm)
+    (by simp) (by simp) hdb (by rw [xof_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.sha3.shake256
     exact hout
