@@ -10,18 +10,20 @@ name = "LibcruxIotMlKem"
 globs = ["LibcruxIotMlKem"]
 
 [[require]]
-name = "Hax"
+name = "hax"
 git = "https://github.com/cryspen/hax-lean"
 rev = "v0.3.17"
 
 # The machine-extracted ML-KEM hacspec (crate `hacspec_ml_kem`, specs/ml-kem in
 # celabshq/libcrux); the proofs reference `hacspec_ml_kem.*`. Transitively brings
 # in HacspecSha3 (the spec references `hacspec_sha3.*`).
-# Pinned by COMMIT SHA, not by branch name: 6e39ccd9 is the specs commit that
-# replaced the specs' hax_aeneas.py drivers with hax.toml (hax v0.4.0,
-# hax-lean v0.3.17), the same commit the Cargo side pins for the hacspec crate.
+# Pinned by COMMIT SHA, never by branch name, to the same revision the Cargo
+# side pins for the crate. a0c1aaa3 names hax-lean `hax` here as well as in
+# specs/sha3, so that pulling this package and HacspecSha3 yields ONE hax
+# package (two spellings meant two copies of CoreModels, and an unresolvable
+# `hax` dependency in this manifest).
 [[require]]
 name = "HacspecMlKem"
 git = "https://github.com/celabshq/libcrux"
-rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081"
+rev = "a0c1aaa3b005f6bd50625a07d2f853275f3989d7"
 subDir = "specs/ml-kem/proofs/hacspec-ml-kem/lean"
