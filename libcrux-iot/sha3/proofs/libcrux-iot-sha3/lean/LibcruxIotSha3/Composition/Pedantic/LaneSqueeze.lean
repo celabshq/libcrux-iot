@@ -106,75 +106,18 @@ theorem lanesToBits_zero :
   rw [laneBitAt, laneBit, show 5 * (p / 320) + p / 64 % 5 = p / 64 from by omega, h (p / 64) (by omega)]
   simp
 
-theorem absorb_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
+theorem lanesToBits_absorbLanes (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
     (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) (hrate8 : rate.val % 8 = 0)
     (hsfx : sfx.length + 2 ≤ 8)
     (hdelim : byteBits delim = sfx ++ true :: List.replicate (7 - sfx.length) false)
     (M : Slice Std.U8) :
-    ∃ s' : Lanes, hacspec_sha3.sponge.absorb rate delim M = ok s' ∧
-      lanesToBits s' = absorbFrom keccakF (8 * rate.val) (1600 - 8 * rate.val)
+    lanesToBits (absorbLanes rate.val delim M.val)
+      = absorbFrom keccakF (8 * rate.val) (1600 - 8 * rate.val)
         (paddedBits M.val sfx (8 * rate.val)) (List.replicate 1600 false) 0
         (M.val.length / rate.val + 1) := by
-  obtain ⟨s', hs', hb⟩ := absorb_rec_bits rate delim sfx hrate1 hrate200 hrate8 hsfx hdelim M.val
+  have hb := lanesToBits_absorbRecLanes rate delim sfx hrate1 hrate200 hrate8 hsfx hdelim M.val
     (M.val.length / rate.val) 0 (Std.Array.repeat 25#usize 0#u64) M (by simp) (by simp) rfl
-  exact ⟨s', hs', by rw [hb, lanesToBits_zero]⟩
-
-/-! ### `iterate_keccak_f` -/
-
-/-- (b) `hacspec_sha3`'s `iterate_keccak_f` is `keccakFLanes` iterated. -/
-theorem iterate_keccak_f_lanes_eq (s : Lanes) : ∀ (n : Nat) (nU : Std.Usize), nU.val = n →
-    hacspec_sha3.sponge.iterate_keccak_f nU s = ok (keccakFLanes^[n] s) := by
-  intro n
-  induction n generalizing s with
-  | zero =>
-    intro nU hn
-    rw [hacspec_sha3.sponge.iterate_keccak_f,
-      if_pos (show nU = 0#usize from (Std.UScalar.eq_equiv _ _).mpr (by simp [hn]))]
-    rfl
-  | succ n ih =>
-    intro nU hn
-    obtain ⟨m, hm, hmv⟩ := usize_sub_eq nU 1#usize (by simp; omega)
-    rw [hacspec_sha3.sponge.iterate_keccak_f,
-      if_neg (show ¬ (nU = 0#usize) from fun hc => by
-        have h0 : nU.val = (0#usize : Std.Usize).val := by rw [hc]
-        simp at h0
-        omega),
-      hm, bind_tc_ok, ih s m (by rw [hmv]; simp; omega), bind_tc_ok,
-      keccak_f_lanes_eq, Function.iterate_succ_apply']
-
-/-- (b) The whole absorb phase. -/
-theorem absorb_lanes_eq (rate : Std.Usize) (delim : Std.U8)
-    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) (M : Slice Std.U8) :
-    hacspec_sha3.sponge.absorb rate delim M = ok (absorbLanes rate.val delim M.val) := by
-  unfold hacspec_sha3.sponge.absorb
-  exact absorb_rec_lanes_eq rate delim hrate1 hrate200 (M.val.length / rate.val) _ M rfl
-
-
-theorem iterate_keccak_f_eq (s : Lanes) : ∀ (n : Nat) (nU : Std.Usize), nU.val = n →
-    ∃ s' : Lanes, hacspec_sha3.sponge.iterate_keccak_f nU s = ok s' ∧
-      lanesToBits s' = keccakF^[n] (lanesToBits s) := by
-  intro n
-  induction n with
-  | zero =>
-    intro nU hn
-    refine ⟨s, ?_, by simp⟩
-    rw [hacspec_sha3.sponge.iterate_keccak_f,
-      if_pos (show nU = 0#usize from (Std.UScalar.eq_equiv _ _).mpr (by simp [hn]))]
-  | succ n ih =>
-    intro nU hn
-    obtain ⟨m, hm, hmv⟩ := usize_sub_eq nU 1#usize (by simp; omega)
-    obtain ⟨s1, hs1, hb1⟩ := ih m (by rw [hmv]; simp; omega)
-    obtain ⟨s2, hs2, hb2⟩ := keccakF_lanes_eq s1
-    refine ⟨s2, ?_, ?_⟩
-    · rw [hacspec_sha3.sponge.iterate_keccak_f,
-        if_neg (show ¬ (nU = 0#usize) from fun hc => by
-          have h0 : nU.val = (0#usize : Std.Usize).val := by rw [hc]
-          simp at h0
-          omega),
-        hm, bind_tc_ok, hs1, bind_tc_ok]
-      exact hs2
-    · rw [← hb2, hb1, Function.iterate_succ_apply']
-
+  rw [absorbLanes, hb, lanesToBits_zero]
 
 /-! ### Squeezing, bit by bit -/
 
@@ -276,71 +219,6 @@ theorem to_le_bytes_bit (x : Std.U64) (j t : Nat) (ht : t < 8) :
       omega]
     simp
 
-set_option maxRecDepth 20000 in
-theorem squeeze_eq (OUTPUT_LEN : Std.Usize) (state : Lanes) (rate : Std.Usize)
-    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200)
-    (hout : OUTPUT_LEN.val ≤ 4294967296) :
-    hacspec_sha3.sponge.squeeze OUTPUT_LEN state rate
-      = ok (mkArr OUTPUT_LEN (fun i => byteOf (fun t =>
-          (keccakF^[i / rate.val] (lanesToBits state))[8 * (i % rate.val) + t]!))) := by
-  unfold hacspec_sha3.sponge.squeeze
-  refine createi_eq _ _ _ _ hout ?_
-  intro i hi
-  unfold hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8
-  show hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
-    (rate, state) i = _
-  unfold hacspec_sha3.sponge.squeeze.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU8.call_mut
-  obtain ⟨b, hb, hbv⟩ := usize_div_eq i rate (by omega)
-  obtain ⟨m, hm, hmv⟩ := usize_mul_eq b rate (by
-    have := Nat.div_mul_le_self i.val rate.val
-    rw [hbv]; scalar_tac)
-  obtain ⟨j, hj, hjv⟩ := usize_sub_eq i m (by
-    rw [hmv, hbv]; exact Nat.div_mul_le_self i.val rate.val)
-  have hbn : b.val = i.val / rate.val := by rw [hbv]
-  have hjn : j.val = i.val % rate.val := by
-    rw [hjv, hmv, hbv]
-    have := Nat.div_add_mod i.val rate.val
-    have hc : rate.val * (i.val / rate.val) = i.val / rate.val * rate.val := by ring
-    omega
-  obtain ⟨sb, hsb, hsbv⟩ := iterate_keccak_f_eq state b.val b rfl
-  obtain ⟨d8, hd8, hd8v⟩ := usize_div_eq j 8#usize (by simp)
-  obtain ⟨m8, hm8, hm8v⟩ := usize_rem_eq j 8#usize (by simp)
-  have hd8n : d8.val = j.val / 8 := by rw [hd8v]; simp
-  have hm8n : m8.val = j.val % 8 := by rw [hm8v]; simp
-  have hjlt : j.val < rate.val := by rw [hjn]; exact Nat.mod_lt _ (by omega)
-  show (do
-      let b ← i / rate
-      let i1 ← b * rate
-      let j ← i - i1
-      let state_b ← hacspec_sha3.sponge.iterate_keccak_f b state
-      let i2 ← j / 8#usize
-      let i3 ← Std.Array.index_usize state_b i2
-      let a1 ← core.num.U64.to_le_bytes i3
-      let i4 ← j % 8#usize
-      let i5 ← Std.Array.index_usize a1 i4
-      ok (i5, (rate, state))) = _
-  rw [hb, bind_tc_ok, hm, bind_tc_ok, hj, bind_tc_ok, hsb, bind_tc_ok, hd8, bind_tc_ok,
-    index_usize_eq sb d8 (by rw [hd8n]; simp; omega), bind_tc_ok]
-  show (do
-      let a1 ← core.num.U64.to_le_bytes (sb.val[d8.val]!)
-      let i4 ← j % 8#usize
-      let i5 ← Std.Array.index_usize a1 i4
-      ok (i5, (rate, state))) = _
-  unfold core.num.U64.to_le_bytes rust_primitives.arithmetic.to_le_bytes_u64
-  rw [bind_tc_ok, hm8, bind_tc_ok,
-    index_usize_eq (Std.core.num.U64.to_le_bytes (sb.val[d8.val]!)) m8 (by
-      rw [hm8n]; simp; omega), bind_tc_ok]
-  congr 1
-  congr 1
-  refine (byteOf_bits _).symm.trans (byteOf_congr ?_)
-  intro t ht
-  rw [to_le_bytes_bit _ _ _ ht, ← hbn, ← hsbv, ← hjn,
-    show 8 * j.val + t = 64 * (j.val / 8) + (8 * (j.val % 8) + t) from by omega,
-    lanesToBits_lane sb (show j.val / 8 < 25 from by omega)
-      (show 8 * (j.val % 8) + t < 64 from by omega),
-    ← hd8n, ← hm8n]
-
-
 /-! ### The whole byte-rate sponge -/
 
 /-! ### (b) The sponge's squeeze phase, and `KECCAK[c]`, on the lane model -/
@@ -359,29 +237,18 @@ theorem lanesToBits_getElem (s : Lanes) (p : Nat) (hp : p < 1600) :
   rw [getElem!_pos _ _ (by simp only [List.length_map, List.length_range]; exact hp)]
   simp
 
-theorem squeeze_lanes_eq (OUTPUT_LEN : Std.Usize) (state : Lanes) (rate : Std.Usize)
-    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200)
-    (hout : OUTPUT_LEN.val ≤ 4294967296) :
-    hacspec_sha3.sponge.squeeze OUTPUT_LEN state rate
-      = ok (squeezeLanes OUTPUT_LEN state rate.val) := by
-  rw [squeeze_eq OUTPUT_LEN state rate hrate1 hrate200 hout]
-  congr 1
+/-- (c) Squeezing on the model, read as bits. -/
+theorem squeezeLanes_bits (OUTPUT_LEN : Std.Usize) (state : Lanes) (rate : Std.Usize)
+    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) :
+    squeezeLanes OUTPUT_LEN state rate.val
+      = mkArr OUTPUT_LEN (fun i => byteOf (fun t =>
+          (keccakF^[i / rate.val] (lanesToBits state))[8 * (i % rate.val) + t]!)) := by
   refine mkArr_congr OUTPUT_LEN ?_
   intro i _
   refine byteOf_congr ?_
   intro t ht
   have hmod : i % rate.val < rate.val := Nat.mod_lt _ (by omega)
   rw [keccakF_iterate_lanesToBits, lanesToBits_getElem _ _ (by omega)]
-
-theorem keccak_lanes_eq (OUTPUT_LEN rate : Std.Usize) (delim : Std.U8) (M : Slice Std.U8)
-    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200)
-    (hout : OUTPUT_LEN.val ≤ 4294967296) :
-    hacspec_sha3.sponge.keccak OUTPUT_LEN rate delim M
-      = ok (keccakLanes OUTPUT_LEN rate.val delim M.val) := by
-  unfold hacspec_sha3.sponge.keccak
-  rw [absorb_lanes_eq rate delim hrate1 hrate200 M, bind_tc_ok,
-    squeeze_lanes_eq OUTPUT_LEN _ rate hrate1 hrate200 hout]
-  rfl
 
 theorem b2hList_of_len (bits : List Bool) (n : Nat) (h : bits.length = 8 * n) :
     b2hList bits = (List.range n).map (fun i => byteOf (fun j => bits[8 * i + j]!)) := by
@@ -391,19 +258,19 @@ theorem b2hList_of_len (bits : List Bool) (n : Nat) (h : bits.length = 8 * n) :
   rw [show 8 * n / 8 = n from by omega]
 
 set_option maxRecDepth 20000 in
-theorem keccak_eq (OUTPUT_LEN rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
+theorem keccakLanes_bytes (OUTPUT_LEN rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
     (M : Slice Std.U8)
     (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) (hrate8 : rate.val % 8 = 0)
     (hsfx : sfx.length + 2 ≤ 8)
     (hdelim : byteBits delim = sfx ++ true :: List.replicate (7 - sfx.length) false)
-    (hout : OUTPUT_LEN.val ≤ 4294967296) :
-    ∃ out : Std.Array Std.U8 OUTPUT_LEN,
-      hacspec_sha3.sponge.keccak OUTPUT_LEN rate delim M = ok out ∧
-      out.val = b2hList (keccakCList (1600 - 8 * rate.val) (h2bList M.val ++ sfx)
+    (_hout : OUTPUT_LEN.val ≤ 4294967296) :
+    (keccakLanes OUTPUT_LEN rate.val delim M.val).val
+      = b2hList (keccakCList (1600 - 8 * rate.val) (h2bList M.val ++ sfx)
         (8 * OUTPUT_LEN.val)) := by
   have hr : 1600 - (1600 - 8 * rate.val) = 8 * rate.val := by omega
   have hc : 1600 - 8 * rate.val < 1600 := by omega
-  obtain ⟨s0, hs0, hs0b⟩ := absorb_bits rate delim sfx hrate1 hrate200 hrate8 hsfx hdelim M
+  set s0 : Lanes := absorbLanes rate.val delim M.val with hs0_def
+  have hs0b := lanesToBits_absorbLanes rate delim sfx hrate1 hrate200 hrate8 hsfx hdelim M
   have hpre : (h2bList M.val ++ sfx).length = 8 * M.val.length + sfx.length :=
     paddedBits_pre_len M.val sfx
   have hpad : (h2bList M.val ++ sfx) ++ padBits (8 * rate.val) (h2bList M.val ++ sfx).length
@@ -423,11 +290,7 @@ theorem keccak_eq (OUTPUT_LEN rate : Std.Usize) (delim : Std.U8) (sfx : List Boo
   have hkclen : (keccakCList (1600 - 8 * rate.val) (h2bList M.val ++ sfx)
       (8 * OUTPUT_LEN.val)).length = 8 * OUTPUT_LEN.val :=
     keccakCList_len _ _ _ hc
-  refine ⟨mkArr OUTPUT_LEN (fun i => byteOf (fun t =>
-      (keccakF^[i / rate.val] (lanesToBits s0))[8 * (i % rate.val) + t]!)), ?_, ?_⟩
-  · unfold hacspec_sha3.sponge.keccak
-    rw [hs0, bind_tc_ok]
-    exact squeeze_eq OUTPUT_LEN s0 rate hrate1 hrate200 hout
+  rw [keccakLanes, ← hs0_def, squeezeLanes_bits OUTPUT_LEN s0 rate hrate1 hrate200]
   · rw [b2hList_of_len _ OUTPUT_LEN.val hkclen]
     show (List.range OUTPUT_LEN.val).map _ = _
     apply List.map_congr_left
@@ -478,248 +341,64 @@ theorem keccak_eq (OUTPUT_LEN rate : Std.Usize) (delim : Std.U8) (sfx : List Boo
       exact Nat.mod_eq_of_lt (by omega)
     rw [hdiv, hmod]
 
-/-! ### The six entry points -/
+/-! ### The six entry points
 
-theorem sha3_224_hacspec_eq (M : Slice Std.U8) :
-    ∃ out : Std.Array Std.U8 28#usize,
-      hacspec_sha3.sha3.sha3_224 M = ok out ∧
-      out.val = b2hList (keccakCList 448 (h2bList M.val ++ [false, true]) 224) := by
-  have hrate : hacspec_sha3.sha3.SHA3_224_RATE = 144#usize := by
-    simp [hacspec_sha3.sha3.SHA3_224_RATE]
-  have hdelim : hacspec_sha3.sha3.SHA3_DELIM = 6#u8 := by
-    simp [hacspec_sha3.sha3.SHA3_DELIM]
-  obtain ⟨out, hout, houtv⟩ := keccak_eq 28#usize 144#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
-  refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3.sha3.sha3_224
-    rw [hrate, hdelim]
-    exact hout
-  · rw [houtv]
-    norm_num
-
-/-- `SHA3-224`: the two specs agree. -/
-theorem sha3_224_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
-    ∃ out : Std.Array Std.U8 28#usize,
-      hacspec_sha3.sha3.sha3_224 M = ok out ∧
-      hacspec_sha3_pedantic.bytes.sha3_224 M = ok out := by
-  obtain ⟨o1, h1, h1v⟩ := sha3_224_hacspec_eq M
-  obtain ⟨o2, h2, h2v⟩ := sha3_224_bytes_eq M hm
-  have heq : o1 = o2 := Subtype.ext (by rw [h1v, h2v])
-  exact ⟨o1, h1, by rw [heq]; exact h2⟩
-
-theorem sha3_256_hacspec_eq (M : Slice Std.U8) :
-    ∃ out : Std.Array Std.U8 32#usize,
-      hacspec_sha3.sha3.sha3_256 M = ok out ∧
-      out.val = b2hList (keccakCList 512 (h2bList M.val ++ [false, true]) 256) := by
-  have hrate : hacspec_sha3.sha3.SHA3_256_RATE = 136#usize := by
-    simp [hacspec_sha3.sha3.SHA3_256_RATE]
-  have hdelim : hacspec_sha3.sha3.SHA3_DELIM = 6#u8 := by
-    simp [hacspec_sha3.sha3.SHA3_DELIM]
-  obtain ⟨out, hout, houtv⟩ := keccak_eq 32#usize 136#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
-  refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3.sha3.sha3_256
-    rw [hrate, hdelim]
-    exact hout
-  · rw [houtv]
-    norm_num
-
-/-- `SHA3-256`: the two specs agree. -/
-theorem sha3_256_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
-    ∃ out : Std.Array Std.U8 32#usize,
-      hacspec_sha3.sha3.sha3_256 M = ok out ∧
-      hacspec_sha3_pedantic.bytes.sha3_256 M = ok out := by
-  obtain ⟨o1, h1, h1v⟩ := sha3_256_hacspec_eq M
-  obtain ⟨o2, h2, h2v⟩ := sha3_256_bytes_eq M hm
-  have heq : o1 = o2 := Subtype.ext (by rw [h1v, h2v])
-  exact ⟨o1, h1, by rw [heq]; exact h2⟩
-
-theorem sha3_384_hacspec_eq (M : Slice Std.U8) :
-    ∃ out : Std.Array Std.U8 48#usize,
-      hacspec_sha3.sha3.sha3_384 M = ok out ∧
-      out.val = b2hList (keccakCList 768 (h2bList M.val ++ [false, true]) 384) := by
-  have hrate : hacspec_sha3.sha3.SHA3_384_RATE = 104#usize := by
-    simp [hacspec_sha3.sha3.SHA3_384_RATE]
-  have hdelim : hacspec_sha3.sha3.SHA3_DELIM = 6#u8 := by
-    simp [hacspec_sha3.sha3.SHA3_DELIM]
-  obtain ⟨out, hout, houtv⟩ := keccak_eq 48#usize 104#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
-  refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3.sha3.sha3_384
-    rw [hrate, hdelim]
-    exact hout
-  · rw [houtv]
-    norm_num
-
-/-- `SHA3-384`: the two specs agree. -/
-theorem sha3_384_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
-    ∃ out : Std.Array Std.U8 48#usize,
-      hacspec_sha3.sha3.sha3_384 M = ok out ∧
-      hacspec_sha3_pedantic.bytes.sha3_384 M = ok out := by
-  obtain ⟨o1, h1, h1v⟩ := sha3_384_hacspec_eq M
-  obtain ⟨o2, h2, h2v⟩ := sha3_384_bytes_eq M hm
-  have heq : o1 = o2 := Subtype.ext (by rw [h1v, h2v])
-  exact ⟨o1, h1, by rw [heq]; exact h2⟩
-
-theorem sha3_512_hacspec_eq (M : Slice Std.U8) :
-    ∃ out : Std.Array Std.U8 64#usize,
-      hacspec_sha3.sha3.sha3_512 M = ok out ∧
-      out.val = b2hList (keccakCList 1024 (h2bList M.val ++ [false, true]) 512) := by
-  have hrate : hacspec_sha3.sha3.SHA3_512_RATE = 72#usize := by
-    simp [hacspec_sha3.sha3.SHA3_512_RATE]
-  have hdelim : hacspec_sha3.sha3.SHA3_DELIM = 6#u8 := by
-    simp [hacspec_sha3.sha3.SHA3_DELIM]
-  obtain ⟨out, hout, houtv⟩ := keccak_eq 64#usize 72#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
-  refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3.sha3.sha3_512
-    rw [hrate, hdelim]
-    exact hout
-  · rw [houtv]
-    norm_num
-
-/-- `SHA3-512`: the two specs agree. -/
-theorem sha3_512_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
-    ∃ out : Std.Array Std.U8 64#usize,
-      hacspec_sha3.sha3.sha3_512 M = ok out ∧
-      hacspec_sha3_pedantic.bytes.sha3_512 M = ok out := by
-  obtain ⟨o1, h1, h1v⟩ := sha3_512_hacspec_eq M
-  obtain ⟨o2, h2, h2v⟩ := sha3_512_bytes_eq M hm
-  have heq : o1 = o2 := Subtype.ext (by rw [h1v, h2v])
-  exact ⟨o1, h1, by rw [heq]; exact h2⟩
-
-theorem shake128_hacspec_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296) :
-    ∃ out : Std.Array Std.U8 NU,
-      hacspec_sha3.sha3.shake128 NU M = ok out ∧
-      out.val = b2hList (keccakCList 256 (h2bList M.val ++ [true, true, true, true])
-        (8 * NU.val)) := by
-  have hrate : hacspec_sha3.sha3.SHAKE128_RATE = 168#usize := by
-    simp [hacspec_sha3.sha3.SHAKE128_RATE]
-  have hdelim : hacspec_sha3.sha3.SHAKE_DELIM = 31#u8 := by
-    simp [hacspec_sha3.sha3.SHAKE_DELIM]
-  obtain ⟨out, hout, houtv⟩ := keccak_eq NU 168#usize 31#u8 [true, true, true, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) hN
-  refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3.sha3.shake128
-    rw [hrate, hdelim]
-    exact hout
-  · rw [houtv]
-    norm_num
-
-theorem shake256_hacspec_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296) :
-    ∃ out : Std.Array Std.U8 NU,
-      hacspec_sha3.sha3.shake256 NU M = ok out ∧
-      out.val = b2hList (keccakCList 512 (h2bList M.val ++ [true, true, true, true])
-        (8 * NU.val)) := by
-  have hrate : hacspec_sha3.sha3.SHAKE256_RATE = 136#usize := by
-    simp [hacspec_sha3.sha3.SHAKE256_RATE]
-  have hdelim : hacspec_sha3.sha3.SHAKE_DELIM = 31#u8 := by
-    simp [hacspec_sha3.sha3.SHAKE_DELIM]
-  obtain ⟨out, hout, houtv⟩ := keccak_eq NU 136#usize 31#u8 [true, true, true, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) hN
-  refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3.sha3.shake256
-    rw [hrate, hdelim]
-    exact hout
-  · rw [houtv]
-    norm_num
-
-/-- `SHAKE128`: the two specs agree. -/
-theorem shake128_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
-    ∃ (o1 : Std.Array Std.U8 NU) (o2 : alloc.vec.Vec Std.U8),
-      hacspec_sha3.sha3.shake128 NU M = ok o1 ∧
-      hacspec_sha3_pedantic.bytes.shake128 M NU = ok o2 ∧ o1.val = o2.val := by
-  obtain ⟨o1, h1, h1v⟩ := shake128_hacspec_eq NU M hN
-  obtain ⟨o2, h2, h2v⟩ := shake128_bytes_eq M NU hob hm
-  exact ⟨o1, o2, h1, h2, by rw [h1v, h2v]⟩
-
-/-- `SHAKE256`: the two specs agree. -/
-theorem shake256_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
-    ∃ (o1 : Std.Array Std.U8 NU) (o2 : alloc.vec.Vec Std.U8),
-      hacspec_sha3.sha3.shake256 NU M = ok o1 ∧
-      hacspec_sha3_pedantic.bytes.shake256 M NU = ok o2 ∧ o1.val = o2.val := by
-  obtain ⟨o1, h1, h1v⟩ := shake256_hacspec_eq NU M hN
-  obtain ⟨o2, h2, h2v⟩ := shake256_bytes_eq M NU hob hm
-  exact ⟨o1, o2, h1, h2, by rw [h1v, h2v]⟩
-
--- Pin the six agreement theorems to Lean's standard three axioms.
-/-! ### (b) The six entry points on the lane model
-
-Each is `hacspec_sha3`'s entry point rewritten as the lane model's `keccakLanes`
-at that rate and delimiter, and then -- via the `*_agree` theorems above, which
-carry the FIPS-202 content -- the transcript's entry point saying the same thing.
-The first of each pair goes with the rest of the `hacspec_sha3` half; the second
-is what `Sponge/` will be stated against. -/
-
-theorem sha3_224_lanes_eq (M : Slice Std.U8) :
-    hacspec_sha3.sha3.sha3_224 M = ok (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8 M.val) := by
-  unfold hacspec_sha3.sha3.sha3_224
-  rw [show hacspec_sha3.sha3.SHA3_224_RATE = 144#usize from by simp [hacspec_sha3.sha3.SHA3_224_RATE],
-    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
-  exact keccak_lanes_eq 28#usize 144#usize 6#u8 M (by simp) (by simp) (by simp)
+Each says the transcript's entry point computes the lane model's `keccakLanes`
+at that rate and delimiter: `keccakLanes_bytes` gives the model's bytes, the
+`*_bytes_eq` theorems in `Sha3.lean` give the transcript's, and they are the
+same bit string.  These are what `Sponge/` is stated against. -/
 
 /-- `SHA3-224`: the transcript computes the lane model. -/
 theorem sha3_224_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     hacspec_sha3_pedantic.bytes.sha3_224 M
       = ok (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8 M.val) := by
-  obtain ⟨o1, h1, h2⟩ := sha3_224_agree M hm
-  rw [sha3_224_lanes_eq] at h1
-  rw [h2, (RustM.ok.injEq _ _).mp h1]
-
-theorem sha3_256_lanes_eq (M : Slice Std.U8) :
-    hacspec_sha3.sha3.sha3_256 M = ok (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8 M.val) := by
-  unfold hacspec_sha3.sha3.sha3_256
-  rw [show hacspec_sha3.sha3.SHA3_256_RATE = 136#usize from by simp [hacspec_sha3.sha3.SHA3_256_RATE],
-    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
-  exact keccak_lanes_eq 32#usize 136#usize 6#u8 M (by simp) (by simp) (by simp)
+  obtain ⟨o2, h2, h2v⟩ := sha3_224_bytes_eq M hm
+  have hkl := keccakLanes_bytes 28#usize 144#usize 6#u8 [false, true] M
+    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+  rw [h2]
+  congr 1
+  apply Subtype.ext
+  rw [h2v, hkl]
+  norm_num
 
 /-- `SHA3-256`: the transcript computes the lane model. -/
 theorem sha3_256_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     hacspec_sha3_pedantic.bytes.sha3_256 M
       = ok (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8 M.val) := by
-  obtain ⟨o1, h1, h2⟩ := sha3_256_agree M hm
-  rw [sha3_256_lanes_eq] at h1
-  rw [h2, (RustM.ok.injEq _ _).mp h1]
-
-theorem sha3_384_lanes_eq (M : Slice Std.U8) :
-    hacspec_sha3.sha3.sha3_384 M = ok (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8 M.val) := by
-  unfold hacspec_sha3.sha3.sha3_384
-  rw [show hacspec_sha3.sha3.SHA3_384_RATE = 104#usize from by simp [hacspec_sha3.sha3.SHA3_384_RATE],
-    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
-  exact keccak_lanes_eq 48#usize 104#usize 6#u8 M (by simp) (by simp) (by simp)
+  obtain ⟨o2, h2, h2v⟩ := sha3_256_bytes_eq M hm
+  have hkl := keccakLanes_bytes 32#usize 136#usize 6#u8 [false, true] M
+    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+  rw [h2]
+  congr 1
+  apply Subtype.ext
+  rw [h2v, hkl]
+  norm_num
 
 /-- `SHA3-384`: the transcript computes the lane model. -/
 theorem sha3_384_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     hacspec_sha3_pedantic.bytes.sha3_384 M
       = ok (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8 M.val) := by
-  obtain ⟨o1, h1, h2⟩ := sha3_384_agree M hm
-  rw [sha3_384_lanes_eq] at h1
-  rw [h2, (RustM.ok.injEq _ _).mp h1]
-
-theorem sha3_512_lanes_eq (M : Slice Std.U8) :
-    hacspec_sha3.sha3.sha3_512 M = ok (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8 M.val) := by
-  unfold hacspec_sha3.sha3.sha3_512
-  rw [show hacspec_sha3.sha3.SHA3_512_RATE = 72#usize from by simp [hacspec_sha3.sha3.SHA3_512_RATE],
-    show hacspec_sha3.sha3.SHA3_DELIM = 6#u8 from by simp [hacspec_sha3.sha3.SHA3_DELIM]]
-  exact keccak_lanes_eq 64#usize 72#usize 6#u8 M (by simp) (by simp) (by simp)
+  obtain ⟨o2, h2, h2v⟩ := sha3_384_bytes_eq M hm
+  have hkl := keccakLanes_bytes 48#usize 104#usize 6#u8 [false, true] M
+    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+  rw [h2]
+  congr 1
+  apply Subtype.ext
+  rw [h2v, hkl]
+  norm_num
 
 /-- `SHA3-512`: the transcript computes the lane model. -/
 theorem sha3_512_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
     hacspec_sha3_pedantic.bytes.sha3_512 M
       = ok (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8 M.val) := by
-  obtain ⟨o1, h1, h2⟩ := sha3_512_agree M hm
-  rw [sha3_512_lanes_eq] at h1
-  rw [h2, (RustM.ok.injEq _ _).mp h1]
-
-theorem shake128_lanes_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296) :
-    hacspec_sha3.sha3.shake128 NU M
-      = ok (keccakLanes NU (168#usize : Std.Usize).val 31#u8 M.val) := by
-  unfold hacspec_sha3.sha3.shake128
-  rw [show hacspec_sha3.sha3.SHAKE128_RATE = 168#usize from by simp [hacspec_sha3.sha3.SHAKE128_RATE],
-    show hacspec_sha3.sha3.SHAKE_DELIM = 31#u8 from by simp [hacspec_sha3.sha3.SHAKE_DELIM]]
-  exact keccak_lanes_eq NU 168#usize 31#u8 M (by simp) (by simp) hN
+  obtain ⟨o2, h2, h2v⟩ := sha3_512_bytes_eq M hm
+  have hkl := keccakLanes_bytes 64#usize 72#usize 6#u8 [false, true] M
+    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+  rw [h2]
+  congr 1
+  apply Subtype.ext
+  rw [h2v, hkl]
+  norm_num
 
 /-- `SHAKE128`: the transcript computes the lane model. -/
 theorem shake128_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
@@ -727,17 +406,12 @@ theorem shake128_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val �
     ∃ o2 : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake128 M NU = ok o2 ∧
       o2.val = (keccakLanes NU (168#usize : Std.Usize).val 31#u8 M.val).val := by
-  obtain ⟨o1, o2, h1, h2, hv⟩ := shake128_agree NU M hN hob hm
-  rw [shake128_lanes_eq NU M hN] at h1
-  exact ⟨o2, h2, by rw [← hv, (RustM.ok.injEq _ _).mp h1]⟩
-
-theorem shake256_lanes_eq (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296) :
-    hacspec_sha3.sha3.shake256 NU M
-      = ok (keccakLanes NU (136#usize : Std.Usize).val 31#u8 M.val) := by
-  unfold hacspec_sha3.sha3.shake256
-  rw [show hacspec_sha3.sha3.SHAKE256_RATE = 136#usize from by simp [hacspec_sha3.sha3.SHAKE256_RATE],
-    show hacspec_sha3.sha3.SHAKE_DELIM = 31#u8 from by simp [hacspec_sha3.sha3.SHAKE_DELIM]]
-  exact keccak_lanes_eq NU 136#usize 31#u8 M (by simp) (by simp) hN
+  obtain ⟨o2, h2, h2v⟩ := shake128_bytes_eq M NU hob hm
+  have hkl := keccakLanes_bytes NU 168#usize 31#u8 [true, true, true, true] M
+    (by simp) (by simp) (by simp) (by simp) (by decide) hN
+  refine ⟨o2, h2, ?_⟩
+  rw [h2v, hkl]
+  norm_num
 
 /-- `SHAKE256`: the transcript computes the lane model. -/
 theorem shake256_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
@@ -745,46 +419,14 @@ theorem shake256_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val �
     ∃ o2 : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake256 M NU = ok o2 ∧
       o2.val = (keccakLanes NU (136#usize : Std.Usize).val 31#u8 M.val).val := by
-  obtain ⟨o1, o2, h1, h2, hv⟩ := shake256_agree NU M hN hob hm
-  rw [shake256_lanes_eq NU M hN] at h1
-  exact ⟨o2, h2, by rw [← hv, (RustM.ok.injEq _ _).mp h1]⟩
+  obtain ⟨o2, h2, h2v⟩ := shake256_bytes_eq M NU hob hm
+  have hkl := keccakLanes_bytes NU 136#usize 31#u8 [true, true, true, true] M
+    (by simp) (by simp) (by simp) (by simp) (by decide) hN
+  refine ⟨o2, h2, ?_⟩
+  rw [h2v, hkl]
+  norm_num
 
-
-/--
-info: 'LibcruxIotSha3.Composition.Pedantic.sha3_224_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms sha3_224_agree
-
-/--
-info: 'LibcruxIotSha3.Composition.Pedantic.sha3_256_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms sha3_256_agree
-
-/--
-info: 'LibcruxIotSha3.Composition.Pedantic.sha3_384_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms sha3_384_agree
-
-/--
-info: 'LibcruxIotSha3.Composition.Pedantic.sha3_512_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms sha3_512_agree
-
-/--
-info: 'LibcruxIotSha3.Composition.Pedantic.shake128_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms shake128_agree
-
-/--
-info: 'LibcruxIotSha3.Composition.Pedantic.shake256_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
--/
-#guard_msgs in
-#print axioms shake256_agree
+-- Pin the six agreements to Lean's standard three axioms.
 
 /--
 info: 'LibcruxIotSha3.Composition.Pedantic.sha3_224_lanes_agree' depends on axioms: [propext, Classical.choice, Quot.sound]

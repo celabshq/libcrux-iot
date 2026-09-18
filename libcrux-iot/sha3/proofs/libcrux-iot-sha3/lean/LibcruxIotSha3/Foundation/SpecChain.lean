@@ -17,7 +17,7 @@
 -/
 import LibcruxIotSha3.Foundation.SpecStep
 
-open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3
 
 namespace libcrux_iot_sha3.Foundation
 

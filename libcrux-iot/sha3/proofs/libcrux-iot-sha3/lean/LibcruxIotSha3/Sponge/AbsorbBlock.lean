@@ -13,11 +13,9 @@
     keccak.keccakf1600 s1
   ```
 
-  Spec side (`HacspecSha3/Extraction/Funs.lean:1157`):
+  Model side (`SpongeModel.lean`):
   ```
-  def sponge.absorb_block state block rate := do
-    let state1 ← sponge.xor_block_into_state state block rate
-    keccak_f.keccak_f state1
+  def absorbBlockLanes s blk rate := keccakFLanes (xorLanes s blk rate)
   ```
 
   ## Post
@@ -67,7 +65,7 @@
 -/
 import LibcruxIotSha3.Sponge.Bytes
 
-open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3
 open LibcruxIotSha3.LaneModel
 open LibcruxIotSha3.SpongeModel
 

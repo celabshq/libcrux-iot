@@ -17,23 +17,11 @@ name = "hax"
 git = "https://github.com/cryspen/hax-lean"
 rev = "v0.3.17"
 
-# The two machine-extracted FIPS-202 hacspecs from celabshq/libcrux, both
+# `hacspec_sha3_pedantic` (specs/sha3-pedantic) from celabshq/libcrux: the
+# FIPS 202 transcript (state array of bits, Algorithms 1-11).  This is what the
+# crate's `#[ensures]` clauses name and what the trust argument rests on.  It is
 # pinned by COMMIT SHA (never by branch name) to the same revision Cargo.toml
-# pins for the corresponding crates:
-#
-#   * `hacspec_sha3_pedantic` (specs/sha3-pedantic) -- the FIPS 202 transcript
-#     (state array of bits, Algorithms 1-11). This is what the crate's
-#     `#[ensures]` clauses name and what the trust argument rests on;
-#   * `hacspec_sha3` (specs/sha3) -- the original spec, written the way the
-#     implementations are structured (lanes as u64, rate in bytes). The sponge
-#     proof is stated against it; `Composition/Pedantic/` proves the two agree,
-#     so it is an internal stepping stone rather than part of the trusted base.
-[[require]]
-name = "HacspecSha3"
-git = "https://github.com/celabshq/libcrux"
-rev = "6aeb457febf4bbfe0b0faee482dc4e76f76fb081"
-subDir = "specs/sha3/proofs/hacspec-sha3/lean"
-
+# pins for the corresponding crate.
 [[require]]
 name = "HacspecSha3Pedantic"
 git = "https://github.com/celabshq/libcrux"

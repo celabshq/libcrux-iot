@@ -57,6 +57,45 @@ theorem from_le_bytes_bit (a : Std.Array Std.U8 8#usize) (z : Nat) (hz : z < 64)
 
 /-! ### Slicing and `try_from` -/
 
+/-! ### `array_from_fn` over a stateless closure -/
+
+theorem usize_ofNat_val (n : Nat) (hn : n < 4294967296) :
+    (⟨BitVec.ofNat Std.UScalarTy.Usize.numBits n⟩ : Std.Usize).val = n := by
+  show (BitVec.ofNat _ n).toNat = n
+  simp only [BitVec.toNat_ofNat]
+  apply Nat.mod_eq_of_lt
+  have hb : Std.UScalarTy.Usize.numBits = System.Platform.numBits := rfl
+  have h32 : (32 : Nat) ≤ Std.UScalarTy.Usize.numBits := by
+    rw [hb]; have := System.Platform.numBits_eq; omega
+  calc n < 4294967296 := hn
+    _ = 2 ^ 32 := by norm_num
+    _ ≤ 2 ^ Std.UScalarTy.Usize.numBits := Nat.pow_le_pow_right (by decide) h32
+
+/-- A `FnMut` closure that neither reads nor changes its state builds the list
+    `[g 0, g 1, …]`. -/
+theorem array_from_fn_go_eq {T F : Type} (inst : core.ops.function.FnMut F Std.Usize T)
+    (c : F) (g : Nat → T) (N : Nat) (hN : N ≤ 4294967296)
+    (hcall : ∀ i : Std.Usize, i.val < N → inst.call_mut c i = ok (g i.val, c)) :
+    ∀ n : Nat, n ≤ N →
+      rust_primitives.slice.array_from_fn_go inst c n = ok ((List.range n).map g, c) := by
+  intro n
+  induction n with
+  | zero => intro _; rfl
+  | succ n ih =>
+    intro hn
+    have hnv : (⟨BitVec.ofNat Std.UScalarTy.Usize.numBits n⟩ : Std.Usize).val = n :=
+      usize_ofNat_val n (by omega)
+    show (do
+      let p ← rust_primitives.slice.array_from_fn_go inst c n
+      let q ← inst.call_mut p.2 ⟨BitVec.ofNat _ n⟩
+      ok (p.1 ++ [q.1], q.2)) = _
+    rw [ih (by omega), bind_tc_ok]
+    show (do
+      let q ← inst.call_mut c ⟨BitVec.ofNat _ n⟩
+      ok ((List.range n).map g ++ [q.1], q.2)) = _
+    rw [hcall ⟨BitVec.ofNat _ n⟩ (by rw [hnv]; omega), bind_tc_ok, hnv]
+    simp [List.range_succ]
+
 theorem array_from_fn_eq {T F : Type} (N : Std.Usize)
     (inst : core.ops.function.FnMut F Std.Usize T) (c : F) (g : Nat → T)
     (hN : N.val ≤ 4294967296)
@@ -119,68 +158,6 @@ theorem mkArr_congr {T : Type} (N : Std.Usize) {g h : Nat → T}
   apply List.map_congr_left
   intro i hi
   exact hgh i (by simpa using hi)
-
-/-! ### `xor_block_into_state` -/
-
-theorem xor_block_into_state_eq (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
-    (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
-    hacspec_sha3.sponge.xor_block_into_state s blk rate
-      = ok (xorLanes s blk.val rate.val) := by
-  unfold hacspec_sha3.sponge.xor_block_into_state
-  refine createi_eq _ _ _ _ (by simp) ?_
-  intro t ht
-  have ht25 : t.val < 25 := by simpa using ht
-  unfold hacspec_sha3.sponge.xor_block_into_state.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU64
-  show hacspec_sha3.sponge.xor_block_into_state.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU64.call_mut
-    (rate, s, blk) t = _
-  unfold
-    hacspec_sha3.sponge.xor_block_into_state.closure.Insts.CoreOpsFunctionFnMutTupleUsizeU64.call_mut
-  obtain ⟨q, hq, hqv⟩ := usize_div_eq rate 8#usize (by simp)
-  have hqn : q.val = rate.val / 8 := by rw [hqv]; simp
-  show (do
-      let i1 ← rate / 8#usize
-      if t < i1 then do
-        let i2 ← Std.Array.index_usize s t
-        let i3 ← 8#usize * t
-        let i4 ← i3 + 8#usize
-        let s1 ← core.Slice.Insts.CoreOpsIndexIndex.index
-          (core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8) blk
-          { start := i3, «end» := i4 }
-        let r ← core.Array.Insts.CoreConvertTryFromShared0SliceTryFromSliceError.try_from
-          8#usize core.U8.Insts.CoreMarkerCopy s1
-        let a1 ← core.result.Result.unwrap
-          core.array.TryFromSliceError.Insts.CoreFmtDebug r
-        let i5 ← core.num.U64.from_le_bytes a1
-        let i6 ← Std.lift (i2 ^^^ i5)
-        ok (i6, (rate, s, blk))
-      else do
-        let i2 ← Std.Array.index_usize s t
-        ok (i2, (rate, s, blk))) = _
-  rw [hq, bind_tc_ok]
-  by_cases hlt : t.val < rate.val / 8
-  · rw [if_pos (show t < q from (Std.UScalar.lt_equiv t q).mpr (by omega))]
-    obtain ⟨a, ha, hav⟩ := usize_mul_eq 8#usize t (by scalar_tac)
-    obtain ⟨b, hb, hbv⟩ := usize_add_eq a 8#usize (by scalar_tac)
-    have han : a.val = 8 * t.val := by rw [hav]; simp
-    have hbn : b.val = 8 * t.val + 8 := by rw [hbv, han]; simp
-    rw [index_usize_eq s t (by simp; omega), bind_tc_ok, ha, bind_tc_ok, hb, bind_tc_ok,
-      slice_index_range_eq blk a b (by omega) (by omega), bind_tc_ok,
-      slice_try_from_eq 8#usize core.U8.Insts.CoreMarkerCopy _
-        (by simp only []; rw [List.slice_length]; simp; omega) (by simp), bind_tc_ok,
-      unwrap_ok_eq, bind_tc_ok]
-    simp only [core.num.U64.from_le_bytes, rust_primitives.arithmetic.from_le_bytes_u64,
-      bind_tc_ok, Std.lift]
-    rw [show mkArr 8#usize (fun j => (blk.val.slice a.val b.val)[j]!)
-        = mkArr 8#usize (fun j => blk.val[8 * t.val + j]!) from
-      mkArr_congr _ (fun j hj => by
-        rw [slice_slice_get blk a b j (by omega) (by omega) (by simp at hj; omega), han])]
-    rw [if_pos hlt, blockLane]
-    rfl
-  · rw [if_neg (show ¬ t < q from fun hc => hlt (by
-      have := (Std.UScalar.lt_equiv t q).mp hc; omega))]
-    rw [index_usize_eq s t (by simp; omega), bind_tc_ok, if_neg hlt]
-    rfl
-
 
 /-! ### `h2b` by index -/
 
@@ -312,15 +289,6 @@ theorem h2bList_drop (l : List Std.U8) (n : Nat) :
 
 /-! ### `absorb_block` -/
 
-/-- (b) `hacspec_sha3`'s absorb step is the model's. -/
-theorem absorb_block_lanes_eq (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
-    (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
-    hacspec_sha3.sponge.absorb_block s blk rate
-      = ok (absorbBlockLanes s blk.val rate.val) := by
-  unfold hacspec_sha3.sponge.absorb_block
-  rw [xor_block_into_state_eq s blk rate hblk, bind_tc_ok, keccak_f_lanes_eq]
-  rfl
-
 /-- (c) One absorb step on the bits: XOR the block's bits into the rate, then
     permute. -/
 theorem lanesToBits_absorbBlockLanes (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
@@ -328,14 +296,6 @@ theorem lanesToBits_absorbBlockLanes (s : Lanes) (blk : Slice Std.U8) (rate : St
     lanesToBits (absorbBlockLanes s blk.val rate.val)
       = keccakF (List.zipWith (· ^^ ·) (lanesToBits s) (blockMask blk (rate.val / 8))) := by
   rw [absorbBlockLanes, ← keccakF_lanesToBits, lanesToBits_xorLanes s blk rate hL hblk]
-
-theorem absorb_block_eq (s : Lanes) (blk : Slice Std.U8) (rate : Std.Usize)
-    (hL : rate.val / 8 ≤ 25) (hblk : 8 * (rate.val / 8) ≤ blk.val.length) :
-    ∃ s' : Lanes, hacspec_sha3.sponge.absorb_block s blk rate = ok s' ∧
-      lanesToBits s'
-        = keccakF (List.zipWith (· ^^ ·) (lanesToBits s) (blockMask blk (rate.val / 8))) :=
-  ⟨absorbBlockLanes s blk.val rate.val, absorb_block_lanes_eq s blk rate hblk,
-    lanesToBits_absorbBlockLanes s blk rate hL hblk⟩
 
 /-! ### `pad_last_block` -/
 
@@ -346,50 +306,6 @@ theorem padBlockPre_len (msg : List Std.U8) (off rem : Nat) (delim : Std.U8) :
 theorem padBlockList_len (msg : List Std.U8) (off rem rate : Nat) (delim : Std.U8) :
     (padBlockList msg off rem rate delim).length = 200 := by
   simp only [padBlockList, List.length_set, padBlockPre_len]
-
-set_option maxRecDepth 10000 in
-theorem pad_last_block_eq (message : Slice Std.U8) (off rem rate : Std.Usize) (delim : Std.U8)
-    (hrem : rem.val < rate.val) (hrate200 : rate.val ≤ 200) (hrate1 : 1 ≤ rate.val)
-    (hmsg : off.val + rem.val ≤ message.val.length) :
-    hacspec_sha3.sponge.pad_last_block message off rem rate delim
-      = ok ⟨padBlockList message.val off.val rem.val rate.val delim, by
-          rw [padBlockList_len]; simp⟩ := by
-  obtain ⟨i, hi, hiv⟩ := usize_add_eq off rem (by scalar_tac)
-  have hin : i.val = off.val + rem.val := by rw [hiv]
-  obtain ⟨j, hj, hjv⟩ := usize_sub_eq rate 1#usize (by simp; omega)
-  have hjn : j.val = rate.val - 1 := by rw [hjv]; simp
-  have hsl : (message.val.slice off.val i.val).length = rem.val := by
-    rw [List.slice_length]; omega
-  unfold hacspec_sha3.sponge.pad_last_block
-  generalize hbuf : Std.Array.repeat 200#usize 0#u8 = buf
-  have hblen : buf.val.length = 200 := by rw [← hbuf]; simp [Std.Array.repeat]
-  have hbval : buf.val = List.replicate 200 (0#u8) := by rw [← hbuf]; simp [Std.Array.repeat]
-  simp only [core.Array.Insts.CoreOpsIndexIndexMut.index_mut, core.array.Array.as_mut_slice,
-    rust_primitives.slice.array_as_mut_slice, Std.Array.to_slice_mut, Std.Array.to_slice,
-    core.Slice.Insts.CoreOpsIndexIndexMut.index_mut,
-    core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice.get_unchecked_mut,
-    rust_primitives.slice.slice_slice_mut, Std.Slice.subslice, bind_tc_ok, Std.Slice.length]
-  simp [hblen, show rem.val ≤ 200 from by omega]
-  rw [hi, bind_tc_ok, slice_index_range_eq message off i (by omega) (by omega), bind_tc_ok,
-    copy_from_slice_eq _ _ (by
-      simp only [List.length_take, hsl]
-      omega), bind_tc_ok]
-  rw [array_update_eq _ rem delim (by simp; omega)]
-  rw [bind_tc_ok, hj, bind_tc_ok, index_usize_eq _ j (by simp; omega), bind_tc_ok]
-  simp only [Std.lift, bind_tc_ok]
-  rw [array_update_eq _ j _ (by simp; omega)]
-  apply congrArg
-  apply Subtype.ext
-  show ((Std.Array.from_slice buf ⟨buf.val.setSlice! 0 (message.val.slice off.val i.val), by
-      rw [List.length_setSlice!, hblen]; scalar_tac⟩).val.set rem.val delim).set j.val
-      (((Std.Array.from_slice buf ⟨buf.val.setSlice! 0 (message.val.slice off.val i.val), by
-        rw [List.length_setSlice!, hblen]; scalar_tac⟩).val.set rem.val delim)[j.val]! ||| 128#u8)
-    = padBlockList message.val off.val rem.val rate.val delim
-  rw [Std.Array.from_slice_val _ _ (by rw [List.length_setSlice!]; exact hblen)]
-  simp only [padBlockList, padBlockPre, hbval, hin, hjn]
-
-
-/-! ### The padded block, byte by byte -/
 
 theorem list_getElem!_set {α : Type} [Inhabited α] (l : List α) (i : Nat) (x : α) (k : Nat)
     (hk : k < l.length) : (l.set i x)[k]! = if k = i then x else l[k]! := by

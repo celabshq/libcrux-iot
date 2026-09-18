@@ -26,7 +26,7 @@
 -/
 import LibcruxIotSha3.Sponge.Opaque
 
-open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3
 open LibcruxIotSha3.LaneModel
 open LibcruxIotSha3.SpongeModel
 

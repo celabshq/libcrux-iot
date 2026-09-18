@@ -315,30 +315,6 @@ private theorem lastBlockSlice_len (message : Slice Std.U8) (off rem rate : Std.
   show ((padBlockList message.val off.val rem.val rate.val delim).take rate.val).length = _
   rw [List.length_take, padBlockList_len]; omega
 
-/-- (b) `hacspec_sha3`'s last-block absorb is the model's. -/
-theorem absorb_final_lanes_eq (s : Lanes) (message : Slice Std.U8) (off rem rate : Std.Usize)
-    (delim : Std.U8) (hrem : rem.val < rate.val) (hrate200 : rate.val ≤ 200)
-    (hrate1 : 1 ≤ rate.val) (hmsg : off.val + rem.val ≤ message.val.length) :
-    hacspec_sha3.sponge.absorb_final s message off rem rate delim
-      = ok (absorbFinalLanes s message.val off.val rem.val rate.val delim) := by
-  have hblen : (padBlockList message.val off.val rem.val rate.val delim).length = 200 :=
-    padBlockList_len _ _ _ _ _
-  have hslice : (padBlockList message.val off.val rem.val rate.val delim).slice 0 rate.val
-      = (padBlockList message.val off.val rem.val rate.val delim).take rate.val := by
-    simp only [List.slice, List.drop_zero, Nat.sub_zero]
-  have hz : (0#usize : Std.Usize).val = 0 := rfl
-  unfold hacspec_sha3.sponge.absorb_final
-  rw [pad_last_block_eq message off rem rate delim hrem hrate200 hrate1 hmsg, bind_tc_ok,
-    array_index_range_eq _ 0#usize rate (by simp) (by rw [hblen]; omega), bind_tc_ok]
-  rw [absorb_block_lanes_eq _ _ rate
-    (by show 8 * (rate.val / 8)
-          ≤ ((padBlockList message.val off.val rem.val rate.val delim).slice
-              (0#usize : Std.Usize).val rate.val).length
-        rw [hz, hslice, List.length_take, hblen]; omega)]
-  -- `slice 0 rate` and `take rate` are the same list, definitionally.
-  unfold absorbFinalLanes
-  congr 2
-
 /-- (c) The last block on the bits. -/
 theorem lanesToBits_absorbFinalLanes (s : Lanes) (message : Slice Std.U8)
     (off rem rate : Std.Usize) (delim : Std.U8) (hrate200 : rate.val ≤ 200)
@@ -355,19 +331,6 @@ theorem lanesToBits_absorbFinalLanes (s : Lanes) (message : Slice Std.U8)
     (lastBlockSlice message off rem rate delim hrate200).val rate.val) = _
   rw [hbits, blockMask_exact _ rate.val hrate8 hslen (by omega)]
   rfl
-
-theorem absorb_final_eq (s : Lanes) (message : Slice Std.U8) (off rem rate : Std.Usize)
-    (delim : Std.U8) (hrem : rem.val < rate.val) (hrate200 : rate.val ≤ 200)
-    (hrate1 : 1 ≤ rate.val) (hrate8 : rate.val % 8 = 0)
-    (hmsg : off.val + rem.val ≤ message.val.length) :
-    ∃ s' : Lanes, hacspec_sha3.sponge.absorb_final s message off rem rate delim = ok s' ∧
-      lanesToBits s' = keccakF (List.zipWith (· ^^ ·) (lanesToBits s)
-        (h2bList ((padBlockList message.val off.val rem.val rate.val delim).take rate.val)
-          ++ List.replicate (1600 - 8 * rate.val) false)) :=
-  ⟨absorbFinalLanes s message.val off.val rem.val rate.val delim,
-    absorb_final_lanes_eq s message off rem rate delim hrem hrate200 hrate1 hmsg,
-    lanesToBits_absorbFinalLanes s message off rem rate delim hrate200 hrate1 hrate8⟩
-
 
 /-! ### The absorb recursion -/
 
@@ -387,83 +350,9 @@ theorem slice_index_from_eq {α : Type} (v : Slice α) (a : Std.Usize) (ha : a.v
   simp only []
   rw [List.take_of_length_le (by simp)]
 
-/-- (b) `hacspec_sha3`'s absorb recursion is the model's.  The induction is on
-    the number of full blocks left, as in `absorb_rec_bits` below; only the
-    `RustM` half is needed here, so the bit reasoning stays there. -/
-theorem absorb_rec_lanes_eq (rate : Std.Usize) (delim : Std.U8)
-    (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) :
-    ∀ (k : Nat) (s : Lanes) (Msuf : Slice Std.U8),
-      Msuf.val.length / rate.val = k →
-      hacspec_sha3.sponge.absorb_rec s rate delim Msuf
-        = ok (absorbRecLanes rate.val delim s Msuf.val) := by
-  intro k
-  induction k with
-  | zero =>
-    intro s Msuf hk
-    have hlt : Msuf.val.length < rate.val := by
-      rcases Nat.lt_or_ge Msuf.val.length rate.val with h | h
-      · exact h
-      · exact absurd hk (by have := Nat.div_pos h (show 0 < rate.val by omega); omega)
-    rw [hacspec_sha3.sponge.absorb_rec, slice_len_eq, bind_tc_ok,
-      if_pos (show (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize) < rate from
-        (Std.UScalar.lt_equiv _ _).mpr (by simpa using hlt)),
-      absorb_final_lanes_eq s Msuf 0#usize
-        (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac)) rate delim
-        (by simpa using hlt) hrate200 hrate1 (by simp)]
-    rw [absorbRecLanes, dif_neg (show ¬ (0 < rate.val ∧ rate.val ≤ Msuf.val.length) from by omega)]
-    congr 2
-  | succ k ih =>
-    intro s Msuf hk
-    have hge : rate.val ≤ Msuf.val.length := by
-      rcases Nat.lt_or_ge Msuf.val.length rate.val with h | h
-      · exact absurd hk (by rw [Nat.div_eq_of_lt h]; omega)
-      · exact h
-    have hz : (0#usize : Std.Usize).val = 0 := by simp
-    have hsl : Msuf.val.slice (0#usize : Std.Usize).val rate.val = Msuf.val.take rate.val := by
-      rw [hz]; simp only [List.slice, List.drop_zero, Nat.sub_zero]
-    have hsllen : (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length = rate.val := by
-      rw [hsl, List.length_take]; omega
-    have hdrop : (Msuf.val.drop rate.val).length / rate.val = k := by
-      have hmod : Msuf.val.length % rate.val < rate.val := Nat.mod_lt _ (by omega)
-      have hdm := Nat.div_add_mod Msuf.val.length rate.val
-      rw [hk] at hdm
-      have hcm2 : rate.val * (k + 1) = k * rate.val + rate.val := by ring
-      rw [List.length_drop,
-        show Msuf.val.length - rate.val = Msuf.val.length % rate.val + k * rate.val from by omega,
-        Nat.add_mul_div_right _ _ (by omega), Nat.div_eq_of_lt hmod]
-      omega
-    rw [hacspec_sha3.sponge.absorb_rec, slice_len_eq, bind_tc_ok,
-      if_neg (show ¬ ((Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize) < rate)
-        from fun hc => by
-          have h := (Std.UScalar.lt_equiv _ _).mp hc
-          simp at h
-          omega),
-      slice_index_range_eq Msuf 0#usize rate (by scalar_tac) (by scalar_tac), bind_tc_ok,
-      absorb_block_lanes_eq s ⟨Msuf.val.slice (0#usize : Std.Usize).val rate.val, by
-        rw [hsllen]; scalar_tac⟩ rate
-        (show 8 * (rate.val / 8)
-            ≤ (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length from by
-          rw [hsllen]; omega),
-      bind_tc_ok, slice_index_from_eq Msuf rate (by omega), bind_tc_ok,
-      ih _ ⟨Msuf.val.drop rate.val, by
-        have := Msuf.property
-        have h2 : (Msuf.val.drop rate.val).length ≤ Msuf.val.length := by simp
-        scalar_tac⟩ hdrop]
-    conv_rhs =>
-      rw [absorbRecLanes,
-        dif_pos (show 0 < rate.val ∧ rate.val ≤ Msuf.val.length from ⟨by omega, hge⟩)]
-    -- Both sides are now the same recursion; only `slice 0 rate` vs `take rate`
-    -- separates them, and `rw` cannot see into the `Slice` literal.
-    show ok (absorbRecLanes rate.val delim
-          (absorbBlockLanes s (Msuf.val.slice (0#usize : Std.Usize).val rate.val) rate.val)
-          (Msuf.val.drop rate.val))
-        = ok (absorbRecLanes rate.val delim
-          (absorbBlockLanes s (Msuf.val.take rate.val) rate.val) (Msuf.val.drop rate.val))
-    rw [hsl]
-
 set_option maxHeartbeats 1000000 in
 set_option maxRecDepth 20000 in
-theorem absorb_rec_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
+theorem lanesToBits_absorbRecLanes (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
     (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) (hrate8 : rate.val % 8 = 0)
     (hsfx : sfx.length + 2 ≤ 8)
     (hdelim : byteBits delim = sfx ++ true :: List.replicate (7 - sfx.length) false)
@@ -472,8 +361,8 @@ theorem absorb_rec_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
       i * rate.val ≤ M.length →
       Msuf.val = M.drop (i * rate.val) →
       Msuf.val.length / rate.val = k →
-      ∃ s' : Lanes, hacspec_sha3.sponge.absorb_rec s rate delim Msuf = ok s' ∧
-        lanesToBits s' = absorbFrom keccakF (8 * rate.val) (1600 - 8 * rate.val)
+      lanesToBits (absorbRecLanes rate.val delim s Msuf.val)
+        = absorbFrom keccakF (8 * rate.val) (1600 - 8 * rate.val)
           (paddedBits M sfx (8 * rate.val)) (lanesToBits s) i (k + 1) := by
   intro k
   induction k with
@@ -493,24 +382,21 @@ theorem absorb_rec_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
       rw [hMdiv] at hdm
       have hc : i * rate.val = rate.val * i := by ring
       omega
-    obtain ⟨s', hs', hbits⟩ := absorb_final_eq s Msuf 0#usize
-      (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac)) rate delim
-      (by simpa using hlt) hrate200 hrate1 hrate8 (by simp)
-    refine ⟨s', ?_, ?_⟩
-    · rw [hacspec_sha3.sponge.absorb_rec, slice_len_eq, bind_tc_ok,
-        if_pos (show (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize) < rate from
-          (Std.UScalar.lt_equiv _ _).mpr (by simpa using hlt))]
-      exact hs'
-    · rw [hbits]
-      simp only [absorbFrom, absorbStep]
-      congr 2
-      rw [show (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize).val
-          = Msuf.val.length from by simp,
-        show (0#usize : Std.Usize).val = 0 from by simp, hMs, padBlockList_drop,
-        show (M.drop (i * rate.val)).length = M.length % rate.val from by rw [← hMs, hMmod],
-        show i * rate.val = M.length / rate.val * rate.val from by rw [hMdiv]]
-      rw [last_block_eq M sfx rate.val delim hrate1 hrate200 hsfx hdelim,
-        show M.length / rate.val * (8 * rate.val) = i * (8 * rate.val) from by rw [hMdiv]]
+    have hbits := lanesToBits_absorbFinalLanes s Msuf 0#usize
+      (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac)) rate delim hrate200 hrate1 hrate8
+    rw [absorbRecLanes_short rate.val delim s Msuf.val hlt]
+    rw [show Msuf.val.length
+          = (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize).val from by simp,
+      show (0 : Nat) = (0#usize : Std.Usize).val from by simp, hbits]
+    simp only [absorbFrom, absorbStep]
+    congr 2
+    rw [show (Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize).val
+        = Msuf.val.length from by simp,
+      show (0#usize : Std.Usize).val = 0 from by simp, hMs, padBlockList_drop,
+      show (M.drop (i * rate.val)).length = M.length % rate.val from by rw [← hMs, hMmod],
+      show i * rate.val = M.length / rate.val * rate.val from by rw [hMdiv]]
+    rw [last_block_eq M sfx rate.val delim hrate1 hrate200 hsfx hdelim,
+      show M.length / rate.val * (8 * rate.val) = i * (8 * rate.val) from by rw [hMdiv]]
   | succ k ih =>
     intro i s Msuf hile hMs hk
     have hMlen : Msuf.val.length = M.length - i * rate.val := by rw [hMs]; simp
@@ -523,13 +409,14 @@ theorem absorb_rec_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
       rw [hz]; simp only [List.slice, List.drop_zero, Nat.sub_zero]
     have hsllen : (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length = rate.val := by
       rw [hsl, List.length_take]; omega
-    obtain ⟨s1, hs1, hb1⟩ := absorb_block_eq s
+    have hb1 := lanesToBits_absorbBlockLanes s
       ⟨Msuf.val.slice (0#usize : Std.Usize).val rate.val, by rw [hsllen]; scalar_tac⟩ rate
       (by omega)
       (show 8 * (rate.val / 8)
           ≤ (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length from by
         rw [hsllen]; omega)
-    obtain ⟨s', hs', hb'⟩ := ih (i + 1) s1
+    have hb' := ih (i + 1)
+      (absorbBlockLanes s (Msuf.val.slice (0#usize : Std.Usize).val rate.val) rate.val)
       ⟨Msuf.val.drop rate.val, by
         have := Msuf.property
         have h2 : (Msuf.val.drop rate.val).length ≤ Msuf.val.length := by simp
@@ -547,32 +434,25 @@ theorem absorb_rec_bits (rate : Std.Usize) (delim : Std.U8) (sfx : List Bool)
             omega,
           Nat.add_mul_div_right _ _ (by omega), Nat.div_eq_of_lt hmod]
         omega)
-    refine ⟨s', ?_, ?_⟩
-    · rw [hacspec_sha3.sponge.absorb_rec, slice_len_eq, bind_tc_ok,
-        if_neg (show ¬ ((Std.Usize.ofNatCore Msuf.val.length (by scalar_tac) : Std.Usize) < rate)
-          from fun hc => by
-            have h := (Std.UScalar.lt_equiv _ _).mp hc
-            simp at h
-            omega),
-        slice_index_range_eq Msuf 0#usize rate (by scalar_tac) (by scalar_tac), bind_tc_ok, hs1,
-        bind_tc_ok, slice_index_from_eq Msuf rate (by omega), bind_tc_ok]
-      exact hs'
-    · rw [hb', hb1]
-      have hfull : (i + 1) * rate.val ≤ M.length := by
-        rw [Nat.add_mul, Nat.one_mul]; omega
-      have hblk : blockMask ⟨Msuf.val.slice (0#usize : Std.Usize).val rate.val, by
-            rw [hsllen]; scalar_tac⟩ (rate.val / 8)
-          = ((paddedBits M sfx (8 * rate.val)).drop (i * (8 * rate.val))).take (8 * rate.val)
-            ++ List.replicate (1600 - 8 * rate.val) false := by
-        rw [blockMask_exact _ rate.val hrate8
-          (show (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length = rate.val
-            from hsllen) (by omega)]
-        rw [paddedBits_block_full M sfx rate.val i hfull]
-        congr 2
-        show Msuf.val.slice (0#usize : Std.Usize).val rate.val
-          = (M.drop (i * rate.val)).take rate.val
-        rw [hsl, hMs]
-      rw [hblk]
-      simp only [absorbFrom, absorbStep]
+    rw [absorbRecLanes_long rate.val delim s Msuf.val (by omega) hge,
+      show Msuf.val.take rate.val
+        = Msuf.val.slice (0#usize : Std.Usize).val rate.val from hsl.symm,
+      hb', hb1]
+    have hfull : (i + 1) * rate.val ≤ M.length := by
+      rw [Nat.add_mul, Nat.one_mul]; omega
+    have hblk : blockMask ⟨Msuf.val.slice (0#usize : Std.Usize).val rate.val, by
+          rw [hsllen]; scalar_tac⟩ (rate.val / 8)
+        = ((paddedBits M sfx (8 * rate.val)).drop (i * (8 * rate.val))).take (8 * rate.val)
+          ++ List.replicate (1600 - 8 * rate.val) false := by
+      rw [blockMask_exact _ rate.val hrate8
+        (show (Msuf.val.slice (0#usize : Std.Usize).val rate.val).length = rate.val
+          from hsllen) (by omega)]
+      rw [paddedBits_block_full M sfx rate.val i hfull]
+      congr 2
+      show Msuf.val.slice (0#usize : Std.Usize).val rate.val
+        = (M.drop (i * rate.val)).take rate.val
+      rw [hsl, hMs]
+    rw [hblk]
+    simp only [absorbFrom, absorbStep]
 
 end LibcruxIotSha3.Composition.Pedantic

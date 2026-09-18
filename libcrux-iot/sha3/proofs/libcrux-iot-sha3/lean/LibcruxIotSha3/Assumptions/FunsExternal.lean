@@ -1,8 +1,6 @@
 -- External function definitions for `libcrux-iot-sha3` (hand-written).
 -- CoreModels supplies every model the extraction references, so what is left
--- here is the `libcrux_secrets` helpers, which no spec provides. (The
--- `HaxToRange` helper class this file used to borrow from `HacspecSha3` is gone:
--- CoreModels' native `index_mut` removed the detour that needed it.)
+-- here is the `libcrux_secrets` helpers, which no spec provides.
 --
 -- This file is also where the spec package enters the generated extraction's import
 -- tree: hax emits `Extraction/FunsExternal.lean` as a one-line shim onto this file

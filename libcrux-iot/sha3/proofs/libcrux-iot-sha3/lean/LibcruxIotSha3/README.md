@@ -9,10 +9,11 @@ state array `A[x, y, z]` of bits, and its byte layer is nothing but Appendix B.1
 `h2b`/`b2h`. Both sides are extracted from Rust into Lean via the hax/Lean pipeline.
 Most of the verification code is AI-generated.
 
-A second specification, `hacspec_sha3` -- written the way the implementations are
-structured, with 25 `u64` lanes and the rate in bytes -- sits in the middle: the sponge
-proof is stated against it, and [`Composition/Pedantic/`](Composition/Pedantic/) proves
-the two specifications agree. See [The two specifications](#the-two-specifications).
+Between the two sits a *lane model* -- the Keccak state as 25 `u64` lanes with the rate
+in bytes, the shape the implementation is written in -- as ordinary total Lean functions.
+The implementation side proves it computes the model; [`Composition/Pedantic/`](Composition/Pedantic/)
+proves the model is the transcript, bit for bit.  See
+[The lane model](#the-lane-model).
 
 ## Main theorems
 
@@ -30,7 +31,7 @@ the six contracts below are proved through.
 It used to be stated in Rust too, as the `#[ensures]` of a body-less, `#[cfg(hax)]`-only
 `keccak_fc` -- a separate function because the specification it was compared against took
 the output length as a const generic that `keccak`'s own `out: &mut [U8]` cannot provide.
-That comparison was against `hacspec_sha3::sponge::keccak`, which is no longer the
+That comparison was against an older specification's byte sponge, which is no longer the
 specification this crate's contracts name, and which the FIPS-202 transcript has no
 counterpart for: the transcript exposes `KECCAK[c]` and the six standard functions, not a
 rate-and-delimiter-parameterised byte sponge. So the wrapper was asserting, to no
@@ -85,10 +86,10 @@ by Lean theorems in
 | `sha384_ema` | `hacspec_sha3_pedantic::bytes::sha3_384` | `sha384_ema_spec_proof` |
 | `sha512_ema` | `hacspec_sha3_pedantic::bytes::sha3_512` | `sha512_ema_spec_proof` |
 
-Each of these is discharged by composing the sponge proof (stated against `hacspec_sha3`)
-with the corresponding agreement theorem from
-[`Composition/Pedantic/`](Composition/Pedantic/) -- `sha3_256_agree`, `shake128_agree`,
-and so on -- so the generated post is *produced*, not weakened.
+Each of these is discharged by composing the sponge proof (which produces the lane
+model's `keccakLanes`) with the corresponding agreement theorem from
+[`Composition/Pedantic/`](Composition/Pedantic/) -- `sha3_256_lanes_agree`,
+`shake128_lanes_agree`, and so on -- so the generated post is *produced*, not weakened.
 
 ### The input bound
 
@@ -105,25 +106,39 @@ rather than by `u32::MAX` -- a narrowing from 4 GB to 512 MB, far above anything
 target will hash, and the price of stating correctness against the Standard's own text
 instead of against a specification shaped like the implementation.
 
-### The two specifications
+### The specification
 
-Two hacspec-style FIPS-202 specifications are involved. Both are extracted from
-[`celabshq/libcrux`](https://github.com/celabshq/libcrux) and both are pinned by commit
-SHA -- never by branch -- in [`lakefile.toml`](../lakefile.toml) and in the crate's
-[`Cargo.toml`](../../../../Cargo.toml), at the same revision.
+One specification is involved. **`hacspec_sha3_pedantic`** (`specs/sha3-pedantic`) is the
+transcript of FIPS 202 described at the top of this file; it is extracted from
+[`celabshq/libcrux`](https://github.com/celabshq/libcrux) and pinned by commit SHA --
+never by branch -- in [`lakefile.toml`](../lakefile.toml) and in the crate's
+[`Cargo.toml`](../../../../Cargo.toml), at the same revision. It is what the crate's
+contracts name, and what the trust argument rests on: auditing this proof means reading
+it against the Standard.
 
-* **`hacspec_sha3_pedantic`** (`specs/sha3-pedantic`) is the transcript of FIPS 202
-  described at the top of this file. **It is what the crate's contracts name**, and the
-  specification the trust argument rests on: auditing this proof means reading it against
-  the Standard.
-* **`hacspec_sha3`** (`specs/sha3`) is the original specification, written the way the
-  implementations are structured. The whole sponge proof in [`Sponge/`](Sponge/) is
-  stated against it, and [`Composition/Pedantic/`](Composition/Pedantic/) proves that the
-  two agree on all six entry points. It is therefore an internal stepping stone: a
-  mistake in it cannot make a contract hold that should not, because the contract is
-  stated against the transcript and the agreement is proved, not assumed. It is a
-  `[[require]]` of this Lean project only -- the implementation crate does not depend on
-  it at all, in any profile.
+### The lane model
+
+FIPS 202 describes the state as an array of bits `A[x, y, z]`; the implementation keeps it
+as 25 `u64` lanes, and absorbs and squeezes whole bytes. Proving the one computes the
+other directly would mean doing the bit bookkeeping and the interleaving bookkeeping at
+once, so the proof goes through a midpoint.
+
+[`LaneModel.lean`](LaneModel.lean) and [`SpongeModel.lean`](SpongeModel.lean) define that
+midpoint: the permutation and the sponge on 25 lanes, as ordinary total Lean functions --
+`thetaLanes`, ..., `keccakFLanes`, `absorbBlockLanes`, `squeezeLanes`, `keccakLanes`. They
+take `List`s and `Nat`s, carry no bounds proofs, and can be unfolded freely.
+
+Nothing in them is trusted, and nothing rests on their being *right* -- only on the two
+halves that meet there:
+
+* [`Foundation/`](Foundation/) and [`Sponge/`](Sponge/) prove the implementation computes
+  the model (`keccakf1600_equiv_lanes`, `keccak_keccak_spec`, and the six entry points);
+* [`Composition/Pedantic/`](Composition/Pedantic/) proves the model *is* the transcript,
+  read bit by bit (`theta_bit`, ..., `keccakF_lanesToBits`, and the six
+  `*_lanes_agree`).
+
+A mistake in the model cannot make a contract hold that should not: the contract is stated
+against the transcript, and both halves are proved.
 
 ### Assumptions
 
@@ -189,8 +204,8 @@ There are more Rust specification in the code base, but only the ones above are 
 
 The proof has three major stages: first establishing Keccak-f[1600]
 permutation equivalence as a central intermediate result, then building
-the full sponge construction on top of it, and finally moving the result from
-`hacspec_sha3` onto the FIPS-202 transcript.
+the full sponge construction on top of it -- both against the lane model -- and
+finally showing the lane model is the FIPS-202 transcript.
 
 The tree divides as follows, bottom to top:
 
@@ -201,8 +216,8 @@ The tree divides as follows, bottom to top:
 | [`Foundation/`](Foundation/) | the `lift` bridge, the θ and π-ρ-χ round-level lemmas (`ThetaLift*`, `PrcLift*`), round-constant equivalence (`RcEquiv`), and the loop-spec helpers everything above reuses |
 | [`BitSpec/`](BitSpec/) | the pure-Lean intermediate bit spec `bit_keccak_spec` and its state isomorphism |
 | `StructuralEquiv.lean`, `AlgebraicEquiv.lean` | the two halves of the permutation argument, detailed below |
-| [`Composition/`](Composition/) | composes those halves (`ViaBit`) and bridges the result to the hacspec permutation (`HacspecBridge`), with a slice-equality helper (`SliceEq`) |
-| [`Composition/Pedantic/`](Composition/Pedantic/) | the second bridge: `hacspec_sha3` = the FIPS-202 transcript, detailed below |
+| [`Composition/`](Composition/) | composes those halves (`ViaBit`) and reads the result as the lane model's `keccakFLanes` (`LaneBridge`), with a slice-equality helper (`SliceEq`) |
+| [`Composition/Pedantic/`](Composition/Pedantic/) | the second half: the lane model = the FIPS-202 transcript, detailed below |
 | [`Sponge/`](Sponge/) | absorb, squeeze, padding and the top-level corollaries, plus the loop- and slice-spec helpers they share |
 | [`Verification/`](Verification/) | `ProofObligations.lean`, the hand-written discharge of the generated `<fn>.spec` obligations (so the Rust contracts hold), and the `#guard_msgs` axiom guards |
 
@@ -307,10 +322,10 @@ and proceeds as follows:
 
 ### The FIPS-202 transcript bridge
 
-[`Composition/Pedantic/`](Composition/Pedantic/) proves that `hacspec_sha3` and
+[`Composition/Pedantic/`](Composition/Pedantic/) proves that the lane model and
 `hacspec_sha3_pedantic` compute the same six functions. The two are written against
 different data: the transcript's state is the state array `A[x, y, z]` of bits and its
-sponge absorbs a bit string; `hacspec_sha3` keeps 25 `u64` lanes and absorbs bytes. The
+sponge absorbs a bit string; the lane model keeps 25 `u64` lanes and absorbs bytes. The
 bridge is therefore bit-level throughout, and runs bottom-up:
 
 | file | holds |
@@ -323,12 +338,12 @@ bridge is therefore bit-level throughout, and runs bottom-up:
 | `Parameters.lean`, `StateMap.lean`, `Grid.lean` | the state correspondence: `ofLanes` / `toLanes` between 25 lanes and `A[x, y, z]`, mutually inverse |
 | `LoopEq.lean` | the reusable equational loop inductions and scalar/container equations the rest is written with |
 | `Theta.lean`, `Rho.lean`, `Pi.lean`, `Chi.lean`, `Iota.lean` | the five step mappings (FIPS 202, Algorithms 1-6) as functions of the bits |
-| `RoundConstants.lean` | Algorithm 5's LFSR equals the table `hacspec_sha3` carries -- checked by `decide`, so by the kernel, not by `native_decide` |
+| `RoundConstants.lean` | Algorithm 5's LFSR equals the tabulated round constants -- checked by `decide`, so by the kernel, not by `native_decide` |
 | `Round.lean`, `Permutation.lean`, `Bits.lean`, `KeccakP.lean` | `Rnd`, the round loop, the state-array/bit-string conversions, and `Keccak-p[1600, n_r]` |
 | `BitsOps.lean`, `Padding.lean`, `Sponge.lean`, `KeccakC.lean` | the `bits` operations, `pad10*1` (Algorithm 9), the sponge (Algorithm 8) and `KECCAK[c]` |
 | `Bytes.lean`, `Sha3.lean` | `h2b`/`b2h` (Algorithms 10 and 11) and the six entry points at both the bit and the byte level |
-| `Lanes.lean` | the lane model *is* the transcript's bit-level permutation (`theta_bit`, `rho_bit`, ..., each triple loop over `(x, y, z)` read off the lanes), and `hacspec_sha3`'s `createi` form computes it |
-| `LaneSponge.lean`, `LaneAbsorb.lean`, `LaneSqueeze.lean` | the byte-rate sponge: XORing a block into the lanes is XORing its bits into the bit string; the padded last block is the transcript's last block; the absorb recursion is `absorbFrom`; `squeeze` is `squeezeFrom`; and finally the six `*_agree` theorems |
+| `Lanes.lean` | the lane model *is* the transcript's bit-level permutation: `theta_bit`, `rho_bit`, ..., each triple loop over `(x, y, z)` read off the lanes, up to `keccakF_lanesToBits` |
+| `LaneSponge.lean`, `LaneAbsorb.lean`, `LaneSqueeze.lean` | the byte-rate sponge: XORing a block into the lanes is XORing its bits into the bit string; the padded last block is the transcript's last block; the absorb recursion is `absorbFrom`; `squeeze` is `squeezeFrom`; and finally the six `*_lanes_agree` theorems |
 
 The two ends that make the last step work are worth naming. On the absorb side, the
 delimiter byte is exactly the domain-separation suffix followed by the `1` that opens
@@ -385,11 +400,9 @@ gets checked against the suffix the Standard prescribes.
 ### Extraction from Rust into Lean
 
 ```bash
-# Spec side (from a checkout of celabshq/libcrux), both specifications -- the
-# transcript because the contracts name it, `hacspec_sha3` because the sponge
-# proof is stated against it:
+# Spec side (from a checkout of celabshq/libcrux) -- the transcript, which is
+# what the contracts name:
 cd specs
-cargo bin cargo-hax extract hacspec-sha3
 cargo bin cargo-hax extract hacspec-sha3-pedantic
 
 # Impl side:
@@ -399,6 +412,6 @@ cargo hax extract libcrux-iot-sha3
 
 Note that hax adds no specification imports to the generated tree: it writes
 `Extraction/FunsExternal.lean` as a one-line shim onto the hand-written
-`Assumptions/FunsExternal.lean`, and that is where `HacspecSha3` and
-`HacspecSha3Pedantic` are imported so the `#[ensures]` clauses resolve.
+`Assumptions/FunsExternal.lean`, and that is where `HacspecSha3Pedantic` is
+imported so the `#[ensures]` clauses resolve.
 

@@ -14,7 +14,7 @@
   This is a CoreModels-level fact, not a libcrux-iot one -- it belongs upstream
   next to the definition. It lives here until then.
 -/
-import LibcruxIotSha3.Composition.HacspecBridge
+import LibcruxIotSha3.Composition.LaneBridge
 
 open Aeneas Aeneas.Std RustM ControlFlow Std.Do
 open CoreModels

@@ -56,7 +56,7 @@ import LibcruxIotSha3.Foundation.PrcLiftRound3
 import LibcruxIotSha3.Foundation.Lift
 import Hax
 
-open Aeneas Aeneas.Std Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std Std.Do libcrux_iot_sha3
 
 namespace libcrux_iot_sha3.Foundation
 

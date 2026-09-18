@@ -22,7 +22,7 @@
 import LibcruxIotSha3.Sponge.LoopSpecs
 import LibcruxIotSha3.Sponge.XorBlockSpec
 
-open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3
 open LibcruxIotSha3.LaneModel
 open LibcruxIotSha3.SpongeModel
 

@@ -27,7 +27,7 @@
 -/
 import LibcruxIotSha3.Sponge.AbsorbBlock
 
-open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3
 open LibcruxIotSha3.LaneModel
 open LibcruxIotSha3.SpongeModel
 
@@ -78,8 +78,7 @@ theorem core_models_Array_Insts_index_mut_RangeUsize_spec
                 p.1.val.length = r.end.val - r.start.val ∧
                 ∀ s' : Slice T, s'.val.length = r.end.val - r.start.val →
                   (p.2 s').val = arr.val.setSlice! r.start.val s'.val ⌝ ⦄ := by
-  -- CoreModels v0.3.17 supplies this instance natively (it used to be
-  -- hand-written in HacspecSha3's FunsExternal): the body is
+  -- CoreModels v0.3.17 supplies this instance natively: the body is
   --   let (s, back_a) ← array.Array.as_mut_slice arr   -- ok (to_slice_mut arr)
   --   let (t, back_s) ← inst.index_mut s r             -- slice_slice_mut
   --   ok (t, back_a ∘ back_s)

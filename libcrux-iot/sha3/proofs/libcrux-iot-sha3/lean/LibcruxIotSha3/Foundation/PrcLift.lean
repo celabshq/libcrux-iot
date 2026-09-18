@@ -17,9 +17,8 @@ import LibcruxIotSha3.Foundation.RcEquiv
 import Hax
 import Lean
 import LibcruxIotSha3.Tables
-import LibcruxIotSha3.TablesBridge
 
-open Aeneas Aeneas.Std Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std Std.Do libcrux_iot_sha3
 
 namespace libcrux_iot_sha3.Foundation
 
@@ -455,22 +454,6 @@ def iota_applied (state : Std.Array Std.U64 25#usize) (round : Std.Usize) :
     Std.Array Std.U64 25#usize :=
   state.set 0#usize (state.val[0]! ^^^ roundConstants.val[round.val]!)
 
-@[spec]
-theorem iota_spec (state : Std.Array Std.U64 25#usize) (round : Std.Usize)
-    (h : round.val < 24) :
-    ⦃ ⌜ True ⌝ ⦄ keccak_f.iota state round
-    ⦃ ⇓ r => ⌜ r = iota_applied state round ⌝ ⦄ := by
-  unfold keccak_f.iota
-  hax_mvcgen
-  all_goals first
-    | scalar_tac
-    | (unfold iota_applied
-       simp_all only [libcrux_iot_sha3.hacspec_roundConstants_eq,
-         Std.UScalar.eq_equiv_bv_eq]
-       congr 1
-       apply Std.U64.bv_eq_imp_eq
-       simp_all [Std.UScalar.bv_xor])
-
 /-- Helper: rotate a `Std.U64` at the BitVec level. -/
 abbrev rot64 (x : Std.U64) (n : Nat) : Std.U64 := ⟨x.bv.rotateLeft n⟩
 
@@ -490,45 +473,6 @@ def rho_applied (state : Std.Array Std.U64 25#usize) :
     rot64 (state.val[20]!) 18, rot64 (state.val[21]!) 2,  rot64 (state.val[22]!) 61,
     rot64 (state.val[23]!) 56, rot64 (state.val[24]!) 14]
 
-@[spec]
-theorem rho_spec (state : Std.Array Std.U64 25#usize) :
-    ⦃ ⌜ True ⌝ ⦄ keccak_f.rho state
-    ⦃ ⇓ r => ⌜ r = rho_applied state ⌝ ⦄ := by
-  unfold keccak_f.rho
-  hax_mvcgen
-  case vc1.f => exact rho_closure_at state ‹ℕ›
-  all_goals first
-    | (rw [usize_bv_ofNat_val _ (by scalar_tac)] at *
-       scalar_tac)
-    | scalar_tac
-    | close_array25 rho_applied, rho_closure_at with [rot64,
-        show (keccak_f.RHO_OFFSETS.val[0]!).val = 0 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[1]!).val = 1 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[2]!).val = 62 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[3]!).val = 28 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[4]!).val = 27 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[5]!).val = 36 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[6]!).val = 44 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[7]!).val = 6 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[8]!).val = 55 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[9]!).val = 20 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[10]!).val = 3 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[11]!).val = 10 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[12]!).val = 43 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[13]!).val = 25 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[14]!).val = 39 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[15]!).val = 41 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[16]!).val = 45 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[17]!).val = 15 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[18]!).val = 21 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[19]!).val = 8 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[20]!).val = 18 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[21]!).val = 2 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[22]!).val = 61 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[23]!).val = 56 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make],
-        show (keccak_f.RHO_OFFSETS.val[24]!).val = 14 from by simp [keccak_f.RHO_OFFSETS, Std.Array.make]]
-      then skip
-
 /-- Pure semantics of `keccak_f.pi`: permutes lanes according
     to the Keccak π-permutation table. No rotation. -/
 def pi_applied (state : Std.Array Std.U64 25#usize) :
@@ -539,45 +483,6 @@ def pi_applied (state : Std.Array Std.U64 25#usize) :
     state.val[1]!,  state.val[7]!,  state.val[13]!, state.val[19]!, state.val[20]!,
     state.val[4]!,  state.val[5]!,  state.val[11]!, state.val[17]!, state.val[23]!,
     state.val[2]!,  state.val[8]!,  state.val[14]!, state.val[15]!, state.val[21]!]
-
-@[spec]
-theorem pi_spec (state : Std.Array Std.U64 25#usize) :
-    ⦃ ⌜ True ⌝ ⦄ keccak_f.pi state
-    ⦃ ⇓ r => ⌜ r = pi_applied state ⌝ ⦄ := by
-  unfold keccak_f.pi
-  hax_mvcgen
-  case vc1.f => exact pi_closure_at state ‹ℕ›
-  all_goals first
-    | (rw [usize_bv_ofNat_val _ (by scalar_tac)] at *
-       scalar_tac)
-    | scalar_tac
-    | close_array25 pi_applied, pi_closure_at with [
-        show 5 * ((0:Nat) % 5) + ((0 % 5) + 3 * (0 / 5)) % 5 = 0 from rfl,
-        show 5 * ((1:Nat) % 5) + ((1 % 5) + 3 * (1 / 5)) % 5 = 6 from rfl,
-        show 5 * ((2:Nat) % 5) + ((2 % 5) + 3 * (2 / 5)) % 5 = 12 from rfl,
-        show 5 * ((3:Nat) % 5) + ((3 % 5) + 3 * (3 / 5)) % 5 = 18 from rfl,
-        show 5 * ((4:Nat) % 5) + ((4 % 5) + 3 * (4 / 5)) % 5 = 24 from rfl,
-        show 5 * ((5:Nat) % 5) + ((5 % 5) + 3 * (5 / 5)) % 5 = 3 from rfl,
-        show 5 * ((6:Nat) % 5) + ((6 % 5) + 3 * (6 / 5)) % 5 = 9 from rfl,
-        show 5 * ((7:Nat) % 5) + ((7 % 5) + 3 * (7 / 5)) % 5 = 10 from rfl,
-        show 5 * ((8:Nat) % 5) + ((8 % 5) + 3 * (8 / 5)) % 5 = 16 from rfl,
-        show 5 * ((9:Nat) % 5) + ((9 % 5) + 3 * (9 / 5)) % 5 = 22 from rfl,
-        show 5 * ((10:Nat) % 5) + ((10 % 5) + 3 * (10 / 5)) % 5 = 1 from rfl,
-        show 5 * ((11:Nat) % 5) + ((11 % 5) + 3 * (11 / 5)) % 5 = 7 from rfl,
-        show 5 * ((12:Nat) % 5) + ((12 % 5) + 3 * (12 / 5)) % 5 = 13 from rfl,
-        show 5 * ((13:Nat) % 5) + ((13 % 5) + 3 * (13 / 5)) % 5 = 19 from rfl,
-        show 5 * ((14:Nat) % 5) + ((14 % 5) + 3 * (14 / 5)) % 5 = 20 from rfl,
-        show 5 * ((15:Nat) % 5) + ((15 % 5) + 3 * (15 / 5)) % 5 = 4 from rfl,
-        show 5 * ((16:Nat) % 5) + ((16 % 5) + 3 * (16 / 5)) % 5 = 5 from rfl,
-        show 5 * ((17:Nat) % 5) + ((17 % 5) + 3 * (17 / 5)) % 5 = 11 from rfl,
-        show 5 * ((18:Nat) % 5) + ((18 % 5) + 3 * (18 / 5)) % 5 = 17 from rfl,
-        show 5 * ((19:Nat) % 5) + ((19 % 5) + 3 * (19 / 5)) % 5 = 23 from rfl,
-        show 5 * ((20:Nat) % 5) + ((20 % 5) + 3 * (20 / 5)) % 5 = 2 from rfl,
-        show 5 * ((21:Nat) % 5) + ((21 % 5) + 3 * (21 / 5)) % 5 = 8 from rfl,
-        show 5 * ((22:Nat) % 5) + ((22 % 5) + 3 * (22 / 5)) % 5 = 14 from rfl,
-        show 5 * ((23:Nat) % 5) + ((23 % 5) + 3 * (23 / 5)) % 5 = 15 from rfl,
-        show 5 * ((24:Nat) % 5) + ((24 % 5) + 3 * (24 / 5)) % 5 = 21 from rfl]
-      then skip
 
 /-- Pure semantics of `keccak_f.chi` (new `5*y + x` layout): for
     each `i = 5*y + x`, `out[i] = state[i] ⊕ (¬state[5*y + (x+1)%5] ∧
@@ -610,54 +515,6 @@ def chi_applied (state : Std.Array Std.U64 25#usize) :
     state.val[22]! ^^^ ((~~~state.val[23]!) &&& state.val[24]!),
     state.val[23]! ^^^ ((~~~state.val[24]!) &&& state.val[20]!),
     state.val[24]! ^^^ ((~~~state.val[20]!) &&& state.val[21]!)]
-
-set_option maxHeartbeats 16000000 in
-@[spec]
-theorem chi_spec (state : Std.Array Std.U64 25#usize) :
-    ⦃ ⌜ True ⌝ ⦄ keccak_f.chi state
-    ⦃ ⇓ r => ⌜ r = chi_applied state ⌝ ⦄ := by
-  unfold keccak_f.chi
-  hax_mvcgen
-  case vc1.f => exact chi_closure_at state ‹ℕ›
-  all_goals first
-    | (rw [usize_bv_ofNat_val _ (by scalar_tac)] at *
-       scalar_tac)
-    | scalar_tac
-    | close_array25 chi_applied, chi_closure_at with [
-        show (0:Nat)/5 = 0 from rfl, show (0:Nat)%5 = 0 from rfl,
-        show (1:Nat)/5 = 0 from rfl, show (1:Nat)%5 = 1 from rfl,
-        show (2:Nat)/5 = 0 from rfl, show (2:Nat)%5 = 2 from rfl,
-        show (3:Nat)/5 = 0 from rfl, show (3:Nat)%5 = 3 from rfl,
-        show (4:Nat)/5 = 0 from rfl, show (4:Nat)%5 = 4 from rfl,
-        show (5:Nat)/5 = 1 from rfl, show (5:Nat)%5 = 0 from rfl,
-        show (6:Nat)/5 = 1 from rfl, show (6:Nat)%5 = 1 from rfl,
-        show (7:Nat)/5 = 1 from rfl, show (7:Nat)%5 = 2 from rfl,
-        show (8:Nat)/5 = 1 from rfl, show (8:Nat)%5 = 3 from rfl,
-        show (9:Nat)/5 = 1 from rfl, show (9:Nat)%5 = 4 from rfl,
-        show (10:Nat)/5 = 2 from rfl, show (10:Nat)%5 = 0 from rfl,
-        show (11:Nat)/5 = 2 from rfl, show (11:Nat)%5 = 1 from rfl,
-        show (12:Nat)/5 = 2 from rfl, show (12:Nat)%5 = 2 from rfl,
-        show (13:Nat)/5 = 2 from rfl, show (13:Nat)%5 = 3 from rfl,
-        show (14:Nat)/5 = 2 from rfl, show (14:Nat)%5 = 4 from rfl,
-        show (15:Nat)/5 = 3 from rfl, show (15:Nat)%5 = 0 from rfl,
-        show (16:Nat)/5 = 3 from rfl, show (16:Nat)%5 = 1 from rfl,
-        show (17:Nat)/5 = 3 from rfl, show (17:Nat)%5 = 2 from rfl,
-        show (18:Nat)/5 = 3 from rfl, show (18:Nat)%5 = 3 from rfl,
-        show (19:Nat)/5 = 3 from rfl, show (19:Nat)%5 = 4 from rfl,
-        show (20:Nat)/5 = 4 from rfl, show (20:Nat)%5 = 0 from rfl,
-        show (21:Nat)/5 = 4 from rfl, show (21:Nat)%5 = 1 from rfl,
-        show (22:Nat)/5 = 4 from rfl, show (22:Nat)%5 = 2 from rfl,
-        show (23:Nat)/5 = 4 from rfl, show (23:Nat)%5 = 3 from rfl,
-        show (24:Nat)/5 = 4 from rfl, show (24:Nat)%5 = 4 from rfl,
-        show (0 + 1) % 5 = 1 from rfl, show (0 + 2) % 5 = 2 from rfl,
-        show (1 + 1) % 5 = 2 from rfl, show (1 + 2) % 5 = 3 from rfl,
-        show (2 + 1) % 5 = 3 from rfl, show (2 + 2) % 5 = 4 from rfl,
-        show (3 + 1) % 5 = 4 from rfl, show (3 + 2) % 5 = 0 from rfl,
-        show (4 + 1) % 5 = 0 from rfl, show (4 + 2) % 5 = 1 from rfl]
-      then
-        apply List.cons_eq_cons.mpr
-        refine ⟨?_, ?_⟩
-        all_goals rfl
 
 /-! ## Intermediate spec for round-0 πρχι (the fused per-cell formula)
 

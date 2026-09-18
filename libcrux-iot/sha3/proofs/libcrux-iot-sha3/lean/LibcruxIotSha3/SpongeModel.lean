@@ -80,6 +80,18 @@ def absorbRecLanes (rate : Nat) (delim : Std.U8) : Lanes → List Std.U8 → Lan
     simp only [List.length_drop]
     omega
 
+/-- The recursion's two branches, named. -/
+theorem absorbRecLanes_short (rate : Nat) (delim : Std.U8) (s : Lanes) (msg : List Std.U8)
+    (h_lt : msg.length < rate) :
+    absorbRecLanes rate delim s msg = absorbFinalLanes s msg 0 msg.length rate delim := by
+  rw [absorbRecLanes, dif_neg (show ¬ (0 < rate ∧ rate ≤ msg.length) from by omega)]
+
+theorem absorbRecLanes_long (rate : Nat) (delim : Std.U8) (s : Lanes) (msg : List Std.U8)
+    (h_rate : 0 < rate) (h_ge : rate ≤ msg.length) :
+    absorbRecLanes rate delim s msg
+      = absorbRecLanes rate delim (absorbBlockLanes s (msg.take rate) rate) (msg.drop rate) := by
+  conv_lhs => rw [absorbRecLanes, dif_pos (show 0 < rate ∧ rate ≤ msg.length from ⟨h_rate, h_ge⟩)]
+
 /-- The all-zero starting state, and the whole absorb phase. -/
 def absorbLanes (rate : Nat) (delim : Std.U8) (msg : List Std.U8) : Lanes :=
   absorbRecLanes rate delim (Std.Array.repeat 25#usize 0#u64) msg

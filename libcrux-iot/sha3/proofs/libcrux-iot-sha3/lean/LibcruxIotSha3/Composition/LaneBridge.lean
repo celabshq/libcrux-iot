@@ -1,14 +1,12 @@
-import LibcruxIotSha3.Composition.HacspecBridge
+import LibcruxIotSha3.Composition.LoopSpecUsize
 import LibcruxIotSha3.Foundation.LaneEq
 /-!
 # The implementation computes the lane model's `Keccak-f[1600]`
 
-`Composition/HacspecBridge.lean` ends at `keccakf1600_equiv_hacspec`, which
-states the implementation agrees with `hacspec_sha3`'s permutation.  This file
-states the same thing against `LaneModel.keccakFLanes` instead, which is what
-`Composition/Pedantic/Lanes.lean` ties to FIPS 202.  `Sponge/` is being moved
-onto this form; once it is, the `hacspec_sha3` statement -- and the file it
-lives in -- go.
+`Composition/ViaBit.lean` proves the implementation's `keccakf1600` satisfies
+`keccakf1600_post_canonical`, the 24-fold of `spec_round_step`.  This file reads
+that as the lane model's `keccakFLanes`, which `Composition/Pedantic/Lanes.lean`
+ties to FIPS 202.  It is what `Sponge/` is sealed on.
 -/
 
 open Aeneas Aeneas.Std Std.Do libcrux_iot_sha3
