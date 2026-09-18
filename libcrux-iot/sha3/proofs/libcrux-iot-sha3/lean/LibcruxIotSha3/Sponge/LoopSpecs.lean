@@ -23,6 +23,8 @@ import LibcruxIotSha3.Sponge.SliceSpecs
 import LibcruxIotSha3.Sponge.Interleave
 
 open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -34,8 +36,7 @@ open libcrux_iot_sha3.Foundation libcrux_iot_sha3.Composition
 -- bit-vector helper proofs heavier; raise the heartbeat ceiling file-wide.
 set_option maxHeartbeats 1000000
 
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 attribute [local spec] Aeneas.Std.uncurry
 

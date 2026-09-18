@@ -33,11 +33,12 @@
 import LibcruxIotSha3.Sponge.Opaque
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 /-! ## Prerequisite — Aeneas Std byte/slice `@[spec]` lemmas. -/
 

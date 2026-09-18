@@ -41,13 +41,14 @@ import LibcruxIotSha3.Sponge.Interleave
 import LibcruxIotSha3.Sponge.SliceSpecs
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
 open libcrux_iot_sha3.Foundation
 
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 /-! ## A generic `from_fn` pure-closure spec.
 
@@ -181,6 +182,40 @@ def xor_block_value_at
     state.val[k]! ^^^ Std.core.num.U64.from_le_bytes (list_8_at block.val (8 * k))
   else
     state.val[k]!
+
+/-! ### The lane model's `xorLanes` is this, cell by cell
+
+`SpongeModel.xorLanes` says the same thing as `xor_block_value_at`, with the
+eight bytes read through `mkArr` rather than zero-padded by `list_8_at`; in
+range the two agree. -/
+
+theorem list_8_at_eq_mkArr (l : List Std.U8) (o : Nat) (h : o + 8 ≤ l.length) :
+    list_8_at l o = mkArr 8#usize (fun j => l[o + j]!) := by
+  apply Subtype.ext
+  have hraw : ((l.drop o).take 8).length = 8 := by
+    rw [List.length_take, List.length_drop]; omega
+  show ((l.drop o).take 8) ++ List.replicate (8 - ((l.drop o).take 8).length) (0#u8)
+    = (List.range 8).map (fun j => l[o + j]!)
+  rw [hraw]
+  simp only [Nat.sub_self, List.replicate_zero, List.append_nil]
+  apply List.ext_getElem
+  · rw [hraw]; simp
+  · intro k hk _
+    have hk8 : k < 8 := by rw [hraw] at hk; exact hk
+    rw [List.getElem_take, List.getElem_drop, List.getElem_map, List.getElem_range,
+      getElem!_pos l (o + k) (by omega)]
+
+theorem xorLanes_getElem (state : Std.Array Std.U64 25#usize) (block : Slice Std.U8)
+    (rate : Std.Usize) (h_rate_mod : rate.val % 8 = 0)
+    (h_blk_len : block.val.length = rate.val) (k : Nat) (hk : k < 25) :
+    (xorLanes state block.val rate.val).val[k]!
+      = xor_block_value_at state block rate k := by
+  rw [xorLanes, mkArr_get 25#usize _ (by simpa using hk)]
+  unfold xor_block_value_at blockLane
+  by_cases h : k < rate.val / 8
+  · rw [if_pos h, if_pos h,
+      list_8_at_eq_mkArr block.val (8 * k) (by rw [h_blk_len]; omega)]
+  · rw [if_neg h, if_neg h]
 
 /-! ## Purity Triple for `xor_block_into_state.closure.call_mut`.
 

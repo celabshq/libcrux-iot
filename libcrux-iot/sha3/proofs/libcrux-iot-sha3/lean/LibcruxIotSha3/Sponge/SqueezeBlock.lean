@@ -20,6 +20,8 @@
 import LibcruxIotSha3.Sponge.AbsorbBlock
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -27,8 +29,7 @@ open libcrux_iot_sha3.Foundation
 
 -- Defensive seal re-issue: no proof in this file may unfold either side
 -- of Bridge 1.
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 /-! ## Squeeze block-level Triples. -/
 
@@ -91,7 +92,7 @@ theorem keccak.squeeze_first_block_spec
     Post:
     - `r.1.i.val = 0` (impl-side `keccakf1600` resets `i`).
     - `r.2.val.length = out.val.length`.
-    - There exists `s_spec` with `keccak_f.keccak_f (lift s) = .ok s_spec`,
+    - There exists `s_spec` with `keccakFLanes (lift s) = s_spec`,
       `s_spec = lift r.1`, and for every `k < RATE.val`,
       `r.2.val[k]! = (s_spec.val[k/8]!).bv.toLEBytes[k%8]!`. -/
 @[spec]
@@ -108,7 +109,7 @@ theorem keccak.squeeze_next_block_spec
         r.1.i.val = 0
         ∧ r.2.val.length = out.val.length
         ∧ ∃ s_spec : Std.Array Std.U64 25#usize,
-            keccak_f.keccak_f (Foundation.lift s) = .ok s_spec
+            keccakFLanes (Foundation.lift s) = s_spec
             ∧ s_spec = Foundation.lift r.1
             ∧ ∀ k : Nat, k < RATE.val →
                 r.2.val[k]! = ⟨(BitVec.toLEBytes
@@ -270,7 +271,7 @@ theorem keccak.squeeze_last_spec
     ⦃ ⇓ r => ⌜
         r.val.length = out.val.length
         ∧ ∃ s_spec : Std.Array Std.U64 25#usize,
-            keccak_f.keccak_f (Foundation.lift s) = .ok s_spec
+            keccakFLanes (Foundation.lift s) = s_spec
             ∧ ∀ k : Nat, k < out.val.length →
                 r.val[k]! = ⟨(BitVec.toLEBytes
                   (s_spec.val[k / 8]!).bv)[k % 8]!⟩

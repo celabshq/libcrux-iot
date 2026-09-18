@@ -1,10 +1,10 @@
 /-
-  # Top-level `keccak.keccak` ↔ `sponge.keccak`.
+  # Top-level `keccak.keccak` ↔ the lane model's `keccakLanes`.
 
   Largest composition in the sponge proofs: the impl function
   `keccak.keccak` (full pipeline: absorb-full-loop + absorb-final +
   first-output-block + squeeze-loop + optional trailing block) matches
-  the spec `sponge.keccak` byte-by-byte.
+  the model's `keccakLanes` byte-by-byte.
 
   ## Post
 
@@ -14,10 +14,10 @@
       (RATE DELIM data out)
       (+ side conditions) :
       ⦃⌜True⌝⦄ keccak.keccak RATE DELIM data out
-      ⦃⇓ r => ⌜ ∃ spec_out,
-                  sponge.keccak ⟨Slice.len out⟩ RATE DELIM data = .ok spec_out
+      ⦃⇓ r => ⌜
                   ∧ r.val.length = out.val.length
-                  ∧ ∀ k < out.val.length, r.val[k]! = spec_out.val[k]! ⌝⦄
+                  ∧ ∀ k < out.val.length,
+                      r.val[k]! = (keccakLanes ⟨Slice.len out⟩ RATE DELIM data).val[k]! ⌝⦄
   ```
 
   Impl and spec sides are composed as independent `.ok`-equation chains,
@@ -47,6 +47,8 @@ import LibcruxIotSha3.Sponge.Absorb
 import LibcruxIotSha3.Sponge.SqueezeBlock
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -54,10 +56,9 @@ open libcrux_iot_sha3.Foundation
 
 -- Defensive seal re-issue: no proof in this file may unfold either side
 -- of Bridge 1.
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
-/-! ## Top-level keccak ↔ sponge.keccak. -/
+/-! ## Top-level keccak ↔ the lane model's `keccakLanes`. -/
 
 /-! ### Local helpers. -/
 
@@ -124,26 +125,16 @@ theorem keccak_loop0_zero_terminates
   -- `absorb_fold s data RATE 0 = .ok (lift s)` then equals `.ok (lift r)`.
   have h_zero_val : ((0#usize : Std.Usize).val : Nat) = 0 := rfl
   rw [h_zero_val] at h_fold
-  have h_fold0 : absorb_fold s data RATE 0 = .ok (Foundation.lift s) := by
-    unfold absorb_fold; simp [Nat.fold_zero]
+  have h_fold0 : absorb_fold s data RATE 0 = Foundation.lift s := rfl
   rw [h_fold0] at h_fold
-  -- h_fold : .ok (lift s) = .ok (lift r). Extract.
-  injection h_fold with h_eq
-  exact h_eq.symm
+  exact h_fold.symm
 
-/-! ### Helper: `iterate_keccak_f 0 = identity`.
+/-! ### Helper: no permutation for the first output block.
 
-When the iteration count is 0, `sponge.iterate_keccak_f 0 s` reduces to
-`.ok s`. Derived via `iterate_keccak_f_eq_fold` + `Nat.fold_zero`. -/
+When the iteration count is `0`, `keccakFLanes^[0]` is the identity. -/
 
-theorem iterate_keccak_f_zero
-    (state : Std.Array Std.U64 25#usize) :
-    sponge.iterate_keccak_f (0#usize : Std.Usize) state = .ok state := by
-  rw [iterate_keccak_f_eq_fold]
-  unfold iterate_keccak_f_fold
-  show Nat.fold ((0#usize : Std.Usize).val) _ _ = _
-  show Nat.fold 0 _ _ = _
-  rw [Nat.fold_zero]
+theorem keccakFLanes_iterate_zero (state : Lanes) :
+    keccakFLanes^[0] state = state := rfl
 
 /-! ### Main theorem: `keccak.keccak_keccak_spec` (blocks = 0 branch).
 
@@ -164,12 +155,10 @@ theorem keccak.keccak_keccak_spec_blocks_zero
     (h_blocks_zero : out.val.length < RATE.val) :
     ⦃ ⌜ True ⌝ ⦄
     keccak.keccak RATE DELIM data out
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 (Std.Slice.len out),
-                sponge.keccak (Std.Slice.len out) RATE DELIM data
-                  = .ok spec_out
-                ∧ r.val.length = out.val.length
-                ∧ ∀ k : Nat, k < out.val.length →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ r.val.length = out.val.length
+              ∧ ∀ k : Nat, k < out.val.length →
+                  r.val[k]!
+                    = (keccakLanes (Std.Slice.len out) RATE.val DELIM data.val).val[k]! ⌝ ⦄ := by
   -- Step 1: `KeccakState.new` produces canonical zero state.
   obtain ⟨s0, h_s0_eq, h_s0_i, h_s0_lift⟩ := state_KeccakState_new_eq
   -- Step 2: precompute the side-condition facts.
@@ -298,28 +287,19 @@ theorem keccak.keccak_keccak_spec_blocks_zero
   -- h_s1_fold : absorb_fold s0 data RATE n_us.val = .ok (lift s1).
   -- We use absorb_fold_eq_spec to translate to absorb_fold_spec (lift s0) data RATE n_us.val.
   have h_fold_spec : absorb_fold_spec (Foundation.lift s0) data RATE n_us.val
-                      = .ok (Foundation.lift s1) := by
+                      = Foundation.lift s1 := by
     rw [← absorb_fold_eq_spec]; exact h_s1_fold
   -- h_s2_spec : sponge.absorb_final (lift s1) data i3_us rem_us RATE DELIM = .ok (lift s2).
   -- Now compose via sponge_absorb_rec_eq_fold + unfold_short.
-  have h_absorb_eq : sponge.absorb RATE DELIM data = .ok (Foundation.lift s2) := by
-    unfold sponge.absorb
-    -- Goal: `let a := Array.repeat 25 0; sponge.absorb_rec a RATE DELIM data = .ok (lift s2)`.
-    show sponge.absorb_rec (Std.Array.repeat 25#usize 0#u64) RATE DELIM data
-         = .ok (Foundation.lift s2)
+  have h_absorb_eq : absorbLanes RATE.val DELIM data.val = Foundation.lift s2 := by
+    unfold absorbLanes
     rw [← h_s0_lift]
-    -- Now: sponge.absorb_rec (lift s0) RATE DELIM data = .ok (lift s2).
-    rw [sponge_absorb_rec_eq_fold (Foundation.lift s0) RATE DELIM data n_nat (by rw [hn_nat_def]; exact h_n_rate_le)]
-    -- Now: absorb_fold_spec (lift s0) data RATE n_nat >>= fun s_n =>
-    --        absorb_rec s_n RATE DELIM ⟨data.drop (n_nat*RATE), _⟩
-    --      = .ok (lift s2).
-    -- Step A: absorb_fold_spec (lift s0) data RATE n_nat = .ok (lift s1).
+    rw [absorbRecLanes_eq_fold RATE DELIM data (by omega) (Foundation.lift s0) n_nat
+      (by rw [hn_nat_def]; exact h_n_rate_le)]
     have h_fold_spec_n : absorb_fold_spec (Foundation.lift s0) data RATE n_nat
-                        = .ok (Foundation.lift s1) := by
+                        = Foundation.lift s1 := by
       rw [← h_n_us_val]; exact h_fold_spec
-    rw [h_fold_spec_n]; simp only [bind_tc_ok]
-    -- Step B: absorb_rec (lift s1) RATE DELIM ⟨data.drop (n_nat * RATE), _⟩ = .ok (lift s2).
-    -- We apply `sponge_absorb_rec_unfold_short` since the tail length is rem_nat < RATE.
+    rw [h_fold_spec_n]
     set tail : Slice Std.U8 :=
       ⟨data.val.drop (n_nat * RATE.val), by
         rw [List.length_drop]; have := data.property; omega⟩ with htail_def
@@ -328,95 +308,20 @@ theorem keccak.keccak_keccak_spec_blocks_zero
       rw [List.length_drop]; omega
     have h_tail_lt_rate : tail.val.length < RATE.val := by
       rw [h_tail_len]; exact h_rem_lt_RATE
-    rw [sponge_absorb_rec_unfold_short (Foundation.lift s1) RATE DELIM tail h_tail_lt_rate]
-    -- Now goal: sponge.absorb_final (lift s1) tail 0#usize (Slice.len tail) RATE DELIM
-    --        = .ok (lift s2).
-    -- We have h_s2_spec : sponge.absorb_final (lift s1) data i3_us rem_us RATE DELIM = .ok (lift s2).
-    -- The two absorb_final calls have:
-    --   LHS: message = tail (msg.drop (n*rate)), msg_offset = 0, remaining = Slice.len tail (= rem_nat).
-    --   RHS: message = data, msg_offset = i3_us (= n*rate), remaining = rem_us (= rem_nat).
-    -- Both extract the same bytes (data[n*rate..data.length]) via `pad_last_block`.
-    -- Show LHS = RHS by `pad_last_block_eq`.
-    -- We compute (Slice.len tail).val = tail.length = rem_nat = rem_us.val.
-    have h_slt_eq_rem : Std.Slice.len tail = rem_us := by
-      apply Std.UScalar.eq_of_val_eq
-      simp [Std.Slice.len, h_tail_len, h_rem_us_val]
-    rw [h_slt_eq_rem]
-    -- Now LHS: sponge.absorb_final (lift s1) tail 0#usize rem_us RATE DELIM.
-    -- RHS: sponge.absorb_final (lift s1) data i3_us rem_us RATE DELIM.
-    -- Show these are equal by reducing to the same `pad_last_block`.
-    rw [show sponge.absorb_final (Foundation.lift s1) tail 0#usize rem_us RATE DELIM
-          = sponge.absorb_final (Foundation.lift s1) data i3_us rem_us RATE DELIM from ?_]
-    · exact h_s2_spec
-    · -- pad_last_block tail 0 rem RATE DELIM = pad_last_block data i3_us rem RATE DELIM.
-      unfold sponge.absorb_final
-      -- Both have form: do let block ← pad_last_block ...; ...
-      have h_pad_eq :
-          sponge.pad_last_block tail 0#usize rem_us RATE DELIM
-            = sponge.pad_last_block data i3_us rem_us RATE DELIM := by
-        unfold sponge.pad_last_block
-        -- Both produce a buffer; they differ only in the `s1` slice extracted.
-        -- Reduce both `let i ← off + remaining`.
-        -- LHS: 0#usize + rem_us = .ok rem_us.
-        have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : RustM Std.Usize) := by
-          have h_bnd : (0#usize : Std.Usize).val + rem_us.val ≤ Std.UScalar.max .Usize := by
-            rw [Std.UScalar.max_USize_eq]; show 0 + rem_us.val ≤ Std.Usize.max
-            rw [h_rem_us_val]; omega
-          obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
-            Std.WP.spec_imp_exists
-              (Std.UScalar.add_bv_spec (x := (0#usize : Std.Usize)) (y := rem_us) h_bnd)
-          have h_v_val : v.val = rem_us.val := by
-            rw [h_v_val_eq]; show 0 + rem_us.val = rem_us.val; omega
-          have h_v_eq : v = rem_us := Std.UScalar.eq_of_val_eq h_v_val
-          rw [h_eq_v, h_v_eq]
-        rw [h_lhs_add]; simp only [bind_tc_ok]
-        -- RHS: i3_us + rem_us = .ok i_us (since i3_us.val + rem_us.val = n*RATE + rem = data.length = i_us.val).
-        have h_rhs_add : i3_us + rem_us = (.ok i_us : RustM Std.Usize) := by
-          have h_bnd : i3_us.val + rem_us.val ≤ Std.UScalar.max .Usize := by
-            rw [Std.UScalar.max_USize_eq, h_i3_us_val, h_rem_us_val]; omega
-          obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
-            Std.WP.spec_imp_exists
-              (Std.UScalar.add_bv_spec (x := i3_us) (y := rem_us) h_bnd)
-          have h_v_val : v.val = i_us.val := by
-            rw [h_v_val_eq, h_i3_us_val, h_rem_us_val, h_i_us_val]; omega
-          have h_v_eq : v = i_us := Std.UScalar.eq_of_val_eq h_v_val
-          rw [h_eq_v, h_v_eq]
-        rw [h_rhs_add]; simp only [bind_tc_ok]
-        -- Now both sides have slice indices that produce the same byte sequence.
-        -- LHS: index tail [0, rem_us]. Bytes = tail.val.slice 0 rem.val = tail.val (= data.drop n*rate, length rem).
-        -- RHS: index data [i3_us, i_us]. Bytes = data.val.slice (n*rate) (data.length).
-        -- = data.val.drop (n*rate) since (data.length - n*rate) covers the whole drop.
-        -- Show both indices yield the same `Slice`.
-        have h_lhs_idx :
-            CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-              (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-              tail { start := 0#usize, «end» := rem_us }
-            = .ok tail := by
-          have h0 : (0#usize : Std.Usize).val ≤ rem_us.val := Nat.zero_le _
-          have h1' : rem_us.val ≤ tail.val.length := by rw [h_tail_len, h_rem_us_val]
-          obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq tail 0#usize rem_us h0 h1'
-          rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
-          show tail.val.slice ((0#usize : Std.Usize).val) rem_us.val = tail.val
-          rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, h_rem_us_val]
-          unfold List.slice
-          rw [List.drop_zero]
-          rw [List.take_of_length_le (by rw [h_tail_len]; omega)]
-        have h_rhs_idx :
-            CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-              (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice Std.U8)
-              data { start := i3_us, «end» := i_us }
-            = .ok tail := by
-          have h0 : i3_us.val ≤ i_us.val := by rw [h_i3_us_val, h_i_us_val]; omega
-          have h1' : i_us.val ≤ data.val.length := by rw [h_i_us_val]
-          obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq data i3_us i_us h0 h1'
-          rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
-          show data.val.slice i3_us.val i_us.val = tail.val
-          rw [h_i3_us_val, h_i_us_val]
-          show data.val.slice (n_nat * RATE.val) data.val.length = data.val.drop (n_nat * RATE.val)
-          unfold List.slice
-          rw [List.take_of_length_le (by rw [List.length_drop])]
-        rw [h_lhs_idx, h_rhs_idx]
-      rw [h_pad_eq]
+    rw [show data.val.drop (n_nat * RATE.val) = tail.val from rfl,
+      absorbRecLanes_unfold_short (Foundation.lift s1) RATE DELIM tail h_tail_lt_rate]
+    -- The padded last block is the same whether the tail is presented as the
+    -- suffix dropped from offset 0, or as `data` read from offset `n * RATE`.
+    have hpd : absorbFinalLanes (Foundation.lift s1) tail.val 0 tail.val.length RATE.val DELIM
+        = absorbFinalLanes (Foundation.lift s1) data.val i3_us.val rem_us.val RATE.val DELIM := by
+      show absorbFinalLanes (Foundation.lift s1) (data.val.drop (n_nat * RATE.val)) 0
+          (data.val.drop (n_nat * RATE.val)).length RATE.val DELIM = _
+      rw [show (data.val.drop (n_nat * RATE.val)).length = rem_us.val from by
+        rw [List.length_drop, h_rem_us_val]; omega]
+      unfold absorbFinalLanes
+      rw [padBlockList_drop, h_i3_us_val]
+    rw [hpd]
+    exact h_s2_spec
   -- Step 16: spec-side squeeze. Need:
   --   sponge.squeeze outlen_us (lift s2) RATE = .ok spec_out.
   -- Use sponge_squeeze_byte_eq with the constant `s_b` function (since outlen < RATE,
@@ -424,42 +329,34 @@ theorem keccak.keccak_keccak_spec_blocks_zero
   have h_RATE_pos : 0 < RATE.val := h_RATE_ge_1
   set s_b : Nat → Std.Array Std.U64 25#usize := fun _ => Foundation.lift s2 with hsb_def
   have h_iter_const : ∀ k : Nat, k < outlen_us.val →
-      sponge.iterate_keccak_f
-          ⟨BitVec.ofNat _ (k / RATE.val)⟩ (Foundation.lift s2) = .ok (s_b k) := by
+      keccakFLanes^[k / RATE.val] (Foundation.lift s2) = s_b k := by
     intro k hk
     -- k < outlen_us.val = out.length < RATE.val, so k / RATE.val = 0.
     have h_k_div : k / RATE.val = 0 := by
       apply Nat.div_eq_of_lt
       rw [h_outlen_us_val] at hk; omega
-    rw [h_k_div]
-    -- iterate_keccak_f ⟨BitVec.ofNat _ 0⟩ (lift s2) = .ok (lift s2).
-    have h_zero_usize : (⟨BitVec.ofNat _ 0⟩ : Std.Usize) = (0#usize : Std.Usize) := by
-      apply Std.UScalar.eq_of_val_eq
-      show (BitVec.ofNat _ 0).toNat = (0#usize : Std.Usize).val
-      rfl
-    rw [h_zero_usize]
-    rw [iterate_keccak_f_zero]
-  obtain ⟨spec_out, h_spec_squeeze, h_spec_bytes⟩ :=
-    sponge_squeeze_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos h_RATE_mod h_RATE_le_200
-      s_b h_iter_const
-  -- Step 17: compose: sponge.keccak outlen_us RATE DELIM data = .ok spec_out.
+    rw [h_k_div, keccakFLanes_iterate_zero]
+  have h_spec_bytes :=
+    squeezeLanes_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos s_b h_iter_const
+  -- Step 17: compose: `keccakLanes` is the squeeze of the absorbed state.
   have h_spec_full_eq :
-      sponge.keccak outlen_us RATE DELIM data = .ok spec_out := by
-    unfold sponge.keccak
-    rw [h_absorb_eq]; simp only [bind_tc_ok]
-    exact h_spec_squeeze
+      keccakLanes outlen_us RATE.val DELIM data.val
+        = squeezeLanes outlen_us (Foundation.lift s2) RATE.val := by
+    unfold keccakLanes
+    rw [h_absorb_eq]
   -- Step 18: assemble post.
   apply triple_of_ok_kk (v := r_out) h_impl_eq
-  refine ⟨spec_out, h_spec_full_eq, h_r_out_len, ?_⟩
+  refine ⟨h_r_out_len, ?_⟩
   intro k hk
-  -- spec_out.val[k]! = squeeze_byte_at (s_b k) (k - (k/RATE.val) * RATE.val)
-  --   = squeeze_byte_at (lift s2) (k - 0) = squeeze_byte_at (lift s2) k.
+  rw [h_spec_full_eq]
+  -- spec_out.val[k]! = squeezeByteAt (s_b k) (k - (k/RATE.val) * RATE.val)
+  --   = squeezeByteAt (lift s2) (k - 0) = squeezeByteAt (lift s2) k.
   have h_k_div : k / RATE.val = 0 := by
     apply Nat.div_eq_of_lt; omega
   have h_spec_byte := h_spec_bytes k (by rw [h_outlen_us_val]; exact hk)
   rw [h_spec_byte]
-  -- Goal: r_out.val[k]! = squeeze_byte_at (s_b k) (k - (k/RATE.val) * RATE.val).
-  unfold squeeze_byte_at
+  -- Goal: r_out.val[k]! = squeezeByteAt (s_b k) (k - (k/RATE.val) * RATE.val).
+  unfold squeezeByteAt
   rw [hsb_def]
   rw [h_k_div]
   show r_out.val[k]! = ⟨(BitVec.toLEBytes
@@ -490,12 +387,10 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
     (h_blocks_nonzero : RATE.val ≤ out.val.length) :
     ⦃ ⌜ True ⌝ ⦄
     keccak.keccak RATE DELIM data out
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 (Std.Slice.len out),
-                sponge.keccak (Std.Slice.len out) RATE DELIM data
-                  = .ok spec_out
-                ∧ r.val.length = out.val.length
-                ∧ ∀ k : Nat, k < out.val.length →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ r.val.length = out.val.length
+              ∧ ∀ k : Nat, k < out.val.length →
+                  r.val[k]!
+                    = (keccakLanes (Std.Slice.len out) RATE.val DELIM data.val).val[k]! ⌝ ⦄ := by
   -- Step 1: KeccakState.new.
   obtain ⟨s0, h_s0_eq, h_s0_i, h_s0_lift⟩ := state_KeccakState_new_eq
   -- Step 2: side-condition facts.
@@ -709,19 +604,17 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
       rw [h_s5_eq]; simp only [bind_tc_ok]
     -- Step 20: spec-side absorb (same as blocks_zero case).
     have h_fold_spec : absorb_fold_spec (Foundation.lift s0) data RATE n_us.val
-                        = .ok (Foundation.lift s1) := by
+                        = Foundation.lift s1 := by
       rw [← absorb_fold_eq_spec]; exact h_s1_fold
-    have h_absorb_eq : sponge.absorb RATE DELIM data = .ok (Foundation.lift s2) := by
-      unfold sponge.absorb
-      show sponge.absorb_rec (Std.Array.repeat 25#usize 0#u64) RATE DELIM data
-           = .ok (Foundation.lift s2)
+    have h_absorb_eq : absorbLanes RATE.val DELIM data.val = Foundation.lift s2 := by
+      unfold absorbLanes
       rw [← h_s0_lift]
-      rw [sponge_absorb_rec_eq_fold (Foundation.lift s0) RATE DELIM data n_nat
+      rw [absorbRecLanes_eq_fold RATE DELIM data (by omega) (Foundation.lift s0) n_nat
         (by rw [hn_nat_def]; exact h_n_rate_le)]
       have h_fold_spec_n : absorb_fold_spec (Foundation.lift s0) data RATE n_nat
-                          = .ok (Foundation.lift s1) := by
+                          = Foundation.lift s1 := by
         rw [← h_n_us_val]; exact h_fold_spec
-      rw [h_fold_spec_n]; simp only [bind_tc_ok]
+      rw [h_fold_spec_n]
       set tail : Slice Std.U8 :=
         ⟨data.val.drop (n_nat * RATE.val), by
           rw [List.length_drop]; have := data.property; omega⟩ with htail_def
@@ -730,75 +623,20 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
         rw [List.length_drop]; omega
       have h_tail_lt_rate : tail.val.length < RATE.val := by
         rw [h_tail_len]; exact h_rem_lt_RATE
-      rw [sponge_absorb_rec_unfold_short (Foundation.lift s1) RATE DELIM tail h_tail_lt_rate]
-      have h_slt_eq_rem : Std.Slice.len tail = rem_us := by
-        apply Std.UScalar.eq_of_val_eq
-        simp [Std.Slice.len, h_tail_len, h_rem_us_val]
-      rw [h_slt_eq_rem]
-      rw [show sponge.absorb_final (Foundation.lift s1) tail 0#usize rem_us RATE DELIM
-            = sponge.absorb_final (Foundation.lift s1) data i3_us rem_us RATE DELIM from ?_]
-      · exact h_s2_spec
-      · -- Same pad_last_block equality as in blocks_zero case.
-        unfold sponge.absorb_final
-        have h_pad_eq :
-            sponge.pad_last_block tail 0#usize rem_us RATE DELIM
-              = sponge.pad_last_block data i3_us rem_us RATE DELIM := by
-          unfold sponge.pad_last_block
-          have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : RustM Std.Usize) := by
-            have h_bnd : (0#usize : Std.Usize).val + rem_us.val ≤ Std.UScalar.max .Usize := by
-              rw [Std.UScalar.max_USize_eq]; show 0 + rem_us.val ≤ Std.Usize.max
-              rw [h_rem_us_val]; omega
-            obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
-              Std.WP.spec_imp_exists
-                (Std.UScalar.add_bv_spec (x := (0#usize : Std.Usize)) (y := rem_us) h_bnd)
-            have h_v_val : v.val = rem_us.val := by
-              rw [h_v_val_eq]; show 0 + rem_us.val = rem_us.val; omega
-            have h_v_eq : v = rem_us := Std.UScalar.eq_of_val_eq h_v_val
-            rw [h_eq_v, h_v_eq]
-          rw [h_lhs_add]; simp only [bind_tc_ok]
-          have h_rhs_add : i3_us + rem_us = (.ok i_us : RustM Std.Usize) := by
-            have h_bnd : i3_us.val + rem_us.val ≤ Std.UScalar.max .Usize := by
-              rw [Std.UScalar.max_USize_eq, h_i3_us_val, h_rem_us_val]; omega
-            obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
-              Std.WP.spec_imp_exists
-                (Std.UScalar.add_bv_spec (x := i3_us) (y := rem_us) h_bnd)
-            have h_v_val : v.val = i_us.val := by
-              rw [h_v_val_eq, h_i3_us_val, h_rem_us_val, h_i_us_val]; omega
-            have h_v_eq : v = i_us := Std.UScalar.eq_of_val_eq h_v_val
-            rw [h_eq_v, h_v_eq]
-          rw [h_rhs_add]; simp only [bind_tc_ok]
-          have h_lhs_idx :
-              CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                  Std.U8)
-                tail { start := 0#usize, «end» := rem_us }
-              = .ok tail := by
-            have h0 : (0#usize : Std.Usize).val ≤ rem_us.val := Nat.zero_le _
-            have h1' : rem_us.val ≤ tail.val.length := by rw [h_tail_len, h_rem_us_val]
-            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq tail 0#usize rem_us h0 h1'
-            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
-            show tail.val.slice ((0#usize : Std.Usize).val) rem_us.val = tail.val
-            rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, h_rem_us_val]
-            unfold List.slice
-            rw [List.drop_zero]
-            rw [List.take_of_length_le (by rw [h_tail_len]; omega)]
-          have h_rhs_idx :
-              CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                  Std.U8)
-                data { start := i3_us, «end» := i_us }
-              = .ok tail := by
-            have h0 : i3_us.val ≤ i_us.val := by rw [h_i3_us_val, h_i_us_val]; omega
-            have h1' : i_us.val ≤ data.val.length := by rw [h_i_us_val]
-            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq data i3_us i_us h0 h1'
-            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
-            show data.val.slice i3_us.val i_us.val = tail.val
-            rw [h_i3_us_val, h_i_us_val]
-            show data.val.slice (n_nat * RATE.val) data.val.length = data.val.drop (n_nat * RATE.val)
-            unfold List.slice
-            rw [List.take_of_length_le (by rw [List.length_drop])]
-          rw [h_lhs_idx, h_rhs_idx]
-        rw [h_pad_eq]
+      rw [show data.val.drop (n_nat * RATE.val) = tail.val from rfl,
+        absorbRecLanes_unfold_short (Foundation.lift s1) RATE DELIM tail h_tail_lt_rate]
+      -- The padded last block is the same whether the tail is presented as the
+      -- suffix dropped from offset 0, or as `data` read from offset `n * RATE`.
+      have hpd : absorbFinalLanes (Foundation.lift s1) tail.val 0 tail.val.length RATE.val DELIM
+          = absorbFinalLanes (Foundation.lift s1) data.val i3_us.val rem_us.val RATE.val DELIM := by
+        show absorbFinalLanes (Foundation.lift s1) (data.val.drop (n_nat * RATE.val)) 0
+            (data.val.drop (n_nat * RATE.val)).length RATE.val DELIM = _
+        rw [show (data.val.drop (n_nat * RATE.val)).length = rem_us.val from by
+          rw [List.length_drop, h_rem_us_val]; omega]
+        unfold absorbFinalLanes
+        rw [padBlockList_drop, h_i3_us_val]
+      rw [hpd]
+      exact h_s2_spec
     -- Step 21: spec-side squeeze using sponge_squeeze_byte_eq.
     have h_RATE_pos : 0 < RATE.val := h_RATE_ge_1
     -- The s_b function: for each k < outlen, return state of iterate (k/RATE) (lift s2).
@@ -815,26 +653,6 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
     -- We use sponge_squeeze_byte_eq with the s_b function set to:
     --   k → if k < RATE then lift s2 else if k < blocks*RATE then s_bj else s_spec_last.
     -- Define s_b directly:
-    -- Helper: iterate_keccak_f via squeeze_fold-conversion.
-    have h_iter_eq_fold : ∀ (n : Nat) (st : Std.Array Std.U64 25#usize),
-        n ≤ Std.Usize.max →
-        sponge.iterate_keccak_f (⟨BitVec.ofNat _ n⟩ : Std.Usize) st
-          = iterate_keccak_f_fold st n := by
-      intro n st h_n_le
-      rw [iterate_keccak_f_eq_fold]
-      -- (⟨BitVec.ofNat _ n⟩ : Usize).val = n.
-      have h_val : (⟨BitVec.ofNat _ n⟩ : Std.Usize).val = n := by
-        show (BitVec.ofNat _ n).toNat = n
-        rw [BitVec.toNat_ofNat]
-        apply Nat.mod_eq_of_lt
-        have h1 : Std.UScalarTy.Usize.numBits = Std.Usize.numBits := by
-          rw [Std.Usize.numBits]
-        rw [h1]
-        have hpos : 0 < 2 ^ Std.Usize.numBits := Nat.two_pow_pos _
-        have h2 : 2 ^ Std.Usize.numBits = Std.Usize.max + 1 := by
-          rw [Std.Usize.max]; omega
-        omega
-      rw [h_val]
     -- Bound: blocks_nat ≤ outlen / RATE so blocks_nat ≤ Std.Usize.max.
     have h_blocks_le_max : blocks_nat ≤ Std.Usize.max := by
       have : blocks_nat ≤ out.val.length := by
@@ -860,16 +678,10 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
         else s_spec_last
       else Foundation.lift s2
     -- The condition "iterate_keccak_f (k/RATE) (lift s2) = .ok (s_b k)" for each region.
-    have h_iter_const : ∀ k : Nat, k < outlen_us.val →
-        sponge.iterate_keccak_f
-            ⟨BitVec.ofNat _ (k / RATE.val)⟩ (Foundation.lift s2) = .ok (s_b k) := by
+    have h_iter_fold : ∀ k : Nat, k < outlen_us.val →
+        iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val) = .ok (s_b k) := by
       intro k hk
       rw [h_outlen_us_val] at hk
-      -- k < outlen ≤ Std.Usize.max so k ≤ Std.Usize.max so k/RATE.val ≤ Std.Usize.max.
-      have h_k_le : k ≤ Std.Usize.max := by omega
-      have h_kRATE_le : k / RATE.val ≤ Std.Usize.max := by
-        have := Nat.div_le_self k RATE.val; omega
-      rw [h_iter_eq_fold _ _ h_kRATE_le]
       -- Split on which region k is in.
       by_cases hk_RATE : k < RATE.val
       · -- Region 1: k < RATE. k/RATE = 0, iterate 0 = .ok state.
@@ -943,35 +755,38 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
           unfold iterate_keccak_f_fold
           have h_blocks_eq : blocks_nat = (blocks_nat - 1) + 1 := by omega
           rw [h_blocks_eq, Nat.fold_succ]
-          -- Goal: (fold (blocks_nat - 1) ... ) >>= keccak_f.keccak_f = .ok s_spec_last.
+          -- Goal: (fold (blocks_nat - 1) …) >>= keccakFLanes = .ok s_spec_last.
           have h_inner : Nat.fold (blocks_nat - 1)
               (init := (.ok (Foundation.lift s2) : RustM _))
-              (fun _ _ acc => acc >>= fun st => keccak_f.keccak_f st)
+              (fun _ _ acc => acc >>= fun st => (.ok (keccakFLanes st) : RustM _))
               = .ok (Foundation.lift s3) := by
             have h_blocks_us_minus : blocks_us.val - 1 = blocks_nat - 1 := by
               rw [h_blocks_us_val]
             unfold squeeze_fold iterate_keccak_f_fold at h_fold_blocks
             rw [← h_blocks_us_minus]
             exact h_fold_blocks
-          rw [h_inner]; simp only [bind_tc_ok]
-          exact h_s5_kf
-    obtain ⟨spec_out, h_spec_squeeze, h_spec_bytes⟩ :=
-      sponge_squeeze_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos h_RATE_mod
-        h_RATE_le_200 s_b h_iter_const
+          rw [h_inner, bind_tc_ok, h_s5_kf]
     -- Step 22: compose spec-side.
+    have h_iter_const : ∀ k : Nat, k < outlen_us.val →
+        keccakFLanes^[k / RATE.val] (Foundation.lift s2) = s_b k := by
+      intro k hk
+      have h := h_iter_fold k hk
+      rw [iterate_keccak_f_fold_eq] at h
+      exact (RustM.ok.injEq _ _).mp h
+    have h_spec_bytes :=
+      squeezeLanes_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos s_b h_iter_const
     have h_spec_full_eq :
-        sponge.keccak outlen_us RATE DELIM data = .ok spec_out := by
-      unfold sponge.keccak
-      rw [h_absorb_eq]; simp only [bind_tc_ok]
-      exact h_spec_squeeze
+        keccakLanes outlen_us RATE.val DELIM data.val
+          = squeezeLanes outlen_us (Foundation.lift s2) RATE.val := by
+      unfold keccakLanes
+      rw [h_absorb_eq]
     -- Step 23: assemble post.
     apply triple_of_ok_kk (v := index_mut_back s5) h_impl_eq
     have h_final_len : (index_mut_back s5).val.length = out.val.length := by
       rw [h_s4_back s5 (by omega), List.length_setSlice!, h_out2_len_out]
-    refine ⟨spec_out, h_spec_full_eq, h_final_len, ?_⟩
+    refine ⟨h_final_len, ?_⟩
     intro k hk
-    have h_spec_byte := h_spec_bytes k (by rw [h_outlen_us_val]; exact hk)
-    rw [h_spec_byte]
+    rw [h_spec_full_eq, h_spec_bytes k (by rw [h_outlen_us_val]; exact hk)]
     -- LHS: (index_mut_back s5).val[k]! = (out2.val.setSlice! offset.val s5.val)[k]!
     rw [h_s4_back s5 (by omega)]
     -- Split into 3 regions for the byte equation.
@@ -986,7 +801,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
       have h_prefix := h_loop_prefix k hk_RATE
       rw [h_prefix]
       rw [h_out1_bytes k hk_RATE]
-      unfold squeeze_byte_at
+      unfold squeezeByteAt
       rw [h_div, Nat.zero_mul, Nat.sub_zero]
     · push Not at hk_RATE
       by_cases hk_last : k < blocks_nat * RATE.val
@@ -1056,7 +871,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
           rw [h_kRATE]; omega
         have h_k_off_eq : k - offset.val = k - k / RATE.val * RATE.val := by
           rw [h_k_div, h_offset_eq_last]
-        unfold squeeze_byte_at
+        unfold squeezeByteAt
         rw [h_k_off_eq]
   · -- Else-branch: ¬(last < outlen) ⇒ i1 = 0, no partial trailing block.
     push Not at h_partial
@@ -1099,19 +914,17 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
       rw [if_neg h_not_partial]
     -- Spec-side absorb (same as partial branch).
     have h_fold_spec : absorb_fold_spec (Foundation.lift s0) data RATE n_us.val
-                        = .ok (Foundation.lift s1) := by
+                        = Foundation.lift s1 := by
       rw [← absorb_fold_eq_spec]; exact h_s1_fold
-    have h_absorb_eq : sponge.absorb RATE DELIM data = .ok (Foundation.lift s2) := by
-      unfold sponge.absorb
-      show sponge.absorb_rec (Std.Array.repeat 25#usize 0#u64) RATE DELIM data
-           = .ok (Foundation.lift s2)
+    have h_absorb_eq : absorbLanes RATE.val DELIM data.val = Foundation.lift s2 := by
+      unfold absorbLanes
       rw [← h_s0_lift]
-      rw [sponge_absorb_rec_eq_fold (Foundation.lift s0) RATE DELIM data n_nat
+      rw [absorbRecLanes_eq_fold RATE DELIM data (by omega) (Foundation.lift s0) n_nat
         (by rw [hn_nat_def]; exact h_n_rate_le)]
       have h_fold_spec_n : absorb_fold_spec (Foundation.lift s0) data RATE n_nat
-                          = .ok (Foundation.lift s1) := by
+                          = Foundation.lift s1 := by
         rw [← h_n_us_val]; exact h_fold_spec
-      rw [h_fold_spec_n]; simp only [bind_tc_ok]
+      rw [h_fold_spec_n]
       set tail : Slice Std.U8 :=
         ⟨data.val.drop (n_nat * RATE.val), by
           rw [List.length_drop]; have := data.property; omega⟩ with htail_def
@@ -1120,75 +933,20 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
         rw [List.length_drop]; omega
       have h_tail_lt_rate : tail.val.length < RATE.val := by
         rw [h_tail_len]; exact h_rem_lt_RATE
-      rw [sponge_absorb_rec_unfold_short (Foundation.lift s1) RATE DELIM tail h_tail_lt_rate]
-      have h_slt_eq_rem : Std.Slice.len tail = rem_us := by
-        apply Std.UScalar.eq_of_val_eq
-        simp [Std.Slice.len, h_tail_len, h_rem_us_val]
-      rw [h_slt_eq_rem]
-      rw [show sponge.absorb_final (Foundation.lift s1) tail 0#usize rem_us RATE DELIM
-            = sponge.absorb_final (Foundation.lift s1) data i3_us rem_us RATE DELIM from ?_]
-      · exact h_s2_spec
-      · unfold sponge.absorb_final
-        have h_pad_eq :
-            sponge.pad_last_block tail 0#usize rem_us RATE DELIM
-              = sponge.pad_last_block data i3_us rem_us RATE DELIM := by
-          unfold sponge.pad_last_block
-          have h_lhs_add : (0#usize : Std.Usize) + rem_us = (.ok rem_us : RustM Std.Usize) := by
-            have h_bnd : (0#usize : Std.Usize).val + rem_us.val ≤ Std.UScalar.max .Usize := by
-              rw [Std.UScalar.max_USize_eq]; show 0 + rem_us.val ≤ Std.Usize.max
-              rw [h_rem_us_val]; omega
-            obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
-              Std.WP.spec_imp_exists
-                (Std.UScalar.add_bv_spec (x := (0#usize : Std.Usize)) (y := rem_us) h_bnd)
-            have h_v_val : v.val = rem_us.val := by
-              rw [h_v_val_eq]; show 0 + rem_us.val = rem_us.val; omega
-            have h_v_eq : v = rem_us := Std.UScalar.eq_of_val_eq h_v_val
-            rw [h_eq_v, h_v_eq]
-          rw [h_lhs_add]; simp only [bind_tc_ok]
-          have h_rhs_add : i3_us + rem_us = (.ok i_us : RustM Std.Usize) := by
-            have h_bnd : i3_us.val + rem_us.val ≤ Std.UScalar.max .Usize := by
-              rw [Std.UScalar.max_USize_eq, h_i3_us_val, h_rem_us_val]; omega
-            obtain ⟨v, h_eq_v, h_v_val_eq, _⟩ :=
-              Std.WP.spec_imp_exists
-                (Std.UScalar.add_bv_spec (x := i3_us) (y := rem_us) h_bnd)
-            have h_v_val : v.val = i_us.val := by
-              rw [h_v_val_eq, h_i3_us_val, h_rem_us_val, h_i_us_val]; omega
-            have h_v_eq : v = i_us := Std.UScalar.eq_of_val_eq h_v_val
-            rw [h_eq_v, h_v_eq]
-          rw [h_rhs_add]; simp only [bind_tc_ok]
-          have h_lhs_idx :
-              CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                  Std.U8)
-                tail { start := 0#usize, «end» := rem_us }
-              = .ok tail := by
-            have h0 : (0#usize : Std.Usize).val ≤ rem_us.val := Nat.zero_le _
-            have h1' : rem_us.val ≤ tail.val.length := by rw [h_tail_len, h_rem_us_val]
-            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq tail 0#usize rem_us h0 h1'
-            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
-            show tail.val.slice ((0#usize : Std.Usize).val) rem_us.val = tail.val
-            rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, h_rem_us_val]
-            unfold List.slice
-            rw [List.drop_zero]
-            rw [List.take_of_length_le (by rw [h_tail_len]; omega)]
-          have h_rhs_idx :
-              CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-                (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                  Std.U8)
-                data { start := i3_us, «end» := i_us }
-              = .ok tail := by
-            have h0 : i3_us.val ≤ i_us.val := by rw [h_i3_us_val, h_i_us_val]; omega
-            have h1' : i_us.val ≤ data.val.length := by rw [h_i_us_val]
-            obtain ⟨ns, hns_eq, hns_val⟩ := Slice.index_RangeUsize_eq data i3_us i_us h0 h1'
-            rw [hns_eq]; congr 1; apply Subtype.ext; rw [hns_val]
-            show data.val.slice i3_us.val i_us.val = tail.val
-            rw [h_i3_us_val, h_i_us_val]
-            show data.val.slice (n_nat * RATE.val) data.val.length
-                = data.val.drop (n_nat * RATE.val)
-            unfold List.slice
-            rw [List.take_of_length_le (by rw [List.length_drop])]
-          rw [h_lhs_idx, h_rhs_idx]
-        rw [h_pad_eq]
+      rw [show data.val.drop (n_nat * RATE.val) = tail.val from rfl,
+        absorbRecLanes_unfold_short (Foundation.lift s1) RATE DELIM tail h_tail_lt_rate]
+      -- The padded last block is the same whether the tail is presented as the
+      -- suffix dropped from offset 0, or as `data` read from offset `n * RATE`.
+      have hpd : absorbFinalLanes (Foundation.lift s1) tail.val 0 tail.val.length RATE.val DELIM
+          = absorbFinalLanes (Foundation.lift s1) data.val i3_us.val rem_us.val RATE.val DELIM := by
+        show absorbFinalLanes (Foundation.lift s1) (data.val.drop (n_nat * RATE.val)) 0
+            (data.val.drop (n_nat * RATE.val)).length RATE.val DELIM = _
+        rw [show (data.val.drop (n_nat * RATE.val)).length = rem_us.val from by
+          rw [List.length_drop, h_rem_us_val]; omega]
+        unfold absorbFinalLanes
+        rw [padBlockList_drop, h_i3_us_val]
+      rw [hpd]
+      exact h_s2_spec
     -- Spec-side squeeze (no region 3; outlen = blocks * RATE).
     have h_RATE_pos : 0 < RATE.val := h_RATE_ge_1
     have h_blocks_le_max : blocks_nat ≤ Std.Usize.max := by
@@ -1210,33 +968,10 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
           Classical.choose (h_loop_bytes (k - RATE.val) (h_middle_bound k hk_lo hk_hi))
         else Foundation.lift s3
       else Foundation.lift s2
-    have h_iter_eq_fold : ∀ (n : Nat) (st : Std.Array Std.U64 25#usize),
-        n ≤ Std.Usize.max →
-        sponge.iterate_keccak_f (⟨BitVec.ofNat _ n⟩ : Std.Usize) st
-          = iterate_keccak_f_fold st n := by
-      intro n st h_n_le
-      rw [iterate_keccak_f_eq_fold]
-      have h_val : (⟨BitVec.ofNat _ n⟩ : Std.Usize).val = n := by
-        show (BitVec.ofNat _ n).toNat = n
-        rw [BitVec.toNat_ofNat]
-        apply Nat.mod_eq_of_lt
-        have h1 : Std.UScalarTy.Usize.numBits = Std.Usize.numBits := by
-          rw [Std.Usize.numBits]
-        rw [h1]
-        have hpos : 0 < 2 ^ Std.Usize.numBits := Nat.two_pow_pos _
-        have h2 : 2 ^ Std.Usize.numBits = Std.Usize.max + 1 := by
-          rw [Std.Usize.max]; omega
-        omega
-      rw [h_val]
-    have h_iter_const : ∀ k : Nat, k < outlen_us.val →
-        sponge.iterate_keccak_f
-            ⟨BitVec.ofNat _ (k / RATE.val)⟩ (Foundation.lift s2) = .ok (s_b k) := by
+    have h_iter_fold : ∀ k : Nat, k < outlen_us.val →
+        iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val) = .ok (s_b k) := by
       intro k hk
       rw [h_outlen_us_val] at hk
-      have h_k_le : k ≤ Std.Usize.max := by omega
-      have h_kRATE_le : k / RATE.val ≤ Std.Usize.max := by
-        have := Nat.div_le_self k RATE.val; omega
-      rw [h_iter_eq_fold _ _ h_kRATE_le]
       by_cases hk_RATE : k < RATE.val
       · have hsb : s_b k = Foundation.lift s2 := by
           show (if hk_lo : RATE.val ≤ k then _ else Foundation.lift s2) = _
@@ -1279,19 +1014,23 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
             = iterate_keccak_f_fold (Foundation.lift s2) ((k - RATE.val) / RATE.val + 1) := by
               rw [h_div_eq]
           _ = .ok (Classical.choose (h_loop_bytes (k - RATE.val) h_mb)) := h_fold_eq
-    obtain ⟨spec_out, h_spec_squeeze, h_spec_bytes⟩ :=
-      sponge_squeeze_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos h_RATE_mod
-        h_RATE_le_200 s_b h_iter_const
+    have h_iter_const : ∀ k : Nat, k < outlen_us.val →
+        keccakFLanes^[k / RATE.val] (Foundation.lift s2) = s_b k := by
+      intro k hk
+      have h := h_iter_fold k hk
+      rw [iterate_keccak_f_fold_eq] at h
+      exact (RustM.ok.injEq _ _).mp h
+    have h_spec_bytes :=
+      squeezeLanes_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos s_b h_iter_const
     have h_spec_full_eq :
-        sponge.keccak outlen_us RATE DELIM data = .ok spec_out := by
-      unfold sponge.keccak
-      rw [h_absorb_eq]; simp only [bind_tc_ok]
-      exact h_spec_squeeze
+        keccakLanes outlen_us RATE.val DELIM data.val
+          = squeezeLanes outlen_us (Foundation.lift s2) RATE.val := by
+      unfold keccakLanes
+      rw [h_absorb_eq]
     apply triple_of_ok_kk (v := out2) h_impl_eq
-    refine ⟨spec_out, h_spec_full_eq, h_out2_len_out, ?_⟩
+    refine ⟨h_out2_len_out, ?_⟩
     intro k hk
-    have h_spec_byte := h_spec_bytes k (by rw [h_outlen_us_val]; exact hk)
-    rw [h_spec_byte]
+    rw [h_spec_full_eq, h_spec_bytes k (by rw [h_outlen_us_val]; exact hk)]
     by_cases hk_RATE : k < RATE.val
     · -- Region 1.
       have hsb : s_b k = Foundation.lift s2 := by
@@ -1302,7 +1041,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
       have h_prefix := h_loop_prefix k hk_RATE
       rw [h_prefix]
       rw [h_out1_bytes k hk_RATE]
-      unfold squeeze_byte_at
+      unfold squeezeByteAt
       rw [h_div, Nat.zero_mul, Nat.sub_zero]
     · push Not at hk_RATE
       have hk_last : k < blocks_nat * RATE.val := by rw [h_outlen_eq_last] at hk; exact hk
@@ -1357,12 +1096,10 @@ theorem keccak.keccak_keccak_spec
     (h_RATE_le_200 : RATE.val ≤ 200) :
     ⦃ ⌜ True ⌝ ⦄
     keccak.keccak RATE DELIM data out
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 (Std.Slice.len out),
-                sponge.keccak (Std.Slice.len out) RATE DELIM data
-                  = .ok spec_out
-                ∧ r.val.length = out.val.length
-                ∧ ∀ k : Nat, k < out.val.length →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ r.val.length = out.val.length
+              ∧ ∀ k : Nat, k < out.val.length →
+                  r.val[k]!
+                    = (keccakLanes (Std.Slice.len out) RATE.val DELIM data.val).val[k]! ⌝ ⦄ := by
   by_cases h : out.val.length < RATE.val
   · exact keccak.keccak_keccak_spec_blocks_zero RATE DELIM data out
       h_RATE_mod h_RATE_ge_1 h_RATE_le_200 h

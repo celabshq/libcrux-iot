@@ -21,13 +21,15 @@
   composed at the end:
 
   1. `h_impl_eq : keccak.absorb_final ... = .ok r`
-  2. `h_pad_eq  : sponge.pad_last_block ... = .ok buf3`
-  3. `h_block_idx_eq` — the spec's `block[0..rate]` indexing.
+  2. `h_buf3_pad : buf3.val = padBlockList ...` — the impl's buffer chain
+     is the model's padded block.
   4. Compose via `h_r_spec` from `keccak.absorb_block_spec`.
 -/
 import LibcruxIotSha3.Sponge.AbsorbBlock
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -35,8 +37,7 @@ open libcrux_iot_sha3.Foundation
 
 -- Defensive seal re-issue: no proof in this file may unfold either side
 -- of Bridge 1.
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 /-! ## `keccak.absorb_final` ↔ `sponge.absorb_final`. -/
 
@@ -162,8 +163,9 @@ theorem keccak.absorb_final_spec
     ⦃ ⌜ True ⌝ ⦄
     keccak.absorb_final RATE DELIM s last start len
     ⦃ ⇓ r => ⌜ r.i.val = 0
-              ∧ sponge.absorb_final (Foundation.lift s) last start len RATE DELIM
-                  = .ok (Foundation.lift r) ⌝ ⦄ := by
+              ∧ absorbFinalLanes (Foundation.lift s) last.val start.val len.val
+                    RATE.val DELIM
+                  = Foundation.lift r ⌝ ⦄ := by
   -- Common: RATE.val ≤ Std.Usize.max.
   have h_RATE_max : RATE.val ≤ Std.Usize.max := by
     have h200 : (200 : Nat) ≤ Std.Usize.max := by scalar_tac
@@ -181,13 +183,13 @@ theorem keccak.absorb_final_spec
     rw [h1]
   have h_i_r1_lt_200 : i_r1.val < 200 := by rw [h_i_r1_val]; omega
   -- Show existence: ∃ r, keccak.absorb_final = .ok r ∧ r.i.val = 0 ∧
-  -- sponge.absorb_final (lift s) ... = .ok (lift r).
+  -- absorbFinalLanes (lift s) ... = lift r.
   suffices h_exists :
       ∃ (r : state.KeccakState),
         keccak.absorb_final RATE DELIM s last start len = .ok r ∧
         r.i.val = 0 ∧
-        sponge.absorb_final (Foundation.lift s) last start len RATE DELIM
-          = .ok (Foundation.lift r) by
+        absorbFinalLanes (Foundation.lift s) last.val start.val len.val RATE.val DELIM
+          = Foundation.lift r by
     obtain ⟨r, h_r_eq, h_r_i, h_r_spec⟩ := h_exists
     exact triple_of_ok_af (v := r) h_r_eq ⟨h_r_i, h_r_spec⟩
   -- Compute the buffer chain's `.ok` value.
@@ -367,162 +369,47 @@ theorem keccak.absorb_final_spec
       show buf1.val = buf0.val
       rw [hbuf1_def]; show buf1_val = buf0.val
       rw [hbuf1_val_def, if_neg (by omega : ¬ 0 < len.val)]
-  -- Spec-side: `sponge.pad_last_block ... = .ok buf3`.
-  -- The spec has no `if len > 0` — it always takes the index_mut path.
-  -- When len = 0, the path's slice is empty and the write_back is identity,
-  -- which still produces `buf1` (= buf0 in that case).
-  -- `sponge.pad_last_block last start len RATE DELIM = .ok buf3`.
-  have h_pad_eq :
-      sponge.pad_last_block last start len RATE DELIM = .ok buf3 := by
-    unfold sponge.pad_last_block
-    -- Reduce `let buffer := Array.repeat 200 0` to `buf0`.
-    simp only [hbuf0_def.symm]
-    -- Compute the index_mut/copy prefix to `.ok buf1` via `h_spec_chain_eq`.
-    -- First reform the prefix to match h_spec_chain_eq's exact shape. Note
-    -- the spec's chain is `... ; let buffer1 := index_mut_back s2; ...`,
-    -- which Lean's `do`-notation desugars as a pure let. We turn it into
-    -- `let buffer1 ← ok (...)` so it joins the monadic chain, then split.
-    show (do
-            let (s, index_mut_back) ←
-              CoreModels.core.Array.Insts.CoreOpsIndexIndexMut.index_mut
-                (CoreModels.core.Slice.Insts.CoreOpsIndexIndexMut
-                  (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                    Std.U8)) buf0 { start := 0#usize, «end» := len }
-            let i ← start + len
-            let s1 ← CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-              (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                Std.U8) last { start := start, «end» := i }
-            let s2 ← CoreModels.core.slice.Slice.copy_from_slice
-              CoreModels.core.U8.Insts.CoreMarkerCopy s s1
-            let buffer1 := index_mut_back s2
-            let buffer2 ← Std.Array.update buffer1 len DELIM
-            let i1 ← RATE - 1#usize
-            let i2 ← Std.Array.index_usize buffer2 i1
-            let i3 ← Std.lift (i2 ||| 128#u8)
-            Std.Array.update buffer2 i1 i3) = .ok buf3
-    -- Build the unfolded prefix result.
-    have h_im_le : ((0#usize : Std.Usize).val) ≤ len.val := by show 0 ≤ len.val; omega
-    have h_im_bnd : len.val ≤ (200#usize : Std.Usize).val := by show len.val ≤ 200; omega
-    obtain ⟨p_im, h_pim_eq, h_pim_val, h_pim_len, h_pim_back⟩ :=
-      triple_exists_ok_af
-        (core_models_Array_Insts_index_mut_RangeUsize_spec
-          buf0 { start := 0#usize, «end» := len } h_im_le h_im_bnd)
-    rw [h_pim_eq]; simp only [bind_tc_ok]
-    obtain ⟨s_im, write_back⟩ := p_im
-    simp only at h_pim_val h_pim_len h_pim_back ⊢
-    show (do
-            let i ← start + len
-            let s1 ← CoreModels.core.Slice.Insts.CoreOpsIndexIndex.index
-              (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-                Std.U8) last { start := start, «end» := i }
-            let s2 ← CoreModels.core.slice.Slice.copy_from_slice
-              CoreModels.core.U8.Insts.CoreMarkerCopy s_im s1
-            let buffer1 := write_back s2
-            let buffer2 ← Std.Array.update buffer1 len DELIM
-            let i1 ← RATE - 1#usize
-            let i2 ← Std.Array.index_usize buffer2 i1
-            let i3 ← Std.lift (i2 ||| 128#u8)
-            Std.Array.update buffer2 i1 i3) = .ok buf3
-    obtain ⟨i_sl, h_i_sl_eq, h_i_sl_val_eq, _⟩ :=
-      Std.WP.spec_imp_exists
-        (Std.UScalar.add_bv_spec (x := start) (y := len) (by scalar_tac))
-    have h_i_sl_val : i_sl.val = start.val + len.val := h_i_sl_val_eq
-    rw [h_i_sl_eq]; simp only [bind_tc_ok]
-    have h_idx_le : start.val ≤ i_sl.val := by rw [h_i_sl_val]; omega
-    have h_idx_bnd : i_sl.val ≤ last.val.length := by rw [h_i_sl_val]; omega
-    obtain ⟨q, hq_eq, hq_val, hq_len⟩ :=
-      triple_exists_ok_af
-        (core_models_Slice_Insts_index_RangeUsize_spec
-          last { start := start, «end» := i_sl } h_idx_le h_idx_bnd)
-    rw [hq_eq]; simp only [bind_tc_ok]
-    have h_p_q_len : s_im.val.length = q.val.length := by
-      rw [h_pim_len, hq_len]
-      show len.val - (0#usize : Std.Usize).val = i_sl.val - start.val
-      rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, Nat.sub_zero, h_i_sl_val]
-      omega
-    obtain ⟨w, hw_eq, hw_val⟩ :=
-      triple_exists_ok_af
-        (core_models_slice_Slice_copy_from_slice_spec
-          s_im q h_p_q_len)
-    rw [hw_eq]; simp only [bind_tc_ok]
-    have h_w_val_len : w.val.length = len.val - (0#usize : Std.Usize).val := by
-      rw [hw_val, hq_len]
-      rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl]
-      rw [show i_sl.val - start.val = len.val from by rw [h_i_sl_val]; omega]
-      rw [show len.val - 0 = len.val from by omega]
-    have h_pback := h_pim_back w h_w_val_len
-    have h_q_val_eq : q.val = last.val.slice start.val (start.val + len.val) := by
-      rw [hq_val]
-      show last.val.slice start.val i_sl.val = _
-      rw [show i_sl.val = start.val + len.val from h_i_sl_val]
-    -- Now `write_back w = buf1`.
-    have h_wb_buf1 : write_back w = buf1 := by
-      apply Subtype.ext
-      show (write_back w).val = buf1.val
-      rw [h_pback, hw_val, h_q_val_eq]
-      rw [hbuf1_def]
-      show _ = buf1_val
-      rw [hbuf1_val_def]
-      by_cases hlen0 : 0 < len.val
-      · rw [if_pos hlen0]
-        show buf0.val.setSlice! ((0#usize : Std.Usize).val) _ = _
-        rfl
-      · rw [if_neg hlen0]
-        have hlen_zero : len.val = 0 := by omega
-        have h_q_empty : last.val.slice start.val (start.val + len.val) = [] := by
-          rw [hlen_zero]
-          show last.val.slice start.val (start.val + 0) = []
-          rw [Nat.add_zero]
-          unfold List.slice
-          rw [show start.val - start.val = 0 from by omega, List.take_zero]
-        show buf0.val.setSlice! ((0#usize : Std.Usize).val) _ = buf0.val
-        rw [h_q_empty]
-        show buf0.val.setSlice! 0 [] = buf0.val
-        unfold List.setSlice!
-        simp
-    -- Continue: write_back w = buf1, then update buf1 len DELIM = .ok buf2, etc.
-    rw [h_wb_buf1]
-    rw [h_buf2_eq]; simp only [bind_tc_ok]
-    rw [h_i_r1_eq]; simp only [bind_tc_ok]
-    rw [h_idx_eq]; simp only [bind_tc_ok]
-    rw [h_lift_or_eq delim_byte]; simp only [bind_tc_ok]
-    exact h_buf3_eq
-  -- Spec-side: `block[0..rate]` (Array index on buf3) = .ok (block_of_blocks (to_slice buf3) 0 RATE _).
-  have h_block_idx_eq :
-      CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
-        (CoreModels.core.Slice.Insts.CoreOpsIndexIndex
-          (CoreModels.core.ops.range.RangeUsize.Insts.CoreSliceIndexSliceIndexSliceSlice
-            Std.U8)) buf3 { start := 0#usize, «end» := RATE }
-        = .ok (block_of_blocks (Std.Array.to_slice buf3) 0#usize RATE h_blk) := by
-    -- Unfold Array index → slice index over to_slice.
-    unfold CoreModels.core.Array.Insts.CoreOpsIndexIndex.index
-    -- Array index routes through `as_slice` to the slice non-mut index, which
-    -- the (now-`≤`) slice spec discharges via the subslice axiom.
-    have h0' : ((0#usize : Std.Usize).val) ≤ RATE.val := by show 0 ≤ RATE.val; omega
-    have h1' : RATE.val ≤ (Std.Array.to_slice buf3).val.length := by
-      have hlen : (Std.Array.to_slice buf3).val.length = 200 := by
-        rw [Std.Array.val_to_slice]; exact buf3.property
-      rw [hlen]; exact h_RATE_le_200
-    obtain ⟨q, hq_eq, hq_val, hq_len⟩ :=
-      triple_exists_ok_af
-        (core_models_Slice_Insts_index_RangeUsize_spec
-          (Std.Array.to_slice buf3) { start := 0#usize, «end» := RATE } h0' h1')
-    simp only [CoreModels.core.array.Array.as_slice,
-               CoreModels.rust_primitives.slice.array_as_slice,bind_tc_ok, hq_eq]
-    apply congrArg
-    apply Subtype.ext
-    show q.val = (block_of_blocks (Std.Array.to_slice buf3) 0#usize RATE h_blk).val
-    rw [hq_val]
-    show (Std.Array.to_slice buf3).val.slice (0#usize : Std.Usize).val RATE.val
-        = (Std.Array.to_slice buf3).val.slice 0 (0 + RATE.val)
-    rw [show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, Nat.zero_add]
+  -- The padded buffer is the model's `padBlockList`.  The specification has no
+  -- `if len > 0`: when `len = 0` the slice it copies is empty and the
+  -- write-back is the identity, which is exactly the `else` branch here.
+  have hbuf0_val : buf0.val = List.replicate 200 (0#u8) := rfl
+  have h_setSlice_nil : ∀ l : List Std.U8, l.setSlice! 0 [] = l := by
+    intro l
+    simp only [List.setSlice!, List.take_zero, List.take_nil, List.length_nil,
+      Nat.zero_min, Nat.add_zero, List.drop_zero, List.nil_append]
+  have h_buf1_pad : buf1.val
+      = (List.replicate 200 (0#u8)).setSlice! 0
+          (last.val.slice start.val (start.val + len.val)) := by
+    rw [hbuf1_def]
+    show buf1_val = _
+    rw [hbuf1_val_def]
+    by_cases h : 0 < len.val
+    · rw [if_pos h, hbuf0_val]
+    · rw [if_neg h, hbuf0_val,
+        show last.val.slice start.val (start.val + len.val) = [] from by
+          have hz : len.val = 0 := by omega
+          simp [List.slice, hz]]
+      rw [h_setSlice_nil]
+  have h_buf3_pad :
+      buf3.val = padBlockList last.val start.val len.val RATE.val DELIM := by
+    have h_delim : delim_byte = buf2.val[i_r1.val]! := by
+      rw [h_idx_val, getElem!_pos buf2.val i_r1.val h_i_r1_lt_buf2]
+    rw [h_buf3_set, h_delim, h_buf2_set, Std.Array.set_val_eq, Std.Array.set_val_eq,
+      h_buf1_pad, h_i_r1_val]
+    rfl
   -- Compose spec sides.
   have h_spec_eq :
-      sponge.absorb_final (Foundation.lift s) last start len RATE DELIM
-        = .ok (Foundation.lift r) := by
-    unfold sponge.absorb_final
-    rw [h_pad_eq]; simp only [bind_tc_ok]
-    rw [h_block_idx_eq]; simp only [bind_tc_ok]
+      absorbFinalLanes (Foundation.lift s) last.val start.val len.val RATE.val DELIM
+        = Foundation.lift r := by
+    unfold absorbFinalLanes
+    have hblk : (block_of_blocks (Std.Array.to_slice buf3) 0#usize RATE h_blk).val
+        = (padBlockList last.val start.val len.val RATE.val DELIM).take RATE.val := by
+      show (Std.Array.to_slice buf3).val.slice (0#usize : Std.Usize).val
+          ((0#usize : Std.Usize).val + RATE.val) = _
+      rw [Std.Array.val_to_slice, h_buf3_pad,
+        show ((0#usize : Std.Usize).val : Nat) = 0 from rfl, Nat.zero_add]
+      simp only [List.slice, List.drop_zero, Nat.sub_zero]
+    rw [← hblk]
     exact h_r_spec
   -- Assemble the impl-side equation.
   refine ⟨r, ?_, h_r_i, h_spec_eq⟩

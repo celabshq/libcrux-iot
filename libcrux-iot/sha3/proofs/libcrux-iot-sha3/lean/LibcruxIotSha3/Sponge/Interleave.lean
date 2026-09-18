@@ -27,6 +27,8 @@
 import LibcruxIotSha3.Sponge.Opaque
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -36,8 +38,7 @@ open libcrux_iot_sha3.Foundation
 
 -- Defensive seal re-issue: no proof in this file may unfold either side
 -- of Bridge 1.
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 /-! ## Load-bearing bit-level identities (BV form)
 

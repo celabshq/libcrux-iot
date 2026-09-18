@@ -2,20 +2,22 @@
   # Opaque seal for `keccakf1600`
 
   Sealed `@[spec]` Triple bridging the impl `keccak.keccakf1600` to the
-  hacspec `keccak_f.keccak_f` for use throughout the sponge proofs.
+  lane model's `keccakFLanes` for use throughout the sponge proofs.
 
   The post strengthens Bridge 1 (`Composition.keccakf1600_equiv_hacspec`)
   with `r.i.val = 0` — needed because the impl's `keccakf1600` resets
   `s.i := 0#usize` at the end, and every subsequent absorb/squeeze step's
   precondition requires `s.i.val = 0`.
 
-  After the seal proves, `keccak.keccakf1600` and `keccak_f.keccak_f` are
+  After the seal proves, `keccak.keccakf1600` and `keccakFLanes` are
   marked `attribute [local irreducible]` so downstream files cannot peek
   inside.
 -/
-import LibcruxIotSha3.Composition.HacspecBridge
+import LibcruxIotSha3.Composition.LaneBridge
+import LibcruxIotSha3.SpongeModel
 
-open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3
+open LibcruxIotSha3.LaneModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -78,10 +80,10 @@ private theorem keccakf1600_i_zero_of_ok
       rw [hl] at h; cases h
 
 /-- Sealed `@[spec]` Triple bridging the impl-level `keccak.keccakf1600`
-    to the hacspec-level `keccak_f.keccak_f`.
+    to the lane model's `keccakFLanes`.
 
     Carries two facts:
-    - spec-equality:    `keccak_f.keccak_f (lift s) = .ok (lift r)`
+    - spec-equality:    `keccakFLanes (lift s) = lift r`
     - i-reset:          `r.i.val = 0`
 
     The second clause is required for chaining: every subsequent absorb
@@ -90,17 +92,17 @@ private theorem keccakf1600_i_zero_of_ok
 theorem keccakf1600_seal_spec (s : state.KeccakState) (h_i : s.i.val = 0) :
     ⦃ ⌜ True ⌝ ⦄
     keccak.keccakf1600 s
-    ⦃ ⇓ r => ⌜ keccak_f.keccak_f (Foundation.lift s) = .ok (Foundation.lift r)
+    ⦃ ⇓ r => ⌜ keccakFLanes (Foundation.lift s) = Foundation.lift r
               ∧ r.i.val = 0 ⌝ ⦄ := by
   -- Convert the `.val` form of `h_i` to the bit-vector form Bridge 1 expects.
   have h_i' : s.i = 0#usize := Std.UScalar.eq_of_val_eq (by simpa using h_i)
   -- Bridge 1 gives the spec-equality half of the post.
   have h_bridge :=
-    Composition.keccakf1600_equiv_hacspec s h_i'
+    Composition.keccakf1600_equiv_lanes s h_i'
   -- Extract the underlying RustM equation `keccak.keccakf1600 s = .ok r0`.
   obtain ⟨r0, h_ok⟩ := triple_noThrow_exists_ok_local h_bridge
   -- Bridge 1's post evaluated at `r0`: spec-equality half.
-  have h_spec : keccak_f.keccak_f (Foundation.lift s) = .ok (Foundation.lift r0) :=
+  have h_spec : keccakFLanes (Foundation.lift s) = Foundation.lift r0 :=
     triple_noThrow_elim_local h_bridge h_ok
   -- Body-derived fact: `r0.i = 0#usize` ⇒ `r0.i.val = 0`.
   have h_r0_i : r0.i = 0#usize := keccakf1600_i_zero_of_ok h_ok
@@ -112,12 +114,7 @@ theorem keccakf1600_seal_spec (s : state.KeccakState) (h_i : s.i.val = 0) :
 /-! Seal: from here on, no proof in `Sponge/` may unfold either side of
     Bridge 1. Importing files inherit `local irreducible` for these
     declarations, and each downstream file in `Sponge/` re-issues the
-    attribute defensively.
-
-    Note: `keccak_f.keccak_f` is marked `@[reducible]` in the spec
-    extraction; demoting it to `[irreducible]` requires
-    `allowUnsafeReducibility`. -/
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+    attribute defensively. -/
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 end libcrux_iot_sha3.Sponge

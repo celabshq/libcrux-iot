@@ -14,16 +14,14 @@
   ```
   -- SHAKE (variable length):
   ⦃⌜True⌝⦄ shake128 BYTES data ⦃⇓ r => ⌜
-    ∃ spec_out : Std.Array Std.U8 BYTES,
-      sha3.shake128 BYTES data = .ok spec_out
-      ∧ ∀ k < BYTES.val, r.val[k]! = spec_out.val[k]! ⌝⦄
+    ∀ k < BYTES.val,
+      r.val[k]! = (keccakLanes BYTES 168 31#u8 data).val[k]! ⌝⦄
 
   -- SHA3-ema (fixed length, side condition `digest.len = DIGEST_SIZE`):
   ⦃⌜True⌝⦄ sha224_ema digest payload ⦃⇓ r => ⌜
-    ∃ spec_out : Std.Array Std.U8 28#usize,
-      sha3.sha3_224 payload = .ok spec_out
-      ∧ r.val.length = 28
-      ∧ ∀ k < 28, r.val[k]! = spec_out.val[k]! ⌝⦄
+    r.val.length = 28
+      ∧ ∀ k < 28,
+          r.val[k]! = (keccakLanes 28 144 6#u8 payload).val[k]! ⌝⦄
   ```
 
   ## Side conditions
@@ -36,6 +34,8 @@
 import LibcruxIotSha3.Sponge.Keccak
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -43,8 +43,7 @@ open libcrux_iot_sha3.Foundation
 
 -- Defensive seal re-issue: no proof in this file may unfold either side of
 -- Bridge 1.
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 
 /-! ## SHAKE128/256 + SHA3-{224,256,384,512} ema specs. -/
@@ -101,10 +100,10 @@ theorem shake128_spec
     (BYTES : Std.Usize) (data : Slice Std.U8) :
     ⦃ ⌜ True ⌝ ⦄
     shake128 BYTES data
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 BYTES,
-                sha3.shake128 BYTES data = .ok spec_out
-                ∧ ∀ k : Nat, k < BYTES.val →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ ∀ k : Nat, k < BYTES.val →
+                  r.val[k]!
+                    = (keccakLanes BYTES (168#usize : Std.Usize).val 31#u8 data.val).val[k]!
+              ⌝ ⦄ := by
   -- Set up the internal arrays.
   set a : Std.Array Std.U8 BYTES := Std.Array.repeat BYTES 0#u8 with ha_def
   have h_classify : libcrux_secrets.traits.Classify.Blanket.classify a
@@ -125,7 +124,7 @@ theorem shake128_spec
   have h_RATE_mod : (168#usize : Std.Usize).val % 8 = 0 := by decide
   have h_RATE_ge_1 : 1 ≤ (168#usize : Std.Usize).val := by decide
   have h_RATE_le_200 : (168#usize : Std.Usize).val ≤ 200 := by decide
-  obtain ⟨s1, h_s1_eq, spec_out_kk, h_spec_squeeze, h_s1_len, h_s1_bytes⟩ :=
+  obtain ⟨s1, h_s1_eq, h_s1_len, h_s1_bytes⟩ :=
     triple_exists_ok_sh
       (keccak.keccak_keccak_spec 168#usize 31#u8 data s
         h_RATE_mod h_RATE_ge_1 h_RATE_le_200)
@@ -156,40 +155,11 @@ theorem shake128_spec
       let s1 ← keccak.keccak 168#usize 31#u8 data s
       ok (Std.Array.from_slice a s1)) = .ok out_arr
     rw [h_s1_eq, bind_tc_ok, h_from_slice]
-  -- Spec chain: `sha3.shake128 BYTES data = sponge.keccak BYTES 168 31 data`.
-  -- We bridge `(Std.Slice.len s)` to `BYTES` by direct subtype construction.
-  set spec_out : Std.Array Std.U8 BYTES :=
-    ⟨spec_out_kk.val, by
-      have h_prop := spec_out_kk.property
-      show spec_out_kk.val.length = BYTES.val
-      rw [h_prop]
-      exact congrArg Std.UScalar.val h_slice_len_s⟩
-    with hspec_out_def
-  have h_spec_eq : sha3.shake128 BYTES data = .ok spec_out := by
-    unfold sha3.shake128
-    show sponge.keccak BYTES sha3.SHAKE128_RATE sha3.SHAKE_DELIM data
-          = .ok spec_out
-    unfold sha3.SHAKE128_RATE sha3.SHAKE_DELIM
-    -- Generic transport lemma: for `h : a = b`, `sponge.keccak b ... = .ok x`
-    -- iff `sponge.keccak a ... = .ok (subtype-cast x via h)`.
-    have h_general :
-        ∀ (B : Std.Usize) (h : (Std.Slice.len s) = B)
-          (x : Std.Array Std.U8 B),
-          x.val = spec_out_kk.val →
-          sponge.keccak B 168#usize 31#u8 data = .ok x := by
-      intro B h x hx
-      subst h
-      have h_eq : x = spec_out_kk := Subtype.ext hx
-      rw [h_eq]; exact h_spec_squeeze
-    exact h_general BYTES h_slice_len_s spec_out rfl
   apply triple_of_ok_sh (v := out_arr) h_impl_eq
-  refine ⟨spec_out, h_spec_eq, ?_⟩
   intro k hk
   have hk' : k < s.val.length := by rw [h_s_len]; exact hk
-  have h_byte := h_s1_bytes k hk'
-  show s1.val[k]! = spec_out.val[k]!
-  show s1.val[k]! = spec_out_kk.val[k]!
-  exact h_byte
+  show s1.val[k]! = _
+  rw [h_s1_bytes k hk', h_slice_len_s]
 
 /-! ## SHAKE256 spec. -/
 
@@ -197,10 +167,10 @@ theorem shake256_spec
     (BYTES : Std.Usize) (data : Slice Std.U8) :
     ⦃ ⌜ True ⌝ ⦄
     shake256 BYTES data
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 BYTES,
-                sha3.shake256 BYTES data = .ok spec_out
-                ∧ ∀ k : Nat, k < BYTES.val →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ ∀ k : Nat, k < BYTES.val →
+                  r.val[k]!
+                    = (keccakLanes BYTES (136#usize : Std.Usize).val 31#u8 data.val).val[k]!
+              ⌝ ⦄ := by
   set a : Std.Array Std.U8 BYTES := Std.Array.repeat BYTES 0#u8 with ha_def
   have h_classify : libcrux_secrets.traits.Classify.Blanket.classify a
                       = (RustM.ok a : RustM _) := rfl
@@ -218,7 +188,7 @@ theorem shake256_spec
   have h_RATE_mod : (136#usize : Std.Usize).val % 8 = 0 := by decide
   have h_RATE_ge_1 : 1 ≤ (136#usize : Std.Usize).val := by decide
   have h_RATE_le_200 : (136#usize : Std.Usize).val ≤ 200 := by decide
-  obtain ⟨s1, h_s1_eq, spec_out_kk, h_spec_squeeze, h_s1_len, h_s1_bytes⟩ :=
+  obtain ⟨s1, h_s1_eq, h_s1_len, h_s1_bytes⟩ :=
     triple_exists_ok_sh
       (keccak.keccak_keccak_spec 136#usize 31#u8 data s
         h_RATE_mod h_RATE_ge_1 h_RATE_le_200)
@@ -244,36 +214,11 @@ theorem shake256_spec
       let s1 ← keccak.keccak 136#usize 31#u8 data s
       ok (Std.Array.from_slice a s1)) = .ok out_arr
     rw [h_s1_eq, bind_tc_ok, h_from_slice]
-  set spec_out : Std.Array Std.U8 BYTES :=
-    ⟨spec_out_kk.val, by
-      have h_prop := spec_out_kk.property
-      show spec_out_kk.val.length = BYTES.val
-      rw [h_prop]
-      exact congrArg Std.UScalar.val h_slice_len_s⟩
-    with hspec_out_def
-  have h_spec_eq : sha3.shake256 BYTES data = .ok spec_out := by
-    unfold sha3.shake256
-    show sponge.keccak BYTES sha3.SHAKE256_RATE sha3.SHAKE_DELIM data
-          = .ok spec_out
-    unfold sha3.SHAKE256_RATE sha3.SHAKE_DELIM
-    have h_general :
-        ∀ (B : Std.Usize) (h : (Std.Slice.len s) = B)
-          (x : Std.Array Std.U8 B),
-          x.val = spec_out_kk.val →
-          sponge.keccak B 136#usize 31#u8 data = .ok x := by
-      intro B h x hx
-      subst h
-      have h_eq : x = spec_out_kk := Subtype.ext hx
-      rw [h_eq]; exact h_spec_squeeze
-    exact h_general BYTES h_slice_len_s spec_out rfl
   apply triple_of_ok_sh (v := out_arr) h_impl_eq
-  refine ⟨spec_out, h_spec_eq, ?_⟩
   intro k hk
   have hk' : k < s.val.length := by rw [h_s_len]; exact hk
-  have h_byte := h_s1_bytes k hk'
-  show s1.val[k]! = spec_out.val[k]!
-  show s1.val[k]! = spec_out_kk.val[k]!
-  exact h_byte
+  show s1.val[k]! = _
+  rw [h_s1_bytes k hk', h_slice_len_s]
 
 /-! ## SHA3 ema specs. -/
 
@@ -286,11 +231,11 @@ theorem sha224_ema_spec
     (h_digest_len : digest.val.length = 28) :
     ⦃ ⌜ True ⌝ ⦄
     sha224_ema digest payload
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 28#usize,
-                sha3.sha3_224 payload = .ok spec_out
-                ∧ r.val.length = 28
-                ∧ ∀ k : Nat, k < 28 →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ r.val.length = 28
+              ∧ ∀ k : Nat, k < 28 →
+                  r.val[k]!
+                    = (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8
+                        payload.val).val[k]! ⌝ ⦄ := by
   -- Side facts.
   have h_slice_len_payload :
       CoreModels.core.slice.Slice.len payload = .ok (Std.Slice.len payload) :=
@@ -328,7 +273,7 @@ theorem sha224_ema_spec
   have h_RATE_mod : (144#usize : Std.Usize).val % 8 = 0 := by decide
   have h_RATE_ge_1 : 1 ≤ (144#usize : Std.Usize).val := by decide
   have h_RATE_le_200 : (144#usize : Std.Usize).val ≤ 200 := by decide
-  obtain ⟨r_out, h_r_out_eq, spec_out_kk, h_spec_squeeze, h_r_out_len, h_r_out_bytes⟩ :=
+  obtain ⟨r_out, h_r_out_eq, h_r_out_len, h_r_out_bytes⟩ :=
     triple_exists_ok_sh
       (keccak.keccak_keccak_spec 144#usize 6#u8 payload digest
         h_RATE_mod h_RATE_ge_1 h_RATE_le_200)
@@ -341,40 +286,13 @@ theorem sha224_ema_spec
     rw [h_massert_eq]; simp only [bind_tc_ok]
     rw [keccakx1_eq_keccak]
     exact h_r_out_eq
-  -- Spec chain. `spec_out_kk : Array U8 (Std.Slice.len digest)`. Transport to
   -- `Array U8 28#usize` by direct subtype construction.
-  set spec_out : Std.Array Std.U8 28#usize :=
-    ⟨spec_out_kk.val, by
-      have h_prop := spec_out_kk.property
-      show spec_out_kk.val.length = (28#usize : Std.Usize).val
-      rw [h_prop]
-      exact congrArg Std.UScalar.val h_slice_len_digest_eq⟩
-    with hspec_out_def
-  have h_spec_eq : sha3.sha3_224 payload = .ok spec_out := by
-    unfold sha3.sha3_224
-    show sponge.keccak 28#usize sha3.SHA3_224_RATE sha3.SHA3_DELIM payload
-          = .ok spec_out
-    unfold sha3.SHA3_224_RATE sha3.SHA3_DELIM
-    have h_general :
-        ∀ (B : Std.Usize) (h : (Std.Slice.len digest) = B)
-          (x : Std.Array Std.U8 B),
-          x.val = spec_out_kk.val →
-          sponge.keccak B 144#usize 6#u8 payload = .ok x := by
-      intro B h x hx
-      subst h
-      have h_eq : x = spec_out_kk := Subtype.ext hx
-      rw [h_eq]; exact h_spec_squeeze
-    exact h_general 28#usize h_slice_len_digest_eq spec_out rfl
-  -- Assemble.
   apply triple_of_ok_sh (v := r_out) h_impl_eq
-  refine ⟨spec_out, h_spec_eq, ?_, ?_⟩
-  · rw [h_r_out_len]; exact h_digest_len
-  · intro k hk
-    have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
-    have h_byte := h_r_out_bytes k hk'
-    show r_out.val[k]! = spec_out.val[k]!
-    show r_out.val[k]! = spec_out_kk.val[k]!
-    exact h_byte
+  refine ⟨by rw [h_r_out_len]; exact h_digest_len, ?_⟩
+  intro k hk
+  have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
+  show r_out.val[k]! = _
+  rw [h_r_out_bytes k hk', h_slice_len_digest_eq]
 
 theorem sha256_ema_spec
     (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -382,11 +300,11 @@ theorem sha256_ema_spec
     (h_digest_len : digest.val.length = 32) :
     ⦃ ⌜ True ⌝ ⦄
     sha256_ema digest payload
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 32#usize,
-                sha3.sha3_256 payload = .ok spec_out
-                ∧ r.val.length = 32
-                ∧ ∀ k : Nat, k < 32 →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ r.val.length = 32
+              ∧ ∀ k : Nat, k < 32 →
+                  r.val[k]!
+                    = (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8
+                        payload.val).val[k]! ⌝ ⦄ := by
   have h_slice_len_payload :
       CoreModels.core.slice.Slice.len payload = .ok (Std.Slice.len payload) :=
     slice_len_eq_sh payload
@@ -420,7 +338,7 @@ theorem sha256_ema_spec
   have h_RATE_mod : (136#usize : Std.Usize).val % 8 = 0 := by decide
   have h_RATE_ge_1 : 1 ≤ (136#usize : Std.Usize).val := by decide
   have h_RATE_le_200 : (136#usize : Std.Usize).val ≤ 200 := by decide
-  obtain ⟨r_out, h_r_out_eq, spec_out_kk, h_spec_squeeze, h_r_out_len, h_r_out_bytes⟩ :=
+  obtain ⟨r_out, h_r_out_eq, h_r_out_len, h_r_out_bytes⟩ :=
     triple_exists_ok_sh
       (keccak.keccak_keccak_spec 136#usize 6#u8 payload digest
         h_RATE_mod h_RATE_ge_1 h_RATE_le_200)
@@ -432,37 +350,12 @@ theorem sha256_ema_spec
     rw [h_massert_eq]; simp only [bind_tc_ok]
     rw [keccakx1_eq_keccak]
     exact h_r_out_eq
-  set spec_out : Std.Array Std.U8 32#usize :=
-    ⟨spec_out_kk.val, by
-      have h_prop := spec_out_kk.property
-      show spec_out_kk.val.length = (32#usize : Std.Usize).val
-      rw [h_prop]
-      exact congrArg Std.UScalar.val h_slice_len_digest_eq⟩
-    with hspec_out_def
-  have h_spec_eq : sha3.sha3_256 payload = .ok spec_out := by
-    unfold sha3.sha3_256
-    show sponge.keccak 32#usize sha3.SHA3_256_RATE sha3.SHA3_DELIM payload
-          = .ok spec_out
-    unfold sha3.SHA3_256_RATE sha3.SHA3_DELIM
-    have h_general :
-        ∀ (B : Std.Usize) (h : (Std.Slice.len digest) = B)
-          (x : Std.Array Std.U8 B),
-          x.val = spec_out_kk.val →
-          sponge.keccak B 136#usize 6#u8 payload = .ok x := by
-      intro B h x hx
-      subst h
-      have h_eq : x = spec_out_kk := Subtype.ext hx
-      rw [h_eq]; exact h_spec_squeeze
-    exact h_general 32#usize h_slice_len_digest_eq spec_out rfl
   apply triple_of_ok_sh (v := r_out) h_impl_eq
-  refine ⟨spec_out, h_spec_eq, ?_, ?_⟩
-  · rw [h_r_out_len]; exact h_digest_len
-  · intro k hk
-    have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
-    have h_byte := h_r_out_bytes k hk'
-    show r_out.val[k]! = spec_out.val[k]!
-    show r_out.val[k]! = spec_out_kk.val[k]!
-    exact h_byte
+  refine ⟨by rw [h_r_out_len]; exact h_digest_len, ?_⟩
+  intro k hk
+  have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
+  show r_out.val[k]! = _
+  rw [h_r_out_bytes k hk', h_slice_len_digest_eq]
 
 theorem sha384_ema_spec
     (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -470,11 +363,11 @@ theorem sha384_ema_spec
     (h_digest_len : digest.val.length = 48) :
     ⦃ ⌜ True ⌝ ⦄
     sha384_ema digest payload
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 48#usize,
-                sha3.sha3_384 payload = .ok spec_out
-                ∧ r.val.length = 48
-                ∧ ∀ k : Nat, k < 48 →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ r.val.length = 48
+              ∧ ∀ k : Nat, k < 48 →
+                  r.val[k]!
+                    = (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8
+                        payload.val).val[k]! ⌝ ⦄ := by
   have h_slice_len_payload :
       CoreModels.core.slice.Slice.len payload = .ok (Std.Slice.len payload) :=
     slice_len_eq_sh payload
@@ -508,7 +401,7 @@ theorem sha384_ema_spec
   have h_RATE_mod : (104#usize : Std.Usize).val % 8 = 0 := by decide
   have h_RATE_ge_1 : 1 ≤ (104#usize : Std.Usize).val := by decide
   have h_RATE_le_200 : (104#usize : Std.Usize).val ≤ 200 := by decide
-  obtain ⟨r_out, h_r_out_eq, spec_out_kk, h_spec_squeeze, h_r_out_len, h_r_out_bytes⟩ :=
+  obtain ⟨r_out, h_r_out_eq, h_r_out_len, h_r_out_bytes⟩ :=
     triple_exists_ok_sh
       (keccak.keccak_keccak_spec 104#usize 6#u8 payload digest
         h_RATE_mod h_RATE_ge_1 h_RATE_le_200)
@@ -520,37 +413,12 @@ theorem sha384_ema_spec
     rw [h_massert_eq]; simp only [bind_tc_ok]
     rw [keccakx1_eq_keccak]
     exact h_r_out_eq
-  set spec_out : Std.Array Std.U8 48#usize :=
-    ⟨spec_out_kk.val, by
-      have h_prop := spec_out_kk.property
-      show spec_out_kk.val.length = (48#usize : Std.Usize).val
-      rw [h_prop]
-      exact congrArg Std.UScalar.val h_slice_len_digest_eq⟩
-    with hspec_out_def
-  have h_spec_eq : sha3.sha3_384 payload = .ok spec_out := by
-    unfold sha3.sha3_384
-    show sponge.keccak 48#usize sha3.SHA3_384_RATE sha3.SHA3_DELIM payload
-          = .ok spec_out
-    unfold sha3.SHA3_384_RATE sha3.SHA3_DELIM
-    have h_general :
-        ∀ (B : Std.Usize) (h : (Std.Slice.len digest) = B)
-          (x : Std.Array Std.U8 B),
-          x.val = spec_out_kk.val →
-          sponge.keccak B 104#usize 6#u8 payload = .ok x := by
-      intro B h x hx
-      subst h
-      have h_eq : x = spec_out_kk := Subtype.ext hx
-      rw [h_eq]; exact h_spec_squeeze
-    exact h_general 48#usize h_slice_len_digest_eq spec_out rfl
   apply triple_of_ok_sh (v := r_out) h_impl_eq
-  refine ⟨spec_out, h_spec_eq, ?_, ?_⟩
-  · rw [h_r_out_len]; exact h_digest_len
-  · intro k hk
-    have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
-    have h_byte := h_r_out_bytes k hk'
-    show r_out.val[k]! = spec_out.val[k]!
-    show r_out.val[k]! = spec_out_kk.val[k]!
-    exact h_byte
+  refine ⟨by rw [h_r_out_len]; exact h_digest_len, ?_⟩
+  intro k hk
+  have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
+  show r_out.val[k]! = _
+  rw [h_r_out_bytes k hk', h_slice_len_digest_eq]
 
 theorem sha512_ema_spec
     (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -558,11 +426,11 @@ theorem sha512_ema_spec
     (h_digest_len : digest.val.length = 64) :
     ⦃ ⌜ True ⌝ ⦄
     sha512_ema digest payload
-    ⦃ ⇓ r => ⌜ ∃ spec_out : Std.Array Std.U8 64#usize,
-                sha3.sha3_512 payload = .ok spec_out
-                ∧ r.val.length = 64
-                ∧ ∀ k : Nat, k < 64 →
-                    r.val[k]! = spec_out.val[k]! ⌝ ⦄ := by
+    ⦃ ⇓ r => ⌜ r.val.length = 64
+              ∧ ∀ k : Nat, k < 64 →
+                  r.val[k]!
+                    = (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8
+                        payload.val).val[k]! ⌝ ⦄ := by
   have h_slice_len_payload :
       CoreModels.core.slice.Slice.len payload = .ok (Std.Slice.len payload) :=
     slice_len_eq_sh payload
@@ -596,7 +464,7 @@ theorem sha512_ema_spec
   have h_RATE_mod : (72#usize : Std.Usize).val % 8 = 0 := by decide
   have h_RATE_ge_1 : 1 ≤ (72#usize : Std.Usize).val := by decide
   have h_RATE_le_200 : (72#usize : Std.Usize).val ≤ 200 := by decide
-  obtain ⟨r_out, h_r_out_eq, spec_out_kk, h_spec_squeeze, h_r_out_len, h_r_out_bytes⟩ :=
+  obtain ⟨r_out, h_r_out_eq, h_r_out_len, h_r_out_bytes⟩ :=
     triple_exists_ok_sh
       (keccak.keccak_keccak_spec 72#usize 6#u8 payload digest
         h_RATE_mod h_RATE_ge_1 h_RATE_le_200)
@@ -608,37 +476,12 @@ theorem sha512_ema_spec
     rw [h_massert_eq]; simp only [bind_tc_ok]
     rw [keccakx1_eq_keccak]
     exact h_r_out_eq
-  set spec_out : Std.Array Std.U8 64#usize :=
-    ⟨spec_out_kk.val, by
-      have h_prop := spec_out_kk.property
-      show spec_out_kk.val.length = (64#usize : Std.Usize).val
-      rw [h_prop]
-      exact congrArg Std.UScalar.val h_slice_len_digest_eq⟩
-    with hspec_out_def
-  have h_spec_eq : sha3.sha3_512 payload = .ok spec_out := by
-    unfold sha3.sha3_512
-    show sponge.keccak 64#usize sha3.SHA3_512_RATE sha3.SHA3_DELIM payload
-          = .ok spec_out
-    unfold sha3.SHA3_512_RATE sha3.SHA3_DELIM
-    have h_general :
-        ∀ (B : Std.Usize) (h : (Std.Slice.len digest) = B)
-          (x : Std.Array Std.U8 B),
-          x.val = spec_out_kk.val →
-          sponge.keccak B 72#usize 6#u8 payload = .ok x := by
-      intro B h x hx
-      subst h
-      have h_eq : x = spec_out_kk := Subtype.ext hx
-      rw [h_eq]; exact h_spec_squeeze
-    exact h_general 64#usize h_slice_len_digest_eq spec_out rfl
   apply triple_of_ok_sh (v := r_out) h_impl_eq
-  refine ⟨spec_out, h_spec_eq, ?_, ?_⟩
-  · rw [h_r_out_len]; exact h_digest_len
-  · intro k hk
-    have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
-    have h_byte := h_r_out_bytes k hk'
-    show r_out.val[k]! = spec_out.val[k]!
-    show r_out.val[k]! = spec_out_kk.val[k]!
-    exact h_byte
+  refine ⟨by rw [h_r_out_len]; exact h_digest_len, ?_⟩
+  intro k hk
+  have hk' : k < digest.val.length := by rw [h_digest_len]; exact hk
+  show r_out.val[k]! = _
+  rw [h_r_out_bytes k hk', h_slice_len_digest_eq]
 
 
 /-! ## Axiom guards

@@ -23,6 +23,8 @@ import LibcruxIotSha3.Sponge.LoopSpecs
 import LibcruxIotSha3.Sponge.XorBlockSpec
 
 open Aeneas Aeneas.Std RustM ControlFlow Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -30,8 +32,7 @@ open libcrux_iot_sha3.Foundation
 
 -- Defensive seal re-issue: no proof in this file may unfold either side
 -- of Bridge 1.
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 /-! ## Top-level Triples for `load_block` / `store_block` /
        `load_block_full`. -/

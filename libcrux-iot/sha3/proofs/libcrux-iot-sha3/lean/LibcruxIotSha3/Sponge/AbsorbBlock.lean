@@ -57,17 +57,19 @@
     2. `keccakf1600_seal_spec` (Opaque.lean) — yields impl `r` with
        `keccak_f.keccak_f (lift s1) = .ok (lift r)` and `r.i.val = 0`.
     3. `sponge_xor_block_into_state_spec` (XorBlockSpec.lean) — yields
-       spec `s_spec_1` with per-cell `xor_block_value_at` equation.
-    4. **Bridge**: `s_spec_1 = lift s1` by per-cell BV-equality
+       model state `xorLanes (lift s) block RATE` with per-cell `xor_block_value_at` equation.
+    4. **Bridge**: `xorLanes (lift s) block RATE = lift s1` by per-cell BV-equality
        (List.ext_getElem + UScalar.eq_of_val_eq + the per-cell bridge).
     5. Compose: `sponge.absorb_block (lift s) block RATE`
-                = `keccak_f.keccak_f s_spec_1`
+                = `keccakFLanes (xorLanes (lift s) block RATE)`
                 = `keccak_f.keccak_f (lift s1)`
                 = `.ok (lift r)`.
 -/
 import LibcruxIotSha3.Sponge.Bytes
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3 hacspec_sha3
+open LibcruxIotSha3.LaneModel
+open LibcruxIotSha3.SpongeModel
 
 namespace libcrux_iot_sha3.Sponge
 
@@ -75,8 +77,7 @@ open libcrux_iot_sha3.Foundation
 
 -- Defensive seal re-issue: no proof in this file may unfold either side
 -- of Bridge 1.
-set_option allowUnsafeReducibility true in
-attribute [local irreducible] keccak.keccakf1600 keccak_f.keccak_f
+attribute [local irreducible] keccak.keccakf1600 keccakFLanes
 
 /-! ## Bridge infrastructure — `load_block` ↔ `xor_block_into_state` per-cell.
 
@@ -358,8 +359,8 @@ def block_of_blocks
 
     Post: termination, `r.i.val = 0`, and the spec-side equation
 
-        sponge.absorb_block (lift s) (block_of_blocks blocks start RATE _) RATE
-          = .ok (lift r).
+        absorbBlockLanes (lift s) (block_of_blocks blocks start RATE _) RATE
+          = lift r.
 
     The `r.i.val = 0` clause is what the downstream loop chain consumes;
     the spec equation feeds `absorb_rec` accumulation. -/
@@ -375,9 +376,9 @@ theorem keccak.absorb_block_spec
     ⦃ ⌜ True ⌝ ⦄
     keccak.absorb_block RATE s blocks start
     ⦃ ⇓ r => ⌜ r.i.val = 0
-              ∧ sponge.absorb_block (Foundation.lift s)
-                    (block_of_blocks blocks start RATE h_blk) RATE
-                  = .ok (Foundation.lift r) ⌝ ⦄ := by
+              ∧ absorbBlockLanes (Foundation.lift s)
+                    (block_of_blocks blocks start RATE h_blk).val RATE.val
+                  = Foundation.lift r ⌝ ⦄ := by
   -- Step 1: discharge `load_block` via its @[spec] in Bytes.lean.
   obtain ⟨s1, h_s1_eq, h_s1_post⟩ :=
     triple_exists_ok_ab
@@ -410,30 +411,30 @@ theorem keccak.absorb_block_spec
   have h_block_len : block.val.length = RATE.val := by
     rw [h_block_val]; unfold List.slice
     rw [List.length_take, List.length_drop]; omega
-  -- Apply `sponge_xor_block_into_state_spec`.
-  obtain ⟨s_spec_1, h_xbs_eq, h_xbs_post⟩ :=
-    triple_exists_ok_ab
-      (sponge_xor_block_into_state_spec RATE (Foundation.lift s) block
-        h_RATE_bnd h_RATE_mod h_block_len)
-  -- We claim `s_spec_1 = Foundation.lift s1` by per-cell equality.
-  have h_spec_lift_s1 : s_spec_1 = Foundation.lift s1 := by
+  -- The model's `xorLanes` is the per-cell `xor_block_value_at`.
+  have h_xbs_post : ∀ i : Nat, i < 25 →
+      (xorLanes (Foundation.lift s) block.val RATE.val).val[i]!
+        = xor_block_value_at (Foundation.lift s) block RATE i :=
+    fun i hi => xorLanes_getElem (Foundation.lift s) block RATE h_RATE_mod h_block_len i hi
+  -- We claim `(xorLanes (Foundation.lift s) block.val RATE.val) = Foundation.lift s1` by per-cell equality.
+  have h_spec_lift_s1 : (xorLanes (Foundation.lift s) block.val RATE.val) = Foundation.lift s1 := by
     -- Both are `Array U64 25#usize = { val : List U64 // val.length = 25 }`.
     -- Reduce to list equality, then per-cell.
     apply Subtype.ext
     apply List.ext_getElem
     · -- Lengths.
-      have h1 : s_spec_1.val.length = 25 := s_spec_1.property
+      have h1 : (xorLanes (Foundation.lift s) block.val RATE.val).val.length = 25 := (xorLanes (Foundation.lift s) block.val RATE.val).property
       have h2 : (Foundation.lift s1).val.length = 25 := (Foundation.lift s1).property
       omega
     intro k hk_lhs _
     have hk_25 : k < 25 := by
-      have hlen : s_spec_1.val.length = 25 := s_spec_1.property
+      have hlen : (xorLanes (Foundation.lift s) block.val RATE.val).val.length = 25 := (xorLanes (Foundation.lift s) block.val RATE.val).property
       omega
     -- Replace `[k]` with `[k]!` using `getElem!_pos`.
-    have h_len1 : s_spec_1.val.length = 25 := s_spec_1.property
+    have h_len1 : (xorLanes (Foundation.lift s) block.val RATE.val).val.length = 25 := (xorLanes (Foundation.lift s) block.val RATE.val).property
     have h_len2 : (Foundation.lift s1).val.length = 25 := (Foundation.lift s1).property
-    rw [show s_spec_1.val[k] = s_spec_1.val[k]! from
-          (getElem!_pos s_spec_1.val k (by rw [h_len1]; exact hk_25)).symm]
+    rw [show (xorLanes (Foundation.lift s) block.val RATE.val).val[k] = (xorLanes (Foundation.lift s) block.val RATE.val).val[k]! from
+          (getElem!_pos (xorLanes (Foundation.lift s) block.val RATE.val).val k (by rw [h_len1]; exact hk_25)).symm]
     rw [show (Foundation.lift s1).val[k] = (Foundation.lift s1).val[k]! from
           (getElem!_pos (Foundation.lift s1).val k (by rw [h_len2]; exact hk_25)).symm]
     -- Use h_xbs_post and h_s1_lanes.
@@ -476,12 +477,10 @@ theorem keccak.absorb_block_spec
       rw [h_bridge]
     · -- Inactive cell.
       rw [if_neg h_k_lt, if_neg h_k_lt]
-  -- Step 5: substitute `s_spec_1 = lift s1` into the do-chain.
-  -- Goal: ⦃True⦄ keccak.absorb_block ... ⦃⇓r => r.i.val = 0 ∧ sponge.absorb_block (lift s) block RATE = .ok (lift r)⦄
+  -- Step 5: substitute `xorLanes (lift s) block RATE = lift s1` into the model term.
   have h_spec_compose :
-      sponge.absorb_block (Foundation.lift s) block RATE = .ok (Foundation.lift r) := by
-    unfold sponge.absorb_block
-    rw [h_xbs_eq]; simp only [bind_tc_ok]
+      absorbBlockLanes (Foundation.lift s) block.val RATE.val = Foundation.lift r := by
+    unfold absorbBlockLanes
     rw [h_spec_lift_s1]
     exact h_r_spec
   apply triple_of_ok_ab (v := r) h_impl_eq ⟨h_r_i, h_spec_compose⟩
