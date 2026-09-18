@@ -11,7 +11,7 @@
     loop `keccak.keccak_loop1`. Uses `loop_range_spec_usize` with a
     fold-form invariant carrying termination (`r.i.val = 0`), offset
     advancement, and spec-side lockstep
-    `squeeze_fold s (blocks - 1) = .ok (lift r)`.
+    `squeeze_fold s (blocks - 1) = lift r`.
 
   * `squeezeByteAt` — the per-byte projection of a spec state used
     by both `keccak.squeeze_next_block_spec` and the per-byte
@@ -71,22 +71,17 @@ private theorem triple_exists_ok_sq {α : Type} {x : RustM α}
 
 /-! ### Iterating the permutation
 
-The squeeze phase applies `keccakFLanes` once per output block.  The fold is
-kept in `RustM` so that the loop invariants below can stay in the `= .ok _`
-shape the surrounding `mvcgen` proofs produce. -/
+The squeeze phase applies `keccakFLanes` once per output block. -/
 
-/-- `n` applications of `keccakFLanes`, as a fold. -/
-def iterate_keccak_f_fold (state : Lanes) (n : Nat) : RustM Lanes :=
-  Nat.fold n (init := (.ok state : RustM _))
-    (fun _ _ acc => acc >>= fun st => (.ok (keccakFLanes st) : RustM _))
+/-- `n` applications of `keccakFLanes`. -/
+def iterate_keccak_f_fold (state : Lanes) (n : Nat) : Lanes := keccakFLanes^[n] state
 
-theorem iterate_keccak_f_fold_eq (state : Lanes) (n : Nat) :
-    iterate_keccak_f_fold state n = .ok (keccakFLanes^[n] state) := by
-  induction n with
-  | zero => rfl
-  | succ n ih =>
-    unfold iterate_keccak_f_fold at ih ⊢
-    rw [Nat.fold_succ, ih, bind_tc_ok, Function.iterate_succ_apply']
+theorem iterate_keccak_f_fold_zero (state : Lanes) :
+    iterate_keccak_f_fold state 0 = state := rfl
+
+theorem iterate_keccak_f_fold_succ (state : Lanes) (n : Nat) :
+    iterate_keccak_f_fold state (n + 1) = keccakFLanes (iterate_keccak_f_fold state n) :=
+  Function.iterate_succ_apply' _ _ _
 
 /-! ### Theorem 2: `sponge_squeeze_byte_eq`.
 
@@ -179,8 +174,7 @@ applications, and the offset has advanced by `(blocks - 1) * RATE`. -/
 /-- The fold-form invariant accumulator on the spec side. After `k`
     iterations of the loop body, the impl state corresponds to
     `iterate_keccak_f_fold (lift s_init) k`. -/
-def squeeze_fold (s_init : state.KeccakState) (k : Nat) :
-    RustM (Std.Array Std.U64 25#usize) :=
+def squeeze_fold (s_init : state.KeccakState) (k : Nat) : Lanes :=
   iterate_keccak_f_fold (Foundation.lift s_init) k
 
 @[spec]
@@ -202,10 +196,10 @@ theorem keccak.keccak_loop1_invariant
         out_final.val.length = out.val.length
         ∧ s_final.i.val = 0
         ∧ offset_final.val = offset.val + (blocks.val - 1) * RATE.val
-        ∧ squeeze_fold s (blocks.val - 1) = .ok (Foundation.lift s_final)
+        ∧ squeeze_fold s (blocks.val - 1) = Foundation.lift s_final
         ∧ (∀ j : Nat, j < (blocks.val - 1) * RATE.val →
             ∃ s_bj : Std.Array Std.U64 25#usize,
-              squeeze_fold s ((j / RATE.val) + 1) = .ok s_bj
+              squeeze_fold s ((j / RATE.val) + 1) = s_bj
               ∧ out_final.val[offset.val + j]! = squeezeByteAt s_bj (j % RATE.val))
         ∧ ∀ j : Nat, j < offset.val → out_final.val[j]! = out.val[j]!
     ⌝ ⦄ := by
@@ -219,10 +213,10 @@ theorem keccak.keccak_loop1_invariant
           acc.1.val.length = out.val.length
           ∧ acc.2.1.i.val = 0
           ∧ acc.2.2.val = offset.val + (k.val - 1) * RATE.val
-          ∧ squeeze_fold s (k.val - 1) = .ok (Foundation.lift acc.2.1)
+          ∧ squeeze_fold s (k.val - 1) = Foundation.lift acc.2.1
           ∧ (∀ j : Nat, j < (k.val - 1) * RATE.val →
               ∃ s_bj : Std.Array Std.U64 25#usize,
-                squeeze_fold s ((j / RATE.val) + 1) = .ok s_bj
+                squeeze_fold s ((j / RATE.val) + 1) = s_bj
                 ∧ acc.1.val[offset.val + j]! = squeezeByteAt s_bj (j % RATE.val))
           ∧ ∀ j : Nat, j < offset.val → acc.1.val[j]! = out.val[j]!))
       h_blocks_pos
@@ -331,14 +325,14 @@ theorem keccak.keccak_loop1_invariant
       obtain ⟨h_snb_i, h_snb_len, s_spec, h_snb_spec, h_snb_lift, h_snb_bytes⟩ := h_1
       refine ⟨hk_lt, hiter1_end, hiter1_start, ?_⟩
       apply pure_prop_holds
-      have h_new_fold : squeeze_fold s ((k.val + 1) - 1) = .ok (Foundation.lift r_1.1) := by
+      have h_new_fold : squeeze_fold s ((k.val + 1) - 1) = Foundation.lift r_1.1 := by
         have hk_ge_1 : 1 ≤ k.val := h_ge
         have h_idx : k.val + 1 - 1 = (k.val - 1) + 1 := by omega
-        have h_inner : squeeze_fold s (k.val - 1) = .ok (Foundation.lift s_acc) := h_fold_acc
+        have h_inner : squeeze_fold s (k.val - 1) = Foundation.lift s_acc := h_fold_acc
         show squeeze_fold s (k.val + 1 - 1) = _
         rw [h_idx]
-        unfold squeeze_fold iterate_keccak_f_fold at h_inner ⊢
-        rw [Nat.fold_succ, h_inner, bind_tc_ok, h_snb_spec, h_snb_lift]
+        unfold squeeze_fold at h_inner ⊢
+        rw [iterate_keccak_f_fold_succ, h_inner, h_snb_spec, h_snb_lift]
       refine ⟨?_, h_snb_i, ?_, ?_, ?_, ?_⟩
       · -- Length: `(back snb_out).val.length = out.val.length`.
         rw [h_back r_1.2 (h_snb_len.trans h_idx_len)]
@@ -355,7 +349,7 @@ theorem keccak.keccak_loop1_invariant
           conv_rhs => rw [h2]
           rw [Nat.add_mul]; ring
         omega
-      · -- squeeze_fold s (iter1.start.val - 1) = .ok (lift r_1.1).
+      · -- squeeze_fold s (iter1.start.val - 1) = lift r_1.1.
         rw [hiter1_start]; exact h_new_fold
       · -- Per-byte clause for the new iteration: j < ((k.val + 1) - 1) * RATE.val = k.val * RATE.val.
         rw [hiter1_start]
@@ -407,7 +401,7 @@ theorem keccak.keccak_loop1_invariant
           have h_mod_lt : j % RATE.val < RATE.val := Nat.mod_lt _ (by omega)
           -- The "new" s_b is `lift r_1.1`.
           refine ⟨Foundation.lift r_1.1, ?_, ?_⟩
-          · -- squeeze_fold s ((j / RATE.val) + 1) = .ok (lift r_1.1).
+          · -- squeeze_fold s ((j / RATE.val) + 1) = lift r_1.1.
             rw [h_div_RATE]
             have : k.val - 1 + 1 = k.val := by omega
             rw [this]

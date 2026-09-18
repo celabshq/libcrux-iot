@@ -679,7 +679,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
       else Foundation.lift s2
     -- The condition "iterate_keccak_f (k/RATE) (lift s2) = .ok (s_b k)" for each region.
     have h_iter_fold : ∀ k : Nat, k < outlen_us.val →
-        iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val) = .ok (s_b k) := by
+        iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val) = s_b k := by
       intro k hk
       rw [h_outlen_us_val] at hk
       -- Split on which region k is in.
@@ -690,9 +690,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
           rw [dif_neg (by omega)]
         rw [hsb]
         have h_div : k / RATE.val = 0 := Nat.div_eq_of_lt hk_RATE
-        rw [h_div]
-        unfold iterate_keccak_f_fold
-        rw [Nat.fold_zero]
+        rw [h_div, iterate_keccak_f_fold_zero]
       · push Not at hk_RATE
         by_cases hk_last : k < blocks_nat * RATE.val
         · -- Region 2: RATE ≤ k < last. k/RATE ∈ [1, blocks).
@@ -726,14 +724,13 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
               omega
             omega
           unfold squeeze_fold at h_fold_eq
-          -- h_fold_eq : Nat.fold ((k-RATE)/RATE + 1) ... = .ok (Classical.choose ...).
-          -- Goal: Nat.fold (k/RATE) ... = .ok (Classical.choose ...).
-          -- Use h_div_eq directly.
+          -- `h_fold_eq` is the fold at `(k-RATE)/RATE + 1`; `h_div_eq` says that
+          -- index is `k/RATE`.
           have h_eq_arg : (k - RATE.val) / RATE.val + 1 = k / RATE.val := h_div_eq
           calc iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val)
               = iterate_keccak_f_fold (Foundation.lift s2) ((k - RATE.val) / RATE.val + 1) := by
                 rw [h_eq_arg]
-            _ = .ok (Classical.choose (h_loop_bytes (k - RATE.val) h_mb)) := h_fold_eq
+            _ = Classical.choose (h_loop_bytes (k - RATE.val) h_mb) := h_fold_eq
         · -- Region 3: k ≥ last = blocks_nat * RATE.val. s_b k = s_spec_last.
           push Not at hk_last
           have hsb : s_b k = s_spec_last := by
@@ -750,29 +747,23 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
             rw [h_kRATE]
             omega
           rw [h_div]
-          -- Goal: iterate_keccak_f_fold (lift s2) blocks_nat = .ok s_spec_last.
-          -- iterate^blocks (lift s2) = keccak_f (iterate^(blocks-1) (lift s2)) = keccak_f (lift s3) = s_spec_last.
-          unfold iterate_keccak_f_fold
+          -- `iterate^blocks (lift s2) = keccakFLanes (iterate^(blocks-1) (lift s2))`
+          -- `= keccakFLanes (lift s3) = s_spec_last`.
           have h_blocks_eq : blocks_nat = (blocks_nat - 1) + 1 := by omega
-          rw [h_blocks_eq, Nat.fold_succ]
-          -- Goal: (fold (blocks_nat - 1) …) >>= keccakFLanes = .ok s_spec_last.
-          have h_inner : Nat.fold (blocks_nat - 1)
-              (init := (.ok (Foundation.lift s2) : RustM _))
-              (fun _ _ acc => acc >>= fun st => (.ok (keccakFLanes st) : RustM _))
-              = .ok (Foundation.lift s3) := by
+          rw [h_blocks_eq, iterate_keccak_f_fold_succ]
+          have h_inner : iterate_keccak_f_fold (Foundation.lift s2) (blocks_nat - 1)
+              = Foundation.lift s3 := by
             have h_blocks_us_minus : blocks_us.val - 1 = blocks_nat - 1 := by
               rw [h_blocks_us_val]
-            unfold squeeze_fold iterate_keccak_f_fold at h_fold_blocks
+            unfold squeeze_fold at h_fold_blocks
             rw [← h_blocks_us_minus]
             exact h_fold_blocks
-          rw [h_inner, bind_tc_ok, h_s5_kf]
+          rw [h_inner, h_s5_kf]
     -- Step 22: compose spec-side.
     have h_iter_const : ∀ k : Nat, k < outlen_us.val →
         keccakFLanes^[k / RATE.val] (Foundation.lift s2) = s_b k := by
       intro k hk
-      have h := h_iter_fold k hk
-      rw [iterate_keccak_f_fold_eq] at h
-      exact (RustM.ok.injEq _ _).mp h
+      exact h_iter_fold k hk
     have h_spec_bytes :=
       squeezeLanes_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos s_b h_iter_const
     have h_spec_full_eq :
@@ -969,7 +960,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
         else Foundation.lift s3
       else Foundation.lift s2
     have h_iter_fold : ∀ k : Nat, k < outlen_us.val →
-        iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val) = .ok (s_b k) := by
+        iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val) = s_b k := by
       intro k hk
       rw [h_outlen_us_val] at hk
       by_cases hk_RATE : k < RATE.val
@@ -978,7 +969,7 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
           rw [dif_neg (by omega)]
         rw [hsb]
         have h_div : k / RATE.val = 0 := Nat.div_eq_of_lt hk_RATE
-        rw [h_div]; unfold iterate_keccak_f_fold; rw [Nat.fold_zero]
+        rw [h_div, iterate_keccak_f_fold_zero]
       · push Not at hk_RATE
         have hk_last : k < blocks_nat * RATE.val := by rw [h_outlen_eq_last] at hk; exact hk
         have h_mb := h_middle_bound k hk_RATE hk_last
@@ -1013,13 +1004,11 @@ theorem keccak.keccak_keccak_spec_blocks_nonzero
         calc iterate_keccak_f_fold (Foundation.lift s2) (k / RATE.val)
             = iterate_keccak_f_fold (Foundation.lift s2) ((k - RATE.val) / RATE.val + 1) := by
               rw [h_div_eq]
-          _ = .ok (Classical.choose (h_loop_bytes (k - RATE.val) h_mb)) := h_fold_eq
+          _ = Classical.choose (h_loop_bytes (k - RATE.val) h_mb) := h_fold_eq
     have h_iter_const : ∀ k : Nat, k < outlen_us.val →
         keccakFLanes^[k / RATE.val] (Foundation.lift s2) = s_b k := by
       intro k hk
-      have h := h_iter_fold k hk
-      rw [iterate_keccak_f_fold_eq] at h
-      exact (RustM.ok.injEq _ _).mp h
+      exact h_iter_fold k hk
     have h_spec_bytes :=
       squeezeLanes_byte_eq outlen_us (Foundation.lift s2) RATE h_RATE_pos s_b h_iter_const
     have h_spec_full_eq :
