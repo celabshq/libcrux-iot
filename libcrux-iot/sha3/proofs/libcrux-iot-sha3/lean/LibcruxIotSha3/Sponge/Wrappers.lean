@@ -2,33 +2,37 @@ import LibcruxIotSha3.Sponge.Shake
 
 /-! # The wrapper entry points
 
-`Sponge/Shake.lean` proves the six functions that carry a transcript-level
-`#[ensures]`. This file covers the eight that wrap them and carry only a
-`#[hax_lib::requires]`:
+`Sponge/Shake.lean` proves the six functions whose `#[ensures]` names the FIPS 202
+transcript directly. This file covers the eight that wrap them:
 
-| wrapper | wraps |
-|---|---|
-| `keccakx1` | `keccak.keccak` |
-| `shake128_ema`, `shake256_ema` | `keccakx1` at RATE 168 / 136 |
-| `sha224`, `sha256`, `sha384`, `sha512` | the matching `*_ema`, into a fresh array |
-| `hash` | one of those four, chosen by `Algorithm` |
+| wrapper | wraps | contract |
+|---|---|---|
+| `sha224`, `sha256`, `sha384`, `sha512` | the matching `*_ema`, into a fresh array | `bytes::sha3_N` |
+| `shake128_ema`, `shake256_ema` | `keccakx1` at RATE 168 / 136 | `bytes::shake{128,256}` |
+| `hash` | one of the four `shaN`, by `Algorithm` | all four, via `digest_matches` |
+| `keccakx1` | `keccak.keccak` | none -- see below |
 
-Because these have no `ensures`, their generated obligation is
-`pre.holds → ⦃⌜True⌝⦄ f args ⦃⇓ _ => ⌜True⌝⦄` -- freedom from panics,
-overflow and out-of-bounds indexing under the stated precondition, and nothing
-about the value. The lemmas here prove more than that wherever it is free: the
-`keccakLanes` characterisation falls out of the same `keccak_keccak_spec`
-application that establishes the `ok`, so it is kept. Turning that into a
-*transcript*-level statement (`hacspec_sha3_pedantic.bytes.*`) is a separate
-matter -- it needs an `#[ensures]` on the Rust, and for the two `_ema`
-functions a tighter `#[requires]` as well, since their current bound
-(`out.len() <= u32::MAX`) does not give the transcript's bit-length room.
+Each lemma here produces the value: the `keccakLanes` characterisation falls out of
+the same `keccak_keccak_spec` application that establishes the `ok`.
+`Verification/ProofObligations.lean` then composes that with the `pedantic_*`
+agreement lemmas to produce the generated post, so no post is weakened.
 
-No bound on the INPUT is needed anywhere in this file:
-`keccak.keccak_keccak_spec` asks only for `RATE % 8 = 0` and `1 ≤ RATE ≤ 200`.
-The `MAX_INPUT_LEN` bound in the preconditions is there for the
-transcript-level `#[ensures]` of the six, not for the implementation's own
-safety. -/
+`keccakx1` is the exception, and deliberately. It is generic over `RATE` and
+`DELIM`, and the transcript has no rate-and-delimiter-parameterised byte sponge to
+name: it exposes `KECCAK[c]` over bit strings and the six standard functions. A
+contract for it would have to spell a byte-to-bit encoding and the delimiter's
+suffix bits inline, on a `pub(crate)` function no caller reads -- which is the
+reason the old `keccak_fc` wrapper was deleted. It keeps its `#[requires]`, whose
+obligation is freedom from panics, overflow and out-of-bounds indexing, and the
+`keccakLanes` value is available here for callers that want it.
+
+No bound on the INPUT is needed for the `ok` anywhere in this file:
+`keccak.keccak_keccak_spec` asks only for `RATE % 8 = 0` and `1 ≤ RATE ≤ 200`. The
+`MAX_INPUT_LEN` bounds in the preconditions are what the TRANSCRIPT needs -- it
+works on bit strings, so `8 * len` plus the suffix and `pad10*1` has to stay
+representable -- which is why giving `shake128_ema`/`shake256_ema` a transcript-level
+post meant tightening their `#[requires]` from `out.len() <= u32::MAX` to
+`MAX_INPUT_LEN` on both `out` and `data`. -/
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3
 open LibcruxIotSha3.LaneModel
@@ -315,91 +319,63 @@ theorem sha512_spec (payload : Slice Std.U8)
 /-! ## `hash`
 
     The dispatcher. Its precondition ties the const generic `LEN` to
-    `digest_size algorithm`, so each branch's `LEN` is the matching digest size
-    and the body after the `massert` is exactly the corresponding `shaN`.
+    `digest_size algorithm`, so in each branch `LEN` is the matching digest size
+    and the body after the `massert` is exactly the corresponding `shaN`. That
+    is what these four equations say; the caller then reuses the `shaN_spec`
+    above for the value, which is what `hash`'s `#[ensures]` needs. -/
 
-    The result is stated as bare `ok`: `hash` returns `[U8; LEN]` for a `LEN`
-    that only the precondition ties to the algorithm, so a value-level
-    statement would have to be indexed by the branch. The four `shaN_spec`
-    above already say what each branch computes. -/
-
-theorem hash_spec
-    (LEN : Std.Usize) (algorithm : Algorithm) (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 536870399)
-    (h_LEN : digest_size algorithm = .ok LEN) :
-    ⦃ ⌜ True ⌝ ⦄
-    hash LEN algorithm payload
-    ⦃ ⇓ _ => ⌜ True ⌝ ⦄ := by
-  -- The `massert (len payload ≤ MAX_INPUT_LEN)` prefix, shared by all branches.
+private theorem hash_massert (payload : Slice Std.U8)
+    (h_payload_bnd : payload.val.length ≤ 536870399) :
+    (massert ((Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize)) : RustM Unit) = .ok () := by
   have h_le_max : (Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize) := by
     show (Std.Slice.len payload).val ≤ (MAX_INPUT_LEN : Std.Usize).val
     rw [Std.Slice.len_val, max_input_len_val]; exact h_payload_bnd
-  have h_massert :
-      (massert ((Std.Slice.len payload) ≤ (MAX_INPUT_LEN : Std.Usize))
-        : RustM Unit) = .ok () := by
-    unfold Aeneas.Std.massert
-    rw [if_pos h_le_max]
-  cases algorithm with
-  | Sha224 =>
-    have hL : LEN = 28#usize := by
-      have := h_LEN; unfold digest_size SHA3_224_DIGEST_SIZE at this
-      exact (RustM.ok.inj this).symm
-    subst hL
-    obtain ⟨v, hv, _⟩ := triple_exists_ok_wr (sha224_spec payload h_payload_bnd)
-    refine triple_of_ok_wr (v := v) ?_ trivial
-    have h_eq : hash 28#usize Algorithm.Sha224 payload
-        = (do
-            let i ← CoreModels.core.slice.Slice.len payload
-            massert (i <= MAX_INPUT_LEN)
-            sha224 payload) := by
-      unfold hash sha224; rfl
-    rw [h_eq, slice_len_eq_wr, bind_tc_ok, h_massert, bind_tc_ok]
-    exact hv
-  | Sha256 =>
-    have hL : LEN = 32#usize := by
-      have := h_LEN; unfold digest_size SHA3_256_DIGEST_SIZE at this
-      exact (RustM.ok.inj this).symm
-    subst hL
-    obtain ⟨v, hv, _⟩ := triple_exists_ok_wr (sha256_spec payload h_payload_bnd)
-    refine triple_of_ok_wr (v := v) ?_ trivial
-    have h_eq : hash 32#usize Algorithm.Sha256 payload
-        = (do
-            let i ← CoreModels.core.slice.Slice.len payload
-            massert (i <= MAX_INPUT_LEN)
-            sha256 payload) := by
-      unfold hash sha256; rfl
-    rw [h_eq, slice_len_eq_wr, bind_tc_ok, h_massert, bind_tc_ok]
-    exact hv
-  | Sha384 =>
-    have hL : LEN = 48#usize := by
-      have := h_LEN; unfold digest_size SHA3_384_DIGEST_SIZE at this
-      exact (RustM.ok.inj this).symm
-    subst hL
-    obtain ⟨v, hv, _⟩ := triple_exists_ok_wr (sha384_spec payload h_payload_bnd)
-    refine triple_of_ok_wr (v := v) ?_ trivial
-    have h_eq : hash 48#usize Algorithm.Sha384 payload
-        = (do
-            let i ← CoreModels.core.slice.Slice.len payload
-            massert (i <= MAX_INPUT_LEN)
-            sha384 payload) := by
-      unfold hash sha384; rfl
-    rw [h_eq, slice_len_eq_wr, bind_tc_ok, h_massert, bind_tc_ok]
-    exact hv
-  | Sha512 =>
-    have hL : LEN = 64#usize := by
-      have := h_LEN; unfold digest_size SHA3_512_DIGEST_SIZE at this
-      exact (RustM.ok.inj this).symm
-    subst hL
-    obtain ⟨v, hv, _⟩ := triple_exists_ok_wr (sha512_spec payload h_payload_bnd)
-    refine triple_of_ok_wr (v := v) ?_ trivial
-    have h_eq : hash 64#usize Algorithm.Sha512 payload
-        = (do
-            let i ← CoreModels.core.slice.Slice.len payload
-            massert (i <= MAX_INPUT_LEN)
-            sha512 payload) := by
-      unfold hash sha512; rfl
-    rw [h_eq, slice_len_eq_wr, bind_tc_ok, h_massert, bind_tc_ok]
-    exact hv
+  unfold Aeneas.Std.massert
+  rw [if_pos h_le_max]
+
+theorem hash_eq_sha224 (payload : Slice Std.U8)
+    (h_payload_bnd : payload.val.length ≤ 536870399) :
+    hash 28#usize Algorithm.Sha224 payload = sha224 payload := by
+  have h_eq : hash 28#usize Algorithm.Sha224 payload
+      = (do
+          let i ← CoreModels.core.slice.Slice.len payload
+          massert (i <= MAX_INPUT_LEN)
+          sha224 payload) := by
+    unfold hash sha224; rfl
+  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hash_massert payload h_payload_bnd, bind_tc_ok]
+
+theorem hash_eq_sha256 (payload : Slice Std.U8)
+    (h_payload_bnd : payload.val.length ≤ 536870399) :
+    hash 32#usize Algorithm.Sha256 payload = sha256 payload := by
+  have h_eq : hash 32#usize Algorithm.Sha256 payload
+      = (do
+          let i ← CoreModels.core.slice.Slice.len payload
+          massert (i <= MAX_INPUT_LEN)
+          sha256 payload) := by
+    unfold hash sha256; rfl
+  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hash_massert payload h_payload_bnd, bind_tc_ok]
+
+theorem hash_eq_sha384 (payload : Slice Std.U8)
+    (h_payload_bnd : payload.val.length ≤ 536870399) :
+    hash 48#usize Algorithm.Sha384 payload = sha384 payload := by
+  have h_eq : hash 48#usize Algorithm.Sha384 payload
+      = (do
+          let i ← CoreModels.core.slice.Slice.len payload
+          massert (i <= MAX_INPUT_LEN)
+          sha384 payload) := by
+    unfold hash sha384; rfl
+  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hash_massert payload h_payload_bnd, bind_tc_ok]
+
+theorem hash_eq_sha512 (payload : Slice Std.U8)
+    (h_payload_bnd : payload.val.length ≤ 536870399) :
+    hash 64#usize Algorithm.Sha512 payload = sha512 payload := by
+  have h_eq : hash 64#usize Algorithm.Sha512 payload
+      = (do
+          let i ← CoreModels.core.slice.Slice.len payload
+          massert (i <= MAX_INPUT_LEN)
+          sha512 payload) := by
+    unfold hash sha512; rfl
+  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hash_massert payload h_payload_bnd, bind_tc_ok]
 
 /-! ## Axiom guards -/
 
@@ -410,9 +386,9 @@ info: 'libcrux_iot_sha3.Sponge.keccakx1_spec' depends on axioms: [propext, Class
 #print axioms keccakx1_spec
 
 /--
-info: 'libcrux_iot_sha3.Sponge.hash_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'libcrux_iot_sha3.Sponge.hash_eq_sha224' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms hash_spec
+#print axioms hash_eq_sha224
 
 end libcrux_iot_sha3.Sponge

@@ -29,7 +29,7 @@ namespace libcrux_iot_sha3
 
 
 /-- [libcrux_iot_sha3::hash::pre]:
-    Source: 'sha3/src/lib.rs', lines 169:0-169:85 -/
+    Source: 'sha3/src/lib.rs', lines 185:0-185:85 -/
 @[reducible]
 def hash.pre
   (LEN : Std.Usize) (algorithm : Algorithm) (payload : Slice Std.U8) :
@@ -41,30 +41,72 @@ def hash.pre
        ok (LEN = i1)
   else ok false
 
+/-- [libcrux_iot_sha3::hash::post]:
+    Source: 'sha3/src/lib.rs', lines 186:0-186:101 -/
+@[reducible]
+def hash.post
+  {LEN : Std.Usize} (algorithm : Algorithm) (payload : Slice Std.U8)
+  (out : Array Std.U8 LEN) :
+  RustM Bool
+  := do
+  let s ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar payload
+  let a ← libcrux_secrets.traits.Declassify.Blanket.declassify out
+  let s1 ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a ()
+  digest_matches algorithm s s1
+
 def hash.spec (LEN : Std.Usize) (algorithm : Algorithm)
   (payload : Slice Std.U8) : Prop :=
   (hash.pre LEN algorithm payload).holds →
   ⦃ ⌜ True ⌝ ⦄
   hash LEN algorithm payload
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (hash.post algorithm payload res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::sha224::pre]:
-    Source: 'sha3/src/lib.rs', lines 191:0-191:52 -/
+    Source: 'sha3/src/lib.rs', lines 208:0-208:52 -/
 @[reducible]
 def sha224.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
   ok (i <= MAX_INPUT_LEN)
 
+/-- [libcrux_iot_sha3::sha224::post]:
+    Source: 'sha3/src/lib.rs', lines 209:0-210:77 -/
+@[reducible]
+def sha224.post
+  (payload : Slice Std.U8) (out : Array Std.U8 28#usize) : RustM Bool := do
+  let a ← libcrux_secrets.traits.Declassify.Blanket.declassify out
+  let s ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a ()
+  let s1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar payload
+  let a1 ← hacspec_sha3_pedantic.bytes.sha3_224 s1
+  let s2 ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a1 ()
+  core.Slice.Insts.CoreCmpPartialEqSlice.eq core.U8.Insts.CoreCmpPartialEqU8 s
+    s2
+
 def sha224.spec (payload : Slice Std.U8) : Prop :=
   (sha224.pre payload).holds →
   ⦃ ⌜ True ⌝ ⦄
   sha224 payload
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (sha224.post payload res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::sha224_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 204:0-204:92 -/
+    Source: 'sha3/src/lib.rs', lines 223:0-223:92 -/
 @[reducible]
 def sha224_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
@@ -75,7 +117,7 @@ def sha224_ema.pre
   else ok false
 
 /-- [libcrux_iot_sha3::sha224_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 205:0-206:82 -/
+    Source: 'sha3/src/lib.rs', lines 224:0-225:82 -/
 @[reducible]
 def sha224_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -105,21 +147,44 @@ def sha224_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha256::pre]:
-    Source: 'sha3/src/lib.rs', lines 220:0-220:52 -/
+    Source: 'sha3/src/lib.rs', lines 239:0-239:52 -/
 @[reducible]
 def sha256.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
   ok (i <= MAX_INPUT_LEN)
 
+/-- [libcrux_iot_sha3::sha256::post]:
+    Source: 'sha3/src/lib.rs', lines 240:0-241:77 -/
+@[reducible]
+def sha256.post
+  (payload : Slice Std.U8) (out : Array Std.U8 32#usize) : RustM Bool := do
+  let a ← libcrux_secrets.traits.Declassify.Blanket.declassify out
+  let s ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a ()
+  let s1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar payload
+  let a1 ← hacspec_sha3_pedantic.bytes.sha3_256 s1
+  let s2 ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a1 ()
+  core.Slice.Insts.CoreCmpPartialEqSlice.eq core.U8.Insts.CoreCmpPartialEqU8 s
+    s2
+
 def sha256.spec (payload : Slice Std.U8) : Prop :=
   (sha256.pre payload).holds →
   ⦃ ⌜ True ⌝ ⦄
   sha256 payload
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (sha256.post payload res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::sha256_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 233:0-233:92 -/
+    Source: 'sha3/src/lib.rs', lines 254:0-254:92 -/
 @[reducible]
 def sha256_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
@@ -130,7 +195,7 @@ def sha256_ema.pre
   else ok false
 
 /-- [libcrux_iot_sha3::sha256_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 234:0-235:82 -/
+    Source: 'sha3/src/lib.rs', lines 255:0-256:82 -/
 @[reducible]
 def sha256_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -160,21 +225,44 @@ def sha256_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha384::pre]:
-    Source: 'sha3/src/lib.rs', lines 249:0-249:52 -/
+    Source: 'sha3/src/lib.rs', lines 270:0-270:52 -/
 @[reducible]
 def sha384.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
   ok (i <= MAX_INPUT_LEN)
 
+/-- [libcrux_iot_sha3::sha384::post]:
+    Source: 'sha3/src/lib.rs', lines 271:0-272:77 -/
+@[reducible]
+def sha384.post
+  (payload : Slice Std.U8) (out : Array Std.U8 48#usize) : RustM Bool := do
+  let a ← libcrux_secrets.traits.Declassify.Blanket.declassify out
+  let s ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a ()
+  let s1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar payload
+  let a1 ← hacspec_sha3_pedantic.bytes.sha3_384 s1
+  let s2 ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a1 ()
+  core.Slice.Insts.CoreCmpPartialEqSlice.eq core.U8.Insts.CoreCmpPartialEqU8 s
+    s2
+
 def sha384.spec (payload : Slice Std.U8) : Prop :=
   (sha384.pre payload).holds →
   ⦃ ⌜ True ⌝ ⦄
   sha384 payload
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (sha384.post payload res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::sha384_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 262:0-262:92 -/
+    Source: 'sha3/src/lib.rs', lines 285:0-285:92 -/
 @[reducible]
 def sha384_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
@@ -185,7 +273,7 @@ def sha384_ema.pre
   else ok false
 
 /-- [libcrux_iot_sha3::sha384_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 263:0-264:82 -/
+    Source: 'sha3/src/lib.rs', lines 286:0-287:82 -/
 @[reducible]
 def sha384_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -215,21 +303,44 @@ def sha384_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha512::pre]:
-    Source: 'sha3/src/lib.rs', lines 278:0-278:52 -/
+    Source: 'sha3/src/lib.rs', lines 301:0-301:52 -/
 @[reducible]
 def sha512.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
   ok (i <= MAX_INPUT_LEN)
 
+/-- [libcrux_iot_sha3::sha512::post]:
+    Source: 'sha3/src/lib.rs', lines 302:0-303:77 -/
+@[reducible]
+def sha512.post
+  (payload : Slice Std.U8) (out : Array Std.U8 64#usize) : RustM Bool := do
+  let a ← libcrux_secrets.traits.Declassify.Blanket.declassify out
+  let s ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a ()
+  let s1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar payload
+  let a1 ← hacspec_sha3_pedantic.bytes.sha3_512 s1
+  let s2 ←
+    core.Array.Insts.CoreOpsIndexIndex.index
+      (core.Slice.Insts.CoreOpsIndexIndex
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8)) a1 ()
+  core.Slice.Insts.CoreCmpPartialEqSlice.eq core.U8.Insts.CoreCmpPartialEqU8 s
+    s2
+
 def sha512.spec (payload : Slice Std.U8) : Prop :=
   (sha512.pre payload).holds →
   ⦃ ⌜ True ⌝ ⦄
   sha512 payload
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (sha512.post payload res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::sha512_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 291:0-291:92 -/
+    Source: 'sha3/src/lib.rs', lines 316:0-316:92 -/
 @[reducible]
 def sha512_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
@@ -240,7 +351,7 @@ def sha512_ema.pre
   else ok false
 
 /-- [libcrux_iot_sha3::sha512_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 292:0-293:82 -/
+    Source: 'sha3/src/lib.rs', lines 317:0-318:82 -/
 @[reducible]
 def sha512_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -270,7 +381,7 @@ def sha512_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::shake128::pre]:
-    Source: 'sha3/src/lib.rs', lines 307:0-307:75 -/
+    Source: 'sha3/src/lib.rs', lines 332:0-332:75 -/
 @[reducible]
 def shake128.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
   if BYTES <= MAX_INPUT_LEN
@@ -279,7 +390,7 @@ def shake128.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
   else ok false
 
 /-- [libcrux_iot_sha3::shake128::post]:
-    Source: 'sha3/src/lib.rs', lines 308:0-309:81 -/
+    Source: 'sha3/src/lib.rs', lines 333:0-334:81 -/
 @[reducible]
 def shake128.post
   {BYTES : Std.Usize} (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
@@ -310,23 +421,47 @@ def shake128.spec (BYTES : Std.Usize) (data : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::shake128_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 323:0-323:52 -/
+    Source: 'sha3/src/lib.rs', lines 348:0-348:79 -/
 @[reducible]
 def shake128_ema.pre
   (out : Slice Std.U8) (data : Slice Std.U8) : RustM Bool := do
+  let i ← core.slice.Slice.len data
+  if i <= MAX_INPUT_LEN
+  then let i1 ← core.slice.Slice.len out
+       ok (i1 <= MAX_INPUT_LEN)
+  else ok false
+
+/-- [libcrux_iot_sha3::shake128_ema::post]:
+    Source: 'sha3/src/lib.rs', lines 349:0-350:90 -/
+@[reducible]
+def shake128_ema.post
+  (out : Slice Std.U8) (data : Slice Std.U8) (out_future : Slice Std.U8) :
+  RustM Bool
+  := do
+  let s ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar out_future
+  let s1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar data
   let i ← core.slice.Slice.len out
-  let i1 ← lift (UScalar.cast .Usize core.num.U32.MAX)
-  ok (i <= i1)
+  let v ← hacspec_sha3_pedantic.bytes.shake128 s1 i
+  let s2 ←
+    alloc.vec.Vec.Insts.CoreOpsIndexIndex.index
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8) v ()
+  core.Slice.Insts.CoreCmpPartialEqSlice.eq core.U8.Insts.CoreCmpPartialEqU8 s
+    s2
 
 def shake128_ema.spec (out : Slice Std.U8) (data : Slice Std.U8) : Prop :=
   (shake128_ema.pre out data).holds →
   ⦃ ⌜ True ⌝ ⦄
   shake128_ema out data
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (shake128_ema.post out data res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::shake256::pre]:
-    Source: 'sha3/src/lib.rs', lines 332:0-332:75 -/
+    Source: 'sha3/src/lib.rs', lines 359:0-359:75 -/
 @[reducible]
 def shake256.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
   if BYTES <= MAX_INPUT_LEN
@@ -335,7 +470,7 @@ def shake256.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
   else ok false
 
 /-- [libcrux_iot_sha3::shake256::post]:
-    Source: 'sha3/src/lib.rs', lines 333:0-334:81 -/
+    Source: 'sha3/src/lib.rs', lines 360:0-361:81 -/
 @[reducible]
 def shake256.post
   {BYTES : Std.Usize} (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
@@ -366,23 +501,47 @@ def shake256.spec (BYTES : Std.Usize) (data : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::shake256_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 348:0-348:52 -/
+    Source: 'sha3/src/lib.rs', lines 375:0-375:79 -/
 @[reducible]
 def shake256_ema.pre
   (out : Slice Std.U8) (data : Slice Std.U8) : RustM Bool := do
+  let i ← core.slice.Slice.len data
+  if i <= MAX_INPUT_LEN
+  then let i1 ← core.slice.Slice.len out
+       ok (i1 <= MAX_INPUT_LEN)
+  else ok false
+
+/-- [libcrux_iot_sha3::shake256_ema::post]:
+    Source: 'sha3/src/lib.rs', lines 376:0-377:90 -/
+@[reducible]
+def shake256_ema.post
+  (out : Slice Std.U8) (data : Slice Std.U8) (out_future : Slice Std.U8) :
+  RustM Bool
+  := do
+  let s ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar out_future
+  let s1 ←
+    libcrux_secrets.SharedASlice.Insts.Libcrux_secretsTraitsDeclassifyRefSharedASlice.declassify_ref
+      libcrux_secrets.U8.Insts.Libcrux_secretsTraitsScalar data
   let i ← core.slice.Slice.len out
-  let i1 ← lift (UScalar.cast .Usize core.num.U32.MAX)
-  ok (i <= i1)
+  let v ← hacspec_sha3_pedantic.bytes.shake256 s1 i
+  let s2 ←
+    alloc.vec.Vec.Insts.CoreOpsIndexIndex.index
+      (core.ops.range.RangeFull.Insts.CoreSliceIndexSliceIndexSliceSlice
+      Std.U8) v ()
+  core.Slice.Insts.CoreCmpPartialEqSlice.eq core.U8.Insts.CoreCmpPartialEqU8 s
+    s2
 
 def shake256_ema.spec (out : Slice Std.U8) (data : Slice Std.U8) : Prop :=
   (shake256_ema.pre out data).holds →
   ⦃ ⌜ True ⌝ ⦄
   shake256_ema out data
-  ⦃ ⇓ res => ⌜ True ⌝ ⦄
+  ⦃ ⇓ res => ⌜ (shake256_ema.post out data res).holds ⌝ ⦄
 
 
 /-- [libcrux_iot_sha3::keccakx1::pre]:
-    Source: 'sha3/src/lib.rs', lines 560:0-562:2 -/
+    Source: 'sha3/src/lib.rs', lines 589:0-591:2 -/
 @[reducible]
 def keccakx1.pre
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
@@ -1231,7 +1390,7 @@ def state.KeccakState.set_lane.spec (self : state.KeccakState) (i : Std.Usize)
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::absorb::pre]:
-    Source: 'sha3/src/lib.rs', lines 441:8-444:10 -/
+    Source: 'sha3/src/lib.rs', lines 470:8-473:10 -/
 @[reducible]
 def incremental.XofShake128Xof168.absorb.pre
   (self_ : incremental.Shake128Xof) (input : Slice Std.U8) : RustM Bool := do
@@ -1256,7 +1415,7 @@ def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.absorb.spec
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::absorb_final::pre]:
-    Source: 'sha3/src/lib.rs', lines 449:8-452:10 -/
+    Source: 'sha3/src/lib.rs', lines 478:8-481:10 -/
 @[reducible]
 def incremental.XofShake128Xof168.absorb_final.pre
   (self_ : incremental.Shake128Xof) (input : Slice Std.U8) : RustM Bool := do
@@ -1282,7 +1441,7 @@ def
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::absorb::pre]:
-    Source: 'sha3/src/lib.rs', lines 470:8-473:10 -/
+    Source: 'sha3/src/lib.rs', lines 499:8-502:10 -/
 @[reducible]
 def incremental.XofShake256Xof136.absorb.pre
   (self_ : incremental.Shake256Xof) (input : Slice Std.U8) : RustM Bool := do
@@ -1307,7 +1466,7 @@ def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.absorb.spec
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::absorb_final::pre]:
-    Source: 'sha3/src/lib.rs', lines 478:8-481:10 -/
+    Source: 'sha3/src/lib.rs', lines 507:8-510:10 -/
 @[reducible]
 def incremental.XofShake256Xof136.absorb_final.pre
   (self_ : incremental.Shake256Xof) (input : Slice Std.U8) : RustM Bool := do

@@ -62,6 +62,38 @@ mod ctx {
         out
     }
 
+    // The dispatcher. `hash` is generic in the output length, so there is one
+    // wrapper per algorithm; the point of the test is that it routes to the right
+    // one, which a single length could not show.
+    pub fn impl_hash_224(msg: &[u8]) -> [u8; 28] {
+        let d: [U8; 28] =
+            libcrux_iot_sha3::hash(libcrux_iot_sha3::Algorithm::Sha224, msg.classify_ref());
+        let mut out = [0u8; 28];
+        out.copy_from_slice(d.declassify_ref());
+        out
+    }
+    pub fn impl_hash_256(msg: &[u8]) -> [u8; 32] {
+        let d: [U8; 32] =
+            libcrux_iot_sha3::hash(libcrux_iot_sha3::Algorithm::Sha256, msg.classify_ref());
+        let mut out = [0u8; 32];
+        out.copy_from_slice(d.declassify_ref());
+        out
+    }
+    pub fn impl_hash_384(msg: &[u8]) -> [u8; 48] {
+        let d: [U8; 48] =
+            libcrux_iot_sha3::hash(libcrux_iot_sha3::Algorithm::Sha384, msg.classify_ref());
+        let mut out = [0u8; 48];
+        out.copy_from_slice(d.declassify_ref());
+        out
+    }
+    pub fn impl_hash_512(msg: &[u8]) -> [u8; 64] {
+        let d: [U8; 64] =
+            libcrux_iot_sha3::hash(libcrux_iot_sha3::Algorithm::Sha512, msg.classify_ref());
+        let mut out = [0u8; 64];
+        out.copy_from_slice(d.declassify_ref());
+        out
+    }
+
     pub fn impl_shake128_ema(msg: &[u8], out_len: usize) -> Vec<u8> {
         let mut buf: Vec<U8> = vec![0u8.classify(); out_len];
         libcrux_iot_sha3::shake128_ema(buf.as_mut_slice(), msg.classify_ref());
@@ -179,6 +211,48 @@ fn sha3_512_input_boundaries() {
 // truncates it at the end), so `shake(msg, MAX)[..k] = shake(msg, k)` is
 // a property of the specification itself.
 // ============================================================
+
+// `hash` dispatches on `Algorithm`; its `#[ensures]` is a four-way
+// `digest_matches` against the transcript, so check every arm routes correctly.
+#[test]
+fn hash_dispatch_input_boundaries() {
+    for &(rate, seed) in &[(144usize, 224u64), (136, 256), (104, 384), (72, 512)] {
+        for &len in &boundary_lens(rate) {
+            for (p, msg) in patterns(len, seed).iter().enumerate() {
+                match seed {
+                    224 => assert_eq!(
+                        ctx::impl_hash_224(msg),
+                        hacspec_sha3_pedantic::bytes::sha3_224(msg),
+                        "hash/Sha224 mismatch len={} pattern={}",
+                        len,
+                        p
+                    ),
+                    256 => assert_eq!(
+                        ctx::impl_hash_256(msg),
+                        hacspec_sha3_pedantic::bytes::sha3_256(msg),
+                        "hash/Sha256 mismatch len={} pattern={}",
+                        len,
+                        p
+                    ),
+                    384 => assert_eq!(
+                        ctx::impl_hash_384(msg),
+                        hacspec_sha3_pedantic::bytes::sha3_384(msg),
+                        "hash/Sha384 mismatch len={} pattern={}",
+                        len,
+                        p
+                    ),
+                    _ => assert_eq!(
+                        ctx::impl_hash_512(msg),
+                        hacspec_sha3_pedantic::bytes::sha3_512(msg),
+                        "hash/Sha512 mismatch len={} pattern={}",
+                        len,
+                        p
+                    ),
+                }
+            }
+        }
+    }
+}
 
 #[test]
 fn shake128_input_output_boundaries() {

@@ -17,9 +17,10 @@ proves the model is the transcript, bit for bit.  See
 
 ## Main theorems
 
-The top-level results are the six SHA-3 and SHAKE functions' contracts. They rest on a
-Keccak sponge equivalence theorem, which in turn rests on a Keccak-f[1600] permutation
-equivalence theorem; only the six are stated in Rust.
+The top-level results are the contracts of thirteen SHA-3 and SHAKE functions: the six
+core entry points below, and the seven wrappers in
+[The wrappers](#the-wrappers). All rest on a Keccak sponge equivalence theorem, which in
+turn rests on a Keccak-f[1600] permutation equivalence theorem.
 
 ### Keccak
 
@@ -93,28 +94,71 @@ model's `keccakLanes`) with the corresponding agreement theorem from
 
 ### The wrappers
 
-Eight further functions carry a `#[hax_lib::requires]` but no `#[ensures]`: the
-dispatcher `hash`, the four allocating `sha224` / `sha256` / `sha384` / `sha512`, the
-caller-allocated `shake128_ema` / `shake256_ema`, and the internal `keccakx1`. With no
-`ensures`, the generated post is `⌜True⌝`, so their obligation says: under the stated
-precondition the function does not panic, overflow or index out of bounds. That is what
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean) discharges for
-each, through the lemmas in [`Sponge/Wrappers.lean`](Sponge/Wrappers.lean).
+Seven further functions now name the transcript too. Four allocate a digest and hand it
+to the matching `*_ema`:
 
-Those lemmas prove more than the obligation asks, because it is free to: the `keccakLanes`
-value comes out of the same `keccak_keccak_spec` application that establishes the `ok`. So
-`sha224 payload` is known to return the 28 bytes of `keccakLanes 28 144 6 payload`, not
-merely to terminate. What is *not* claimed is a transcript-level statement --
-`hacspec_sha3_pedantic::bytes::sha3_224` -- because saying that in a place the Rust
-contract can see would mean adding an `#[ensures]` to these functions, and for the two
-`_ema` wrappers a tighter `#[requires]` as well: their current bound is
-`out.len() <= u32::MAX`, which does not give the transcript's bit-length arithmetic the
-room that `MAX_INPUT_LEN` does.
+```rust
+#[hax_lib::requires(payload.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|out| out.declassify()[..]
+    == hacspec_sha3_pedantic::bytes::sha3_224(payload.declassify_ref())[..])]
+pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE]
+```
 
-Worth noting for anyone extending this: no bound on the *input* is needed for any of the
-eight. `keccak.keccak_keccak_spec` asks only `RATE % 8 = 0` and `1 <= RATE <= 200`. The
-`MAX_INPUT_LEN` precondition exists for the six functions' transcript-level `#[ensures]`,
-not for the implementation's own safety.
+Two are the caller-allocated XOF entry points, where the output length is `out.len()`
+rather than a const generic:
+
+```rust
+#[hax_lib::requires(data.len() <= MAX_INPUT_LEN && out.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|_| future(out).declassify_ref()
+        == &hacspec_sha3_pedantic::bytes::shake128(data.declassify_ref(), out.len())[..])]
+pub fn shake128_ema(out: &mut [U8], data: &[U8])
+```
+
+**This tightened a public precondition.** `shake128_ema` and `shake256_ema` previously
+required only `out.len() <= u32::MAX as usize`, which is both too weak for the transcript
+(it needs `8 * out.len()` to stay representable) and silent about `data` entirely. The
+bound on the output therefore narrows from 4 GB to `MAX_INPUT_LEN`, and a bound on the
+input is added. Their callers inside this workspace -- `ml-dsa/src/hash_functions.rs` and
+`ml-kem/src/hash_functions.rs` -- are all `#[hax_lib::opaque]` or covered by an `--opaque`
+in `hax.toml`, so no proof obligation anywhere had to change; but note that ml-kem's `PRF`
+still carries only `LEN <= u32::MAX as usize`, which would need tightening in step if
+those wrappers are ever made non-opaque.
+
+The seventh is the dispatcher. Its post is a four-way comparison, written as a
+`#[cfg(hax)]` helper so that each arm is a slice `==` -- a shape hax models -- rather than
+a `Vec` construction per arm:
+
+```rust
+#[cfg(hax)]
+fn digest_matches(algorithm: Algorithm, payload: &[u8], out: &[u8]) -> bool {
+    match algorithm {
+        Algorithm::Sha224 => out == &hacspec_sha3_pedantic::bytes::sha3_224(payload)[..],
+        // ... 256, 384, 512
+    }
+}
+
+#[hax_lib::requires(payload.len() <= MAX_INPUT_LEN && LEN == digest_size(algorithm))]
+#[hax_lib::ensures(|out| digest_matches(algorithm, payload.declassify_ref(), &out.declassify()[..]))]
+pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN]
+```
+
+`digest_matches` is a definition, not an assumption: it is extracted along with everything
+else and unfolds in the proof.
+
+**`keccakx1` is the one that keeps only a `#[requires]`**, and deliberately. It is generic
+over `RATE` and `DELIM`, and the transcript has no rate-and-delimiter-parameterised byte
+sponge to name -- it exposes `KECCAK[c]` over bit strings and the six standard functions.
+A contract for it would have to spell out a byte-to-bit encoding and the delimiter's
+suffix bits inline, on a `pub(crate)` function no caller reads; that is the same "asserting
+to no audience" that got the old `keccak_fc` wrapper deleted. Its obligation is freedom
+from panics, overflow and out-of-bounds indexing, which is discharged, and the
+`keccakLanes` value is proved in [`Sponge/Wrappers.lean`](Sponge/Wrappers.lean) for
+callers that want it.
+
+Worth knowing for anyone extending this: the `ok` half of all eight needs no bound on the
+input at all. `keccak.keccak_keccak_spec` asks only `RATE % 8 = 0` and `1 <= RATE <= 200`.
+Every `MAX_INPUT_LEN` in a precondition is there for the transcript, not for the
+implementation's own safety.
 
 ### The input bound
 
@@ -235,7 +279,9 @@ functions above.
 
 The generated `Extraction/ProofObligations.lean` states 45 obligations, one per Rust
 function carrying a `#[hax_lib::requires]` or `#[hax_lib::ensures]`; 14 are discharged in
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean). The remaining 31
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean). Thirteen of
+those fourteen are now transcript-level; the fourteenth is `keccakx1`, for the reason
+given above. The remaining 31
 are the internal one-shot machinery (`absorb_block`, `absorb_final`, the four `squeeze_*`,
 and the `KeccakState`/`Lane2U32` accessors -- each of which already has a hand-written
 equation lemma under [`Sponge/`](Sponge/) that the `keccak` proof goes through) and the

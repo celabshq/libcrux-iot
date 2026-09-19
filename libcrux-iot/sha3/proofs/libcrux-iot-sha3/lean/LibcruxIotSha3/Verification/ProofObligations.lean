@@ -227,6 +227,12 @@ private theorem slice_eq_true {a b : Slice Std.U8} (h : a.val = b.val) :
       Composition.lawful_partialEq_u8 a b)
   rw [hr_eq, hr_iff.mpr h]
 
+/-- `CoreModels`' `Slice::len` as an equation. The `_ema` posts call it to get the
+    output length the transcript's SHAKE takes as an argument. -/
+private theorem slice_len_eq (s : Slice Std.U8) :
+    CoreModels.core.slice.Slice.len s = .ok (Aeneas.Std.Slice.len s) := by
+  unfold CoreModels.core.slice.Slice.len; rfl
+
 /-- `declassify` by value (blanket instance) is the identity (Assumptions/FunsExternal). -/
 private theorem decl_blanket_eq {T : Type} (x : T) :
     libcrux_secrets.traits.Declassify.Blanket.declassify x = .ok x := rfl
@@ -623,15 +629,69 @@ theorem keccakx1_spec_proof (RATE : Std.Usize) (DELIM : Std.U8)
 
 theorem shake128_ema_spec_proof (out data : Slice Std.U8) :
     libcrux_iot_sha3.shake128_ema.spec out data := by
-  intro _
-  obtain ⟨v, hv, _⟩ := triple_exists_ok (Sponge.shake128_ema_spec out data)
-  exact triple_of_ok hv trivial
+  intro hpre
+  simp only [libcrux_iot_sha3.shake128_ema.pre, CoreModels.core.slice.Slice.len,
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
+  by_cases hcond : Aeneas.Std.Slice.len data ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+  · rw [if_pos hcond] at hpre
+    have hdlen : data.val.length ≤ 536870399 := len_le_of_le_max hcond
+    have holen : out.val.length ≤ 536870399 :=
+      len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
+    have hlen_out : (Aeneas.Std.Slice.len out).val = out.val.length :=
+      Aeneas.Std.Slice.len_val out
+    obtain ⟨v, hv_eq, hv_len, hv_bytes⟩ :=
+      triple_exists_ok (Sponge.shake128_ema_spec out data)
+    obtain ⟨pv, hpv, hpvv⟩ :=
+      pedantic_shake128 (BYTES := Aeneas.Std.Slice.len out) (data := data)
+        (by omega) (by omega)
+    refine triple_of_ok hv_eq ?_
+    have hpost : libcrux_iot_sha3.shake128_ema.post out data v = .ok true := by
+      simp only [libcrux_iot_sha3.shake128_ema.post]
+      rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
+        slice_len_eq out, Aeneas.Std.bind_tc_ok, hpv, Aeneas.Std.bind_tc_ok,
+        vec_range_full_index_eq pv, Aeneas.Std.bind_tc_ok]
+      refine slice_eq_true ?_
+      show v.val = pv.val
+      rw [hpvv]
+      have h := val_eq_of_bytes (N := out.val.length) hv_len (by simp) hv_bytes
+      rwa [Aeneas.Std.Array.val_to_slice] at h
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
+  · rw [if_neg hcond] at hpre
+    exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
 theorem shake256_ema_spec_proof (out data : Slice Std.U8) :
     libcrux_iot_sha3.shake256_ema.spec out data := by
-  intro _
-  obtain ⟨v, hv, _⟩ := triple_exists_ok (Sponge.shake256_ema_spec out data)
-  exact triple_of_ok hv trivial
+  intro hpre
+  simp only [libcrux_iot_sha3.shake256_ema.pre, CoreModels.core.slice.Slice.len,
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
+  by_cases hcond : Aeneas.Std.Slice.len data ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+  · rw [if_pos hcond] at hpre
+    have hdlen : data.val.length ≤ 536870399 := len_le_of_le_max hcond
+    have holen : out.val.length ≤ 536870399 :=
+      len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
+    have hlen_out : (Aeneas.Std.Slice.len out).val = out.val.length :=
+      Aeneas.Std.Slice.len_val out
+    obtain ⟨v, hv_eq, hv_len, hv_bytes⟩ :=
+      triple_exists_ok (Sponge.shake256_ema_spec out data)
+    obtain ⟨pv, hpv, hpvv⟩ :=
+      pedantic_shake256 (BYTES := Aeneas.Std.Slice.len out) (data := data)
+        (by omega) (by omega)
+    refine triple_of_ok hv_eq ?_
+    have hpost : libcrux_iot_sha3.shake256_ema.post out data v = .ok true := by
+      simp only [libcrux_iot_sha3.shake256_ema.post]
+      rw [decl_ref_eq v, Aeneas.Std.bind_tc_ok, decl_ref_eq data, Aeneas.Std.bind_tc_ok,
+        slice_len_eq out, Aeneas.Std.bind_tc_ok, hpv, Aeneas.Std.bind_tc_ok,
+        vec_range_full_index_eq pv, Aeneas.Std.bind_tc_ok]
+      refine slice_eq_true ?_
+      show v.val = pv.val
+      rw [hpvv]
+      have h := val_eq_of_bytes (N := out.val.length) hv_len (by simp) hv_bytes
+      rwa [Aeneas.Std.Array.val_to_slice] at h
+    rw [hpost]
+    exact holds_map_ok_of_bool rfl
+  · rw [if_neg hcond] at hpre
+    exact absurd (bool_of_holds_map_ok hpre) (by simp)
 
 theorem sha224_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha224.spec payload := by
@@ -640,9 +700,21 @@ theorem sha224_spec_proof (payload : Slice Std.U8) :
     CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
   have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  obtain ⟨v, hv, _⟩ :=
-    triple_exists_ok (Sponge.sha224_spec payload (len_le_of_le_max hle))
-  exact triple_of_ok hv trivial
+  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha224_spec payload hplen)
+  have hped := pedantic_sha3_224 (payload := payload) (by omega)
+  refine triple_of_ok hv_eq ?_
+  have hpost : libcrux_iot_sha3.sha224.post payload v = .ok true := by
+    simp only [libcrux_iot_sha3.sha224.post]
+    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, range_full_index_eq v,
+      Aeneas.Std.bind_tc_ok, decl_ref_eq payload, Aeneas.Std.bind_tc_ok,
+      hped, Aeneas.Std.bind_tc_ok,
+      range_full_index_eq
+        (keccakLanes 28#usize ((144#usize : Std.Usize)).val 6#u8 payload.val),
+      Aeneas.Std.bind_tc_ok]
+    exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 theorem sha256_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha256.spec payload := by
@@ -651,9 +723,21 @@ theorem sha256_spec_proof (payload : Slice Std.U8) :
     CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
   have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  obtain ⟨v, hv, _⟩ :=
-    triple_exists_ok (Sponge.sha256_spec payload (len_le_of_le_max hle))
-  exact triple_of_ok hv trivial
+  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha256_spec payload hplen)
+  have hped := pedantic_sha3_256 (payload := payload) (by omega)
+  refine triple_of_ok hv_eq ?_
+  have hpost : libcrux_iot_sha3.sha256.post payload v = .ok true := by
+    simp only [libcrux_iot_sha3.sha256.post]
+    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, range_full_index_eq v,
+      Aeneas.Std.bind_tc_ok, decl_ref_eq payload, Aeneas.Std.bind_tc_ok,
+      hped, Aeneas.Std.bind_tc_ok,
+      range_full_index_eq
+        (keccakLanes 32#usize ((136#usize : Std.Usize)).val 6#u8 payload.val),
+      Aeneas.Std.bind_tc_ok]
+    exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 theorem sha384_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha384.spec payload := by
@@ -662,9 +746,21 @@ theorem sha384_spec_proof (payload : Slice Std.U8) :
     CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
   have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  obtain ⟨v, hv, _⟩ :=
-    triple_exists_ok (Sponge.sha384_spec payload (len_le_of_le_max hle))
-  exact triple_of_ok hv trivial
+  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha384_spec payload hplen)
+  have hped := pedantic_sha3_384 (payload := payload) (by omega)
+  refine triple_of_ok hv_eq ?_
+  have hpost : libcrux_iot_sha3.sha384.post payload v = .ok true := by
+    simp only [libcrux_iot_sha3.sha384.post]
+    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, range_full_index_eq v,
+      Aeneas.Std.bind_tc_ok, decl_ref_eq payload, Aeneas.Std.bind_tc_ok,
+      hped, Aeneas.Std.bind_tc_ok,
+      range_full_index_eq
+        (keccakLanes 48#usize ((104#usize : Std.Usize)).val 6#u8 payload.val),
+      Aeneas.Std.bind_tc_ok]
+    exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
 theorem sha512_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha512.spec payload := by
@@ -673,12 +769,25 @@ theorem sha512_spec_proof (payload : Slice Std.U8) :
     CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
   have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  obtain ⟨v, hv, _⟩ :=
-    triple_exists_ok (Sponge.sha512_spec payload (len_le_of_le_max hle))
-  exact triple_of_ok hv trivial
+  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha512_spec payload hplen)
+  have hped := pedantic_sha3_512 (payload := payload) (by omega)
+  refine triple_of_ok hv_eq ?_
+  have hpost : libcrux_iot_sha3.sha512.post payload v = .ok true := by
+    simp only [libcrux_iot_sha3.sha512.post]
+    rw [decl_blanket_eq v, Aeneas.Std.bind_tc_ok, range_full_index_eq v,
+      Aeneas.Std.bind_tc_ok, decl_ref_eq payload, Aeneas.Std.bind_tc_ok,
+      hped, Aeneas.Std.bind_tc_ok,
+      range_full_index_eq
+        (keccakLanes 64#usize ((72#usize : Std.Usize)).val 6#u8 payload.val),
+      Aeneas.Std.bind_tc_ok]
+    exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+  rw [hpost]
+  exact holds_map_ok_of_bool rfl
 
-/-- The dispatcher. The precondition ties `LEN` to `digest_size algorithm`, so
-    each branch runs the `shaN` whose digest size is `LEN`. -/
+/-- The dispatcher. The precondition ties `LEN` to `digest_size algorithm`, so each
+    branch runs the `shaN` whose digest size is `LEN`, and the generated post -- a
+    four-way `digest_matches` against the transcript -- is produced branch by branch. -/
 theorem hash_spec_proof (LEN : Std.Usize) (algorithm : libcrux_iot_sha3.Algorithm)
     (payload : Slice Std.U8) :
     libcrux_iot_sha3.hash.spec LEN algorithm payload := by
@@ -691,39 +800,102 @@ theorem hash_spec_proof (LEN : Std.Usize) (algorithm : libcrux_iot_sha3.Algorith
     cases algorithm with
     | Sha224 =>
       simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
-      have hL : LEN = libcrux_iot_sha3.SHA3_224_DIGEST_SIZE :=
-        of_decide_eq_true (bool_of_holds_map_ok hpre)
-      have hds : libcrux_iot_sha3.digest_size .Sha224 = .ok LEN := by rw [hL]; rfl
-      obtain ⟨v, hv, _⟩ :=
-        triple_exists_ok (Sponge.hash_spec LEN .Sha224 payload hplen hds)
-      exact triple_of_ok hv trivial
+      have hL : LEN = 28#usize := by
+        have hd : LEN = libcrux_iot_sha3.SHA3_224_DIGEST_SIZE :=
+          of_decide_eq_true (bool_of_holds_map_ok hpre)
+        rw [hd]; unfold libcrux_iot_sha3.SHA3_224_DIGEST_SIZE; rfl
+      subst hL
+      obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha224_spec payload hplen)
+      have hped := pedantic_sha3_224 (payload := payload) (by omega)
+      have hhash : libcrux_iot_sha3.hash 28#usize .Sha224 payload = .ok v := by
+        rw [Sponge.hash_eq_sha224 payload hplen]; exact hv_eq
+      refine triple_of_ok hhash ?_
+      have hpost : libcrux_iot_sha3.hash.post .Sha224 payload v = .ok true := by
+        simp only [libcrux_iot_sha3.hash.post]
+        rw [decl_ref_eq payload, Aeneas.Std.bind_tc_ok, decl_blanket_eq v,
+          Aeneas.Std.bind_tc_ok, range_full_index_eq v, Aeneas.Std.bind_tc_ok]
+        simp only [libcrux_iot_sha3.digest_matches]
+        rw [hped, Aeneas.Std.bind_tc_ok,
+          range_full_index_eq
+            (keccakLanes 28#usize ((144#usize : Std.Usize)).val 6#u8 payload.val),
+          Aeneas.Std.bind_tc_ok]
+        exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+      rw [hpost]
+      exact holds_map_ok_of_bool rfl
     | Sha256 =>
       simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
-      have hL : LEN = libcrux_iot_sha3.SHA3_256_DIGEST_SIZE :=
-        of_decide_eq_true (bool_of_holds_map_ok hpre)
-      have hds : libcrux_iot_sha3.digest_size .Sha256 = .ok LEN := by rw [hL]; rfl
-      obtain ⟨v, hv, _⟩ :=
-        triple_exists_ok (Sponge.hash_spec LEN .Sha256 payload hplen hds)
-      exact triple_of_ok hv trivial
+      have hL : LEN = 32#usize := by
+        have hd : LEN = libcrux_iot_sha3.SHA3_256_DIGEST_SIZE :=
+          of_decide_eq_true (bool_of_holds_map_ok hpre)
+        rw [hd]; unfold libcrux_iot_sha3.SHA3_256_DIGEST_SIZE; rfl
+      subst hL
+      obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha256_spec payload hplen)
+      have hped := pedantic_sha3_256 (payload := payload) (by omega)
+      have hhash : libcrux_iot_sha3.hash 32#usize .Sha256 payload = .ok v := by
+        rw [Sponge.hash_eq_sha256 payload hplen]; exact hv_eq
+      refine triple_of_ok hhash ?_
+      have hpost : libcrux_iot_sha3.hash.post .Sha256 payload v = .ok true := by
+        simp only [libcrux_iot_sha3.hash.post]
+        rw [decl_ref_eq payload, Aeneas.Std.bind_tc_ok, decl_blanket_eq v,
+          Aeneas.Std.bind_tc_ok, range_full_index_eq v, Aeneas.Std.bind_tc_ok]
+        simp only [libcrux_iot_sha3.digest_matches]
+        rw [hped, Aeneas.Std.bind_tc_ok,
+          range_full_index_eq
+            (keccakLanes 32#usize ((136#usize : Std.Usize)).val 6#u8 payload.val),
+          Aeneas.Std.bind_tc_ok]
+        exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+      rw [hpost]
+      exact holds_map_ok_of_bool rfl
     | Sha384 =>
       simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
-      have hL : LEN = libcrux_iot_sha3.SHA3_384_DIGEST_SIZE :=
-        of_decide_eq_true (bool_of_holds_map_ok hpre)
-      have hds : libcrux_iot_sha3.digest_size .Sha384 = .ok LEN := by rw [hL]; rfl
-      obtain ⟨v, hv, _⟩ :=
-        triple_exists_ok (Sponge.hash_spec LEN .Sha384 payload hplen hds)
-      exact triple_of_ok hv trivial
+      have hL : LEN = 48#usize := by
+        have hd : LEN = libcrux_iot_sha3.SHA3_384_DIGEST_SIZE :=
+          of_decide_eq_true (bool_of_holds_map_ok hpre)
+        rw [hd]; unfold libcrux_iot_sha3.SHA3_384_DIGEST_SIZE; rfl
+      subst hL
+      obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha384_spec payload hplen)
+      have hped := pedantic_sha3_384 (payload := payload) (by omega)
+      have hhash : libcrux_iot_sha3.hash 48#usize .Sha384 payload = .ok v := by
+        rw [Sponge.hash_eq_sha384 payload hplen]; exact hv_eq
+      refine triple_of_ok hhash ?_
+      have hpost : libcrux_iot_sha3.hash.post .Sha384 payload v = .ok true := by
+        simp only [libcrux_iot_sha3.hash.post]
+        rw [decl_ref_eq payload, Aeneas.Std.bind_tc_ok, decl_blanket_eq v,
+          Aeneas.Std.bind_tc_ok, range_full_index_eq v, Aeneas.Std.bind_tc_ok]
+        simp only [libcrux_iot_sha3.digest_matches]
+        rw [hped, Aeneas.Std.bind_tc_ok,
+          range_full_index_eq
+            (keccakLanes 48#usize ((104#usize : Std.Usize)).val 6#u8 payload.val),
+          Aeneas.Std.bind_tc_ok]
+        exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+      rw [hpost]
+      exact holds_map_ok_of_bool rfl
     | Sha512 =>
       simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
-      have hL : LEN = libcrux_iot_sha3.SHA3_512_DIGEST_SIZE :=
-        of_decide_eq_true (bool_of_holds_map_ok hpre)
-      have hds : libcrux_iot_sha3.digest_size .Sha512 = .ok LEN := by rw [hL]; rfl
-      obtain ⟨v, hv, _⟩ :=
-        triple_exists_ok (Sponge.hash_spec LEN .Sha512 payload hplen hds)
-      exact triple_of_ok hv trivial
+      have hL : LEN = 64#usize := by
+        have hd : LEN = libcrux_iot_sha3.SHA3_512_DIGEST_SIZE :=
+          of_decide_eq_true (bool_of_holds_map_ok hpre)
+        rw [hd]; unfold libcrux_iot_sha3.SHA3_512_DIGEST_SIZE; rfl
+      subst hL
+      obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha512_spec payload hplen)
+      have hped := pedantic_sha3_512 (payload := payload) (by omega)
+      have hhash : libcrux_iot_sha3.hash 64#usize .Sha512 payload = .ok v := by
+        rw [Sponge.hash_eq_sha512 payload hplen]; exact hv_eq
+      refine triple_of_ok hhash ?_
+      have hpost : libcrux_iot_sha3.hash.post .Sha512 payload v = .ok true := by
+        simp only [libcrux_iot_sha3.hash.post]
+        rw [decl_ref_eq payload, Aeneas.Std.bind_tc_ok, decl_blanket_eq v,
+          Aeneas.Std.bind_tc_ok, range_full_index_eq v, Aeneas.Std.bind_tc_ok]
+        simp only [libcrux_iot_sha3.digest_matches]
+        rw [hped, Aeneas.Std.bind_tc_ok,
+          range_full_index_eq
+            (keccakLanes 64#usize ((72#usize : Std.Usize)).val 6#u8 payload.val),
+          Aeneas.Std.bind_tc_ok]
+        exact slice_eq_true (to_slice_val_eq_of_bytes (fun k hk => hv_bytes k (by simpa using hk)))
+      rw [hpost]
+      exact holds_map_ok_of_bool rfl
   · rw [if_neg hcond] at hpre
     exact absurd (bool_of_holds_map_ok hpre) (by simp)
-
 
 /-! ## Axiom guards
     Pinned by `#guard_msgs`: the build fails if a result comes to depend on any axiom

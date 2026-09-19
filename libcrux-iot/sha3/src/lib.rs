@@ -156,6 +156,22 @@ pub const fn digest_size(mode: Algorithm) -> usize {
     }
 }
 
+/// Whether `out` is the digest FIPS 202 prescribes for `algorithm` and `payload`.
+///
+/// Specification-only, and a `bool`-valued comparison rather than a constructor:
+/// each arm is a slice `==` against the transcript, which is a shape hax models,
+/// whereas returning a `Vec` per arm would lean on `to_vec`. `hash`'s
+/// `#[ensures]` is the only caller.
+#[cfg(hax)]
+fn digest_matches(algorithm: Algorithm, payload: &[u8], out: &[u8]) -> bool {
+    match algorithm {
+        Algorithm::Sha224 => out == &hacspec_sha3_pedantic::bytes::sha3_224(payload)[..],
+        Algorithm::Sha256 => out == &hacspec_sha3_pedantic::bytes::sha3_256(payload)[..],
+        Algorithm::Sha384 => out == &hacspec_sha3_pedantic::bytes::sha3_384(payload)[..],
+        Algorithm::Sha512 => out == &hacspec_sha3_pedantic::bytes::sha3_512(payload)[..],
+    }
+}
+
 /// Hashes using a particular [`Algorithm`] of the SHA3 family.
 ///
 /// # Examples
@@ -167,6 +183,7 @@ pub const fn digest_size(mode: Algorithm) -> usize {
 /// let digest: [u8; digest_size(Algorithm::Sha256)] = hash(Algorithm::Sha256, payload);
 /// ```
 #[hax_lib::requires(payload.len() <= MAX_INPUT_LEN && LEN == digest_size(algorithm))]
+#[hax_lib::ensures(|out| digest_matches(algorithm, payload.declassify_ref(), &out.declassify()[..]))]
 pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN] {
     #[cfg(not(eurydice))]
     debug_assert!(payload.len() <= MAX_INPUT_LEN);
@@ -189,6 +206,8 @@ pub use hash as sha3;
 /// Preconditions:
 /// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 #[hax_lib::requires(payload.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|out| out.declassify()[..]
+    == hacspec_sha3_pedantic::bytes::sha3_224(payload.declassify_ref())[..])]
 pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_224_DIGEST_SIZE].classify();
 
@@ -218,6 +237,8 @@ pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
 /// Preconditions:
 /// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 #[hax_lib::requires(payload.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|out| out.declassify()[..]
+    == hacspec_sha3_pedantic::bytes::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_256_DIGEST_SIZE].classify();
 
@@ -247,6 +268,8 @@ pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
 /// Preconditions:
 /// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 #[hax_lib::requires(payload.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|out| out.declassify()[..]
+    == hacspec_sha3_pedantic::bytes::sha3_384(payload.declassify_ref())[..])]
 pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_384_DIGEST_SIZE].classify();
 
@@ -276,6 +299,8 @@ pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
 /// Preconditions:
 /// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 #[hax_lib::requires(payload.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|out| out.declassify()[..]
+    == hacspec_sha3_pedantic::bytes::sha3_512(payload.declassify_ref())[..])]
 pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
     let mut out = [0u8; SHA3_512_DIGEST_SIZE].classify();
 
@@ -319,8 +344,10 @@ pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
 /// Writes `out.len()` bytes
 ///
 /// Preconditions:
-/// - `out` is at most `u32::MAX` bytes long
-#[hax_lib::requires(out.len() <= u32::MAX as usize)]
+/// - `data` and `out` are each at most [`MAX_INPUT_LEN`] bytes long
+#[hax_lib::requires(data.len() <= MAX_INPUT_LEN && out.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|_| future(out).declassify_ref()
+        == &hacspec_sha3_pedantic::bytes::shake128(data.declassify_ref(), out.len())[..])]
 pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
     keccakx1::<168, 0x1fu8>(data, out);
 }
@@ -344,8 +371,10 @@ pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
 /// Writes `out.len()` bytes.
 ///
 /// Preconditions:
-/// - `out` is at most `u32::MAX` bytes long
-#[hax_lib::requires(out.len() <= u32::MAX as usize)]
+/// - `data` and `out` are each at most [`MAX_INPUT_LEN`] bytes long
+#[hax_lib::requires(data.len() <= MAX_INPUT_LEN && out.len() <= MAX_INPUT_LEN)]
+#[hax_lib::ensures(|_| future(out).declassify_ref()
+        == &hacspec_sha3_pedantic::bytes::shake256(data.declassify_ref(), out.len())[..])]
 pub fn shake256_ema(out: &mut [U8], data: &[U8]) {
     keccakx1::<136, 0x1fu8>(data, out);
 }
