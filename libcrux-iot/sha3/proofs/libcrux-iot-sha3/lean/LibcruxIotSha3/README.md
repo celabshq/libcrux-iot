@@ -20,25 +20,14 @@ proves the model is the transcript, bit for bit.  See
 The top-level results are the contracts of thirteen SHA-3 and SHAKE functions, tabulated
 below. All rest on a Keccak sponge equivalence theorem, which in turn rests on a
 Keccak-f[1600] permutation equivalence theorem. Seven of the thirteen wrap the others;
-what is particular to them -- including the one function that deliberately gets no
-transcript-level contract -- is in [The wrappers](#the-wrappers).
+what is particular to them is in [The wrappers](#the-wrappers).
 
 ### Keccak
 
 The internal `keccak` function in [`src/keccak.rs`](../../../../src/keccak.rs) carries no
 Rust contract. Its correctness is the Lean theorem
 `keccak.keccak_keccak_spec` in [`Sponge/Keccak.lean`](Sponge/Keccak.lean), which is what
-the six contracts below are proved through.
-
-It used to be stated in Rust too, as the `#[ensures]` of a body-less, `#[cfg(hax)]`-only
-`keccak_fc` -- a separate function because the specification it was compared against took
-the output length as a const generic that `keccak`'s own `out: &mut [U8]` cannot provide.
-That comparison was against an older specification's byte sponge, which is no longer the
-specification this crate's contracts name, and which the FIPS-202 transcript has no
-counterpart for: the transcript exposes `KECCAK[c]` and the six standard functions, not a
-rate-and-delimiter-parameterised byte sponge. So the wrapper was asserting, to no
-audience, a claim about an internal stepping stone, and it is gone. Nothing about the
-proof changed with it.
+the contracts below are proved through.
 
 ### SHA-3 and SHAKE
 
@@ -102,10 +91,6 @@ Each is discharged by composing the sponge proof (which produces the lane model'
 The `_ema` forms and the array-returning forms differ only in where the digest goes, so
 they share the agreement lemma and differ in the `Slice`/`Array` plumbing around it.
 
-A fourteenth function, the internal `keccakx1`, carries a `#[requires]` and no
-`#[ensures]`; its obligation is discharged too, but it says less. See
-[The wrappers](#the-wrappers).
-
 ### The wrappers
 
 Seven of the thirteen wrap the others, and until recently carried a `#[requires]` and no
@@ -160,20 +145,7 @@ pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN]
 `digest_matches` is a definition, not an assumption: it is extracted along with everything
 else and unfolds in the proof.
 
-**`keccakx1` is the one that keeps only a `#[requires]`**, and deliberately. It is generic
-over `RATE` and `DELIM`, and the transcript has no rate-and-delimiter-parameterised byte
-sponge to name -- it exposes `KECCAK[c]` over bit strings and the six standard functions.
-A contract for it would have to spell out a byte-to-bit encoding and the delimiter's
-suffix bits inline, in a `pub(crate)` function's `#[ensures]` that no caller reads -- a
-second, clumsier spelling of what the Lean layer already proves. (Not quite the situation
-of the deleted `keccak_fc`, which was a body-less `#[cfg(hax)]`-only function existing
-solely to carry an assertion; `keccakx1` is real code on the path of all thirteen
-contracts above. What the two share is that the claim has no audience in Rust.) Its
-obligation -- freedom from panics, overflow and out-of-bounds indexing -- is discharged,
-and its `keccakLanes` value is proved in
-[`Sponge/Wrappers.lean`](Sponge/Wrappers.lean) for callers that want it.
-
-Worth knowing for anyone extending this: the `ok` half of all eight needs no bound on the
+Worth knowing for anyone extending this: the `ok` half of all seven needs no bound on the
 input at all. `keccak.keccak_keccak_spec` asks only `RATE % 8 = 0` and `1 <= RATE <= 200`.
 Every `MAX_INPUT_LEN` in a precondition is there for the transcript, not for the
 implementation's own safety.
@@ -183,7 +155,7 @@ implementation's own safety.
 Naming the transcript costs one thing. It works on BIT strings, so it expands its input
 to `8 * len` bits and then appends the domain-separation suffix and `pad10*1`; that
 padded bit length has to be a representable `usize` on every supported target, the
-smallest being 32-bit. The six contracts therefore bound their input by
+smallest being 32-bit. The contracts therefore bound their input by
 
 ```rust
 pub const MAX_INPUT_LEN: usize = 536_870_399; // == (u32::MAX as usize - 4096) / 8
@@ -292,14 +264,15 @@ We do not verify the incremental API here (neither buffered nor unbuffered), and
 verify the `Digest`/`Hasher` implementations. The unbuffered API is not even extracted: the
 sha3 scenario in `hax.toml` does not enable the `unbuffered-xof` feature, so nothing under
 `#[cfg(feature = "unbuffered-xof")]` reaches Lean. The `Digest`/`Hasher` impls are
-`charon::exclude`d by hand; their content is a payload-length check and a call into the six
-functions above.
+`charon::exclude`d by hand; their content is a payload-length check and a call into
+`sha224_ema`, `sha256_ema`, `sha384_ema` or `sha512_ema`.
 
 The generated `Extraction/ProofObligations.lean` states 45 obligations, one per Rust
 function carrying a `#[hax_lib::requires]` or `#[hax_lib::ensures]`; 14 are discharged in
 [`Verification/ProofObligations.lean`](Verification/ProofObligations.lean). Thirteen of
-those fourteen are now transcript-level; the fourteenth is `keccakx1`, for the reason
-given above. The remaining 31
+those fourteen are transcript-level; the fourteenth, the internal `keccakx1`, has a
+`#[requires]` and no `#[ensures]`, so its obligation is freedom from panics, overflow and
+out-of-bounds indexing. The remaining 31
 are the internal one-shot machinery (`absorb_block`, `absorb_final`, the four `squeeze_*`,
 and the `KeccakState`/`Lane2U32` accessors -- each of which already has a hand-written
 equation lemma under [`Sponge/`](Sponge/) that the `keccak` proof goes through) and the
