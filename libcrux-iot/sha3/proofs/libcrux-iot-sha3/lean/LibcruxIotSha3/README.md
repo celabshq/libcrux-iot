@@ -17,10 +17,11 @@ proves the model is the transcript, bit for bit.  See
 
 ## Main theorems
 
-The top-level results are the contracts of thirteen SHA-3 and SHAKE functions: the six
-core entry points below, and the seven wrappers in
-[The wrappers](#the-wrappers). All rest on a Keccak sponge equivalence theorem, which in
-turn rests on a Keccak-f[1600] permutation equivalence theorem.
+The top-level results are the contracts of thirteen SHA-3 and SHAKE functions, tabulated
+below. All rest on a Keccak sponge equivalence theorem, which in turn rests on a
+Keccak-f[1600] permutation equivalence theorem. Seven of the thirteen wrap the others;
+what is particular to them -- including the one function that deliberately gets no
+transcript-level contract -- is in [The wrappers](#the-wrappers).
 
 ### Keccak
 
@@ -72,30 +73,44 @@ and that the `digest` slice has the expected length.
 The `[..]` is technically unnecessary, too, but we need it because hax's model of Rust core
 currently models `==` only between two slices or two arrays, not between one slice and one array.
 
-We have analogous annotations on `shake256`, 
-`sha224_ema`, `sha384_ema`, and `sha512_ema`.
-hax generates a proof obligation for each of these, and they are discharged
-by Lean theorems in
-[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean):
+Every function in the table below carries an annotation of one of those two shapes --
+comparing a returned array, or the buffer a `&mut` argument was written into. hax
+generates a proof obligation for each, and they are discharged by Lean theorems in
+[`Verification/ProofObligations.lean`](Verification/ProofObligations.lean). All thirteen
+name `hacspec_sha3_pedantic::bytes::*`, abbreviated to `bytes::` below for width:
 
 | impl function | FIPS-202 function | Lean theorem |
 |---|---|---|
-| `shake128` | `hacspec_sha3_pedantic::bytes::shake128` | `shake128_spec_proof` |
-| `shake256` | `hacspec_sha3_pedantic::bytes::shake256` | `shake256_spec_proof` |
-| `sha224_ema` | `hacspec_sha3_pedantic::bytes::sha3_224` | `sha224_ema_spec_proof` |
-| `sha256_ema` | `hacspec_sha3_pedantic::bytes::sha3_256` | `sha256_ema_spec_proof` |
-| `sha384_ema` | `hacspec_sha3_pedantic::bytes::sha3_384` | `sha384_ema_spec_proof` |
-| `sha512_ema` | `hacspec_sha3_pedantic::bytes::sha3_512` | `sha512_ema_spec_proof` |
+| `hash` | one of the four below, by `Algorithm` | `hash_spec_proof` |
+| `sha224` | `bytes::sha3_224` | `sha224_spec_proof` |
+| `sha224_ema` | `bytes::sha3_224` | `sha224_ema_spec_proof` |
+| `sha256` | `bytes::sha3_256` | `sha256_spec_proof` |
+| `sha256_ema` | `bytes::sha3_256` | `sha256_ema_spec_proof` |
+| `sha384` | `bytes::sha3_384` | `sha384_spec_proof` |
+| `sha384_ema` | `bytes::sha3_384` | `sha384_ema_spec_proof` |
+| `sha512` | `bytes::sha3_512` | `sha512_spec_proof` |
+| `sha512_ema` | `bytes::sha3_512` | `sha512_ema_spec_proof` |
+| `shake128` | `bytes::shake128` | `shake128_spec_proof` |
+| `shake128_ema` | `bytes::shake128` | `shake128_ema_spec_proof` |
+| `shake256` | `bytes::shake256` | `shake256_spec_proof` |
+| `shake256_ema` | `bytes::shake256` | `shake256_ema_spec_proof` |
 
-Each of these is discharged by composing the sponge proof (which produces the lane
-model's `keccakLanes`) with the corresponding agreement theorem from
+Each is discharged by composing the sponge proof (which produces the lane model's
+`keccakLanes`) with the corresponding agreement theorem from
 [`Composition/Pedantic/`](Composition/Pedantic/) -- `sha3_256_lanes_agree`,
 `shake128_lanes_agree`, and so on -- so the generated post is *produced*, not weakened.
+The `_ema` forms and the array-returning forms differ only in where the digest goes, so
+they share the agreement lemma and differ in the `Slice`/`Array` plumbing around it.
+
+A fourteenth function, the internal `keccakx1`, carries a `#[requires]` and no
+`#[ensures]`; its obligation is discharged too, but it says less. See
+[The wrappers](#the-wrappers).
 
 ### The wrappers
 
-Seven further functions now name the transcript too. Four allocate a digest and hand it
-to the matching `*_ema`:
+Seven of the thirteen wrap the others, and until recently carried a `#[requires]` and no
+`#[ensures]` at all -- a reader of `sha224`'s signature saw nothing tying it to SHA3-224.
+Two post shapes cover them. The four allocating digests compare the returned array:
 
 ```rust
 #[hax_lib::requires(payload.len() <= MAX_INPUT_LEN)]
@@ -104,8 +119,8 @@ to the matching `*_ema`:
 pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE]
 ```
 
-Two are the caller-allocated XOF entry points, where the output length is `out.len()`
-rather than a const generic:
+The two caller-allocated XOF entry points compare the buffer they wrote, and take the
+output length from `out.len()` rather than from a const generic:
 
 ```rust
 #[hax_lib::requires(data.len() <= MAX_INPUT_LEN && out.len() <= MAX_INPUT_LEN)]
@@ -124,7 +139,7 @@ in `hax.toml`, so no proof obligation anywhere had to change; but note that ml-k
 still carries only `LEN <= u32::MAX as usize`, which would need tightening in step if
 those wrappers are ever made non-opaque.
 
-The seventh is the dispatcher. Its post is a four-way comparison, written as a
+`hash`, the dispatcher, needs a four-way post. It is written as a
 `#[cfg(hax)]` helper so that each arm is a slice `==` -- a shape hax models -- rather than
 a `Vec` construction per arm:
 
@@ -149,11 +164,14 @@ else and unfolds in the proof.
 over `RATE` and `DELIM`, and the transcript has no rate-and-delimiter-parameterised byte
 sponge to name -- it exposes `KECCAK[c]` over bit strings and the six standard functions.
 A contract for it would have to spell out a byte-to-bit encoding and the delimiter's
-suffix bits inline, on a `pub(crate)` function no caller reads; that is the same "asserting
-to no audience" that got the old `keccak_fc` wrapper deleted. Its obligation is freedom
-from panics, overflow and out-of-bounds indexing, which is discharged, and the
-`keccakLanes` value is proved in [`Sponge/Wrappers.lean`](Sponge/Wrappers.lean) for
-callers that want it.
+suffix bits inline, in a `pub(crate)` function's `#[ensures]` that no caller reads -- a
+second, clumsier spelling of what the Lean layer already proves. (Not quite the situation
+of the deleted `keccak_fc`, which was a body-less `#[cfg(hax)]`-only function existing
+solely to carry an assertion; `keccakx1` is real code on the path of all thirteen
+contracts above. What the two share is that the claim has no audience in Rust.) Its
+obligation -- freedom from panics, overflow and out-of-bounds indexing -- is discharged,
+and its `keccakLanes` value is proved in
+[`Sponge/Wrappers.lean`](Sponge/Wrappers.lean) for callers that want it.
 
 Worth knowing for anyone extending this: the `ok` half of all eight needs no bound on the
 input at all. `keccak.keccak_keccak_spec` asks only `RATE % 8 = 0` and `1 <= RATE <= 200`.
