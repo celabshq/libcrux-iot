@@ -2,9 +2,14 @@ import LibcruxIotSha3.Composition.Pedantic.BitsOps
 /-!
 # `pad10*1` (FIPS 202, Algorithm 9)
 
-`pad10*1(x, m) = 1 || 0^j || 1` with `j = (-m - 2) mod x`.  Rust's `%` truncates
-towards zero, so the spec computes the modulus the same way `imod` does --
-`((a % x) + x) % x` -- and `i64_emod_chain` is what says that is `Int.emod`.
+`pad10*1(x, m) = 1 || 0^j || 1` with `j = (-m - 2) mod x`.
+
+The transcript computes `j` as `(x - ((m + 2) mod x)) mod x`, which is that
+value without a signed type: for an arbitrary-length message there is no type
+wide enough to hold `-m`. `pad_j_eq` below is what says the two agree, and it
+is the only arithmetic left in this file — the padding itself is now three
+calls into the opaque bit-string type rather than a loop, so the loop
+induction this file used to carry is gone.
 -/
 
 open CoreModels Aeneas
@@ -18,78 +23,78 @@ namespace LibcruxIotSha3.Composition.Pedantic
 def padBits (x m : Nat) : List Bool :=
   true :: (List.replicate ((-(m : Int) - 2) % (x : Int)).toNat false ++ [true])
 
-theorem pad10_star_1_eq (x m : Std.Usize) (hx : 0 < x.val) (hxb : x.val ≤ 1600)
-    (hmb : m.val ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
-      hacspec_sha3_pedantic.sponge.pad10_star_1 x m = ok out ∧ out.val = padBits x.val m.val := by
-  have hminI : Std.IScalar.min Std.IScalarTy.I64 = -9223372036854775808 := by
-    rw [Std.IScalar.min_IScalarTy_I64_eq, Std.I64.min_eq]
-  have hmaxI : Std.IScalar.max Std.IScalarTy.I64 = 9223372036854775807 := by
-    rw [Std.IScalar.max_IScalarTy_I64_eq, Std.I64.max_eq]
-  have hminN : Std.I64.min = -9223372036854775808 := Std.I64.min_eq
-  have hmaxN : Std.I64.max = 9223372036854775807 := Std.I64.max_eq
-  have hxn : (x.val : Int) ≤ 1600 := by exact_mod_cast hxb
-  have hxpos : (0 : Int) < (x.val : Int) := by exact_mod_cast hx
-  have hmn : (m.val : Int) ≤ 4294965000 := by exact_mod_cast hmb
-  -- the modulus `j = (-m - 2) mod x`
-  obtain ⟨xi, hxi, hxiv⟩ := usize_to_i64 x (by scalar_tac)
-  obtain ⟨mi, hmi, hmiv⟩ := usize_to_i64 m (by scalar_tac)
-  obtain ⟨nm, hnm, hnmv⟩ := i64_neg_eq mi (by omega)
-  obtain ⟨a, ha, hav⟩ := i64_sub_eq nm 2#i64 (by simp; omega) (by simp; omega)
-  have hav' : a.val = -(m.val : Int) - 2 := by rw [hav, hnmv, hmiv]; simp
-  obtain ⟨i3, i4, j, hi3, hi4, hj, hjv⟩ :=
-    i64_emod_chain a xi (by omega) (by omega) (by omega)
-  have hjv' : j.val = (-(m.val : Int) - 2) % (x.val : Int) := by rw [hjv, hav', hxiv]
-  have hj0 : 0 ≤ j.val := by rw [hjv']; exact Int.emod_nonneg _ (by omega)
-  have hjb : j.val < (x.val : Int) := by
-    rw [hjv']; exact Int.emod_lt_of_pos _ (by omega)
-  -- the string `1 || 0^j || 1`
-  have hone : alloc.vec.Vec.push (Aeneas.Std.alloc.vec.Vec.new Bool) true
-      = ok ⟨[true], by simp; scalar_tac⟩ := by
-    rw [vec_push_eq _ _ (by simp; scalar_tac)]
-    apply congrArg
-    apply Subtype.ext
-    simp
-  obtain ⟨p2, hloop, hp2⟩ := push_const_loop_i64
-    (fun p => hacspec_sha3_pedantic.sponge.pad10_star_1_loop.body p.1 p.2)
-    j hj0 false ⟨[true], by simp; scalar_tac⟩
-    (by
-      intro i acc hi hinv
-      obtain ⟨t, ht, hnext⟩ := range_next_lt_i64 i j hi
-      have hacclen : acc.val.length = 1 + i.val.toNat := by rw [hinv]; simp; omega
-      refine ⟨t, ⟨acc.val ++ [false], by simp; scalar_tac⟩, ht, by simp, ?_⟩
-      unfold hacspec_sha3_pedantic.sponge.pad10_star_1_loop.body
-      rw [hnext]
-      simp [vec_push_eq acc _ (by scalar_tac)])
-    (by
-      intro acc
-      unfold hacspec_sha3_pedantic.sponge.pad10_star_1_loop.body
-      rw [range_next_ge_i64 j j (le_refl _)]
-      simp)
-  refine ⟨⟨p2.val ++ [true], by simp; scalar_tac⟩, ?_, ?_⟩
-  · -- Algorithm 9 takes a positive `x`; the specification checks it.
-    have hpos : (massert (x > 0#usize) : RustM Unit) = .ok () := by
-      unfold Aeneas.Std.massert
-      rw [if_pos (show x > 0#usize by scalar_tac)]
-    unfold hacspec_sha3_pedantic.sponge.pad10_star_1
-    rw [hpos, bind_tc_ok,
-      hxi, bind_tc_ok, hmi, bind_tc_ok, hnm, bind_tc_ok, ha, bind_tc_ok, hi3, bind_tc_ok,
-      hi4, bind_tc_ok, hj, bind_tc_ok, vec_new_eq]
-    show (do
-        let p1 ← alloc.vec.Vec.push (Aeneas.Std.alloc.vec.Vec.new Bool) true
-        let p2 ← hacspec_sha3_pedantic.sponge.pad10_star_1_loop
-          { start := 0#i64, «end» := j } p1
-        alloc.vec.Vec.push p2 true) = _
-    rw [hone]
-    show (do
-        let p2' ← hacspec_sha3_pedantic.sponge.pad10_star_1_loop
-          { start := 0#i64, «end» := j } ⟨[true], by simp; scalar_tac⟩
-        alloc.vec.Vec.push p2' true) = _
-    unfold hacspec_sha3_pedantic.sponge.pad10_star_1_loop
-    rw [hloop]
-    show alloc.vec.Vec.push p2 true = _
-    rw [vec_push_eq p2 _ (by scalar_tac)]
-  · simp only [padBits, hp2, ← hjv']
-    simp
+/-- The transcript's unsigned `j` is the Standard's `(-m - 2) mod x`. -/
+theorem pad_j_eq (x m : Nat) (hx : 0 < x) :
+    (x - (m % x + 2) % x) % x = ((-(m : Int) - 2) % (x : Int)).toNat := by
+  have hX : (0 : Int) < (x : Int) := by exact_mod_cast hx
+  -- `(m % x + 2) % x` is `(m + 2) % x`.
+  have hmod : (m % x + 2) % x = (m + 2) % x := by
+    conv_rhs => rw [Nat.add_mod]
+    rw [Nat.add_mod (m % x) 2 x, Nat.mod_mod_of_div_eq_zero] <;> simp [Nat.mod_mod]
+  rw [hmod]
+  set c := (m + 2) % x with hc
+  have hcx : c < x := Nat.mod_lt _ hx
+  -- On the integer side, negation modulo `x` is `x` minus the residue.
+  have hneg : (-(m : Int) - 2) % (x : Int) = ((x : Int) - (c : Int)) % (x : Int) := by
+    have h1 : (-(m : Int) - 2) = -((m : Int) + 2) := by ring
+    rw [h1, Int.neg_emod]
+    congr 1
+    congr 1
+    rw [hc]
+    push_cast
+    rw [Int.natCast_mod]
+    push_cast
+    ring_nf
+  rw [hneg]
+  have hsub : ((x : Int) - (c : Int)) = ((x - c : Nat) : Int) := by
+    have : c ≤ x := le_of_lt hcx
+    push_cast [Nat.cast_sub this]
+    ring
+  rw [hsub, ← Int.natCast_mod]
+  simp
+
+/-- The padding the transcript builds, as a list.
+
+    Three opaque operations — `from_bits [1]`, `zeros j`, and two `concat`s —
+    so the whole proof is the arithmetic for `j` plus the models. -/
+theorem pad10_star_1_eq (x m : Std.U64) (hx : 0 < x.val) :
+    hacspec_sha3_pedantic.sponge.pad10_star_1 x m = ok (padBits x.val m.val) := by
+  have hxne : x.val ≠ 0 := by omega
+  -- `massert (x > 0)`
+  have hmassert : (massert (x > 0#u64) : RustM Unit) = .ok () := by
+    unfold Aeneas.Std.massert
+    refine if_pos ?_
+    show (0#u64 : Std.U64).val < x.val
+    simpa using hx
+  -- the four scalar steps that compute `j`
+  obtain ⟨i, hi, hiv, _⟩ := Std.WP.spec_imp_exists
+    (Std.UScalar.rem_bv_spec m (y := x) hxne)
+  have hix : i.val < x.val := by rw [hiv]; exact Nat.mod_lt _ hx
+  obtain ⟨i1, hi1, hi1v⟩ := Std.WP.spec_imp_exists
+    (Std.UScalar.add_spec (x := i) (y := 2#u64) (by scalar_tac))
+  obtain ⟨i2, hi2, hi2v, _⟩ := Std.WP.spec_imp_exists
+    (Std.UScalar.rem_bv_spec i1 (y := x) hxne)
+  have hi2x : i2.val < x.val := by rw [hi2v]; exact Nat.mod_lt _ hx
+  obtain ⟨i3, hi3, hi3v⟩ := Std.WP.spec_imp_exists
+    (Std.UScalar.sub_spec (x := x) (y := i2) (by scalar_tac))
+  obtain ⟨j, hj, hjv, _⟩ := Std.WP.spec_imp_exists
+    (Std.UScalar.rem_bv_spec i3 (y := x) hxne)
+  have hjval : j.val = ((-(m.val : Int) - 2) % (x.val : Int)).toNat := by
+    rw [← pad_j_eq x.val m.val hx, hjv, hi3v, hi2v, hi1v, hiv]
+  unfold hacspec_sha3_pedantic.sponge.pad10_star_1
+  rw [hmassert, bind_tc_ok, hi, bind_tc_ok, hi1, bind_tc_ok, hi2, bind_tc_ok,
+    hi3, bind_tc_ok, hj, bind_tc_ok]
+  -- `from_bits`, `zeros` and the two `concat`s are the hand-written models
+  show (do
+    let s ← Std.lift (Std.Array.to_slice (Std.Array.make 1#usize [true]))
+    let one ← hacspec_sha3_pedantic.bits.BitStr.from_bits s
+    let bs ← hacspec_sha3_pedantic.bits.BitStr.zeros j
+    let bs1 ← hacspec_sha3_pedantic.bits.BitStr.concat one bs
+    hacspec_sha3_pedantic.bits.BitStr.concat bs1 one) = ok (padBits x.val m.val)
+  simp only [hacspec_sha3_pedantic.bits.BitStr.from_bits,
+    hacspec_sha3_pedantic.bits.BitStr.zeros,
+    hacspec_sha3_pedantic.bits.BitStr.concat, Std.lift, bind_tc_ok]
+  simp only [padBits, hjval]
+  rfl
 
 end LibcruxIotSha3.Composition.Pedantic
