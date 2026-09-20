@@ -67,6 +67,39 @@ theorem loop_range_eq_inv {ι β γ : Type} (val : ι → Int)
     obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega) hinv'
     exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
 
+/-! ## Counter loops
+
+The transcript's absorb loop is a `while i < blocks` over a `u64` counter, not a
+`for` over a range: the block count of an arbitrary-length message can outrun
+what a `usize` counts on a 32-bit target. The induction is the same shape as
+`loop_range_eq_inv`, with the counter inside the accumulator instead of an
+iterator beside it — which makes it shorter, since there is no `next` to
+discharge. -/
+theorem loop_counter_eq_inv_u64 {β γ : Type}
+    (body : (β × Std.U64) → RustM (ControlFlow (β × Std.U64) γ))
+    (e : Std.U64) (Inv : Std.U64 → β → Prop) (P : Std.U64 → β → γ → Prop)
+    (hstep : ∀ (i : Std.U64) (acc : β), i.val < e.val → Inv i acc →
+      ∃ (s : Std.U64) (acc' : β), s.val = i.val + 1 ∧ Inv s acc' ∧
+        body (acc, i) = ok (.cont (acc', s)) ∧
+        ∀ r, P s acc' r → P i acc r)
+    (hdone : ∀ (acc : β), Inv e acc →
+      ∃ r, body (acc, e) = ok (.done r) ∧ P e acc r) :
+    ∀ (k : Nat) (i : Std.U64) (acc : β), i.val + k = e.val → Inv i acc →
+      ∃ r, loop body (acc, i) = ok r ∧ P i acc r := by
+  intro k
+  induction k with
+  | zero =>
+    intro i acc hik hinv
+    have hie : i = e := (Std.UScalar.eq_equiv i e).mpr (by omega)
+    subst hie
+    obtain ⟨r, hb, hP⟩ := hdone acc hinv
+    exact ⟨r, by rw [loop.eq_def, hb], hP⟩
+  | succ k ih =>
+    intro i acc hik hinv
+    obtain ⟨s, acc', hs, hinv', hb, hP⟩ := hstep i acc (by omega) hinv
+    obtain ⟨r, hr, hPr⟩ := ih s acc' (by omega) hinv'
+    exact ⟨r, by rw [loop.eq_def, hb]; exact hr, hP r hPr⟩
+
 /-- The invariant-free version, for the loops whose bodies behave on any
     accumulator. -/
 theorem loop_range_eq_gen {ι β γ : Type} (val : ι → Int)

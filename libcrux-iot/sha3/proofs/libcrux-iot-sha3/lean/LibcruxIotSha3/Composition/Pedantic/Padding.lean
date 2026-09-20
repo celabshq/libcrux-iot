@@ -27,37 +27,39 @@ def padBits (x m : Nat) : List Bool :=
 theorem pad_j_eq (x m : Nat) (hx : 0 < x) :
     (x - (m % x + 2) % x) % x = ((-(m : Int) - 2) % (x : Int)).toNat := by
   have hX : (0 : Int) < (x : Int) := by exact_mod_cast hx
-  -- `(m % x + 2) % x` is `(m + 2) % x`.
-  have hmod : (m % x + 2) % x = (m + 2) % x := by
-    conv_rhs => rw [Nat.add_mod]
-    rw [Nat.add_mod (m % x) 2 x, Nat.mod_mod_of_div_eq_zero] <;> simp [Nat.mod_mod]
+  have hmod : (m % x + 2) % x = (m + 2) % x := by simp [Nat.add_mod]
   rw [hmod]
   set c := (m + 2) % x with hc
   have hcx : c < x := Nat.mod_lt _ hx
-  -- On the integer side, negation modulo `x` is `x` minus the residue.
-  have hneg : (-(m : Int) - 2) % (x : Int) = ((x : Int) - (c : Int)) % (x : Int) := by
-    have h1 : (-(m : Int) - 2) = -((m : Int) + 2) := by ring
-    rw [h1, Int.neg_emod]
-    congr 1
-    congr 1
-    rw [hc]
-    push_cast
-    rw [Int.natCast_mod]
-    push_cast
-    ring_nf
-  rw [hneg]
+  have hcI : (c : Int) = ((m : Int) + 2) % (x : Int) := by
+    rw [hc]; push_cast [Int.natCast_mod]; ring_nf
+  -- `-(m) - 2` and `x - c` differ by a multiple of `x`
+  have hcong : (-(m : Int) - 2) % (x : Int) = ((x : Int) - (c : Int)) % (x : Int) := by
+    rw [Int.emod_eq_emod_iff_emod_sub_eq_zero]
+    have hrw : (-(m : Int) - 2) - ((x : Int) - (c : Int))
+        = -(((m : Int) + 2) - (c : Int)) - (x : Int) := by ring
+    rw [hrw]
+    have hdvd : (x : Int) ∣ (((m : Int) + 2) - (c : Int)) := by
+      refine ⟨((m : Int) + 2) / (x : Int), ?_⟩
+      have hde := Int.mul_ediv_add_emod ((m : Int) + 2) (x : Int)
+      rw [hcI]; omega
+    obtain ⟨k, hk⟩ := hdvd
+    rw [hk]
+    have : -((x : Int) * k) - (x : Int) = (x : Int) * (-k - 1) := by ring
+    rw [this, Int.mul_emod_right]
   have hsub : ((x : Int) - (c : Int)) = ((x - c : Nat) : Int) := by
-    have : c ≤ x := le_of_lt hcx
-    push_cast [Nat.cast_sub this]
-    ring
-  rw [hsub, ← Int.natCast_mod]
-  simp
+    push_cast [Nat.cast_sub (le_of_lt hcx)]; ring
+  have hfinal : (((x - c) % x : Nat) : Int) = (-(m : Int) - 2) % (x : Int) := by
+    rw [hcong, hsub]; push_cast; ring
+  rw [← hfinal]
+  -- `simp` would push the cast straight back in, so close it directly.
+  exact (Int.toNat_natCast _).symm
 
 /-- The padding the transcript builds, as a list.
 
     Three opaque operations — `from_bits [1]`, `zeros j`, and two `concat`s —
     so the whole proof is the arithmetic for `j` plus the models. -/
-theorem pad10_star_1_eq (x m : Std.U64) (hx : 0 < x.val) :
+theorem pad10_star_1_eq (x m : Std.U64) (hx : 0 < x.val) (hxb : x.val ≤ 1600) :
     hacspec_sha3_pedantic.sponge.pad10_star_1 x m = ok (padBits x.val m.val) := by
   have hxne : x.val ≠ 0 := by omega
   -- `massert (x > 0)`
@@ -71,16 +73,19 @@ theorem pad10_star_1_eq (x m : Std.U64) (hx : 0 < x.val) :
     (Std.UScalar.rem_bv_spec m (y := x) hxne)
   have hix : i.val < x.val := by rw [hiv]; exact Nat.mod_lt _ hx
   obtain ⟨i1, hi1, hi1v⟩ := Std.WP.spec_imp_exists
-    (Std.UScalar.add_spec (x := i) (y := 2#u64) (by scalar_tac))
+    (Std.WP.spec_of_partialSpec (Std.UScalar.add_spec (x := i) (y := (2#u64 : Std.U64)))
+      (by intro e; cases e <;> simp; scalar_tac) (by simp))
   obtain ⟨i2, hi2, hi2v, _⟩ := Std.WP.spec_imp_exists
     (Std.UScalar.rem_bv_spec i1 (y := x) hxne)
   have hi2x : i2.val < x.val := by rw [hi2v]; exact Nat.mod_lt _ hx
-  obtain ⟨i3, hi3, hi3v⟩ := Std.WP.spec_imp_exists
-    (Std.UScalar.sub_spec (x := x) (y := i2) (by scalar_tac))
+  obtain ⟨i3, hi3, hi3v, -⟩ := Std.WP.spec_imp_exists
+    (Std.WP.spec_of_partialSpec (Std.UScalar.sub_spec (x := x) (y := i2))
+      (by intro e; cases e <;> simp; scalar_tac) (by simp))
   obtain ⟨j, hj, hjv, _⟩ := Std.WP.spec_imp_exists
     (Std.UScalar.rem_bv_spec i3 (y := x) hxne)
   have hjval : j.val = ((-(m.val : Int) - 2) % (x.val : Int)).toNat := by
     rw [← pad_j_eq x.val m.val hx, hjv, hi3v, hi2v, hi1v, hiv]
+    simp
   unfold hacspec_sha3_pedantic.sponge.pad10_star_1
   rw [hmassert, bind_tc_ok, hi, bind_tc_ok, hi1, bind_tc_ok, hi2, bind_tc_ok,
     hi3, bind_tc_ok, hj, bind_tc_ok]
