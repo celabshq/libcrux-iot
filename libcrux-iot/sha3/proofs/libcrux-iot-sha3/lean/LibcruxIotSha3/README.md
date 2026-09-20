@@ -152,20 +152,28 @@ implementation's own safety.
 
 ### The input bound
 
-Naming the transcript costs one thing. It works on BIT strings, so it expands its input
-to `8 * len` bits and then appends the domain-separation suffix and `pad10*1`; that
-padded bit length has to be a representable `usize` on every supported target, the
-smallest being 32-bit. The contracts therefore bound their input by
+Naming the transcript costs one thing, though much less than it used to. The transcript
+works on BIT strings, so it expands its input to `8 * len` bits and then appends the
+domain-separation suffix and `pad10*1`; that padded bit count has to stay representable.
+The transcript counts it in a `u64`, so the contracts bound their input by
 
 ```rust
-pub const MAX_INPUT_LEN: usize = 536_870_399; // == (u32::MAX as usize - 4096) / 8
+pub const MAX_INPUT_LEN: u64 = 2_305_843_009_213_693_695; // == (u64::MAX - 2048) / 8
 ```
 
-rather than by `u32::MAX` -- a narrowing from 4 GB to 512 MB, far above anything an IoT
-target will hash, and the price of stating correctness against the Standard's own text
-instead of against a specification shaped like the implementation.
+which is about 2.3 exabytes. It is a `u64` rather than a `usize`, and so the same on
+every target; on a 32-bit target no `&[U8]` can fail it at all.
 
-### The specification
+It used to be `(u32::MAX as usize - 4096) / 8` -- 512 MB. That was not a property of
+SHA-3 or of this implementation but of the specification's own arithmetic: the transcript
+counted bit positions in a `usize`, and a proof that had to hold on the smallest
+supported target could not assume more than a 32-bit word. Since the transcript's bit
+strings became `bits::BitStr`, with `u64` lengths and a Lean model that is an unbounded
+list of bits, that reasoning is gone and with it the bound it forced. FIPS 202 itself
+bounds `len(M)` nowhere; what is left here is a property of the artifact, not of the
+Standard.
+
+### The specification### The specification
 
 One specification is involved. **`hacspec_sha3_pedantic`** (`specs/sha3-pedantic`) is the
 transcript of FIPS 202 described at the top of this file; it is extracted from

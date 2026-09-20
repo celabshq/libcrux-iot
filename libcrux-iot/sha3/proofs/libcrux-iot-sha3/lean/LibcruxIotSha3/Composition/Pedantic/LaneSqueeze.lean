@@ -262,8 +262,7 @@ theorem keccakLanes_bytes (OUTPUT_LEN rate : Std.Usize) (delim : Std.U8) (sfx : 
     (M : Slice Std.U8)
     (hrate1 : 1 ≤ rate.val) (hrate200 : rate.val ≤ 200) (hrate8 : rate.val % 8 = 0)
     (hsfx : sfx.length + 2 ≤ 8)
-    (hdelim : byteBits delim = sfx ++ true :: List.replicate (7 - sfx.length) false)
-    (_hout : OUTPUT_LEN.val ≤ 4294967296) :
+    (hdelim : byteBits delim = sfx ++ true :: List.replicate (7 - sfx.length) false) :
     (keccakLanes OUTPUT_LEN rate.val delim M.val).val
       = b2hList (keccakCList (1600 - 8 * rate.val) (h2bList M.val ++ sfx)
         (8 * OUTPUT_LEN.val)) := by
@@ -354,7 +353,7 @@ theorem sha3_224_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 
       = ok (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_224_bytes_eq M hm
   have hkl := keccakLanes_bytes 28#usize 144#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+    (by simp) (by simp) (by simp) (by simp) (by decide)
   rw [h2]
   congr 1
   apply Subtype.ext
@@ -367,7 +366,7 @@ theorem sha3_256_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 
       = ok (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_256_bytes_eq M hm
   have hkl := keccakLanes_bytes 32#usize 136#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+    (by simp) (by simp) (by simp) (by simp) (by decide)
   rw [h2]
   congr 1
   apply Subtype.ext
@@ -380,7 +379,7 @@ theorem sha3_384_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 
       = ok (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_384_bytes_eq M hm
   have hkl := keccakLanes_bytes 48#usize 104#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+    (by simp) (by simp) (by simp) (by simp) (by decide)
   rw [h2]
   congr 1
   apply Subtype.ext
@@ -393,7 +392,7 @@ theorem sha3_512_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 
       = ok (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_512_bytes_eq M hm
   have hkl := keccakLanes_bytes 64#usize 72#usize 6#u8 [false, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) (by simp)
+    (by simp) (by simp) (by simp) (by simp) (by decide)
   rw [h2]
   congr 1
   apply Subtype.ext
@@ -401,27 +400,27 @@ theorem sha3_512_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 
   norm_num
 
 /-- `SHAKE128`: the transcript computes the lane model. -/
-theorem shake128_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
+theorem shake128_lanes_agree (NU : Std.Usize) (M : Slice Std.U8)
     (hob : 8 * NU.val + 1600 < 2 ^ 64) (hm : 8 * M.val.length + 1606 < 2 ^ 64) :
     ∃ o2 : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake128 M NU = ok o2 ∧
       o2.val = (keccakLanes NU (168#usize : Std.Usize).val 31#u8 M.val).val := by
   obtain ⟨o2, h2, h2v⟩ := shake128_bytes_eq M NU hob hm
   have hkl := keccakLanes_bytes NU 168#usize 31#u8 [true, true, true, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) hN
+    (by simp) (by simp) (by simp) (by simp) (by decide)
   refine ⟨o2, h2, ?_⟩
   rw [h2v, hkl]
   norm_num
 
 /-- `SHAKE256`: the transcript computes the lane model. -/
-theorem shake256_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
+theorem shake256_lanes_agree (NU : Std.Usize) (M : Slice Std.U8)
     (hob : 8 * NU.val + 1600 < 2 ^ 64) (hm : 8 * M.val.length + 1606 < 2 ^ 64) :
     ∃ o2 : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake256 M NU = ok o2 ∧
       o2.val = (keccakLanes NU (136#usize : Std.Usize).val 31#u8 M.val).val := by
   obtain ⟨o2, h2, h2v⟩ := shake256_bytes_eq M NU hob hm
   have hkl := keccakLanes_bytes NU 136#usize 31#u8 [true, true, true, true] M
-    (by simp) (by simp) (by simp) (by simp) (by decide) hN
+    (by simp) (by simp) (by simp) (by simp) (by decide)
   refine ⟨o2, h2, ?_⟩
   rw [h2v, hkl]
   norm_num

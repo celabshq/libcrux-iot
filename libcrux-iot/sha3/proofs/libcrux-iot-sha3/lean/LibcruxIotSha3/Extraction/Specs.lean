@@ -29,20 +29,21 @@ namespace libcrux_iot_sha3
 
 
 /-- [libcrux_iot_sha3::hash::pre]:
-    Source: 'sha3/src/lib.rs', lines 185:0-185:85 -/
+    Source: 'sha3/src/lib.rs', lines 192:0-192:92 -/
 @[reducible]
 def hash.pre
   (LEN : Std.Usize) (algorithm : Algorithm) (payload : Slice Std.U8) :
   RustM Bool
   := do
   let i ← core.slice.Slice.len payload
-  if i <= MAX_INPUT_LEN
-  then let i1 ← digest_size algorithm
-       ok (LEN = i1)
+  let i1 ← lift (UScalar.cast .U64 i)
+  if i1 <= MAX_INPUT_LEN
+  then let i2 ← digest_size algorithm
+       ok (LEN = i2)
   else ok false
 
 /-- [libcrux_iot_sha3::hash::post]:
-    Source: 'sha3/src/lib.rs', lines 186:0-186:101 -/
+    Source: 'sha3/src/lib.rs', lines 193:0-193:101 -/
 @[reducible]
 def hash.post
   {LEN : Std.Usize} (algorithm : Algorithm) (payload : Slice Std.U8)
@@ -69,14 +70,15 @@ def hash.spec (LEN : Std.Usize) (algorithm : Algorithm)
 
 
 /-- [libcrux_iot_sha3::sha224::pre]:
-    Source: 'sha3/src/lib.rs', lines 208:0-208:52 -/
+    Source: 'sha3/src/lib.rs', lines 215:0-215:59 -/
 @[reducible]
 def sha224.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  ok (i <= MAX_INPUT_LEN)
+  let i1 ← lift (UScalar.cast .U64 i)
+  ok (i1 <= MAX_INPUT_LEN)
 
 /-- [libcrux_iot_sha3::sha224::post]:
-    Source: 'sha3/src/lib.rs', lines 209:0-210:77 -/
+    Source: 'sha3/src/lib.rs', lines 216:0-217:77 -/
 @[reducible]
 def sha224.post
   (payload : Slice Std.U8) (out : Array Std.U8 28#usize) : RustM Bool := do
@@ -106,18 +108,19 @@ def sha224.spec (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha224_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 223:0-223:92 -/
+    Source: 'sha3/src/lib.rs', lines 230:0-230:99 -/
 @[reducible]
 def sha224_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  if i <= MAX_INPUT_LEN
-  then let i1 ← core.slice.Slice.len digest
-       ok (i1 = SHA3_224_DIGEST_SIZE)
+  let i1 ← lift (UScalar.cast .U64 i)
+  if i1 <= MAX_INPUT_LEN
+  then let i2 ← core.slice.Slice.len digest
+       ok (i2 = SHA3_224_DIGEST_SIZE)
   else ok false
 
 /-- [libcrux_iot_sha3::sha224_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 224:0-225:82 -/
+    Source: 'sha3/src/lib.rs', lines 231:0-232:82 -/
 @[reducible]
 def sha224_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -147,14 +150,15 @@ def sha224_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha256::pre]:
-    Source: 'sha3/src/lib.rs', lines 239:0-239:52 -/
+    Source: 'sha3/src/lib.rs', lines 246:0-246:59 -/
 @[reducible]
 def sha256.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  ok (i <= MAX_INPUT_LEN)
+  let i1 ← lift (UScalar.cast .U64 i)
+  ok (i1 <= MAX_INPUT_LEN)
 
 /-- [libcrux_iot_sha3::sha256::post]:
-    Source: 'sha3/src/lib.rs', lines 240:0-241:77 -/
+    Source: 'sha3/src/lib.rs', lines 247:0-248:77 -/
 @[reducible]
 def sha256.post
   (payload : Slice Std.U8) (out : Array Std.U8 32#usize) : RustM Bool := do
@@ -184,18 +188,19 @@ def sha256.spec (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha256_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 254:0-254:92 -/
+    Source: 'sha3/src/lib.rs', lines 261:0-261:99 -/
 @[reducible]
 def sha256_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  if i <= MAX_INPUT_LEN
-  then let i1 ← core.slice.Slice.len digest
-       ok (i1 = SHA3_256_DIGEST_SIZE)
+  let i1 ← lift (UScalar.cast .U64 i)
+  if i1 <= MAX_INPUT_LEN
+  then let i2 ← core.slice.Slice.len digest
+       ok (i2 = SHA3_256_DIGEST_SIZE)
   else ok false
 
 /-- [libcrux_iot_sha3::sha256_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 255:0-256:82 -/
+    Source: 'sha3/src/lib.rs', lines 262:0-263:82 -/
 @[reducible]
 def sha256_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -225,14 +230,15 @@ def sha256_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha384::pre]:
-    Source: 'sha3/src/lib.rs', lines 270:0-270:52 -/
+    Source: 'sha3/src/lib.rs', lines 277:0-277:59 -/
 @[reducible]
 def sha384.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  ok (i <= MAX_INPUT_LEN)
+  let i1 ← lift (UScalar.cast .U64 i)
+  ok (i1 <= MAX_INPUT_LEN)
 
 /-- [libcrux_iot_sha3::sha384::post]:
-    Source: 'sha3/src/lib.rs', lines 271:0-272:77 -/
+    Source: 'sha3/src/lib.rs', lines 278:0-279:77 -/
 @[reducible]
 def sha384.post
   (payload : Slice Std.U8) (out : Array Std.U8 48#usize) : RustM Bool := do
@@ -262,18 +268,19 @@ def sha384.spec (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha384_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 285:0-285:92 -/
+    Source: 'sha3/src/lib.rs', lines 292:0-292:99 -/
 @[reducible]
 def sha384_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  if i <= MAX_INPUT_LEN
-  then let i1 ← core.slice.Slice.len digest
-       ok (i1 = SHA3_384_DIGEST_SIZE)
+  let i1 ← lift (UScalar.cast .U64 i)
+  if i1 <= MAX_INPUT_LEN
+  then let i2 ← core.slice.Slice.len digest
+       ok (i2 = SHA3_384_DIGEST_SIZE)
   else ok false
 
 /-- [libcrux_iot_sha3::sha384_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 286:0-287:82 -/
+    Source: 'sha3/src/lib.rs', lines 293:0-294:82 -/
 @[reducible]
 def sha384_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -303,14 +310,15 @@ def sha384_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha512::pre]:
-    Source: 'sha3/src/lib.rs', lines 301:0-301:52 -/
+    Source: 'sha3/src/lib.rs', lines 308:0-308:59 -/
 @[reducible]
 def sha512.pre (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  ok (i <= MAX_INPUT_LEN)
+  let i1 ← lift (UScalar.cast .U64 i)
+  ok (i1 <= MAX_INPUT_LEN)
 
 /-- [libcrux_iot_sha3::sha512::post]:
-    Source: 'sha3/src/lib.rs', lines 302:0-303:77 -/
+    Source: 'sha3/src/lib.rs', lines 309:0-310:77 -/
 @[reducible]
 def sha512.post
   (payload : Slice Std.U8) (out : Array Std.U8 64#usize) : RustM Bool := do
@@ -340,18 +348,19 @@ def sha512.spec (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::sha512_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 316:0-316:92 -/
+    Source: 'sha3/src/lib.rs', lines 323:0-323:99 -/
 @[reducible]
 def sha512_ema.pre
   (digest : Slice Std.U8) (payload : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len payload
-  if i <= MAX_INPUT_LEN
-  then let i1 ← core.slice.Slice.len digest
-       ok (i1 = SHA3_512_DIGEST_SIZE)
+  let i1 ← lift (UScalar.cast .U64 i)
+  if i1 <= MAX_INPUT_LEN
+  then let i2 ← core.slice.Slice.len digest
+       ok (i2 = SHA3_512_DIGEST_SIZE)
   else ok false
 
 /-- [libcrux_iot_sha3::sha512_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 317:0-318:82 -/
+    Source: 'sha3/src/lib.rs', lines 324:0-325:82 -/
 @[reducible]
 def sha512_ema.post
   (digest : Slice Std.U8) (payload : Slice Std.U8)
@@ -381,16 +390,19 @@ def sha512_ema.spec (digest : Slice Std.U8) (payload : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::shake128::pre]:
-    Source: 'sha3/src/lib.rs', lines 332:0-332:75 -/
+    Source: 'sha3/src/lib.rs', lines 339:0-339:89 -/
 @[reducible]
 def shake128.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
-  if BYTES <= MAX_INPUT_LEN
-  then let i ← core.slice.Slice.len data
-       ok (i <= MAX_INPUT_LEN)
+  let i ← lift (UScalar.cast .U64 BYTES)
+  if i <= MAX_INPUT_LEN
+  then
+    let i1 ← core.slice.Slice.len data
+    let i2 ← lift (UScalar.cast .U64 i1)
+    ok (i2 <= MAX_INPUT_LEN)
   else ok false
 
 /-- [libcrux_iot_sha3::shake128::post]:
-    Source: 'sha3/src/lib.rs', lines 333:0-334:81 -/
+    Source: 'sha3/src/lib.rs', lines 340:0-341:81 -/
 @[reducible]
 def shake128.post
   {BYTES : Std.Usize} (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
@@ -421,18 +433,21 @@ def shake128.spec (BYTES : Std.Usize) (data : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::shake128_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 348:0-348:79 -/
+    Source: 'sha3/src/lib.rs', lines 355:0-355:93 -/
 @[reducible]
 def shake128_ema.pre
   (out : Slice Std.U8) (data : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len data
-  if i <= MAX_INPUT_LEN
-  then let i1 ← core.slice.Slice.len out
-       ok (i1 <= MAX_INPUT_LEN)
+  let i1 ← lift (UScalar.cast .U64 i)
+  if i1 <= MAX_INPUT_LEN
+  then
+    let i2 ← core.slice.Slice.len out
+    let i3 ← lift (UScalar.cast .U64 i2)
+    ok (i3 <= MAX_INPUT_LEN)
   else ok false
 
 /-- [libcrux_iot_sha3::shake128_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 349:0-350:90 -/
+    Source: 'sha3/src/lib.rs', lines 356:0-357:90 -/
 @[reducible]
 def shake128_ema.post
   (out : Slice Std.U8) (data : Slice Std.U8) (out_future : Slice Std.U8) :
@@ -461,16 +476,19 @@ def shake128_ema.spec (out : Slice Std.U8) (data : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::shake256::pre]:
-    Source: 'sha3/src/lib.rs', lines 359:0-359:75 -/
+    Source: 'sha3/src/lib.rs', lines 366:0-366:89 -/
 @[reducible]
 def shake256.pre (BYTES : Std.Usize) (data : Slice Std.U8) : RustM Bool := do
-  if BYTES <= MAX_INPUT_LEN
-  then let i ← core.slice.Slice.len data
-       ok (i <= MAX_INPUT_LEN)
+  let i ← lift (UScalar.cast .U64 BYTES)
+  if i <= MAX_INPUT_LEN
+  then
+    let i1 ← core.slice.Slice.len data
+    let i2 ← lift (UScalar.cast .U64 i1)
+    ok (i2 <= MAX_INPUT_LEN)
   else ok false
 
 /-- [libcrux_iot_sha3::shake256::post]:
-    Source: 'sha3/src/lib.rs', lines 360:0-361:81 -/
+    Source: 'sha3/src/lib.rs', lines 367:0-368:81 -/
 @[reducible]
 def shake256.post
   {BYTES : Std.Usize} (data : Slice Std.U8) (out : Array Std.U8 BYTES) :
@@ -501,18 +519,21 @@ def shake256.spec (BYTES : Std.Usize) (data : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::shake256_ema::pre]:
-    Source: 'sha3/src/lib.rs', lines 375:0-375:79 -/
+    Source: 'sha3/src/lib.rs', lines 382:0-382:93 -/
 @[reducible]
 def shake256_ema.pre
   (out : Slice Std.U8) (data : Slice Std.U8) : RustM Bool := do
   let i ← core.slice.Slice.len data
-  if i <= MAX_INPUT_LEN
-  then let i1 ← core.slice.Slice.len out
-       ok (i1 <= MAX_INPUT_LEN)
+  let i1 ← lift (UScalar.cast .U64 i)
+  if i1 <= MAX_INPUT_LEN
+  then
+    let i2 ← core.slice.Slice.len out
+    let i3 ← lift (UScalar.cast .U64 i2)
+    ok (i3 <= MAX_INPUT_LEN)
   else ok false
 
 /-- [libcrux_iot_sha3::shake256_ema::post]:
-    Source: 'sha3/src/lib.rs', lines 376:0-377:90 -/
+    Source: 'sha3/src/lib.rs', lines 383:0-384:90 -/
 @[reducible]
 def shake256_ema.post
   (out : Slice Std.U8) (data : Slice Std.U8) (out_future : Slice Std.U8) :
@@ -541,7 +562,7 @@ def shake256_ema.spec (out : Slice Std.U8) (data : Slice Std.U8) : Prop :=
 
 
 /-- [libcrux_iot_sha3::keccakx1::pre]:
-    Source: 'sha3/src/lib.rs', lines 589:0-591:2 -/
+    Source: 'sha3/src/lib.rs', lines 596:0-598:2 -/
 @[reducible]
 def keccakx1.pre
   (RATE : Std.Usize) (DELIM : Std.U8) (data : Slice Std.U8)
@@ -605,14 +626,14 @@ def keccak.absorb_block.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
       let i4 ← core.slice.Slice.len blocks
-      let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
+      let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
     else ok false
   else ok false
 
@@ -641,14 +662,14 @@ def keccak.absorb_final.pre
       then
         if len < RATE
         then
-          let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int len
+          let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int len
           let i3 ←
-            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
           let i4 ← core.slice.Slice.len last
-          let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
+          let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
         else ok false
       else ok false
     else ok false
@@ -799,14 +820,14 @@ def state.load_block_2u32.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
       let i4 ← core.slice.Slice.len blocks
-      let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
+      let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
     else ok false
   else ok false
 
@@ -832,13 +853,13 @@ def state.load_block_full_2u32.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-      let i4 ← hax_lib.I32.Insts.Hax_lib_1IntToInt.to_int 200#i32
+        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+      let i4 ← hax_lib.I32.Insts.Hax_lib_2IntToInt.to_int 200#i32
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
     else ok false
   else ok false
 
@@ -913,14 +934,14 @@ def keccak.KeccakXofState.absorb.pre
         if self_.buf_len < RATE
         then
           let i1 ← core.slice.Slice.len inputs
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i1
-          let i3 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i1
+          let i3 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
           let i4 ←
-            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
+            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
           let i5 ←
-            hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+            hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
+            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
         else ok false
       else ok false
     else ok false
@@ -952,14 +973,14 @@ def keccak.KeccakXofState.absorb_full.pre
         if self_.buf_len < RATE
         then
           let i1 ← core.slice.Slice.len inputs
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i1
-          let i3 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i1
+          let i3 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
           let i4 ←
-            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
+            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
           let i5 ←
-            hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+            hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
+            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
         else ok false
       else ok false
     else ok false
@@ -982,14 +1003,14 @@ def keccak.KeccakXofState.absorb_full.post
       if self__future.buf_len <= RATE
       then
         let i1 ←
-          hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self__future.buf_len
-        let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int remainder
+          hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self__future.buf_len
+        let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int remainder
         let i3 ←
-          hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+          hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
         let i4 ←
-          hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+          hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
         core.cmp.PartialOrd.lt.default
-          hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+          hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
       else ok false
     else ok false
   else ok false
@@ -1014,12 +1035,12 @@ def keccak.KeccakXofState.fill_buffer.pre
   if self_.buf_len <= RATE
   then
     let i ← core.slice.Slice.len inputs
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
-    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
+    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 /-- [libcrux_iot_sha3::keccak::{libcrux_iot_sha3::keccak::KeccakXofState<RATE>}::fill_buffer::post]:
@@ -1028,25 +1049,25 @@ def keccak.KeccakXofState.fill_buffer.pre
 def keccak.KeccakXofState.fill_buffer.post
   {RATE : Std.Usize} (self_ : keccak.KeccakXofState RATE)
   (inputs : Slice Std.U8) (p : (Std.Usize × (keccak.KeccakXofState RATE))) :
-  RustM hax_lib_1.prop.Prop
+  RustM hax_lib_2.prop.Prop
   := do
   let (res, self__future) := p
-  let p1 ← hax_lib.Bool.Insts.Hax_lib_1PropToProp.to_prop (res <= RATE)
+  let p1 ← hax_lib.Bool.Insts.Hax_lib_2PropToProp.to_prop (res <= RATE)
   let p2 ←
-    hax_lib.Bool.Insts.Hax_lib_1PropToProp.to_prop (self__future.buf_len <=
+    hax_lib.Bool.Insts.Hax_lib_2PropToProp.to_prop (self__future.buf_len <=
       RATE)
   let p3 ←
-    hax_lib.hax_lib_1.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
+    hax_lib.hax_lib_2.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
       (core.convert.Into.Blanket (core.convert.From.Blanket
-      hax_lib_1.prop.Prop)) p1 p2
+      hax_lib_2.prop.Prop)) p1 p2
   let p4 ←
-    hax_lib_1.prop.implies (core.convert.Into.Blanket
-      hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool)
+    hax_lib_2.prop.implies (core.convert.Into.Blanket
+      hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool)
       (core.convert.Into.Blanket
-      hax_lib.hax_lib_1.prop.Prop.Insts.CoreConvertFromBool) (res > 0#usize)
+      hax_lib.hax_lib_2.prop.Prop.Insts.CoreConvertFromBool) (res > 0#usize)
       (self__future.buf_len = RATE)
-  hax_lib.hax_lib_1.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
-    (core.convert.Into.Blanket (core.convert.From.Blanket hax_lib_1.prop.Prop))
+  hax_lib.hax_lib_2.prop.Prop.Insts.CoreOpsBitBitAndTProp.bitand
+    (core.convert.Into.Blanket (core.convert.From.Blanket hax_lib_2.prop.Prop))
     p3 p4
 
 def keccak.KeccakXofState.fill_buffer.spec {RATE : Std.Usize}
@@ -1076,14 +1097,14 @@ def keccak.KeccakXofState.absorb_final.pre
         if self_.buf_len < RATE
         then
           let i1 ← core.slice.Slice.len inputs
-          let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i1
-          let i3 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.buf_len
+          let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i1
+          let i3 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.buf_len
           let i4 ←
-            hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
+            hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i2 i3
           let i5 ←
-            hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+            hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
           core.cmp.PartialOrd.le.default
-            hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
+            hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i4 i5
         else ok false
       else ok false
     else ok false
@@ -1256,14 +1277,14 @@ def state.KeccakState.load_block.pre
   then
     if RATE <= 168#usize
     then
-      let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int start
-      let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int RATE
+      let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int start
+      let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int RATE
       let i3 ←
-        hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+        hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
       let i4 ← core.slice.Slice.len blocks
-      let i5 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i4
+      let i5 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i4
       core.cmp.PartialOrd.le.default
-        hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
+        hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i5
     else ok false
   else ok false
 
@@ -1390,19 +1411,19 @@ def state.KeccakState.set_lane.spec (self : state.KeccakState) (i : Std.Usize)
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::absorb::pre]:
-    Source: 'sha3/src/lib.rs', lines 470:8-473:10 -/
+    Source: 'sha3/src/lib.rs', lines 477:8-480:10 -/
 @[reducible]
 def incremental.XofShake128Xof168.absorb.pre
   (self_ : incremental.Shake128Xof) (input : Slice Std.U8) : RustM Bool := do
   if self_.state.buf_len < 168#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.absorb.spec
@@ -1415,19 +1436,19 @@ def incremental.Shake128Xof.Insts.Libcrux_iot_sha3IncrementalXof168.absorb.spec
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<168usize> for libcrux_iot_sha3::incremental::Shake128Xof}::absorb_final::pre]:
-    Source: 'sha3/src/lib.rs', lines 478:8-481:10 -/
+    Source: 'sha3/src/lib.rs', lines 485:8-488:10 -/
 @[reducible]
 def incremental.XofShake128Xof168.absorb_final.pre
   (self_ : incremental.Shake128Xof) (input : Slice Std.U8) : RustM Bool := do
   if self_.state.buf_len < 168#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def
@@ -1441,19 +1462,19 @@ def
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::absorb::pre]:
-    Source: 'sha3/src/lib.rs', lines 499:8-502:10 -/
+    Source: 'sha3/src/lib.rs', lines 506:8-509:10 -/
 @[reducible]
 def incremental.XofShake256Xof136.absorb.pre
   (self_ : incremental.Shake256Xof) (input : Slice Std.U8) : RustM Bool := do
   if self_.state.buf_len < 136#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.absorb.spec
@@ -1466,19 +1487,19 @@ def incremental.Shake256Xof.Insts.Libcrux_iot_sha3IncrementalXof136.absorb.spec
 
 
 /-- [libcrux_iot_sha3::incremental::{impl libcrux_iot_sha3::incremental::Xof<136usize> for libcrux_iot_sha3::incremental::Shake256Xof}::absorb_final::pre]:
-    Source: 'sha3/src/lib.rs', lines 507:8-510:10 -/
+    Source: 'sha3/src/lib.rs', lines 514:8-517:10 -/
 @[reducible]
 def incremental.XofShake256Xof136.absorb_final.pre
   (self_ : incremental.Shake256Xof) (input : Slice Std.U8) : RustM Bool := do
   if self_.state.buf_len < 136#usize
   then
     let i ← core.slice.Slice.len input
-    let i1 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int i
-    let i2 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int self_.state.buf_len
-    let i3 ← hax_lib.hax_lib_1.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
-    let i4 ← hax_lib.Usize.Insts.Hax_lib_1IntToInt.to_int core.num.Usize.MAX
+    let i1 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int i
+    let i2 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int self_.state.buf_len
+    let i3 ← hax_lib.hax_lib_2.int.Int.Insts.CoreOpsArithAddIntInt.add i1 i2
+    let i4 ← hax_lib.Usize.Insts.Hax_lib_2IntToInt.to_int core.num.Usize.MAX
     core.cmp.PartialOrd.le.default
-      hax_lib.hax_lib_1.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
+      hax_lib.hax_lib_2.int.Int.Insts.CoreCmpPartialOrdInt i3 i4
   else ok false
 
 def

@@ -120,16 +120,17 @@ private theorem bool_of_holds_map_ok {b : Bool}
   simpa [RustM.holds, Std.Do.Triple, WP.wp, PredTrans.apply] using h
 
 /-- Decoding the input bound in the generated `pre`. `MAX_INPUT_LEN` is
-    `(u32::MAX as usize - 4096) / 8`: the FIPS-202 transcript the `#[ensures]`
-    clauses name works on BIT strings, so `8 * len`, plus the suffix and
-    `pad10*1`, has to be a representable `usize` on a 32-bit target. -/
+    `(u64::MAX - 2048) / 8`: the FIPS-202 transcript the `#[ensures]` clauses
+    name works on BIT strings and counts them in a `u64`, so `8 * len`, plus the
+    suffix and `pad10*1`, has to fit one. The precondition compares
+    `len as u64`, hence the cast here. -/
 private theorem len_le_of_le_max {s : Slice Std.U8}
-    (h : Aeneas.Std.Slice.len s ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)) :
-    s.val.length ≤ 536870399 := by
-  have hv : (Aeneas.Std.Slice.len s).val
-      ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize).val := by scalar_tac
-  rw [Aeneas.Std.Slice.len_val, Sponge.max_input_len_val] at hv
-  exact hv
+    (h : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len s))
+      ≤ libcrux_iot_sha3.MAX_INPUT_LEN) :
+    s.val.length ≤ 2305843009213693695 := by
+  have hv : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len s)).val
+      ≤ (libcrux_iot_sha3.MAX_INPUT_LEN).val := (Std.UScalar.le_equiv _ _).mp h
+  rwa [Sponge.hash_cast_val_pub, Sponge.max_input_len_val] at hv
 
 /-- Converse of `bool_of_holds_map_ok`: build a generated `post`'s `.holds` from
     the plain boolean fact. -/
@@ -335,20 +336,18 @@ private theorem pedantic_sha3_512 {payload : Slice Std.U8}
   LibcruxIotSha3.Composition.Pedantic.sha3_512_lanes_agree payload hb
 
 private theorem pedantic_shake128 {BYTES : Std.Usize} {data : Slice Std.U8}
-    (hN : BYTES.val ≤ 4294967296)
     (hb : 8 * BYTES.val + 1600 < 2 ^ 64) (hm : 8 * data.val.length + 1606 < 2 ^ 64) :
     ∃ v : CoreModels.alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake128 data BYTES = .ok v ∧
         v.val = (keccakLanes BYTES (168#usize : Std.Usize).val 31#u8 data.val).val :=
-  LibcruxIotSha3.Composition.Pedantic.shake128_lanes_agree BYTES data hN hb hm
+  LibcruxIotSha3.Composition.Pedantic.shake128_lanes_agree BYTES data hb hm
 
 private theorem pedantic_shake256 {BYTES : Std.Usize} {data : Slice Std.U8}
-    (hN : BYTES.val ≤ 4294967296)
     (hb : 8 * BYTES.val + 1600 < 2 ^ 64) (hm : 8 * data.val.length + 1606 < 2 ^ 64) :
     ∃ v : CoreModels.alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake256 data BYTES = .ok v ∧
         v.val = (keccakLanes BYTES (136#usize : Std.Usize).val 31#u8 data.val).val :=
-  LibcruxIotSha3.Composition.Pedantic.shake256_lanes_agree BYTES data hN hb hm
+  LibcruxIotSha3.Composition.Pedantic.shake256_lanes_agree BYTES data hb hm
 
 /-- `vec[..]` is the vector viewed as a slice (the SHAKE posts end on a `Vec`,
     since the FIPS-202 transcript's SHAKE returns one). -/
@@ -379,19 +378,19 @@ theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.shake128.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : BYTES ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (BYTES)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hB : BYTES.val ≤ 536870399 := by
-      have hv : BYTES.val ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize).val := by scalar_tac
-      rw [Sponge.max_input_len_val] at hv
-      exact hv
-    have hdlen : data.val.length ≤ 536870399 :=
+    have hB : BYTES.val ≤ 2305843009213693695 := by
+      have hv : (Std.UScalar.cast Std.UScalarTy.U64 BYTES).val
+          ≤ (libcrux_iot_sha3.MAX_INPUT_LEN).val := (Std.UScalar.le_equiv _ _).mp hcond
+      rwa [Sponge.cast_u64_val, Sponge.max_input_len_val] at hv
+    have hdlen : data.val.length ≤ 2305843009213693695 :=
       len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
     obtain ⟨v, hv_eq, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake128_spec BYTES data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake128 (BYTES := BYTES) (data := data) (by omega) (by omega) (by omega)
+      pedantic_shake128 (BYTES := BYTES) (data := data) (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake128.post data v = .ok true := by
       simp only [libcrux_iot_sha3.shake128.post]
@@ -413,19 +412,19 @@ theorem shake256_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.shake256.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : BYTES ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (BYTES)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hB : BYTES.val ≤ 536870399 := by
-      have hv : BYTES.val ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize).val := by scalar_tac
-      rw [Sponge.max_input_len_val] at hv
-      exact hv
-    have hdlen : data.val.length ≤ 536870399 :=
+    have hB : BYTES.val ≤ 2305843009213693695 := by
+      have hv : (Std.UScalar.cast Std.UScalarTy.U64 BYTES).val
+          ≤ (libcrux_iot_sha3.MAX_INPUT_LEN).val := (Std.UScalar.le_equiv _ _).mp hcond
+      rwa [Sponge.cast_u64_val, Sponge.max_input_len_val] at hv
+    have hdlen : data.val.length ≤ 2305843009213693695 :=
       len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
     obtain ⟨v, hv_eq, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake256_spec BYTES data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake256 (BYTES := BYTES) (data := data) (by omega) (by omega) (by omega)
+      pedantic_shake256 (BYTES := BYTES) (data := data) (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake256.post data v = .ok true := by
       simp only [libcrux_iot_sha3.shake256.post]
@@ -457,10 +456,10 @@ theorem sha224_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha224_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
+    have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_224_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 28 := by
@@ -491,10 +490,10 @@ theorem sha256_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha256_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
+    have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_256_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 32 := by
@@ -525,10 +524,10 @@ theorem sha384_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha384_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
+    have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_384_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 48 := by
@@ -559,10 +558,10 @@ theorem sha512_ema_spec_proof (digest payload : Slice Std.U8) :
   intro hpre
   simp only [libcrux_iot_sha3.sha512_ema.pre,
     CoreModels.core.slice.Slice.len, CoreModels.rust_primitives.slice.slice_length,
-    Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
+    have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hcond
     have hd : digest.len = libcrux_iot_sha3.SHA3_512_DIGEST_SIZE :=
       of_decide_eq_true (bool_of_holds_map_ok hpre)
     have hlen : digest.val.length = 64 := by
@@ -633,18 +632,18 @@ theorem shake128_ema_spec_proof (out data : Slice Std.U8) :
     libcrux_iot_sha3.shake128_ema.spec out data := by
   intro hpre
   simp only [libcrux_iot_sha3.shake128_ema.pre, CoreModels.core.slice.Slice.len,
-    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len data ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len data)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hdlen : data.val.length ≤ 536870399 := len_le_of_le_max hcond
-    have holen : out.val.length ≤ 536870399 :=
+    have hdlen : data.val.length ≤ 2305843009213693695 := len_le_of_le_max hcond
+    have holen : out.val.length ≤ 2305843009213693695 :=
       len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
     have hlen_out : (Aeneas.Std.Slice.len out).val = out.val.length :=
       Aeneas.Std.Slice.len_val out
     obtain ⟨v, hv_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake128_ema_spec out data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake128 (BYTES := Aeneas.Std.Slice.len out) (data := data) (by omega)
+      pedantic_shake128 (BYTES := Aeneas.Std.Slice.len out) (data := data)
         (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake128_ema.post out data v = .ok true := by
@@ -666,18 +665,18 @@ theorem shake256_ema_spec_proof (out data : Slice Std.U8) :
     libcrux_iot_sha3.shake256_ema.spec out data := by
   intro hpre
   simp only [libcrux_iot_sha3.shake256_ema.pre, CoreModels.core.slice.Slice.len,
-    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len data ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len data)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hdlen : data.val.length ≤ 536870399 := len_le_of_le_max hcond
-    have holen : out.val.length ≤ 536870399 :=
+    have hdlen : data.val.length ≤ 2305843009213693695 := len_le_of_le_max hcond
+    have holen : out.val.length ≤ 2305843009213693695 :=
       len_le_of_le_max (of_decide_eq_true (bool_of_holds_map_ok hpre))
     have hlen_out : (Aeneas.Std.Slice.len out).val = out.val.length :=
       Aeneas.Std.Slice.len_val out
     obtain ⟨v, hv_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake256_ema_spec out data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake256 (BYTES := Aeneas.Std.Slice.len out) (data := data) (by omega)
+      pedantic_shake256 (BYTES := Aeneas.Std.Slice.len out) (data := data)
         (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake256_ema.post out data v = .ok true := by
@@ -699,10 +698,11 @@ theorem sha224_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha224.spec payload := by
   intro hpre
   simp only [libcrux_iot_sha3.sha224.pre, CoreModels.core.slice.Slice.len,
-    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
-  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  have hle : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload))
+      ≤ libcrux_iot_sha3.MAX_INPUT_LEN :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hle
   obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha224_spec payload hplen)
   have hped := pedantic_sha3_224 (payload := payload) (by omega)
   refine triple_of_ok hv_eq ?_
@@ -722,10 +722,11 @@ theorem sha256_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha256.spec payload := by
   intro hpre
   simp only [libcrux_iot_sha3.sha256.pre, CoreModels.core.slice.Slice.len,
-    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
-  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  have hle : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload))
+      ≤ libcrux_iot_sha3.MAX_INPUT_LEN :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hle
   obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha256_spec payload hplen)
   have hped := pedantic_sha3_256 (payload := payload) (by omega)
   refine triple_of_ok hv_eq ?_
@@ -745,10 +746,11 @@ theorem sha384_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha384.spec payload := by
   intro hpre
   simp only [libcrux_iot_sha3.sha384.pre, CoreModels.core.slice.Slice.len,
-    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
-  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  have hle : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload))
+      ≤ libcrux_iot_sha3.MAX_INPUT_LEN :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hle
   obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha384_spec payload hplen)
   have hped := pedantic_sha3_384 (payload := payload) (by omega)
   refine triple_of_ok hv_eq ?_
@@ -768,10 +770,11 @@ theorem sha512_spec_proof (payload : Slice Std.U8) :
     libcrux_iot_sha3.sha512.spec payload := by
   intro hpre
   simp only [libcrux_iot_sha3.sha512.pre, CoreModels.core.slice.Slice.len,
-    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
-  have hle : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize) :=
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  have hle : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload))
+      ≤ libcrux_iot_sha3.MAX_INPUT_LEN :=
     of_decide_eq_true (bool_of_holds_map_ok hpre)
-  have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hle
+  have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hle
   obtain ⟨v, hv_eq, hv_bytes⟩ := triple_exists_ok (Sponge.sha512_spec payload hplen)
   have hped := pedantic_sha3_512 (payload := payload) (by omega)
   refine triple_of_ok hv_eq ?_
@@ -795,10 +798,10 @@ theorem hash_spec_proof (LEN : Std.Usize) (algorithm : libcrux_iot_sha3.Algorith
     libcrux_iot_sha3.hash.spec LEN algorithm payload := by
   intro hpre
   simp only [libcrux_iot_sha3.hash.pre, CoreModels.core.slice.Slice.len,
-    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok] at hpre
-  by_cases hcond : Aeneas.Std.Slice.len payload ≤ (libcrux_iot_sha3.MAX_INPUT_LEN : Std.Usize)
+    CoreModels.rust_primitives.slice.slice_length, Aeneas.Std.bind_tc_ok, Std.lift] at hpre
+  by_cases hcond : (Std.UScalar.cast Std.UScalarTy.U64 (Aeneas.Std.Slice.len payload)) ≤ libcrux_iot_sha3.MAX_INPUT_LEN
   · rw [if_pos hcond] at hpre
-    have hplen : payload.val.length ≤ 536870399 := len_le_of_le_max hcond
+    have hplen : payload.val.length ≤ 2305843009213693695 := len_le_of_le_max hcond
     cases algorithm with
     | Sha224 =>
       simp only [libcrux_iot_sha3.digest_size, Aeneas.Std.bind_tc_ok] at hpre
