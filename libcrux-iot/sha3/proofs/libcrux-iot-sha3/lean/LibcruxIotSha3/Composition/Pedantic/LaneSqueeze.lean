@@ -349,7 +349,7 @@ at that rate and delimiter: `keccakLanes_bytes` gives the model's bytes, the
 same bit string.  These are what `Sponge/` is stated against. -/
 
 /-- `SHA3-224`: the transcript computes the lane model. -/
-theorem sha3_224_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+theorem sha3_224_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_224 M
       = ok (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_224_bytes_eq M hm
@@ -362,7 +362,7 @@ theorem sha3_224_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4
   norm_num
 
 /-- `SHA3-256`: the transcript computes the lane model. -/
-theorem sha3_256_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+theorem sha3_256_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_256 M
       = ok (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_256_bytes_eq M hm
@@ -375,7 +375,7 @@ theorem sha3_256_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4
   norm_num
 
 /-- `SHA3-384`: the transcript computes the lane model. -/
-theorem sha3_384_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+theorem sha3_384_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_384 M
       = ok (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_384_bytes_eq M hm
@@ -388,7 +388,7 @@ theorem sha3_384_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4
   norm_num
 
 /-- `SHA3-512`: the transcript computes the lane model. -/
-theorem sha3_512_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4294965000) :
+theorem sha3_512_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_512 M
       = ok (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8 M.val) := by
   obtain ⟨o2, h2, h2v⟩ := sha3_512_bytes_eq M hm
@@ -402,7 +402,7 @@ theorem sha3_512_lanes_agree (M : Slice Std.U8) (hm : 8 * M.val.length + 2 ≤ 4
 
 /-- `SHAKE128`: the transcript computes the lane model. -/
 theorem shake128_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
+    (hob : 8 * NU.val + 1600 < 2 ^ 64) (hm : 8 * M.val.length + 1606 < 2 ^ 64) :
     ∃ o2 : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake128 M NU = ok o2 ∧
       o2.val = (keccakLanes NU (168#usize : Std.Usize).val 31#u8 M.val).val := by
@@ -415,7 +415,7 @@ theorem shake128_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val �
 
 /-- `SHAKE256`: the transcript computes the lane model. -/
 theorem shake256_lanes_agree (NU : Std.Usize) (M : Slice Std.U8) (hN : NU.val ≤ 4294967296)
-    (hob : 8 * NU.val ≤ 4294965000) (hm : 8 * M.val.length + 4 ≤ 4294965000) :
+    (hob : 8 * NU.val + 1600 < 2 ^ 64) (hm : 8 * M.val.length + 1606 < 2 ^ 64) :
     ∃ o2 : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake256 M NU = ok o2 ∧
       o2.val = (keccakLanes NU (136#usize : Std.Usize).val 31#u8 M.val).val := by

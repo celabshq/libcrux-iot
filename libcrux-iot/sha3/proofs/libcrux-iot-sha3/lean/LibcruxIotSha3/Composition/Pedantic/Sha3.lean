@@ -58,35 +58,32 @@ theorem keccakCList_len (c : Nat) (n : List Bool) (d : Nat) (hc : c < 1600) :
 
 /-- `keccak_c` computes `keccakCList`. -/
 theorem keccak_c_list_eq (c : Std.Usize) (hc0 : 0 < c.val) (hc : c.val < 1600)
-    (n : Slice Bool) (hn : n.val.length ≤ 4294965000)
-    (d : Std.Usize) (hdb : d.val ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+    (n : hacspec_sha3_pedantic.bits.BitStr) (hn : n.length + 1602 < 2 ^ 64)
+    (d : Std.U64) (hdb : d.val + 1600 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sponge.keccak_c c n d = ok out ∧
-      out.val = keccakCList c.val n.val d.val :=
+      out = keccakCList c.val n d.val :=
   keccak_c_eq c hc0 hc n hn d hdb
 
 /-! ### The bit-level entry points -/
 
 /-- Every one of the six has the same shape: append a domain-separation suffix
     and call `KECCAK[c]`. -/
-theorem suffix_keccak_eq (m : Slice Bool) (sfx : Slice Bool) (c d : Std.Usize)
-    (hc0 : 0 < c.val) (hc : c.val < 1600) (hdb : d.val ≤ 4294965000)
-    (hm : m.val.length + sfx.val.length ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+theorem suffix_keccak_eq (m : hacspec_sha3_pedantic.bits.BitStr) (sfx : Slice Bool) (c : Std.Usize) (d : Std.U64)
+    (hc0 : 0 < c.val) (hc : c.val < 1600) (hdb : d.val + 1600 < 2 ^ 64)
+    (hm : m.length + sfx.val.length + 1602 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       (do
-        let v ← hacspec_sha3_pedantic.bits.concat m sfx
-        let s1 ← alloc.vec.Vec.Insts.CoreOpsDerefDerefSlice.deref v
-        hacspec_sha3_pedantic.sponge.keccak_c c s1 d) = ok out ∧
-      out.val = keccakCList c.val (m.val ++ sfx.val) d.val := by
-  obtain ⟨v, hv, hvv⟩ := concat_eq m sfx (by scalar_tac)
-  have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = m.val ++ sfx.val := hvv
-  obtain ⟨out, hout, houtv⟩ := keccak_c_eq c hc0 hc ⟨v.val, v.property⟩ (by rw [hvs]; simpa using hm)
-    d hdb
-  refine ⟨out, ?_, ?_⟩
-  · rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok]
-    exact hout
-  · rw [houtv, ← hvs]
-    rfl
+        let bs ← hacspec_sha3_pedantic.bits.BitStr.from_bits sfx
+        let bs1 ← hacspec_sha3_pedantic.bits.BitStr.concat m bs
+        hacspec_sha3_pedantic.sponge.keccak_c c bs1 d) = ok out ∧
+      out = keccakCList c.val (m ++ sfx.val) d.val := by
+  have hfb : hacspec_sha3_pedantic.bits.BitStr.from_bits sfx = ok sfx.val := rfl
+  have hcat : hacspec_sha3_pedantic.bits.BitStr.concat m sfx.val = ok (m ++ sfx.val) := rfl
+  obtain ⟨out, hout, houtv⟩ := keccak_c_eq c hc0 hc (m ++ sfx.val) (by simp; omega) d hdb
+  refine ⟨out, ?_, houtv⟩
+  rw [hfb, bind_tc_ok, hcat, bind_tc_ok]
+  exact hout
 
 
 /-- The SHA-3 domain-separation suffix `01`. -/
@@ -100,87 +97,105 @@ theorem xof_suffix_val :
   simp [hacspec_sha3_pedantic.sha3.XOF_SUFFIX, Std.Array.to_slice, Std.Array.repeat]
 
 /-- FIPS 202, §6.1: `SHA3-224(M) = KECCAK[448](M ‖ 01, 224)`. -/
-theorem sha3_224_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+theorem sha3_224_bits_eq (m : hacspec_sha3_pedantic.bits.BitStr) (hm : m.length + 1604 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sha3.sha3_224 m = ok out ∧
-      out.val = keccakCList 448 (m.val ++ [false, true]) 224 := by
+      out = keccakCList 448 (m ++ [false, true]) 224 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
-    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 448#usize 224#usize
+    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 448#usize 224#u64
     (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sha3.sha3_224
+  · have hlift : (Std.lift (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX)
+        : RustM (Slice Bool)) = ok (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) := rfl
+    unfold hacspec_sha3_pedantic.sha3.sha3_224
+    rw [hlift, bind_tc_ok]
     exact hout
   · rw [houtv, hash_suffix_val]
     norm_num
 
 /-- FIPS 202, §6.1: `SHA3-256(M) = KECCAK[512](M ‖ 01, 256)`. -/
-theorem sha3_256_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+theorem sha3_256_bits_eq (m : hacspec_sha3_pedantic.bits.BitStr) (hm : m.length + 1604 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sha3.sha3_256 m = ok out ∧
-      out.val = keccakCList 512 (m.val ++ [false, true]) 256 := by
+      out = keccakCList 512 (m ++ [false, true]) 256 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
-    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 512#usize 256#usize
+    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 512#usize 256#u64
     (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sha3.sha3_256
+  · have hlift : (Std.lift (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX)
+        : RustM (Slice Bool)) = ok (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) := rfl
+    unfold hacspec_sha3_pedantic.sha3.sha3_256
+    rw [hlift, bind_tc_ok]
     exact hout
   · rw [houtv, hash_suffix_val]
     norm_num
 
 /-- FIPS 202, §6.1: `SHA3-384(M) = KECCAK[768](M ‖ 01, 384)`. -/
-theorem sha3_384_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+theorem sha3_384_bits_eq (m : hacspec_sha3_pedantic.bits.BitStr) (hm : m.length + 1604 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sha3.sha3_384 m = ok out ∧
-      out.val = keccakCList 768 (m.val ++ [false, true]) 384 := by
+      out = keccakCList 768 (m ++ [false, true]) 384 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
-    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 768#usize 384#usize
+    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 768#usize 384#u64
     (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sha3.sha3_384
+  · have hlift : (Std.lift (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX)
+        : RustM (Slice Bool)) = ok (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) := rfl
+    unfold hacspec_sha3_pedantic.sha3.sha3_384
+    rw [hlift, bind_tc_ok]
     exact hout
   · rw [houtv, hash_suffix_val]
     norm_num
 
 /-- FIPS 202, §6.1: `SHA3-512(M) = KECCAK[1024](M ‖ 01, 512)`. -/
-theorem sha3_512_bits_eq (m : Slice Bool) (hm : m.val.length + 2 ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+theorem sha3_512_bits_eq (m : hacspec_sha3_pedantic.bits.BitStr) (hm : m.length + 1604 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sha3.sha3_512 m = ok out ∧
-      out.val = keccakCList 1024 (m.val ++ [false, true]) 512 := by
+      out = keccakCList 1024 (m ++ [false, true]) 512 := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
-    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 1024#usize 512#usize
+    (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) 1024#usize 512#u64
     (by simp) (by simp) (by simp) (by rw [hash_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sha3.sha3_512
+  · have hlift : (Std.lift (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX)
+        : RustM (Slice Bool)) = ok (Std.Array.to_slice hacspec_sha3_pedantic.sha3.HASH_SUFFIX) := rfl
+    unfold hacspec_sha3_pedantic.sha3.sha3_512
+    rw [hlift, bind_tc_ok]
     exact hout
   · rw [houtv, hash_suffix_val]
     norm_num
 
 /-- FIPS 202, §6.2: `SHAKE128(M, d) = KECCAK[256](M ‖ 1111, d)`. -/
-theorem shake128_bits_eq (m : Slice Bool) (d : Std.Usize)
-    (hdb : d.val ≤ 4294965000) (hm : m.val.length + 4 ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+theorem shake128_bits_eq (m : hacspec_sha3_pedantic.bits.BitStr) (d : Std.U64)
+    (hdb : d.val + 1600 < 2 ^ 64) (hm : m.length + 1606 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sha3.shake128 m d = ok out ∧
-      out.val = keccakCList 256 (m.val ++ [true, true, true, true]) d.val := by
+      out = keccakCList 256 (m ++ [true, true, true, true]) d.val := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX) 256#usize d
     (by simp) (by simp) hdb (by rw [xof_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sha3.shake128
+  · have hlift : (Std.lift (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX)
+        : RustM (Slice Bool)) = ok (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX) := rfl
+    unfold hacspec_sha3_pedantic.sha3.shake128
+    rw [hlift, bind_tc_ok]
     exact hout
   · rw [houtv, xof_suffix_val]
     norm_num
 
 /-- FIPS 202, §6.2: `SHAKE256(M, d) = KECCAK[512](M ‖ 1111, d)`. -/
-theorem shake256_bits_eq (m : Slice Bool) (d : Std.Usize)
-    (hdb : d.val ≤ 4294965000) (hm : m.val.length + 4 ≤ 4294965000) :
-    ∃ out : alloc.vec.Vec Bool,
+theorem shake256_bits_eq (m : hacspec_sha3_pedantic.bits.BitStr) (d : Std.U64)
+    (hdb : d.val + 1600 < 2 ^ 64) (hm : m.length + 1606 < 2 ^ 64) :
+    ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sha3.shake256 m d = ok out ∧
-      out.val = keccakCList 512 (m.val ++ [true, true, true, true]) d.val := by
+      out = keccakCList 512 (m ++ [true, true, true, true]) d.val := by
   obtain ⟨out, hout, houtv⟩ := suffix_keccak_eq m
     (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX) 512#usize d
     (by simp) (by simp) hdb (by rw [xof_suffix_val]; simpa using hm)
   refine ⟨out, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.sha3.shake256
+  · have hlift : (Std.lift (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX)
+        : RustM (Slice Bool)) = ok (Std.Array.to_slice hacspec_sha3_pedantic.sha3.XOF_SUFFIX) := rfl
+    unfold hacspec_sha3_pedantic.sha3.shake256
+    rw [hlift, bind_tc_ok]
     exact hout
   · rw [houtv, xof_suffix_val]
     norm_num
@@ -237,166 +252,156 @@ theorem copy_into_array_eq {n : Std.Usize} (a : Std.Array Std.U8 n)
   rfl
 
 /-- `SHA3-224` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_224_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
+theorem sha3_224_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 1604 < 2 ^ 64) :
     ∃ out : Std.Array Std.U8 28#usize,
       hacspec_sha3_pedantic.bytes.sha3_224 m = ok out ∧
       out.val = b2hList (keccakCList 448 (h2bList m.val ++ [false, true]) 224) := by
-  have hmb : 8 * m.val.length ≤ Std.Usize.max := by scalar_tac
-  obtain ⟨v, hv, hvv⟩ := h2b_full_eq m hmb
-  have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = h2bList m.val := hvv
-  obtain ⟨v1, hv1, hv1v⟩ := sha3_224_bits_eq ⟨v.val, v.property⟩ (by rw [hvs, h2bList_len]; omega)
-  have hv1s : (⟨v1.val, v1.property⟩ : Slice Bool).val
-      = keccakCList 448 (h2bList m.val ++ [false, true]) 224 := by
-    rw [show (⟨v1.val, v1.property⟩ : Slice Bool).val = v1.val from rfl, hv1v, hvs]
-  have hklen : (keccakCList 448 (h2bList m.val ++ [false, true]) 224).length = 224 :=
-    keccakCList_len 448 _ 224 (by omega)
-  obtain ⟨digest, hdig, hdigv⟩ := b2h_eq ⟨v1.val, v1.property⟩ (by rw [hv1s, hklen]; scalar_tac)
-  have hdiglen : digest.val.length = (28#usize : Std.Usize).val := by
-    rw [hdigv, hv1s, b2hList_len, hklen]
+  have hv := h2b_full_eq m
+  obtain ⟨v1, hv1, hv1v⟩ :=
+    sha3_224_bits_eq (h2bList m.val) (by rw [h2bList_len]; omega)
+  subst hv1v
+  have hklen : (keccakCList 448 (h2bList m.val ++ [false, true]) 224).length = 224 := keccakCList_len 448 _ 224 (by omega)
+  have hdiglen : (b2hList (keccakCList 448 (h2bList m.val ++ [false, true]) 224)).length = (28#usize : Std.Usize).val := by
+    rw [b2hList_len, hklen]
     norm_num
+  have hdigb : (b2hList (keccakCList 448 (h2bList m.val ++ [false, true]) 224)).length ≤ Std.Usize.max := by rw [hdiglen]; scalar_tac
+  have hdig := b2h_eq (keccakCList 448 (h2bList m.val ++ [false, true]) 224) hdigb
   refine ⟨Std.Array.from_slice (Std.Array.repeat 28#usize 0#u8)
-    ⟨digest.val, digest.property⟩, ?_, ?_⟩
+    ⟨b2hList (keccakCList 448 (h2bList m.val ++ [false, true]) 224), hdigb⟩, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.bytes.sha3_224
-    rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok, hv1, bind_tc_ok, vec_deref_eq, bind_tc_ok,
-      hdig, bind_tc_ok]
-    exact copy_into_array_eq _ digest hdiglen
-  · rw [Std.Array.from_slice_val _ ⟨digest.val, digest.property⟩ hdiglen, hdigv, hv1s]
+    rw [hv, bind_tc_ok, hv1, bind_tc_ok, hdig, bind_tc_ok]
+    exact copy_into_array_eq _ ⟨b2hList (keccakCList 448 (h2bList m.val ++ [false, true]) 224), hdigb⟩ hdiglen
+  · rw [Std.Array.from_slice_val _ ⟨b2hList (keccakCList 448 (h2bList m.val ++ [false, true]) 224), hdigb⟩ hdiglen]
 
 /-- `SHA3-256` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_256_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
+theorem sha3_256_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 1604 < 2 ^ 64) :
     ∃ out : Std.Array Std.U8 32#usize,
       hacspec_sha3_pedantic.bytes.sha3_256 m = ok out ∧
       out.val = b2hList (keccakCList 512 (h2bList m.val ++ [false, true]) 256) := by
-  have hmb : 8 * m.val.length ≤ Std.Usize.max := by scalar_tac
-  obtain ⟨v, hv, hvv⟩ := h2b_full_eq m hmb
-  have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = h2bList m.val := hvv
-  obtain ⟨v1, hv1, hv1v⟩ := sha3_256_bits_eq ⟨v.val, v.property⟩ (by rw [hvs, h2bList_len]; omega)
-  have hv1s : (⟨v1.val, v1.property⟩ : Slice Bool).val
-      = keccakCList 512 (h2bList m.val ++ [false, true]) 256 := by
-    rw [show (⟨v1.val, v1.property⟩ : Slice Bool).val = v1.val from rfl, hv1v, hvs]
-  have hklen : (keccakCList 512 (h2bList m.val ++ [false, true]) 256).length = 256 :=
-    keccakCList_len 512 _ 256 (by omega)
-  obtain ⟨digest, hdig, hdigv⟩ := b2h_eq ⟨v1.val, v1.property⟩ (by rw [hv1s, hklen]; scalar_tac)
-  have hdiglen : digest.val.length = (32#usize : Std.Usize).val := by
-    rw [hdigv, hv1s, b2hList_len, hklen]
+  have hv := h2b_full_eq m
+  obtain ⟨v1, hv1, hv1v⟩ :=
+    sha3_256_bits_eq (h2bList m.val) (by rw [h2bList_len]; omega)
+  subst hv1v
+  have hklen : (keccakCList 512 (h2bList m.val ++ [false, true]) 256).length = 256 := keccakCList_len 512 _ 256 (by omega)
+  have hdiglen : (b2hList (keccakCList 512 (h2bList m.val ++ [false, true]) 256)).length = (32#usize : Std.Usize).val := by
+    rw [b2hList_len, hklen]
     norm_num
+  have hdigb : (b2hList (keccakCList 512 (h2bList m.val ++ [false, true]) 256)).length ≤ Std.Usize.max := by rw [hdiglen]; scalar_tac
+  have hdig := b2h_eq (keccakCList 512 (h2bList m.val ++ [false, true]) 256) hdigb
   refine ⟨Std.Array.from_slice (Std.Array.repeat 32#usize 0#u8)
-    ⟨digest.val, digest.property⟩, ?_, ?_⟩
+    ⟨b2hList (keccakCList 512 (h2bList m.val ++ [false, true]) 256), hdigb⟩, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.bytes.sha3_256
-    rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok, hv1, bind_tc_ok, vec_deref_eq, bind_tc_ok,
-      hdig, bind_tc_ok]
-    exact copy_into_array_eq _ digest hdiglen
-  · rw [Std.Array.from_slice_val _ ⟨digest.val, digest.property⟩ hdiglen, hdigv, hv1s]
+    rw [hv, bind_tc_ok, hv1, bind_tc_ok, hdig, bind_tc_ok]
+    exact copy_into_array_eq _ ⟨b2hList (keccakCList 512 (h2bList m.val ++ [false, true]) 256), hdigb⟩ hdiglen
+  · rw [Std.Array.from_slice_val _ ⟨b2hList (keccakCList 512 (h2bList m.val ++ [false, true]) 256), hdigb⟩ hdiglen]
 
 /-- `SHA3-384` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_384_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
+theorem sha3_384_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 1604 < 2 ^ 64) :
     ∃ out : Std.Array Std.U8 48#usize,
       hacspec_sha3_pedantic.bytes.sha3_384 m = ok out ∧
       out.val = b2hList (keccakCList 768 (h2bList m.val ++ [false, true]) 384) := by
-  have hmb : 8 * m.val.length ≤ Std.Usize.max := by scalar_tac
-  obtain ⟨v, hv, hvv⟩ := h2b_full_eq m hmb
-  have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = h2bList m.val := hvv
-  obtain ⟨v1, hv1, hv1v⟩ := sha3_384_bits_eq ⟨v.val, v.property⟩ (by rw [hvs, h2bList_len]; omega)
-  have hv1s : (⟨v1.val, v1.property⟩ : Slice Bool).val
-      = keccakCList 768 (h2bList m.val ++ [false, true]) 384 := by
-    rw [show (⟨v1.val, v1.property⟩ : Slice Bool).val = v1.val from rfl, hv1v, hvs]
-  have hklen : (keccakCList 768 (h2bList m.val ++ [false, true]) 384).length = 384 :=
-    keccakCList_len 768 _ 384 (by omega)
-  obtain ⟨digest, hdig, hdigv⟩ := b2h_eq ⟨v1.val, v1.property⟩ (by rw [hv1s, hklen]; scalar_tac)
-  have hdiglen : digest.val.length = (48#usize : Std.Usize).val := by
-    rw [hdigv, hv1s, b2hList_len, hklen]
+  have hv := h2b_full_eq m
+  obtain ⟨v1, hv1, hv1v⟩ :=
+    sha3_384_bits_eq (h2bList m.val) (by rw [h2bList_len]; omega)
+  subst hv1v
+  have hklen : (keccakCList 768 (h2bList m.val ++ [false, true]) 384).length = 384 := keccakCList_len 768 _ 384 (by omega)
+  have hdiglen : (b2hList (keccakCList 768 (h2bList m.val ++ [false, true]) 384)).length = (48#usize : Std.Usize).val := by
+    rw [b2hList_len, hklen]
     norm_num
+  have hdigb : (b2hList (keccakCList 768 (h2bList m.val ++ [false, true]) 384)).length ≤ Std.Usize.max := by rw [hdiglen]; scalar_tac
+  have hdig := b2h_eq (keccakCList 768 (h2bList m.val ++ [false, true]) 384) hdigb
   refine ⟨Std.Array.from_slice (Std.Array.repeat 48#usize 0#u8)
-    ⟨digest.val, digest.property⟩, ?_, ?_⟩
+    ⟨b2hList (keccakCList 768 (h2bList m.val ++ [false, true]) 384), hdigb⟩, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.bytes.sha3_384
-    rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok, hv1, bind_tc_ok, vec_deref_eq, bind_tc_ok,
-      hdig, bind_tc_ok]
-    exact copy_into_array_eq _ digest hdiglen
-  · rw [Std.Array.from_slice_val _ ⟨digest.val, digest.property⟩ hdiglen, hdigv, hv1s]
+    rw [hv, bind_tc_ok, hv1, bind_tc_ok, hdig, bind_tc_ok]
+    exact copy_into_array_eq _ ⟨b2hList (keccakCList 768 (h2bList m.val ++ [false, true]) 384), hdigb⟩ hdiglen
+  · rw [Std.Array.from_slice_val _ ⟨b2hList (keccakCList 768 (h2bList m.val ++ [false, true]) 384), hdigb⟩ hdiglen]
 
 /-- `SHA3-512` on byte strings: `h2b`, the bit-level hash, then `b2h`. -/
-theorem sha3_512_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 2 ≤ 4294965000) :
+theorem sha3_512_bytes_eq (m : Slice Std.U8) (hm : 8 * m.val.length + 1604 < 2 ^ 64) :
     ∃ out : Std.Array Std.U8 64#usize,
       hacspec_sha3_pedantic.bytes.sha3_512 m = ok out ∧
       out.val = b2hList (keccakCList 1024 (h2bList m.val ++ [false, true]) 512) := by
-  have hmb : 8 * m.val.length ≤ Std.Usize.max := by scalar_tac
-  obtain ⟨v, hv, hvv⟩ := h2b_full_eq m hmb
-  have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = h2bList m.val := hvv
-  obtain ⟨v1, hv1, hv1v⟩ := sha3_512_bits_eq ⟨v.val, v.property⟩ (by rw [hvs, h2bList_len]; omega)
-  have hv1s : (⟨v1.val, v1.property⟩ : Slice Bool).val
-      = keccakCList 1024 (h2bList m.val ++ [false, true]) 512 := by
-    rw [show (⟨v1.val, v1.property⟩ : Slice Bool).val = v1.val from rfl, hv1v, hvs]
-  have hklen : (keccakCList 1024 (h2bList m.val ++ [false, true]) 512).length = 512 :=
-    keccakCList_len 1024 _ 512 (by omega)
-  obtain ⟨digest, hdig, hdigv⟩ := b2h_eq ⟨v1.val, v1.property⟩ (by rw [hv1s, hklen]; scalar_tac)
-  have hdiglen : digest.val.length = (64#usize : Std.Usize).val := by
-    rw [hdigv, hv1s, b2hList_len, hklen]
+  have hv := h2b_full_eq m
+  obtain ⟨v1, hv1, hv1v⟩ :=
+    sha3_512_bits_eq (h2bList m.val) (by rw [h2bList_len]; omega)
+  subst hv1v
+  have hklen : (keccakCList 1024 (h2bList m.val ++ [false, true]) 512).length = 512 := keccakCList_len 1024 _ 512 (by omega)
+  have hdiglen : (b2hList (keccakCList 1024 (h2bList m.val ++ [false, true]) 512)).length = (64#usize : Std.Usize).val := by
+    rw [b2hList_len, hklen]
     norm_num
+  have hdigb : (b2hList (keccakCList 1024 (h2bList m.val ++ [false, true]) 512)).length ≤ Std.Usize.max := by rw [hdiglen]; scalar_tac
+  have hdig := b2h_eq (keccakCList 1024 (h2bList m.val ++ [false, true]) 512) hdigb
   refine ⟨Std.Array.from_slice (Std.Array.repeat 64#usize 0#u8)
-    ⟨digest.val, digest.property⟩, ?_, ?_⟩
+    ⟨b2hList (keccakCList 1024 (h2bList m.val ++ [false, true]) 512), hdigb⟩, ?_, ?_⟩
   · unfold hacspec_sha3_pedantic.bytes.sha3_512
-    rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok, hv1, bind_tc_ok, vec_deref_eq, bind_tc_ok,
-      hdig, bind_tc_ok]
-    exact copy_into_array_eq _ digest hdiglen
-  · rw [Std.Array.from_slice_val _ ⟨digest.val, digest.property⟩ hdiglen, hdigv, hv1s]
+    rw [hv, bind_tc_ok, hv1, bind_tc_ok, hdig, bind_tc_ok]
+    exact copy_into_array_eq _ ⟨b2hList (keccakCList 1024 (h2bList m.val ++ [false, true]) 512), hdigb⟩ hdiglen
+  · rw [Std.Array.from_slice_val _ ⟨b2hList (keccakCList 1024 (h2bList m.val ++ [false, true]) 512), hdigb⟩ hdiglen]
 
 /-- `SHAKE128` on byte strings, producing `out_bytes` bytes. -/
 theorem shake128_bytes_eq (m : Slice Std.U8) (out_bytes : Std.Usize)
-    (hob : 8 * out_bytes.val ≤ 4294965000)
-    (hm : 8 * m.val.length + 4 ≤ 4294965000) :
+    (hob : 8 * out_bytes.val + 1600 < 2 ^ 64)
+    (hm : 8 * m.val.length + 1606 < 2 ^ 64) :
     ∃ out : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake128 m out_bytes = ok out ∧
-      out.val = b2hList (keccakCList 256 (h2bList m.val ++ [true, true, true, true])
-        (8 * out_bytes.val)) := by
-  have hmb : 8 * m.val.length ≤ Std.Usize.max := by scalar_tac
-  obtain ⟨v, hv, hvv⟩ := h2b_full_eq m hmb
-  have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = h2bList m.val := hvv
-  obtain ⟨i, hi, hiv⟩ := usize_mul_eq 8#usize out_bytes (by scalar_tac)
-  have hin : i.val = 8 * out_bytes.val := by rw [hiv]; simp
-  obtain ⟨v1, hv1, hv1v⟩ := shake128_bits_eq ⟨v.val, v.property⟩ i (by omega)
-    (by rw [hvs, h2bList_len]; omega)
-  have hv1s : (⟨v1.val, v1.property⟩ : Slice Bool).val
-      = keccakCList 256 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val) := by
-    rw [show (⟨v1.val, v1.property⟩ : Slice Bool).val = v1.val from rfl, hv1v, hvs, hin]
-  have hklen : (keccakCList 256 (h2bList m.val ++ [true, true, true, true])
-      (8 * out_bytes.val)).length = 8 * out_bytes.val :=
-    keccakCList_len 256 _ _ (by omega)
-  obtain ⟨digest, hdig, hdigv⟩ := b2h_eq ⟨v1.val, v1.property⟩ (by rw [hv1s, hklen]; scalar_tac)
-  refine ⟨digest, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.bytes.shake128
-    rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok, hi, bind_tc_ok, hv1, bind_tc_ok,
-      vec_deref_eq, bind_tc_ok]
-    exact hdig
-  · rw [hdigv, hv1s]
+      out.val = b2hList (keccakCList 256 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)) := by
+  have hv := h2b_full_eq m
+  -- the output length crosses to `u64` before it is multiplied by eight
+  have hliftcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 out_bytes) : RustM Std.U64)
+      = ok (Std.UScalar.cast Std.UScalarTy.U64 out_bytes) := rfl
+  have hobv : (Std.UScalar.cast Std.UScalarTy.U64 out_bytes).val = out_bytes.val := by
+    rw [Std.UScalar.cast_val_eq]
+    exact Nat.mod_eq_of_lt (by simp only [Std.UScalarTy.U64_numBits_eq]; scalar_tac)
+  obtain ⟨i, hi, hiv⟩ := Std.WP.spec_imp_exists
+    (Std.UScalar.mul_spec (x := (8#u64 : Std.U64))
+      (y := Std.UScalar.cast Std.UScalarTy.U64 out_bytes) (by
+        rw [hobv]; scalar_tac))
+  have hin : i.val = 8 * out_bytes.val := by rw [hiv, hobv]; simp
+  obtain ⟨v1, hv1, hv1v⟩ :=
+    shake128_bits_eq (h2bList m.val) i (by rw [hin]; omega) (by rw [h2bList_len]; omega)
+  rw [hin] at hv1v
+  subst hv1v
+  have hklen : (keccakCList 256 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)).length = 8 * out_bytes.val := keccakCList_len 256 _ _ (by omega)
+  have hdigb : (b2hList (keccakCList 256 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val))).length ≤ Std.Usize.max := by
+    rw [b2hList_len, hklen]; scalar_tac
+  have hdig := b2h_eq (keccakCList 256 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)) hdigb
+  refine ⟨⟨b2hList (keccakCList 256 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)), hdigb⟩, ?_, rfl⟩
+  unfold hacspec_sha3_pedantic.bytes.shake128
+  rw [hv, bind_tc_ok, hliftcast, bind_tc_ok, hi, bind_tc_ok, hv1, bind_tc_ok]
+  exact hdig
 
 /-- `SHAKE256` on byte strings, producing `out_bytes` bytes. -/
 theorem shake256_bytes_eq (m : Slice Std.U8) (out_bytes : Std.Usize)
-    (hob : 8 * out_bytes.val ≤ 4294965000)
-    (hm : 8 * m.val.length + 4 ≤ 4294965000) :
+    (hob : 8 * out_bytes.val + 1600 < 2 ^ 64)
+    (hm : 8 * m.val.length + 1606 < 2 ^ 64) :
     ∃ out : alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake256 m out_bytes = ok out ∧
-      out.val = b2hList (keccakCList 512 (h2bList m.val ++ [true, true, true, true])
-        (8 * out_bytes.val)) := by
-  have hmb : 8 * m.val.length ≤ Std.Usize.max := by scalar_tac
-  obtain ⟨v, hv, hvv⟩ := h2b_full_eq m hmb
-  have hvs : (⟨v.val, v.property⟩ : Slice Bool).val = h2bList m.val := hvv
-  obtain ⟨i, hi, hiv⟩ := usize_mul_eq 8#usize out_bytes (by scalar_tac)
-  have hin : i.val = 8 * out_bytes.val := by rw [hiv]; simp
-  obtain ⟨v1, hv1, hv1v⟩ := shake256_bits_eq ⟨v.val, v.property⟩ i (by omega)
-    (by rw [hvs, h2bList_len]; omega)
-  have hv1s : (⟨v1.val, v1.property⟩ : Slice Bool).val
-      = keccakCList 512 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val) := by
-    rw [show (⟨v1.val, v1.property⟩ : Slice Bool).val = v1.val from rfl, hv1v, hvs, hin]
-  have hklen : (keccakCList 512 (h2bList m.val ++ [true, true, true, true])
-      (8 * out_bytes.val)).length = 8 * out_bytes.val :=
-    keccakCList_len 512 _ _ (by omega)
-  obtain ⟨digest, hdig, hdigv⟩ := b2h_eq ⟨v1.val, v1.property⟩ (by rw [hv1s, hklen]; scalar_tac)
-  refine ⟨digest, ?_, ?_⟩
-  · unfold hacspec_sha3_pedantic.bytes.shake256
-    rw [hv, bind_tc_ok, vec_deref_eq, bind_tc_ok, hi, bind_tc_ok, hv1, bind_tc_ok,
-      vec_deref_eq, bind_tc_ok]
-    exact hdig
-  · rw [hdigv, hv1s]
+      out.val = b2hList (keccakCList 512 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)) := by
+  have hv := h2b_full_eq m
+  -- the output length crosses to `u64` before it is multiplied by eight
+  have hliftcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 out_bytes) : RustM Std.U64)
+      = ok (Std.UScalar.cast Std.UScalarTy.U64 out_bytes) := rfl
+  have hobv : (Std.UScalar.cast Std.UScalarTy.U64 out_bytes).val = out_bytes.val := by
+    rw [Std.UScalar.cast_val_eq]
+    exact Nat.mod_eq_of_lt (by simp only [Std.UScalarTy.U64_numBits_eq]; scalar_tac)
+  obtain ⟨i, hi, hiv⟩ := Std.WP.spec_imp_exists
+    (Std.UScalar.mul_spec (x := (8#u64 : Std.U64))
+      (y := Std.UScalar.cast Std.UScalarTy.U64 out_bytes) (by
+        rw [hobv]; scalar_tac))
+  have hin : i.val = 8 * out_bytes.val := by rw [hiv, hobv]; simp
+  obtain ⟨v1, hv1, hv1v⟩ :=
+    shake256_bits_eq (h2bList m.val) i (by rw [hin]; omega) (by rw [h2bList_len]; omega)
+  rw [hin] at hv1v
+  subst hv1v
+  have hklen : (keccakCList 512 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)).length = 8 * out_bytes.val := keccakCList_len 512 _ _ (by omega)
+  have hdigb : (b2hList (keccakCList 512 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val))).length ≤ Std.Usize.max := by
+    rw [b2hList_len, hklen]; scalar_tac
+  have hdig := b2h_eq (keccakCList 512 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)) hdigb
+  refine ⟨⟨b2hList (keccakCList 512 (h2bList m.val ++ [true, true, true, true]) (8 * out_bytes.val)), hdigb⟩, ?_, rfl⟩
+  unfold hacspec_sha3_pedantic.bytes.shake256
+  rw [hv, bind_tc_ok, hliftcast, bind_tc_ok, hi, bind_tc_ok, hv1, bind_tc_ok]
+  exact hdig
 
 -- Pin the six byte-level entry points to Lean's standard three axioms.
 /--

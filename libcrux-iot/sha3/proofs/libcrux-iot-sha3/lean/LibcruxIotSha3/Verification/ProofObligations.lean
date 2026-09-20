@@ -311,42 +311,44 @@ private theorem array_eq_true {N : Std.Usize} {a b : Std.Array Std.U8 N} (h : a.
     lemmas are that agreement in the shape the posts want. -/
 
 private theorem pedantic_sha3_224 {payload : Slice Std.U8}
-    (hb : 8 * payload.val.length + 2 ≤ 4294965000) :
+    (hb : 8 * payload.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_224 payload
       = .ok (keccakLanes 28#usize (144#usize : Std.Usize).val 6#u8 payload.val) :=
   LibcruxIotSha3.Composition.Pedantic.sha3_224_lanes_agree payload hb
 
 private theorem pedantic_sha3_256 {payload : Slice Std.U8}
-    (hb : 8 * payload.val.length + 2 ≤ 4294965000) :
+    (hb : 8 * payload.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_256 payload
       = .ok (keccakLanes 32#usize (136#usize : Std.Usize).val 6#u8 payload.val) :=
   LibcruxIotSha3.Composition.Pedantic.sha3_256_lanes_agree payload hb
 
 private theorem pedantic_sha3_384 {payload : Slice Std.U8}
-    (hb : 8 * payload.val.length + 2 ≤ 4294965000) :
+    (hb : 8 * payload.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_384 payload
       = .ok (keccakLanes 48#usize (104#usize : Std.Usize).val 6#u8 payload.val) :=
   LibcruxIotSha3.Composition.Pedantic.sha3_384_lanes_agree payload hb
 
 private theorem pedantic_sha3_512 {payload : Slice Std.U8}
-    (hb : 8 * payload.val.length + 2 ≤ 4294965000) :
+    (hb : 8 * payload.val.length + 1604 < 2 ^ 64) :
     hacspec_sha3_pedantic.bytes.sha3_512 payload
       = .ok (keccakLanes 64#usize (72#usize : Std.Usize).val 6#u8 payload.val) :=
   LibcruxIotSha3.Composition.Pedantic.sha3_512_lanes_agree payload hb
 
 private theorem pedantic_shake128 {BYTES : Std.Usize} {data : Slice Std.U8}
-    (hb : 8 * BYTES.val ≤ 4294965000) (hm : 8 * data.val.length + 4 ≤ 4294965000) :
+    (hN : BYTES.val ≤ 4294967296)
+    (hb : 8 * BYTES.val + 1600 < 2 ^ 64) (hm : 8 * data.val.length + 1606 < 2 ^ 64) :
     ∃ v : CoreModels.alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake128 data BYTES = .ok v ∧
         v.val = (keccakLanes BYTES (168#usize : Std.Usize).val 31#u8 data.val).val :=
-  LibcruxIotSha3.Composition.Pedantic.shake128_lanes_agree BYTES data (by omega) hb hm
+  LibcruxIotSha3.Composition.Pedantic.shake128_lanes_agree BYTES data hN hb hm
 
 private theorem pedantic_shake256 {BYTES : Std.Usize} {data : Slice Std.U8}
-    (hb : 8 * BYTES.val ≤ 4294965000) (hm : 8 * data.val.length + 4 ≤ 4294965000) :
+    (hN : BYTES.val ≤ 4294967296)
+    (hb : 8 * BYTES.val + 1600 < 2 ^ 64) (hm : 8 * data.val.length + 1606 < 2 ^ 64) :
     ∃ v : CoreModels.alloc.vec.Vec Std.U8,
       hacspec_sha3_pedantic.bytes.shake256 data BYTES = .ok v ∧
         v.val = (keccakLanes BYTES (136#usize : Std.Usize).val 31#u8 data.val).val :=
-  LibcruxIotSha3.Composition.Pedantic.shake256_lanes_agree BYTES data (by omega) hb hm
+  LibcruxIotSha3.Composition.Pedantic.shake256_lanes_agree BYTES data hN hb hm
 
 /-- `vec[..]` is the vector viewed as a slice (the SHAKE posts end on a `Vec`,
     since the FIPS-202 transcript's SHAKE returns one). -/
@@ -389,7 +391,7 @@ theorem shake128_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     obtain ⟨v, hv_eq, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake128_spec BYTES data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake128 (BYTES := BYTES) (data := data) (by omega) (by omega)
+      pedantic_shake128 (BYTES := BYTES) (data := data) (by omega) (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake128.post data v = .ok true := by
       simp only [libcrux_iot_sha3.shake128.post]
@@ -423,7 +425,7 @@ theorem shake256_spec_proof (BYTES : Std.Usize) (data : Slice Std.U8) :
     obtain ⟨v, hv_eq, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake256_spec BYTES data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake256 (BYTES := BYTES) (data := data) (by omega) (by omega)
+      pedantic_shake256 (BYTES := BYTES) (data := data) (by omega) (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake256.post data v = .ok true := by
       simp only [libcrux_iot_sha3.shake256.post]
@@ -642,7 +644,7 @@ theorem shake128_ema_spec_proof (out data : Slice Std.U8) :
     obtain ⟨v, hv_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake128_ema_spec out data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake128 (BYTES := Aeneas.Std.Slice.len out) (data := data)
+      pedantic_shake128 (BYTES := Aeneas.Std.Slice.len out) (data := data) (by omega)
         (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake128_ema.post out data v = .ok true := by
@@ -675,7 +677,7 @@ theorem shake256_ema_spec_proof (out data : Slice Std.U8) :
     obtain ⟨v, hv_eq, hv_len, hv_bytes⟩ :=
       triple_exists_ok (Sponge.shake256_ema_spec out data)
     obtain ⟨pv, hpv, hpvv⟩ :=
-      pedantic_shake256 (BYTES := Aeneas.Std.Slice.len out) (data := data)
+      pedantic_shake256 (BYTES := Aeneas.Std.Slice.len out) (data := data) (by omega)
         (by omega) (by omega)
     refine triple_of_ok hv_eq ?_
     have hpost : libcrux_iot_sha3.shake256_ema.post out data v = .ok true := by

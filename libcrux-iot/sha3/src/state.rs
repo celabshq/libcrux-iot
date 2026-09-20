@@ -278,7 +278,7 @@ pub(crate) mod cross_spec {
     pub(crate) fn spec_block_bits(block: &[u8]) -> alloc::vec::Vec<bool> {
         use hacspec_sha3_pedantic::bits;
         bits::concat(
-            &bits::h2b_full(block),
+            &bits::h2b_full(block).to_bits(),
             &bits::zeros(1600 - 8 * block.len()),
         )
     }
@@ -295,8 +295,8 @@ pub(crate) mod cross_spec {
     /// The first `rate` bytes of the state (Algorithm 8, step 8: `Trunc_r`,
     /// read back as bytes).
     pub(crate) fn spec_squeeze(flat: &[u64; 25], rate: usize) -> alloc::vec::Vec<u8> {
-        use hacspec_sha3_pedantic::bits;
-        bits::b2h(&bits::trunc(&lanes_to_bits(flat), 8 * rate))
+        use hacspec_sha3_pedantic::{bits, bits::BitStr};
+        bits::b2h(&BitStr::from_bits(&bits::trunc(&lanes_to_bits(flat), 8 * rate)))
     }
 }
 
