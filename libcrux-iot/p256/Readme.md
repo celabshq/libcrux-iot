@@ -1,4 +1,8 @@
-# NIST Curve P-256
+# Libcrux-IoT NIST Curve P-256
+
+⚠️***Caution*** This crate is a work in progress, and should not be
+used in production. In particular it is not guaranteed that any proofs are
+stable at this point.
 
 ⚠️ NOTE: This crate serves as an internal dependency to other `libcrux`
 crates and SHOULD NOT be used directly.
