@@ -19,9 +19,11 @@
 // those are in Montgomery form, an internal representation of that implementation and not
 // what `EcPrimitives` expects. `base_point_matches_make_g` below checks the two against each
 // other.
-use embedded_cal::p256::{P256_GX_BYTES, P256_GY_BYTES};
-use embedded_cal::plumbing::ec::{EcPrimitives, P256};
-use embedded_cal::ImportError;
+use embedded_cal::{
+    plumbing::ec::{EcPrimitives, P256},
+    util::p256::{P256_GX_BYTES, P256_GY_BYTES},
+    ImportError,
+};
 // The masking code below is copied verbatim from the extracted `crate::p256`, which needs
 // this alias for the `unroll_for!` macro.
 use libcrux_macros as krml;
