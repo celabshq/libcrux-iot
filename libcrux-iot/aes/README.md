@@ -1,4 +1,8 @@
-# AES-based AEADs
+# Libcrux-IoT AES-based AEADs
+
+⚠️***Caution*** This crate is a work in progress, and should not be
+used in production. In particular it is not guaranteed that any proofs are
+stable at this point.
 
 ![pre-verification]
 

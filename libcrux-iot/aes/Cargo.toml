@@ -8,7 +8,7 @@ license.workspace = true
 name = "libcrux-iot-aes"
 readme = "README.md"
 repository.workspace = true
-version = "0.0.8"
+version = "0.0.1-alpha.1"
 
 [lib]
 bench = false # so libtest doesn't eat the arguments to criterion
