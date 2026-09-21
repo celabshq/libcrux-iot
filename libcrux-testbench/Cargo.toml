@@ -5,13 +5,14 @@ edition = "2021"
 
 [dependencies]
 libcrux-iot-ml-dsa = { path = "../libcrux-iot/ml-dsa" }
-libcrux-iot-ml-kem = { path = "../libcrux-iot/ml-kem", default-features = false, features = [ "mlkem512", "mlkem768", "mlkem1024",] } 
+libcrux-iot-ml-kem = { path = "../libcrux-iot/ml-kem", default-features = false, features = [
+    "mlkem512",
+    "mlkem768",
+    "mlkem1024",
+] }
 libcrux-iot-testutil = { path = "../libcrux-iot-testutil" }
-libcrux-traits = "0.0.7"
+libcrux-traits = "0.0.8"
 
-[patch.crates-io]
-# patch until libcrux-secrets 0.0.6 is released
-libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "c4253d211a605f4a284c595fc6ca28ae18dd07ba" }
 
 [features]
 default = ["mldsa87"]
