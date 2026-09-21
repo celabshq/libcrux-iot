@@ -26,13 +26,13 @@ bench = false # so libtest doesn't eat the arguments to criterion
 
 [dependencies]
 rand = { version = "0.9", optional = true }
-libcrux-iot-sha3 = { path = "../sha3" , features = [
+libcrux-iot-sha3 = { path = "../sha3", features = [
     "full-unroll",
-    "unbuffered-xof"
+    "unbuffered-xof",
 ] }
 hax-lib.workspace = true
 libcrux-secrets.workspace = true
-libcrux-traits = { version = "0.0.7", features = ["generic-tests"] }
+libcrux-traits = { workspace = true, features = ["generic-tests"] }
 tls_codec = { version = "0.4.2", features = [
     "derive",
 ], default-features = false, optional = true }
@@ -61,10 +61,10 @@ alloc = []
 
 
 check-secret-independence = [
-                          "libcrux-secrets/check-secret-independence",
-                          "libcrux-iot-sha3/check-secret-independence",
-                          "libcrux-traits/check-secret-independence"
-                          ]
+    "libcrux-secrets/check-secret-independence",
+    "libcrux-iot-sha3/check-secret-independence",
+    "libcrux-traits/check-secret-independence",
+]
 
 # PQCP Common APIs
 pqcp = []
@@ -75,7 +75,7 @@ serde_json = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
 hex = { version = "0.4.3", features = ["serde"] }
 criterion = "0.5"
-libcrux-kats = { workspace = true, features = [ "mlkem"] }
+libcrux-kats = { workspace = true, features = ["mlkem"] }
 
 [[bench]]
 name = "ml-kem"
