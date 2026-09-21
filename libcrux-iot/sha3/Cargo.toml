@@ -18,15 +18,9 @@ bench = false # so libtest doesn't eat the arguments to criterion
 [dependencies]
 libcrux-secrets.workspace = true
 libcrux-traits.workspace = true
-hax-lib.workspace = true
 
-# XXX: Unfortunately, it's not possible to use certain hax attributes
-# with `cfg_attr`, which means we can't have hax-lib as a `cfg(hax)`
-# only dependency. (See https://github.com/cryspen/hax/issues/1496)
-# # This is only required for verification.
-# # The hax config is set by the hax toolchain.
-# [target.'cfg(hax)'.dependencies]
-# hax-lib.workspace = true
+[target.'cfg(hax)'.dependencies]
+hax-lib.workspace = true
 
 [features]
 full-unroll = []
