@@ -2,7 +2,15 @@
 authors.workspace = true
 description = "Libcrux-IoT AES-based AEAD implementations"
 edition.workspace = true
-exclude = []
+exclude = [
+    "proofs",
+    "benches",
+    "examples",
+    "fuzz",
+    "config.toml",
+    "fuzz.sh",
+    "shell.nix",
+]
 homepage.workspace = true
 license.workspace = true
 name = "libcrux-iot-aes"
