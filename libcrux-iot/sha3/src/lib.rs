@@ -567,11 +567,6 @@ pub(crate) fn keccakx1<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mu
 }
 
 #[cfg(feature = "check-secret-independence")]
-trait FromLeBytes<const N: usize>: Sized {
-    fn from_le_bytes(bytes: [U8; N]) -> Self;
-}
-
-#[cfg(feature = "check-secret-independence")]
 trait ToLeBytes<const N: usize>: Sized {
     fn to_le_bytes(self) -> [U8; N];
 }

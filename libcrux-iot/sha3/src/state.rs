@@ -6,7 +6,7 @@ use libcrux_secrets::{U32, U8};
 
 use crate::lane::Lane2U32;
 #[cfg(feature = "check-secret-independence")]
-use crate::{FromLeBytes, ToLeBytes};
+use crate::ToLeBytes;
 
 #[derive(Clone, Copy)]
 #[cfg_attr(not(any(eurydice, hax_backend_lean)), derive(Debug))]
@@ -186,12 +186,5 @@ fn store_block_full_2u32<const RATE: usize>(s: &KeccakState, out: &mut [U8; 200]
 impl ToLeBytes<4> for U32 {
     fn to_le_bytes(self) -> [U8; 4] {
         self.declassify().to_le_bytes().classify()
-    }
-}
-
-#[cfg(feature = "check-secret-independence")]
-impl FromLeBytes<4> for U32 {
-    fn from_le_bytes(bytes: [U8; 4]) -> Self {
-        u32::from_le_bytes(bytes.declassify()).classify()
     }
 }

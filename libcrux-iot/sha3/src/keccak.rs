@@ -4,8 +4,6 @@
 #[cfg(hax)]
 use hax_lib::ToInt;
 use libcrux_secrets::{Classify, U8};
-#[cfg(feature = "check-secret-independence")]
-use libcrux_secrets::{Declassify, U32};
 
 use crate::state::KeccakState;
 
@@ -2716,16 +2714,3 @@ hax_lib::loop_invariant!(|_i: usize| { out.len() == outlen && offset == _i * RAT
         }
     }
 }
-
-#[cfg(feature = "check-secret-independence")]
-trait RotateLeft {
-    fn rotate_left(self, n: u32) -> Self;
-}
-
-#[cfg(feature = "check-secret-independence")]
-impl RotateLeft for U32 {
-    fn rotate_left(self, n: u32) -> Self {
-        self.declassify().rotate_left(n).classify()
-    }
-}
-
