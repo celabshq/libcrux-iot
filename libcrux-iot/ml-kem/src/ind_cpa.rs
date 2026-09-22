@@ -1,6 +1,6 @@
-use libcrux_secrets::mem_requests::ct_declassify;
-
 use core::array::from_fn;
+
+use libcrux_secrets::mem_requests::ct_declassify;
 
 use crate::{
     constants::*,
@@ -265,7 +265,7 @@ fn sample_vector_cbd_then_ntt<
 /// <https://csrc.nist.gov/pubs/fips/203/ipd>.
 #[hax_lib::requires(
     (K == 2 || K == 3 || K == 4) &&
-    K_SQUARED == K * K && 
+    K_SQUARED == K * K &&
     (ETA1 == 3 || ETA1 == 2) &&
     ETA1_RANDOMNESS_SIZE == 64 * ETA1 &&
     PRF_OUTPUT_SIZE1 == K * ETA1_RANDOMNESS_SIZE &&
@@ -458,10 +458,10 @@ pub(crate) fn serialize_unpacked_secret_key<
 
 /// Call [`compress_then_serialize_ring_element_u`] on each ring element.
 #[hax_lib::requires(
-    (K == 2 || K == 3 || K == 4) && 
+    (K == 2 || K == 3 || K == 4) &&
     ((U_COMPRESSION_FACTOR == 10 && BLOCK_LEN == crate::polynomial::VECTORS_IN_RING_ELEMENT * 20)
         || (U_COMPRESSION_FACTOR == 11 && BLOCK_LEN == crate::polynomial::VECTORS_IN_RING_ELEMENT * 22)) &&
-    C1_LEN == K * BLOCK_LEN && 
+    C1_LEN == K * BLOCK_LEN &&
     out.len() == C1_LEN
 )]
 #[hax_lib::ensures(|_| future(out).len() == out.len())]
@@ -632,7 +632,7 @@ pub(crate) fn encrypt<
     PRF_OUTPUT_SIZE2 == K * ETA2_RANDOMNESS_SIZE &&
     ((U_COMPRESSION_FACTOR == 10 && BLOCK_LEN == crate::polynomial::VECTORS_IN_RING_ELEMENT * 20)
         || (U_COMPRESSION_FACTOR == 11 && BLOCK_LEN == crate::polynomial::VECTORS_IN_RING_ELEMENT * 22)) &&
-    C1_LEN == K * BLOCK_LEN && 
+    C1_LEN == K * BLOCK_LEN &&
     randomness.len() == 32 &&
     seed_for_a.len() == 32 &&
     ciphertext.len() == C1_LEN &&

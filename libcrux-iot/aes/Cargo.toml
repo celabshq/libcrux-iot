@@ -2,13 +2,22 @@
 authors.workspace = true
 description = "Libcrux-IoT AES-based AEAD implementations"
 edition.workspace = true
-exclude = []
+exclude = [
+    "proofs",
+    "benches",
+    "examples",
+    "fuzz",
+    "config.toml",
+    "fuzz.sh",
+    "shell.nix",
+    "CHANGELOG.md",
+]
 homepage.workspace = true
 license.workspace = true
 name = "libcrux-iot-aes"
 readme = "README.md"
 repository.workspace = true
-version = "0.0.8"
+version = "0.0.1-alpha.1"
 
 [lib]
 bench = false # so libtest doesn't eat the arguments to criterion
@@ -34,7 +43,6 @@ name = "aesgcm"
 aes-gcm = "0.10.3"
 criterion = "0.8.0"
 hex = "0.4.3"
-pretty_env_logger = "0.5.0"
 rand = "0.10"
 wycheproof = "0.6.0"
 

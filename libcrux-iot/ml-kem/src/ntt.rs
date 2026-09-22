@@ -75,7 +75,7 @@ fn ntt_layer_int_vec_step<Vector: Operations>(
 }
 
 #[hax_lib::requires(
-    layer >= 4 && layer <= 7 && *zeta_i == (1 << (7 - layer)) - 1 
+    layer >= 4 && layer <= 7 && *zeta_i == (1 << (7 - layer)) - 1
 )]
 #[inline(always)]
 pub(crate) fn ntt_at_layer_4_plus<Vector: Operations>(

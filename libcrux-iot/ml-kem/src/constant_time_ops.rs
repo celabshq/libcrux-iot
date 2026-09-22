@@ -8,8 +8,6 @@
 //
 // XXX: We have to disable this for C extraction for now. See eurydice/issues#37
 
-#[cfg(feature = "check-secret-independence")]
-use libcrux_secrets::IntOps as _;
 use libcrux_secrets::{CastOps as _, Classify as _, U8};
 
 /// Return 1 if `value` is not zero and 0 otherwise.

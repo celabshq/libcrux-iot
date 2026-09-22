@@ -13,13 +13,13 @@ readme = "README.md"
 
 [workspace.dependencies]
 libcrux-kats = { git = "https://github.com/cryspen/libcrux.git" }
-libcrux-secrets = { version = "0.0.5" }
+libcrux-secrets = { version = "0.0.6" }
 libcrux-macros = { version = "0.0.3" }
-libcrux-traits = { version = "0.0.7" }
+libcrux-traits = { version = "0.0.8" }
 libcrux-hacl-rs = { version = "0.0.5" }
-libcrux-sha2 = { version = "=0.0.7" }
+libcrux-sha2 = { version = "=0.0.8" }
 
-hax-lib = { version = "0.3.6" }
+hax-lib = { version = "0.4.0" }
 
 
 [workspace.lints.rust]
@@ -29,11 +29,6 @@ unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(doc_cfg)',
     'cfg(hax_backend_lean)',
 ] }
-
-[patch.crates-io]
-hax-lib = { git = "https://github.com/cryspen/hax", branch = "jonas/fstar-wrapping" }
-# patch until libcrux-secrets 0.0.6 is released
-libcrux-secrets = { git = "https://github.com/cryspen/libcrux.git", rev = "10a65cfa9175e8f78198f24ba450c17090622945" }
 
 [profile.release-debug]
 inherits = "release"
