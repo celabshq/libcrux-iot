@@ -10,6 +10,7 @@ exclude = [
     "config.toml",
     "fuzz.sh",
     "shell.nix",
+    "CHANGELOG.md",
 ]
 homepage.workspace = true
 license.workspace = true

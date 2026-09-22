@@ -3,6 +3,8 @@ name = "libcrux-iot-p256"
 description = "Formally verified P-256 implementation"
 readme = "Readme.md"
 version = "0.0.1-alpha.1"
+exclude = ["CHANGELOG.md"]
+
 authors.workspace = true
 license.workspace = true
 homepage.workspace = true
