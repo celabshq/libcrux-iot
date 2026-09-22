@@ -54,7 +54,7 @@ impl<const RATE: usize> KeccakSpongeState<RATE> {
         RATE > 0 &&
         RATE % 8 == 0 &&
         RATE <= 168 &&
-        self.buf_len < RATE 
+        self.buf_len < RATE
     ))]
     pub(crate) fn absorb(&mut self, inputs: &[U8]) {
         let input_remainder_len = self.absorb_full(inputs);
@@ -130,7 +130,7 @@ impl<const RATE: usize> KeccakSpongeState<RATE> {
     /// If `consumed > 0` is returned, `self.buf` contains a full block to be
     /// loaded.
     #[cfg_attr(hax, hax_lib::requires(
-        self.buf_len < RATE 
+        self.buf_len < RATE
     ))]
     #[cfg_attr(hax, hax_lib::ensures(|res|
         res <= RATE
@@ -161,7 +161,7 @@ impl<const RATE: usize> KeccakSpongeState<RATE> {
         RATE > 0 &&
         RATE % 8 == 0 &&
         RATE <= 168 &&
-        self.buf_len < RATE 
+        self.buf_len < RATE
     ))]
     pub(crate) fn absorb_final<const DELIMITER: u8>(&mut self, inputs: &[U8]) {
         let input_remainder_len = self.absorb_full(inputs);
@@ -222,8 +222,8 @@ fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakSpongeState<RATE>, out: 
     // If we got asked for more than one block, squeeze out more.
     let mut offset = mid;
     for _k in 1..blocks {
-                    #[cfg(hax)]
-hax_lib::loop_invariant!(|_k: usize| {
+        #[cfg(hax)]
+        hax_lib::loop_invariant!(|_k: usize| {
             out.len() == out_len && offset.to_int() == _k.to_int() * RATE.to_int()
         });
         // Here we know that we always have full blocks to write out.
@@ -2688,8 +2688,8 @@ pub(crate) fn keccak<const RATE: usize, const DELIM: u8>(data: &[U8], out: &mut 
 
     let mut start = 0;
     for _i in 0..n {
-                    #[cfg(hax)]
-hax_lib::loop_invariant!(|_i: usize| { start == _i * RATE });
+        #[cfg(hax)]
+        hax_lib::loop_invariant!(|_i: usize| { start == _i * RATE });
 
         absorb_block::<RATE>(&mut s, &data, start);
         start += RATE;
@@ -2703,8 +2703,8 @@ hax_lib::loop_invariant!(|_i: usize| { start == _i * RATE });
         squeeze_first_block::<RATE>(&s, out);
         let mut offset = RATE;
         for _i in 1..blocks {
-                        #[cfg(hax)]
-hax_lib::loop_invariant!(|_i: usize| { out.len() == outlen && offset == _i * RATE });
+            #[cfg(hax)]
+            hax_lib::loop_invariant!(|_i: usize| { out.len() == outlen && offset == _i * RATE });
             squeeze_next_block::<RATE>(&mut s, &mut out[offset..]);
             offset += RATE;
         }
