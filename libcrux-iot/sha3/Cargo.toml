@@ -42,11 +42,9 @@ check-secret-independence = [
 ]
 
 [dev-dependencies]
-criterion = "0.5.1"
 hex = "0.4.3"
 rand = "0.8.5"
 pretty_env_logger = "0.5.0"
-proptest = "1.2.0"
 libcrux-kats = { workspace = true, features = ["sha3"] }
 
 [lints]
