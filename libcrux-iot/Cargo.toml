@@ -4,15 +4,14 @@ resolver = "3"
 
 [workspace.package]
 version = "0.0.3"
-authors = ["Cryspen"]
+authors = ["CE Labs"]
 license = "Apache-2.0 OR MIT"
-homepage = "iot.cryspen.com"                          # TODO: Set this up
 edition = "2021"
-repository = "https://github.com/cryspen/libcrux-iot"
+repository = "https://github.com/celabshq/libcrux-iot"
 readme = "README.md"
 
 [workspace.dependencies]
-libcrux-kats = { git = "https://github.com/cryspen/libcrux.git" }
+libcrux-kats = { git = "https://github.com/celabshq/libcrux.git" }
 libcrux-secrets = { version = "0.0.6" }
 libcrux-macros = { version = "0.0.3" }
 libcrux-traits = { version = "0.0.8" }

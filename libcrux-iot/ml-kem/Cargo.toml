@@ -7,7 +7,6 @@ readme.workspace = true
 version.workspace = true
 repository.workspace = true
 edition.workspace = true
-homepage.workspace = true
 license.workspace = true
 authors.workspace = true
 

@@ -12,7 +12,6 @@ exclude = [
     "shell.nix",
     "CHANGELOG.md",
 ]
-homepage.workspace = true
 license.workspace = true
 name = "libcrux-iot-aes"
 readme = "README.md"

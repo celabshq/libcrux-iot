@@ -7,7 +7,6 @@ readme.workspace = true
 version.workspace = true
 repository.workspace = true
 edition.workspace = true
-homepage.workspace = true
 license.workspace = true
 authors.workspace = true
 
@@ -28,8 +27,8 @@ hex = { version = "0.4.3", features = ["serde"] }
 serde_json = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
 criterion = "0.5"
-pqcrypto-dilithium = { version = "0.5.0" }         #, default-features = false
-libcrux-kats = { workspace = true, features = [ "mldsa"] }
+pqcrypto-dilithium = { version = "0.5.0" }                #, default-features = false
+libcrux-kats = { workspace = true, features = ["mldsa"] }
 
 [features]
 default = ["mldsa44", "mldsa65", "mldsa87"]
@@ -47,7 +46,10 @@ stack = []
 # std support
 std = []
 
-check-secret-independence = ["libcrux-secrets/check-secret-independence", "libcrux-iot-sha3/check-secret-independence"]
+check-secret-independence = [
+    "libcrux-secrets/check-secret-independence",
+    "libcrux-iot-sha3/check-secret-independence",
+]
 
 [[bench]]
 name = "manual44"
