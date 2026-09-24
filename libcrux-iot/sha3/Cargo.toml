@@ -19,6 +19,7 @@ bench = false # so libtest doesn't eat the arguments to criterion
 libcrux-secrets.workspace = true
 libcrux-traits.workspace = true
 hax-lib.workspace = true
+vstd.workspace = true
 # The machine-extracted FIPS-202 hacspec. A NORMAL (not dev-) dependency
 # because `sha256_ema`'s `#[ensures]` names `hacspec_sha3::sha3_256` directly,
 # so it must be in scope for the hax build; `cargo test` sees it too.
@@ -52,6 +53,9 @@ rand = "0.8.5"
 pretty_env_logger = "0.5.0"
 proptest = "1.2.0"
 libcrux-kats = { workspace = true, features = ["sha3"] }
+
+[package.metadata.verus]
+verify = true
 
 [lints]
 workspace = true

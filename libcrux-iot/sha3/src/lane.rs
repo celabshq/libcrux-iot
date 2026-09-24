@@ -1,10 +1,36 @@
 use core::ops::Index;
 
 use libcrux_secrets::{CastOps, Classify as _, U32};
+use vstd::prelude::*;
 
 /// A lane of the Keccak state,
+// `verus_verify` makes the type and its field visible to Verus, which the
+// proof in `crate::verus_proof` needs in order to talk about lane halves.
 #[derive(Clone, Copy)]
+#[verus_verify]
 pub struct Lane2U32(pub(crate) [U32; 2]);
+
+// `half` is `closed` so that it can appear in the public `Index` ensures while
+// the field it reads stays crate-private; `lemma_half` hands the body back to
+// the rest of the crate.
+#[cfg(verus_keep_ghost)]
+verus! {
+
+impl Lane2U32 {
+    /// Half `k` of the interleaved lane: `k = 0` the even-indexed bits of the
+    /// 64-bit lane, `k = 1` the odd-indexed ones.
+    pub closed spec fn half(&self, k: int) -> u32 {
+        self.0[k]
+    }
+}
+
+pub(crate) broadcast proof fn lemma_half(l: Lane2U32, k: int)
+    ensures
+        #[trigger] l.half(k) == l.0[k],
+{
+}
+
+} // verus!
 
 impl Lane2U32 {
     #[inline(always)]
@@ -79,11 +105,17 @@ impl Lane2U32 {
 }
 
 #[cfg_attr(hax, hax_lib::attributes)]
+// The Verus precondition lives in the `IndexSpec` extension implemented in
+// `crate::verus_proof::state`: Verus takes a trait implementation's
+// preconditions from the trait declaration, so `index < 2` cannot be stated
+// here and becomes `index_req` there instead.
+#[verus_verify]
 impl Index<usize> for Lane2U32 {
     type Output = U32;
 
     #[inline(always)]
     #[hax_lib::requires(index < 2)]
+    #[verus_spec(r => ensures *r == self.half(index as int))]
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }

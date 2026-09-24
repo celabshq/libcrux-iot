@@ -9,6 +9,15 @@ use libcrux_secrets::{Declassify as _, DeclassifyRef as _};
 #[cfg(feature = "check-secret-independence")]
 use libcrux_secrets::{Declassify, U32};
 
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+verus! {
+
+broadcast use crate::lane::lemma_half;
+
+} // verus!
+
 use crate::state::KeccakState;
 
 /// The internal keccak state that can also buffer inputs to absorb.
@@ -263,7 +272,8 @@ fn _squeeze<const RATE: usize>(keccak_state: &mut KeccakXofState<RATE>, out: &mu
 // attribute and turns them into external axioms of type `RustM (Array ..)`,
 // which no proof can unfold.
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
-const RC_INTERLEAVED_0: [u32; 255] = [
+#[verus_verify]
+pub(crate) const RC_INTERLEAVED_0: [u32; 255] = [
     0x00000001, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 0x00000001, 0x00000001, 0x00000001,
     0x00000000, 0x00000000, 0x00000001, 0x00000000, 0x00000001, 0x00000001, 0x00000001, 0x00000001,
     0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 0x00000000, 0x00000001, 0x00000000,
@@ -305,7 +315,8 @@ const RC_INTERLEAVED_0: [u32; 255] = [
 // attribute and turns them into external axioms of type `RustM (Array ..)`,
 // which no proof can unfold.
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
-const RC_INTERLEAVED_1: [u32; 255] = [
+#[verus_verify]
+pub(crate) const RC_INTERLEAVED_1: [u32; 255] = [
     0x00000000, 0x00000089, 0x8000008b, 0x80008080, 0x0000008b, 0x00008000, 0x80008088, 0x80000082,
     0x0000000b, 0x0000000a, 0x00008082, 0x00008003, 0x0000808b, 0x8000000b, 0x8000008a, 0x80000081,
     0x80000081, 0x80000008, 0x00000083, 0x80008003, 0x80008088, 0x80000088, 0x00008000, 0x80008082,
@@ -346,6 +357,16 @@ const RC_INTERLEAVED_1: [u32; 255] = [
 // ```
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 0, 0),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[1] == old(s).c[0].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x0_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 0);
     let ax_1 = s.get_with_zeta(1, 0, 0);
@@ -357,6 +378,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x0_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 0, 1),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[0] == old(s).c[0].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x0_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 1);
     let ax_1 = s.get_with_zeta(1, 0, 1);
@@ -368,6 +399,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x0_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 1, 0),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[1] == old(s).c[1].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x1_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 1, 0);
     let ax_1 = s.get_with_zeta(1, 1, 0);
@@ -379,6 +420,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x1_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 1, 1),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[0] == old(s).c[1].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x1_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 1, 1);
     let ax_1 = s.get_with_zeta(1, 1, 1);
@@ -390,6 +441,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x1_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 2, 0),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[1] == old(s).c[2].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x2_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 2, 0);
     let ax_1 = s.get_with_zeta(1, 2, 0);
@@ -401,6 +462,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x2_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 2, 1),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[0] == old(s).c[2].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x2_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 2, 1);
     let ax_1 = s.get_with_zeta(1, 2, 1);
@@ -412,6 +483,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x2_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 3, 0),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[1] == old(s).c[3].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x3_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 3, 0);
     let ax_1 = s.get_with_zeta(1, 3, 0);
@@ -423,6 +504,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x3_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 3, 1),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[0] == old(s).c[3].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x3_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 3, 1);
     let ax_1 = s.get_with_zeta(1, 3, 1);
@@ -434,6 +525,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x3_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 4, 0),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[1] == old(s).c[4].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x4_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 4, 0);
     let ax_1 = s.get_with_zeta(1, 4, 0);
@@ -445,6 +546,16 @@ pub(crate) fn keccakf1600_round0_theta_c_x4_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), crate::verus_proof::layout::round_inv(0), 4, 1),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[0] == old(s).c[4].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_c_x4_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 4, 1);
     let ax_1 = s.get_with_zeta(1, 4, 1);
@@ -456,6 +567,23 @@ pub(crate) fn keccakf1600_round0_theta_c_x4_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).d[0].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 0),
+        final(s).d[0].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 1),
+        final(s).d[1].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 0),
+        final(s).d[1].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 1),
+        final(s).d[2].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 0),
+        final(s).d[2].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 1),
+        final(s).d[3].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 0),
+        final(s).d[3].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 1),
+        final(s).d[4].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 0),
+        final(s).d[4].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 1),
+        final(s).st == old(s).st,
+        final(s).c == old(s).c,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_theta_d(s: &mut KeccakState) {
     // D[x] = C[x-1] XOR ROT64(C[x+1], 1)
     let c_x4_zeta0 = s.c[4][0];
@@ -492,7 +620,17 @@ pub(crate) fn keccakf1600_round0_theta_d(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(300), spinoff_prover)]
+#[verus_spec(
+    ensures
+        final(s).st == old(s).st,
+        final(s).i == old(s).i,
+        crate::verus_proof::round_pack::theta_facts_0(*old(s), *final(s)),
+)]
 pub(crate) fn keccakf1600_round0_theta(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::theta_facts_0);
+    }
     // C[x][zeta] = A[0,x][zeta] ^ A[1,x][zeta] ^ A[2,x][zeta] ^ A[3,x][zeta] ^ A[4,x][zeta]
     // https://github.com/hacl-star/hacl-star/blob/main/specs/Spec.SHA3.fst#L28C1-L29C74
     keccakf1600_round0_theta_c_x0_z0(s);
@@ -510,6 +648,27 @@ pub(crate) fn keccakf1600_round0_theta(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 0, 0) ^ RC_INTERLEAVED_0[old(s).i as int],
+        final(s).st[6].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 0, 0),
+        final(s).st[12].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 0, 0),
+        final(s).st[18].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 0, 0),
+        final(s).st[24].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 0, 0),
+        final(s).st[0].0[1] == old(s).st[0].0[1],
+        final(s).st[6].0[1] == old(s).st[6].0[1],
+        final(s).st[12].0[0] == old(s).st[12].0[0],
+        final(s).st[18].0[0] == old(s).st[18].0[0],
+        final(s).st[24].0[1] == old(s).st[24].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 6 && k != 12 && k != 18 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 0);
@@ -554,6 +713,27 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 0, 1) ^ RC_INTERLEAVED_1[old(s).i as int],
+        final(s).st[6].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 0, 1),
+        final(s).st[12].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 0, 1),
+        final(s).st[18].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 0, 1),
+        final(s).st[24].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 0, 1),
+        final(s).st[0].0[0] == old(s).st[0].0[0],
+        final(s).st[6].0[0] == old(s).st[6].0[0],
+        final(s).st[12].0[1] == old(s).st[12].0[1],
+        final(s).st[18].0[1] == old(s).st[18].0[1],
+        final(s).st[24].0[0] == old(s).st[24].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 6 && k != 12 && k != 18 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 1);
@@ -599,6 +779,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 1, 0),
+        final(s).st[8].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 1, 0),
+        final(s).st[14].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 1, 0),
+        final(s).st[15].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 1, 0),
+        final(s).st[21].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 1, 0),
+        final(s).st[2].0[0] == old(s).st[2].0[0],
+        final(s).st[8].0[0] == old(s).st[8].0[0],
+        final(s).st[14].0[0] == old(s).st[14].0[0],
+        final(s).st[15].0[1] == old(s).st[15].0[1],
+        final(s).st[21].0[1] == old(s).st[21].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 8 && k != 14 && k != 15 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(2, 0, 1);
@@ -634,6 +834,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 1, 1),
+        final(s).st[8].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 1, 1),
+        final(s).st[14].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 1, 1),
+        final(s).st[15].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 1, 1),
+        final(s).st[21].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 1, 1),
+        final(s).st[2].0[1] == old(s).st[2].0[1],
+        final(s).st[8].0[1] == old(s).st[8].0[1],
+        final(s).st[14].0[1] == old(s).st[14].0[1],
+        final(s).st[15].0[0] == old(s).st[15].0[0],
+        final(s).st[21].0[0] == old(s).st[21].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 8 && k != 14 && k != 15 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(2, 0, 0);
@@ -669,7 +889,19 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        crate::verus_proof::round_pack::prc1_facts_0(*old(s), *final(s), old(s).i as int),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc1_facts_0);
+    }
     keccakf1600_round0_pi_rho_chi_y0_zeta0::<BASE_ROUND>(s);
     keccakf1600_round0_pi_rho_chi_y0_zeta1::<BASE_ROUND>(s);
     keccakf1600_round0_pi_rho_chi_y1_zeta0(s);
@@ -678,6 +910,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut K
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 2, 0),
+        final(s).st[5].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 2, 0),
+        final(s).st[11].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 2, 0),
+        final(s).st[17].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 2, 0),
+        final(s).st[23].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 2, 0),
+        final(s).st[4].0[1] == old(s).st[4].0[1],
+        final(s).st[5].0[0] == old(s).st[5].0[0],
+        final(s).st[11].0[1] == old(s).st[11].0[1],
+        final(s).st[17].0[0] == old(s).st[17].0[0],
+        final(s).st[23].0[1] == old(s).st[23].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 5 && k != 11 && k != 17 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(4, 0, 0);
@@ -713,6 +965,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 2, 1),
+        final(s).st[5].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 2, 1),
+        final(s).st[11].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 2, 1),
+        final(s).st[17].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 2, 1),
+        final(s).st[23].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 2, 1),
+        final(s).st[4].0[0] == old(s).st[4].0[0],
+        final(s).st[5].0[1] == old(s).st[5].0[1],
+        final(s).st[11].0[0] == old(s).st[11].0[0],
+        final(s).st[17].0[1] == old(s).st[17].0[1],
+        final(s).st[23].0[0] == old(s).st[23].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 5 && k != 11 && k != 17 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(4, 0, 1);
@@ -748,6 +1020,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 3, 0),
+        final(s).st[7].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 3, 0),
+        final(s).st[13].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 3, 0),
+        final(s).st[19].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 3, 0),
+        final(s).st[20].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 3, 0),
+        final(s).st[1].0[1] == old(s).st[1].0[1],
+        final(s).st[7].0[1] == old(s).st[7].0[1],
+        final(s).st[13].0[0] == old(s).st[13].0[0],
+        final(s).st[19].0[1] == old(s).st[19].0[1],
+        final(s).st[20].0[0] == old(s).st[20].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 7 && k != 13 && k != 19 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(1, 0, 0);
@@ -783,6 +1075,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 3, 1),
+        final(s).st[7].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 3, 1),
+        final(s).st[13].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 3, 1),
+        final(s).st[19].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 3, 1),
+        final(s).st[20].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 3, 1),
+        final(s).st[1].0[0] == old(s).st[1].0[0],
+        final(s).st[7].0[0] == old(s).st[7].0[0],
+        final(s).st[13].0[1] == old(s).st[13].0[1],
+        final(s).st[19].0[0] == old(s).st[19].0[0],
+        final(s).st[20].0[1] == old(s).st[20].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 7 && k != 13 && k != 19 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(1, 0, 1);
@@ -818,6 +1130,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 4, 0),
+        final(s).st[9].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 4, 0),
+        final(s).st[10].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 4, 0),
+        final(s).st[16].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 4, 0),
+        final(s).st[22].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 4, 0),
+        final(s).st[3].0[0] == old(s).st[3].0[0],
+        final(s).st[9].0[1] == old(s).st[9].0[1],
+        final(s).st[10].0[1] == old(s).st[10].0[1],
+        final(s).st[16].0[0] == old(s).st[16].0[0],
+        final(s).st[22].0[0] == old(s).st[22].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 9 && k != 10 && k != 16 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(3, 0, 1);
@@ -853,6 +1185,26 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 0, 4, 1),
+        final(s).st[9].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 1, 4, 1),
+        final(s).st[10].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 2, 4, 1),
+        final(s).st[16].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 3, 4, 1),
+        final(s).st[22].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(0), crate::verus_proof::layout::round_swapped(0), 4, 4, 1),
+        final(s).st[3].0[1] == old(s).st[3].0[1],
+        final(s).st[9].0[0] == old(s).st[9].0[0],
+        final(s).st[10].0[0] == old(s).st[10].0[0],
+        final(s).st[16].0[1] == old(s).st[16].0[1],
+        final(s).st[22].0[1] == old(s).st[22].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 9 && k != 10 && k != 16 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(3, 0, 0);
@@ -888,7 +1240,18 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    ensures
+        crate::verus_proof::round_pack::prc2_facts_0(*old(s), *final(s)),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round0_pi_rho_chi_2(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc2_facts_0);
+    }
     keccakf1600_round0_pi_rho_chi_y2_zeta0(s);
     keccakf1600_round0_pi_rho_chi_y2_zeta1(s);
     keccakf1600_round0_pi_rho_chi_y3_zeta0(s);
@@ -899,6 +1262,16 @@ pub(crate) fn keccakf1600_round0_pi_rho_chi_2(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 0, 0),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[1] == old(s).c[0].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x0_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 0);
     let ax_2 = s.get_with_zeta(2, 0, 1);
@@ -910,6 +1283,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x0_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 0, 1),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[0] == old(s).c[0].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x0_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 1);
     let ax_2 = s.get_with_zeta(2, 0, 0);
@@ -921,6 +1304,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x0_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 1, 0),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[1] == old(s).c[1].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x1_z0(s: &mut KeccakState) {
     let ax_1 = s.get_with_zeta(1, 1, 0);
     let ax_3 = s.get_with_zeta(3, 1, 1);
@@ -932,6 +1325,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x1_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 1, 1),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[0] == old(s).c[1].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x1_z1(s: &mut KeccakState) {
     let ax_1 = s.get_with_zeta(1, 1, 1);
     let ax_3 = s.get_with_zeta(3, 1, 0);
@@ -943,6 +1346,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x1_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 2, 0),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[1] == old(s).c[2].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x2_z0(s: &mut KeccakState) {
     let ax_2 = s.get_with_zeta(2, 2, 1);
     let ax_4 = s.get_with_zeta(4, 2, 1);
@@ -954,6 +1367,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x2_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 2, 1),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[0] == old(s).c[2].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x2_z1(s: &mut KeccakState) {
     let ax_2 = s.get_with_zeta(2, 2, 0);
     let ax_4 = s.get_with_zeta(4, 2, 0);
@@ -965,6 +1388,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x2_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 3, 0),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[1] == old(s).c[3].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x3_z0(s: &mut KeccakState) {
     let ax_3 = s.get_with_zeta(3, 3, 1);
     let ax_0 = s.get_with_zeta(0, 3, 0);
@@ -976,6 +1409,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x3_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 3, 1),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[0] == old(s).c[3].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x3_z1(s: &mut KeccakState) {
     let ax_3 = s.get_with_zeta(3, 3, 0);
     let ax_0 = s.get_with_zeta(0, 3, 1);
@@ -987,6 +1430,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x3_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 4, 0),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[1] == old(s).c[4].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x4_z0(s: &mut KeccakState) {
     let ax_4 = s.get_with_zeta(4, 4, 0);
     let ax_1 = s.get_with_zeta(1, 4, 0);
@@ -998,6 +1451,16 @@ pub(crate) fn keccakf1600_round1_theta_c_x4_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), crate::verus_proof::layout::round_inv(1), 4, 1),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[0] == old(s).c[4].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_c_x4_z1(s: &mut KeccakState) {
     let ax_4 = s.get_with_zeta(4, 4, 1);
     let ax_1 = s.get_with_zeta(1, 4, 1);
@@ -1009,6 +1472,23 @@ pub(crate) fn keccakf1600_round1_theta_c_x4_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).d[0].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 0),
+        final(s).d[0].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 1),
+        final(s).d[1].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 0),
+        final(s).d[1].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 1),
+        final(s).d[2].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 0),
+        final(s).d[2].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 1),
+        final(s).d[3].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 0),
+        final(s).d[3].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 1),
+        final(s).d[4].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 0),
+        final(s).d[4].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 1),
+        final(s).st == old(s).st,
+        final(s).c == old(s).c,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_theta_d(s: &mut KeccakState) {
     let c_x4_zeta0 = s.c[4][0];
     let c_x1_zeta1 = s.c[1][1];
@@ -1044,7 +1524,17 @@ pub(crate) fn keccakf1600_round1_theta_d(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(300), spinoff_prover)]
+#[verus_spec(
+    ensures
+        final(s).st == old(s).st,
+        final(s).i == old(s).i,
+        crate::verus_proof::round_pack::theta_facts_1(*old(s), *final(s)),
+)]
 pub(crate) fn keccakf1600_round1_theta(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::theta_facts_1);
+    }
     keccakf1600_round1_theta_c_x0_z0(s);
     keccakf1600_round1_theta_c_x0_z1(s);
     keccakf1600_round1_theta_c_x1_z0(s);
@@ -1060,6 +1550,27 @@ pub(crate) fn keccakf1600_round1_theta(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 0, 0) ^ RC_INTERLEAVED_0[old(s).i as int],
+        final(s).st[8].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 0, 0),
+        final(s).st[11].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 0, 0),
+        final(s).st[19].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 0, 0),
+        final(s).st[22].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 0, 0),
+        final(s).st[0].0[1] == old(s).st[0].0[1],
+        final(s).st[8].0[0] == old(s).st[8].0[0],
+        final(s).st[11].0[0] == old(s).st[11].0[0],
+        final(s).st[19].0[0] == old(s).st[19].0[0],
+        final(s).st[22].0[0] == old(s).st[22].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 8 && k != 11 && k != 19 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 0);
@@ -1104,6 +1615,27 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 0, 1) ^ RC_INTERLEAVED_1[old(s).i as int],
+        final(s).st[8].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 0, 1),
+        final(s).st[11].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 0, 1),
+        final(s).st[19].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 0, 1),
+        final(s).st[22].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 0, 1),
+        final(s).st[0].0[0] == old(s).st[0].0[0],
+        final(s).st[8].0[1] == old(s).st[8].0[1],
+        final(s).st[11].0[1] == old(s).st[11].0[1],
+        final(s).st[19].0[1] == old(s).st[19].0[1],
+        final(s).st[22].0[1] == old(s).st[22].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 8 && k != 11 && k != 19 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 1);
@@ -1149,6 +1681,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 1, 0),
+        final(s).st[7].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 1, 0),
+        final(s).st[10].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 1, 0),
+        final(s).st[18].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 1, 0),
+        final(s).st[21].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 1, 0),
+        final(s).st[4].0[0] == old(s).st[4].0[0],
+        final(s).st[7].0[0] == old(s).st[7].0[0],
+        final(s).st[10].0[0] == old(s).st[10].0[0],
+        final(s).st[18].0[0] == old(s).st[18].0[0],
+        final(s).st[21].0[1] == old(s).st[21].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 7 && k != 10 && k != 18 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(4, 0, 1);
@@ -1184,6 +1736,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 1, 1),
+        final(s).st[7].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 1, 1),
+        final(s).st[10].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 1, 1),
+        final(s).st[18].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 1, 1),
+        final(s).st[21].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 1, 1),
+        final(s).st[4].0[1] == old(s).st[4].0[1],
+        final(s).st[7].0[1] == old(s).st[7].0[1],
+        final(s).st[10].0[1] == old(s).st[10].0[1],
+        final(s).st[18].0[1] == old(s).st[18].0[1],
+        final(s).st[21].0[0] == old(s).st[21].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 7 && k != 10 && k != 18 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(4, 0, 0);
@@ -1219,7 +1791,19 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        crate::verus_proof::round_pack::prc1_facts_1(*old(s), *final(s), old(s).i as int),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc1_facts_1);
+    }
     keccakf1600_round1_pi_rho_chi_y0_zeta0::<BASE_ROUND>(s);
     keccakf1600_round1_pi_rho_chi_y0_zeta1::<BASE_ROUND>(s);
     keccakf1600_round1_pi_rho_chi_y1_zeta0(s);
@@ -1228,6 +1812,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut K
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 2, 0),
+        final(s).st[6].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 2, 0),
+        final(s).st[14].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 2, 0),
+        final(s).st[17].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 2, 0),
+        final(s).st[20].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 2, 0),
+        final(s).st[3].0[0] == old(s).st[3].0[0],
+        final(s).st[6].0[0] == old(s).st[6].0[0],
+        final(s).st[14].0[0] == old(s).st[14].0[0],
+        final(s).st[17].0[1] == old(s).st[17].0[1],
+        final(s).st[20].0[0] == old(s).st[20].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 6 && k != 14 && k != 17 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(3, 0, 1);
@@ -1263,6 +1867,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 2, 1),
+        final(s).st[6].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 2, 1),
+        final(s).st[14].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 2, 1),
+        final(s).st[17].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 2, 1),
+        final(s).st[20].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 2, 1),
+        final(s).st[3].0[1] == old(s).st[3].0[1],
+        final(s).st[6].0[1] == old(s).st[6].0[1],
+        final(s).st[14].0[1] == old(s).st[14].0[1],
+        final(s).st[17].0[0] == old(s).st[17].0[0],
+        final(s).st[20].0[1] == old(s).st[20].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 6 && k != 14 && k != 17 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(3, 0, 0);
@@ -1298,6 +1922,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 3, 0),
+        final(s).st[5].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 3, 0),
+        final(s).st[13].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 3, 0),
+        final(s).st[16].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 3, 0),
+        final(s).st[24].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 3, 0),
+        final(s).st[2].0[0] == old(s).st[2].0[0],
+        final(s).st[5].0[0] == old(s).st[5].0[0],
+        final(s).st[13].0[1] == old(s).st[13].0[1],
+        final(s).st[16].0[0] == old(s).st[16].0[0],
+        final(s).st[24].0[0] == old(s).st[24].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 5 && k != 13 && k != 16 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(2, 0, 1);
@@ -1333,6 +1977,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 3, 1),
+        final(s).st[5].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 3, 1),
+        final(s).st[13].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 3, 1),
+        final(s).st[16].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 3, 1),
+        final(s).st[24].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 3, 1),
+        final(s).st[2].0[1] == old(s).st[2].0[1],
+        final(s).st[5].0[1] == old(s).st[5].0[1],
+        final(s).st[13].0[0] == old(s).st[13].0[0],
+        final(s).st[16].0[1] == old(s).st[16].0[1],
+        final(s).st[24].0[1] == old(s).st[24].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 5 && k != 13 && k != 16 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(2, 0, 0);
@@ -1368,6 +2032,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 4, 0),
+        final(s).st[9].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 4, 0),
+        final(s).st[12].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 4, 0),
+        final(s).st[15].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 4, 0),
+        final(s).st[23].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 4, 0),
+        final(s).st[1].0[0] == old(s).st[1].0[0],
+        final(s).st[9].0[1] == old(s).st[9].0[1],
+        final(s).st[12].0[0] == old(s).st[12].0[0],
+        final(s).st[15].0[0] == old(s).st[15].0[0],
+        final(s).st[23].0[0] == old(s).st[23].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 9 && k != 12 && k != 15 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(1, 0, 1);
@@ -1403,6 +2087,26 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 0, 4, 1),
+        final(s).st[9].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 1, 4, 1),
+        final(s).st[12].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 2, 4, 1),
+        final(s).st[15].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 3, 4, 1),
+        final(s).st[23].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(1), crate::verus_proof::layout::round_swapped(1), 4, 4, 1),
+        final(s).st[1].0[1] == old(s).st[1].0[1],
+        final(s).st[9].0[0] == old(s).st[9].0[0],
+        final(s).st[12].0[1] == old(s).st[12].0[1],
+        final(s).st[15].0[1] == old(s).st[15].0[1],
+        final(s).st[23].0[1] == old(s).st[23].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 9 && k != 12 && k != 15 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(1, 0, 0);
@@ -1438,7 +2142,18 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    ensures
+        crate::verus_proof::round_pack::prc2_facts_1(*old(s), *final(s)),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round1_pi_rho_chi_2(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc2_facts_1);
+    }
     keccakf1600_round1_pi_rho_chi_y2_zeta0(s);
     keccakf1600_round1_pi_rho_chi_y2_zeta1(s);
     keccakf1600_round1_pi_rho_chi_y3_zeta0(s);
@@ -1449,6 +2164,16 @@ pub(crate) fn keccakf1600_round1_pi_rho_chi_2(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 0, 0),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[1] == old(s).c[0].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x0_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 0);
     let ax_4 = s.get_with_zeta(4, 0, 1);
@@ -1460,6 +2185,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x0_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 0, 1),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[0] == old(s).c[0].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x0_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 1);
     let ax_4 = s.get_with_zeta(4, 0, 0);
@@ -1471,6 +2206,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x0_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 1, 0),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[1] == old(s).c[1].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x1_z0(s: &mut KeccakState) {
     let ax_3 = s.get_with_zeta(3, 1, 1);
     let ax_2 = s.get_with_zeta(2, 1, 1);
@@ -1482,6 +2227,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x1_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 1, 1),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[0] == old(s).c[1].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x1_z1(s: &mut KeccakState) {
     let ax_3 = s.get_with_zeta(3, 1, 0);
     let ax_2 = s.get_with_zeta(2, 1, 0);
@@ -1493,6 +2248,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x1_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 2, 0),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[1] == old(s).c[2].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x2_z0(s: &mut KeccakState) {
     let ax_1 = s.get_with_zeta(1, 2, 1);
     let ax_0 = s.get_with_zeta(0, 2, 1);
@@ -1504,6 +2269,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x2_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 2, 1),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[0] == old(s).c[2].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x2_z1(s: &mut KeccakState) {
     let ax_1 = s.get_with_zeta(1, 2, 0);
     let ax_0 = s.get_with_zeta(0, 2, 0);
@@ -1515,6 +2290,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x2_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 3, 0),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[1] == old(s).c[3].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x3_z0(s: &mut KeccakState) {
     let ax_4 = s.get_with_zeta(4, 3, 1);
     let ax_3 = s.get_with_zeta(3, 3, 1);
@@ -1526,6 +2311,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x3_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 3, 1),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[0] == old(s).c[3].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x3_z1(s: &mut KeccakState) {
     let ax_4 = s.get_with_zeta(4, 3, 0);
     let ax_3 = s.get_with_zeta(3, 3, 0);
@@ -1537,6 +2332,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x3_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 4, 0),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[1] == old(s).c[4].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x4_z0(s: &mut KeccakState) {
     let ax_2 = s.get_with_zeta(2, 4, 1);
     let ax_1 = s.get_with_zeta(1, 4, 0);
@@ -1548,6 +2353,16 @@ pub(crate) fn keccakf1600_round2_theta_c_x4_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), crate::verus_proof::layout::round_inv(2), 4, 1),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[0] == old(s).c[4].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_c_x4_z1(s: &mut KeccakState) {
     let ax_2 = s.get_with_zeta(2, 4, 0);
     let ax_1 = s.get_with_zeta(1, 4, 1);
@@ -1559,6 +2374,23 @@ pub(crate) fn keccakf1600_round2_theta_c_x4_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).d[0].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 0),
+        final(s).d[0].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 1),
+        final(s).d[1].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 0),
+        final(s).d[1].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 1),
+        final(s).d[2].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 0),
+        final(s).d[2].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 1),
+        final(s).d[3].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 0),
+        final(s).d[3].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 1),
+        final(s).d[4].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 0),
+        final(s).d[4].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 1),
+        final(s).st == old(s).st,
+        final(s).c == old(s).c,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_theta_d(s: &mut KeccakState) {
     let c_x4_zeta0 = s.c[4][0];
     let c_x1_zeta1 = s.c[1][1];
@@ -1594,7 +2426,17 @@ pub(crate) fn keccakf1600_round2_theta_d(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(300), spinoff_prover)]
+#[verus_spec(
+    ensures
+        final(s).st == old(s).st,
+        final(s).i == old(s).i,
+        crate::verus_proof::round_pack::theta_facts_2(*old(s), *final(s)),
+)]
 pub(crate) fn keccakf1600_round2_theta(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::theta_facts_2);
+    }
     keccakf1600_round2_theta_c_x0_z0(s);
     keccakf1600_round2_theta_c_x0_z1(s);
     keccakf1600_round2_theta_c_x1_z0(s);
@@ -1610,6 +2452,27 @@ pub(crate) fn keccakf1600_round2_theta(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 0, 0) ^ RC_INTERLEAVED_0[old(s).i as int],
+        final(s).st[7].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 0, 0),
+        final(s).st[14].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 0, 0),
+        final(s).st[16].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 0, 0),
+        final(s).st[23].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 0, 0),
+        final(s).st[0].0[1] == old(s).st[0].0[1],
+        final(s).st[7].0[0] == old(s).st[7].0[0],
+        final(s).st[14].0[1] == old(s).st[14].0[1],
+        final(s).st[16].0[1] == old(s).st[16].0[1],
+        final(s).st[23].0[0] == old(s).st[23].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 7 && k != 14 && k != 16 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 0);
@@ -1654,6 +2517,27 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 0, 1) ^ RC_INTERLEAVED_1[old(s).i as int],
+        final(s).st[7].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 0, 1),
+        final(s).st[14].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 0, 1),
+        final(s).st[16].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 0, 1),
+        final(s).st[23].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 0, 1),
+        final(s).st[0].0[0] == old(s).st[0].0[0],
+        final(s).st[7].0[1] == old(s).st[7].0[1],
+        final(s).st[14].0[0] == old(s).st[14].0[0],
+        final(s).st[16].0[0] == old(s).st[16].0[0],
+        final(s).st[23].0[1] == old(s).st[23].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 7 && k != 14 && k != 16 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 1);
@@ -1699,6 +2583,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 1, 0),
+        final(s).st[5].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 1, 0),
+        final(s).st[12].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 1, 0),
+        final(s).st[19].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 1, 0),
+        final(s).st[21].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 1, 0),
+        final(s).st[3].0[1] == old(s).st[3].0[1],
+        final(s).st[5].0[1] == old(s).st[5].0[1],
+        final(s).st[12].0[1] == old(s).st[12].0[1],
+        final(s).st[19].0[0] == old(s).st[19].0[0],
+        final(s).st[21].0[1] == old(s).st[21].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 5 && k != 12 && k != 19 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(3, 0, 0);
@@ -1734,6 +2638,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 1, 1),
+        final(s).st[5].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 1, 1),
+        final(s).st[12].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 1, 1),
+        final(s).st[19].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 1, 1),
+        final(s).st[21].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 1, 1),
+        final(s).st[3].0[0] == old(s).st[3].0[0],
+        final(s).st[5].0[0] == old(s).st[5].0[0],
+        final(s).st[12].0[0] == old(s).st[12].0[0],
+        final(s).st[19].0[1] == old(s).st[19].0[1],
+        final(s).st[21].0[0] == old(s).st[21].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 5 && k != 12 && k != 19 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(3, 0, 1);
@@ -1769,7 +2693,19 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        crate::verus_proof::round_pack::prc1_facts_2(*old(s), *final(s), old(s).i as int),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc1_facts_2);
+    }
     keccakf1600_round2_pi_rho_chi_y0_zeta0::<BASE_ROUND>(s);
     keccakf1600_round2_pi_rho_chi_y0_zeta1::<BASE_ROUND>(s);
     keccakf1600_round2_pi_rho_chi_y1_zeta0(s);
@@ -1778,6 +2714,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut K
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 2, 0),
+        final(s).st[8].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 2, 0),
+        final(s).st[10].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 2, 0),
+        final(s).st[17].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 2, 0),
+        final(s).st[24].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 2, 0),
+        final(s).st[1].0[0] == old(s).st[1].0[0],
+        final(s).st[8].0[1] == old(s).st[8].0[1],
+        final(s).st[10].0[0] == old(s).st[10].0[0],
+        final(s).st[17].0[0] == old(s).st[17].0[0],
+        final(s).st[24].0[0] == old(s).st[24].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 8 && k != 10 && k != 17 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(1, 0, 1);
@@ -1813,6 +2769,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 2, 1),
+        final(s).st[8].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 2, 1),
+        final(s).st[10].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 2, 1),
+        final(s).st[17].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 2, 1),
+        final(s).st[24].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 2, 1),
+        final(s).st[1].0[1] == old(s).st[1].0[1],
+        final(s).st[8].0[0] == old(s).st[8].0[0],
+        final(s).st[10].0[1] == old(s).st[10].0[1],
+        final(s).st[17].0[1] == old(s).st[17].0[1],
+        final(s).st[24].0[1] == old(s).st[24].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 8 && k != 10 && k != 17 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(1, 0, 0);
@@ -1848,6 +2824,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 3, 0),
+        final(s).st[6].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 3, 0),
+        final(s).st[13].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 3, 0),
+        final(s).st[15].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 3, 0),
+        final(s).st[22].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 3, 0),
+        final(s).st[4].0[0] == old(s).st[4].0[0],
+        final(s).st[6].0[0] == old(s).st[6].0[0],
+        final(s).st[13].0[0] == old(s).st[13].0[0],
+        final(s).st[15].0[0] == old(s).st[15].0[0],
+        final(s).st[22].0[1] == old(s).st[22].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 6 && k != 13 && k != 15 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(4, 0, 1);
@@ -1883,6 +2879,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 3, 1),
+        final(s).st[6].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 3, 1),
+        final(s).st[13].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 3, 1),
+        final(s).st[15].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 3, 1),
+        final(s).st[22].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 3, 1),
+        final(s).st[4].0[1] == old(s).st[4].0[1],
+        final(s).st[6].0[1] == old(s).st[6].0[1],
+        final(s).st[13].0[1] == old(s).st[13].0[1],
+        final(s).st[15].0[1] == old(s).st[15].0[1],
+        final(s).st[22].0[0] == old(s).st[22].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 6 && k != 13 && k != 15 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(4, 0, 0);
@@ -1918,6 +2934,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 4, 0),
+        final(s).st[9].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 4, 0),
+        final(s).st[11].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 4, 0),
+        final(s).st[18].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 4, 0),
+        final(s).st[20].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 4, 0),
+        final(s).st[2].0[1] == old(s).st[2].0[1],
+        final(s).st[9].0[1] == old(s).st[9].0[1],
+        final(s).st[11].0[0] == old(s).st[11].0[0],
+        final(s).st[18].0[1] == old(s).st[18].0[1],
+        final(s).st[20].0[1] == old(s).st[20].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 9 && k != 11 && k != 18 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(2, 0, 0);
@@ -1953,6 +2989,26 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 0, 4, 1),
+        final(s).st[9].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 1, 4, 1),
+        final(s).st[11].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 2, 4, 1),
+        final(s).st[18].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 3, 4, 1),
+        final(s).st[20].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(2), crate::verus_proof::layout::round_swapped(2), 4, 4, 1),
+        final(s).st[2].0[0] == old(s).st[2].0[0],
+        final(s).st[9].0[0] == old(s).st[9].0[0],
+        final(s).st[11].0[1] == old(s).st[11].0[1],
+        final(s).st[18].0[0] == old(s).st[18].0[0],
+        final(s).st[20].0[0] == old(s).st[20].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 9 && k != 11 && k != 18 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(2, 0, 1);
@@ -1988,7 +3044,18 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    ensures
+        crate::verus_proof::round_pack::prc2_facts_2(*old(s), *final(s)),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round2_pi_rho_chi_2(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc2_facts_2);
+    }
     keccakf1600_round2_pi_rho_chi_y2_zeta0(s);
     keccakf1600_round2_pi_rho_chi_y2_zeta1(s);
     keccakf1600_round2_pi_rho_chi_y3_zeta0(s);
@@ -1999,6 +3066,16 @@ pub(crate) fn keccakf1600_round2_pi_rho_chi_2(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 0, 0),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[1] == old(s).c[0].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x0_z0(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 0);
     let ax_3 = s.get_with_zeta(3, 0, 0);
@@ -2010,6 +3087,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x0_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[0].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 0, 1),
+        forall|k: int| 0 <= k < 5 && k != 0 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[0].0[0] == old(s).c[0].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x0_z1(s: &mut KeccakState) {
     let ax_0 = s.get_with_zeta(0, 0, 1);
     let ax_3 = s.get_with_zeta(3, 0, 1);
@@ -2021,6 +3108,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x0_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 1, 0),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[1] == old(s).c[1].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x1_z0(s: &mut KeccakState) {
     let ax_2 = s.get_with_zeta(2, 1, 1);
     let ax_0 = s.get_with_zeta(0, 1, 0);
@@ -2032,6 +3129,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x1_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[1].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 1, 1),
+        forall|k: int| 0 <= k < 5 && k != 1 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[1].0[0] == old(s).c[1].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x1_z1(s: &mut KeccakState) {
     let ax_2 = s.get_with_zeta(2, 1, 0);
     let ax_0 = s.get_with_zeta(0, 1, 1);
@@ -2043,6 +3150,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x1_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 2, 0),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[1] == old(s).c[2].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x2_z0(s: &mut KeccakState) {
     let ax_4 = s.get_with_zeta(4, 2, 0);
     let ax_2 = s.get_with_zeta(2, 2, 0);
@@ -2054,6 +3171,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x2_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[2].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 2, 1),
+        forall|k: int| 0 <= k < 5 && k != 2 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[2].0[0] == old(s).c[2].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x2_z1(s: &mut KeccakState) {
     let ax_4 = s.get_with_zeta(4, 2, 1);
     let ax_2 = s.get_with_zeta(2, 2, 1);
@@ -2065,6 +3192,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x2_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 3, 0),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[1] == old(s).c[3].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x3_z0(s: &mut KeccakState) {
     let ax_1 = s.get_with_zeta(1, 3, 0);
     let ax_4 = s.get_with_zeta(4, 3, 1);
@@ -2076,6 +3213,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x3_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[3].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 3, 1),
+        forall|k: int| 0 <= k < 5 && k != 3 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[3].0[0] == old(s).c[3].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x3_z1(s: &mut KeccakState) {
     let ax_1 = s.get_with_zeta(1, 3, 1);
     let ax_4 = s.get_with_zeta(4, 3, 0);
@@ -2087,6 +3234,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x3_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[0] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 4, 0),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[1] == old(s).c[4].0[1],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x4_z0(s: &mut KeccakState) {
     let ax_3 = s.get_with_zeta(3, 4, 1);
     let ax_1 = s.get_with_zeta(1, 4, 0);
@@ -2098,6 +3255,16 @@ pub(crate) fn keccakf1600_round3_theta_c_x4_z0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).c[4].0[1] == crate::verus_proof::theta::impl_col_xor_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), crate::verus_proof::layout::round_inv(3), 4, 1),
+        forall|k: int| 0 <= k < 5 && k != 4 ==> #[trigger] final(s).c[k] == old(s).c[k],
+        final(s).c[4].0[0] == old(s).c[4].0[0],
+        final(s).st == old(s).st,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_c_x4_z1(s: &mut KeccakState) {
     let ax_3 = s.get_with_zeta(3, 4, 0);
     let ax_1 = s.get_with_zeta(1, 4, 1);
@@ -2109,6 +3276,23 @@ pub(crate) fn keccakf1600_round3_theta_c_x4_z1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).d[0].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 0),
+        final(s).d[0].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 0, 1),
+        final(s).d[1].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 0),
+        final(s).d[1].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 1, 1),
+        final(s).d[2].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 0),
+        final(s).d[2].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 2, 1),
+        final(s).d[3].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 0),
+        final(s).d[3].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 3, 1),
+        final(s).d[4].0[0] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 0),
+        final(s).d[4].0[1] == crate::verus_proof::theta::impl_d_half(*old(s), 4, 1),
+        final(s).st == old(s).st,
+        final(s).c == old(s).c,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_theta_d(s: &mut KeccakState) {
     let c_x4_zeta0 = s.c[4][0];
     let c_x1_zeta1 = s.c[1][1];
@@ -2144,7 +3328,17 @@ pub(crate) fn keccakf1600_round3_theta_d(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(300), spinoff_prover)]
+#[verus_spec(
+    ensures
+        final(s).st == old(s).st,
+        final(s).i == old(s).i,
+        crate::verus_proof::round_pack::theta_facts_3(*old(s), *final(s)),
+)]
 pub(crate) fn keccakf1600_round3_theta(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::theta_facts_3);
+    }
     keccakf1600_round3_theta_c_x0_z0(s);
     keccakf1600_round3_theta_c_x0_z1(s);
     keccakf1600_round3_theta_c_x1_z0(s);
@@ -2160,6 +3354,27 @@ pub(crate) fn keccakf1600_round3_theta(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 0, 0) ^ RC_INTERLEAVED_0[old(s).i as int],
+        final(s).st[5].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 0, 0),
+        final(s).st[10].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 0, 0),
+        final(s).st[15].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 0, 0),
+        final(s).st[20].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 0, 0),
+        final(s).st[0].0[1] == old(s).st[0].0[1],
+        final(s).st[5].0[1] == old(s).st[5].0[1],
+        final(s).st[10].0[1] == old(s).st[10].0[1],
+        final(s).st[15].0[1] == old(s).st[15].0[1],
+        final(s).st[20].0[1] == old(s).st[20].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 5 && k != 10 && k != 15 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 0);
@@ -2204,6 +3419,27 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y0_zeta0<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        final(s).st[0].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 0, 1) ^ RC_INTERLEAVED_1[old(s).i as int],
+        final(s).st[5].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 0, 1),
+        final(s).st[10].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 0, 1),
+        final(s).st[15].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 0, 1),
+        final(s).st[20].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 0, 1),
+        final(s).st[0].0[0] == old(s).st[0].0[0],
+        final(s).st[5].0[0] == old(s).st[5].0[0],
+        final(s).st[10].0[0] == old(s).st[10].0[0],
+        final(s).st[15].0[0] == old(s).st[15].0[0],
+        final(s).st[20].0[0] == old(s).st[20].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 0 && k != 5 && k != 10 && k != 15 && k != 20
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s: &mut KeccakState) {
     let (bx0, bx1) = {
         let a0 = s.get_with_zeta(0, 0, 1);
@@ -2249,6 +3485,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y0_zeta1<const BASE_ROUND: usize>(s:
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 1, 0),
+        final(s).st[6].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 1, 0),
+        final(s).st[11].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 1, 0),
+        final(s).st[16].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 1, 0),
+        final(s).st[21].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 1, 0),
+        final(s).st[1].0[1] == old(s).st[1].0[1],
+        final(s).st[6].0[1] == old(s).st[6].0[1],
+        final(s).st[11].0[1] == old(s).st[11].0[1],
+        final(s).st[16].0[1] == old(s).st[16].0[1],
+        final(s).st[21].0[1] == old(s).st[21].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 6 && k != 11 && k != 16 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(1, 0, 0);
@@ -2284,6 +3540,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y1_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[1].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 1, 1),
+        final(s).st[6].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 1, 1),
+        final(s).st[11].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 1, 1),
+        final(s).st[16].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 1, 1),
+        final(s).st[21].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 1, 1),
+        final(s).st[1].0[0] == old(s).st[1].0[0],
+        final(s).st[6].0[0] == old(s).st[6].0[0],
+        final(s).st[11].0[0] == old(s).st[11].0[0],
+        final(s).st[16].0[0] == old(s).st[16].0[0],
+        final(s).st[21].0[0] == old(s).st[21].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 1 && k != 6 && k != 11 && k != 16 && k != 21
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
     let (bx2, bx3) = {
         let a0 = s.get_with_zeta(1, 0, 1);
@@ -2319,7 +3595,19 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y1_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    requires old(s).i < 24,
+    ensures
+        crate::verus_proof::round_pack::prc1_facts_3(*old(s), *final(s), old(s).i as int),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i + 1,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc1_facts_3);
+    }
     keccakf1600_round3_pi_rho_chi_y0_zeta0::<BASE_ROUND>(s);
     keccakf1600_round3_pi_rho_chi_y0_zeta1::<BASE_ROUND>(s);
     keccakf1600_round3_pi_rho_chi_y1_zeta0(s);
@@ -2328,6 +3616,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_1<const BASE_ROUND: usize>(s: &mut K
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 2, 0),
+        final(s).st[7].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 2, 0),
+        final(s).st[12].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 2, 0),
+        final(s).st[17].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 2, 0),
+        final(s).st[22].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 2, 0),
+        final(s).st[2].0[1] == old(s).st[2].0[1],
+        final(s).st[7].0[1] == old(s).st[7].0[1],
+        final(s).st[12].0[1] == old(s).st[12].0[1],
+        final(s).st[17].0[1] == old(s).st[17].0[1],
+        final(s).st[22].0[1] == old(s).st[22].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 7 && k != 12 && k != 17 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(2, 0, 0);
@@ -2363,6 +3671,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y2_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[2].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 2, 1),
+        final(s).st[7].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 2, 1),
+        final(s).st[12].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 2, 1),
+        final(s).st[17].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 2, 1),
+        final(s).st[22].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 2, 1),
+        final(s).st[2].0[0] == old(s).st[2].0[0],
+        final(s).st[7].0[0] == old(s).st[7].0[0],
+        final(s).st[12].0[0] == old(s).st[12].0[0],
+        final(s).st[17].0[0] == old(s).st[17].0[0],
+        final(s).st[22].0[0] == old(s).st[22].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 2 && k != 7 && k != 12 && k != 17 && k != 22
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
     let (bx4, bx0) = {
         let a0 = s.get_with_zeta(2, 0, 1);
@@ -2398,6 +3726,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y2_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 3, 0),
+        final(s).st[8].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 3, 0),
+        final(s).st[13].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 3, 0),
+        final(s).st[18].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 3, 0),
+        final(s).st[23].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 3, 0),
+        final(s).st[3].0[1] == old(s).st[3].0[1],
+        final(s).st[8].0[1] == old(s).st[8].0[1],
+        final(s).st[13].0[1] == old(s).st[13].0[1],
+        final(s).st[18].0[1] == old(s).st[18].0[1],
+        final(s).st[23].0[1] == old(s).st[23].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 8 && k != 13 && k != 18 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(3, 0, 0);
@@ -2433,6 +3781,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y3_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[3].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 3, 1),
+        final(s).st[8].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 3, 1),
+        final(s).st[13].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 3, 1),
+        final(s).st[18].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 3, 1),
+        final(s).st[23].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 3, 1),
+        final(s).st[3].0[0] == old(s).st[3].0[0],
+        final(s).st[8].0[0] == old(s).st[8].0[0],
+        final(s).st[13].0[0] == old(s).st[13].0[0],
+        final(s).st[18].0[0] == old(s).st[18].0[0],
+        final(s).st[23].0[0] == old(s).st[23].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 3 && k != 8 && k != 13 && k != 18 && k != 23
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
     let (bx1, bx2) = {
         let a0 = s.get_with_zeta(3, 0, 1);
@@ -2468,6 +3836,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y3_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 4, 0),
+        final(s).st[9].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 4, 0),
+        final(s).st[14].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 4, 0),
+        final(s).st[19].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 4, 0),
+        final(s).st[24].0[0] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 4, 0),
+        final(s).st[4].0[1] == old(s).st[4].0[1],
+        final(s).st[9].0[1] == old(s).st[9].0[1],
+        final(s).st[14].0[1] == old(s).st[14].0[1],
+        final(s).st[19].0[1] == old(s).st[19].0[1],
+        final(s).st[24].0[1] == old(s).st[24].0[1],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 9 && k != 14 && k != 19 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(4, 0, 0);
@@ -2503,6 +3891,26 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y4_zeta0(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify]
+#[verus_spec(
+    ensures
+        final(s).st[4].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 0, 4, 1),
+        final(s).st[9].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 1, 4, 1),
+        final(s).st[14].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 2, 4, 1),
+        final(s).st[19].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 3, 4, 1),
+        final(s).st[24].0[1] == crate::verus_proof::prc::prc_chi_at(*old(s), crate::verus_proof::layout::round_place(3), crate::verus_proof::layout::round_swapped(3), 4, 4, 1),
+        final(s).st[4].0[0] == old(s).st[4].0[0],
+        final(s).st[9].0[0] == old(s).st[9].0[0],
+        final(s).st[14].0[0] == old(s).st[14].0[0],
+        final(s).st[19].0[0] == old(s).st[19].0[0],
+        final(s).st[24].0[0] == old(s).st[24].0[0],
+        forall|k: int|
+            0 <= k < 25 && k != 4 && k != 9 && k != 14 && k != 19 && k != 24
+                ==> #[trigger] final(s).st[k] == old(s).st[k],
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
     let (bx3, bx4) = {
         let a0 = s.get_with_zeta(4, 0, 1);
@@ -2538,7 +3946,18 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_y4_zeta1(s: &mut KeccakState) {
 
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(600), spinoff_prover)]
+#[verus_spec(
+    ensures
+        crate::verus_proof::round_pack::prc2_facts_3(*old(s), *final(s)),
+        final(s).c == old(s).c,
+        final(s).d == old(s).d,
+        final(s).i == old(s).i,
+)]
 pub(crate) fn keccakf1600_round3_pi_rho_chi_2(s: &mut KeccakState) {
+    proof! {
+        reveal(crate::verus_proof::round_pack::prc2_facts_3);
+    }
     keccakf1600_round3_pi_rho_chi_y2_zeta0(s);
     keccakf1600_round3_pi_rho_chi_y2_zeta1(s);
     keccakf1600_round3_pi_rho_chi_y3_zeta0(s);
@@ -2555,28 +3974,122 @@ pub(crate) fn keccakf1600_round3_pi_rho_chi_2(s: &mut KeccakState) {
 //   [CYCLE_MEASUREMENT libcrux SHAKE256 (PRF_ETA1_RANDOMNESS_1024)] : + 19139 cycles
 #[inline(always)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(400), spinoff_prover)]
+#[verus_spec(
+    requires old(s).i + 4 <= 24,
+    ensures
+        final(s).i == old(s).i + 4,
+        forall|spec_state: Seq<u64>|
+            crate::verus_proof::spec::wf_state(spec_state)
+                && crate::verus_proof::state::lifts_to(*old(s), spec_state)
+                ==> crate::verus_proof::state::lifts_to(
+                *final(s),
+                crate::verus_proof::spec::rounds_from(spec_state, old(s).i as int, 4),
+            ),
+)]
 pub(crate) fn keccakf1600_4rounds<const BASE_ROUND: usize>(s: &mut KeccakState) {
+    proof_decl! { let ghost a0 = *s; let ghost ir = s.i as int; }
     keccakf1600_round0_theta(s);
+    proof_decl! { let ghost a0t = *s; }
     keccakf1600_round0_pi_rho_chi_1::<BASE_ROUND>(s);
+    proof_decl! { let ghost a0h = *s; }
     keccakf1600_round0_pi_rho_chi_2(s);
+    proof_decl! { let ghost a1 = *s; }
     keccakf1600_round1_theta(s);
+    proof_decl! { let ghost a1t = *s; }
     keccakf1600_round1_pi_rho_chi_1::<BASE_ROUND>(s);
+    proof_decl! { let ghost a1h = *s; }
     keccakf1600_round1_pi_rho_chi_2(s);
+    proof_decl! { let ghost a2 = *s; }
     keccakf1600_round2_theta(s);
+    proof_decl! { let ghost a2t = *s; }
     keccakf1600_round2_pi_rho_chi_1::<BASE_ROUND>(s);
+    proof_decl! { let ghost a2h = *s; }
     keccakf1600_round2_pi_rho_chi_2(s);
+    proof_decl! { let ghost a3 = *s; }
     keccakf1600_round3_theta(s);
+    proof_decl! { let ghost a3t = *s; }
     keccakf1600_round3_pi_rho_chi_1::<BASE_ROUND>(s);
+    proof_decl! { let ghost a3h = *s; }
     keccakf1600_round3_pi_rho_chi_2(s);
+    proof_decl! { let ghost a4 = *s; }
+    proof! {
+        assert forall|spec_state: Seq<u64>|
+            crate::verus_proof::spec::wf_state(spec_state)
+                && crate::verus_proof::state::lifts_to(a0, spec_state)
+            implies crate::verus_proof::state::lifts_to(
+                *s,
+                crate::verus_proof::spec::rounds_from(spec_state, ir, 4),
+            ) by {
+            crate::verus_proof::four_rounds::lemma_four_rounds(
+                spec_state, a0, a0t, a0h, a1, a1t, a1h, a2, a2t, a2h, a3, a3t, a3h, a4, ir,
+            );
+        }
+    }
 }
 
 #[inline(never)]
 #[cfg_attr(not(hax_backend_lean), hax_lib::opaque)]
+#[verus_verify(rlimit(400), spinoff_prover)]
+#[verus_spec(
+    requires old(s).i == 0,
+    ensures
+        final(s).i == 0,
+        forall|spec_state: Seq<u64>|
+            crate::verus_proof::spec::wf_state(spec_state)
+                && crate::verus_proof::state::lifts_to(*old(s), spec_state)
+                ==> crate::verus_proof::state::lifts_to(
+                *final(s),
+                crate::verus_proof::spec::keccak_f(spec_state),
+            ),
+)]
 pub(crate) fn keccakf1600(s: &mut KeccakState) {
-    #[cfg(not(feature = "full-unroll"))]
+    proof_decl! { let ghost a0 = *s; }
+    #[cfg(all(not(feature = "full-unroll"), not(verus_keep_ghost)))]
     for _ in 0..6 {
         // dummy base round, is ignored if we don't unroll
         keccakf1600_4rounds::<0>(s);
+    }
+    // The same loop, carrying its invariant. Only Verus compiles this copy: an
+    // attribute on a loop needs `proc_macro_hygiene`, which a normal build does
+    // not enable, and the extraction should see the plain loop above. The
+    // counter is named only so the invariant can say how far along the
+    // permutation is.
+    #[cfg(all(not(feature = "full-unroll"), verus_keep_ghost))]
+    #[verus_spec(
+        invariant
+            s.i as int == 4 * (_i as int),
+            _i as int <= 6,
+            forall|spec_state: Seq<u64>|
+                crate::verus_proof::spec::wf_state(spec_state)
+                    && crate::verus_proof::state::lifts_to(a0, spec_state)
+                    ==> crate::verus_proof::state::lifts_to(
+                    *s,
+                    crate::verus_proof::spec::rounds_from(spec_state, 0, s.i as nat),
+                ),
+    )]
+    for _i in 0..6 {
+        keccakf1600_4rounds::<0>(s);
+        proof! {
+            assert forall|spec_state: Seq<u64>|
+                crate::verus_proof::spec::wf_state(spec_state)
+                    && crate::verus_proof::state::lifts_to(a0, spec_state)
+                implies crate::verus_proof::state::lifts_to(
+                    *s,
+                    crate::verus_proof::spec::rounds_from(spec_state, 0, (4 * (_i as int) + 4) as nat),
+                ) by {
+                crate::verus_proof::spec::lemma_rounds_from_wf(
+                    spec_state,
+                    0,
+                    (4 * (_i as int)) as nat,
+                );
+                crate::verus_proof::spec::lemma_rounds_from_split(
+                    spec_state,
+                    (4 * (_i as int)) as nat,
+                    4nat,
+                );
+            }
+        }
     }
     #[cfg(feature = "full-unroll")]
     {
@@ -2587,7 +4100,40 @@ pub(crate) fn keccakf1600(s: &mut KeccakState) {
         keccakf1600_4rounds::<16>(s);
         keccakf1600_4rounds::<20>(s);
     }
+    proof_decl! { let ghost s_end = *s; }
+    proof! {
+        // Twenty-four rounds done; restate the loop invariant at its exit value
+        // so the postcondition's quantifier lines up with it.
+        assert(s.i == 24);
+        assert forall|spec_state: Seq<u64>|
+            crate::verus_proof::spec::wf_state(spec_state)
+                && #[trigger] crate::verus_proof::state::lifts_to(a0, spec_state)
+            implies crate::verus_proof::state::lifts_to(
+                s_end,
+                crate::verus_proof::spec::keccak_f(spec_state),
+            ) by {
+        }
+    }
     s.i = 0;
+    // Resetting the counter leaves the lanes alone, but the quantified fact has
+    // to be restated against the state that assignment produces.
+    proof! {
+        assert forall|spec_state: Seq<u64>|
+            crate::verus_proof::spec::wf_state(spec_state)
+                && crate::verus_proof::state::lifts_to(a0, spec_state)
+            implies crate::verus_proof::state::lifts_to(
+                *s,
+                crate::verus_proof::spec::keccak_f(spec_state),
+            ) by {
+            crate::verus_proof::state::lemma_lifts_to_st(
+                s_end,
+                *s,
+                crate::verus_proof::spec::keccak_f(spec_state),
+                crate::verus_proof::state::identity_place(),
+                crate::verus_proof::state::no_swap(),
+            );
+        }
+    }
 }
 
 #[inline(always)]

@@ -44,8 +44,16 @@
 //! apply, such as e.g. ARM Cortex-M3.
 
 #![no_std]
-#![forbid(unsafe_code)]
+// `assume_specification` expands to an `unsafe` block, which `forbid` would
+// reject and no local `allow` can override, so the lint drops to `deny` while
+// Verus is running and stays at `forbid` for every real build.
+#![cfg_attr(not(verus_keep_ghost), forbid(unsafe_code))]
+#![cfg_attr(verus_keep_ghost, deny(unsafe_code))]
 #![deny(missing_docs)]
+// Verus annotates a loop with an attribute on the loop statement, which needs
+// this feature; it is on only while Verus is running. (Verus injects
+// `stmt_expr_attributes` itself, so declaring that one here is a duplicate.)
+#![cfg_attr(verus_keep_ghost, feature(proc_macro_hygiene))]
 // Neither `feature(register_tool)` nor `register_tool(charon)` is declared here.
 // As of cargo-hax 0.4 charon enables the feature and registers its own tool
 // namespace for every crate it compiles -- dependency crates included, so this
@@ -71,6 +79,8 @@ use libcrux_secrets::DeclassifyRef as _;
 mod keccak;
 mod lane;
 mod state;
+#[cfg(verus_keep_ghost)]
+mod verus_proof;
 
 /// Size in bytes of a SHA3 244 digest
 pub const SHA3_224_DIGEST_SIZE: usize = 28;

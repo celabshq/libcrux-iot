@@ -3,9 +3,18 @@ use hax_lib::ToInt;
 use libcrux_secrets::{U32, U8};
 
 use crate::lane::Lane2U32;
+use vstd::prelude::*;
+
+#[cfg(verus_keep_ghost)]
+verus! {
+
+broadcast use crate::lane::lemma_half;
+
+} // verus!
 
 #[derive(Clone, Copy)]
 #[cfg_attr(not(any(eurydice, hax_backend_lean)), derive(Debug))]
+#[verus_verify]
 pub(crate) struct KeccakState {
     pub(super) st: [Lane2U32; 25],
     pub(super) c: [Lane2U32; 5],
@@ -27,12 +36,31 @@ impl KeccakState {
 
     #[inline(always)]
     #[hax_lib::requires(i < 5 && j < 5 && zeta < 2)]
+    #[verus_verify]
+    #[verus_spec(r =>
+        requires i < 5 && j < 5 && zeta < 2,
+        ensures r == self.st[5 * j + i].0[zeta as int],
+    )]
     pub(crate) fn get_with_zeta(&self, i: usize, j: usize, zeta: usize) -> U32 {
         self.st[5 * j + i][zeta]
     }
 
     #[inline(always)]
     #[hax_lib::requires(i < 5 && j < 5 && zeta < 2)]
+    #[verus_verify]
+    #[verus_spec(
+        requires i < 5 && j < 5 && zeta < 2,
+        ensures
+            final(self).st[5 * j + i].0[zeta as int] == v,
+            forall|k: int|
+                0 <= k < 25 && k != 5 * j + i ==> #[trigger] final(self).st[k] == old(self).st[k],
+            forall|z: int|
+                0 <= z < 2 && z != zeta ==> #[trigger] final(self).st[5 * j + i].0[z]
+                    == old(self).st[5 * j + i].0[z],
+            final(self).c == old(self).c,
+            final(self).d == old(self).d,
+            final(self).i == old(self).i,
+    )]
     pub(crate) fn set_with_zeta(&mut self, i: usize, j: usize, zeta: usize, v: U32) {
         self.st[5 * j + i].0[zeta] = v
     }
@@ -51,6 +79,19 @@ impl KeccakState {
 
     #[inline(always)]
     #[hax_lib::requires(i < 5 && j < 2)]
+    #[verus_verify]
+    #[verus_spec(
+        requires i < 5 && j < 2,
+        ensures
+            final(self).c[i as int].0[j as int] == value,
+            forall|k: int| 0 <= k < 5 && k != i ==> #[trigger] final(self).c[k] == old(self).c[k],
+            forall|z: int|
+                0 <= z < 2 && z != j ==> #[trigger] final(self).c[i as int].0[z]
+                    == old(self).c[i as int].0[z],
+            final(self).st == old(self).st,
+            final(self).d == old(self).d,
+            final(self).i == old(self).i,
+    )]
     pub(crate) fn set_lane_value(&mut self, i: usize, j: usize, value: U32) {
         // Written as a nested field access rather than through `IndexMut`: hax
         // extracts an `IndexMut` impl fine these days, but it turns this line
