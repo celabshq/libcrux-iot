@@ -58,48 +58,30 @@ theorem pad_j_eq (x m : Nat) (hx : 0 < x) :
 /-- The padding the transcript builds, as a list.
 
     Three opaque operations — `from_bits [1]`, `zeros j`, and two `concat`s —
-    so the whole proof is the arithmetic for `j` plus the models. -/
-theorem pad10_star_1_eq (x m : Std.U64) (hx : 0 < x.val) (hxb : x.val ≤ 1600) :
-    hacspec_sha3_pedantic.sponge.pad10_star_1 x m = ok (padBits x.val m.val) := by
-  have hxne : x.val ≠ 0 := by omega
-  -- `massert (x > 0)`
-  have hmassert : (massert (x > 0#u64) : RustM Unit) = .ok () := by
-    unfold Aeneas.Std.massert
-    refine if_pos ?_
-    show (0#u64 : Std.U64).val < x.val
-    simpa using hx
-  -- the four scalar steps that compute `j`
-  obtain ⟨i, hi, hiv, _⟩ := Std.WP.spec_imp_exists
-    (Std.UScalar.rem_bv_spec m (y := x) hxne)
-  have hix : i.val < x.val := by rw [hiv]; exact Nat.mod_lt _ hx
-  obtain ⟨i1, hi1, hi1v⟩ := Std.WP.spec_imp_exists
-    (Std.WP.spec_of_partialSpec (Std.UScalar.add_spec (x := i) (y := (2#u64 : Std.U64)))
-      (by intro e; cases e <;> simp; scalar_tac) (by simp))
-  obtain ⟨i2, hi2, hi2v, _⟩ := Std.WP.spec_imp_exists
-    (Std.UScalar.rem_bv_spec i1 (y := x) hxne)
-  have hi2x : i2.val < x.val := by rw [hi2v]; exact Nat.mod_lt _ hx
-  obtain ⟨i3, hi3, hi3v, -⟩ := Std.WP.spec_imp_exists
-    (Std.WP.spec_of_partialSpec (Std.UScalar.sub_spec (x := x) (y := i2))
-      (by intro e; cases e <;> simp; scalar_tac) (by simp))
-  obtain ⟨j, hj, hjv, _⟩ := Std.WP.spec_imp_exists
-    (Std.UScalar.rem_bv_spec i3 (y := x) hxne)
-  have hjval : j.val = ((-(m.val : Int) - 2) % (x.val : Int)).toNat := by
-    rw [← pad_j_eq x.val m.val hx, hjv, hi3v, hi2v, hi1v, hiv]
-    simp
+    so the whole proof is the arithmetic for `j` plus the models. That
+    arithmetic is `nat::Nat`'s now rather than a `u64`'s: `rem` and `sub` are
+    the only steps that can fail, at a zero divisor and below zero, and
+    `(m % x + 2) % x < x` rules both out. The `x ≤ 1600` hypothesis this
+    theorem used to carry — there to keep `m % x + 2` inside a word — is gone
+    with the word. -/
+theorem pad10_star_1_eq (x m : Nat) (hx : 0 < x) :
+    hacspec_sha3_pedantic.sponge.pad10_star_1 x m = ok (padBits x m) := by
+  have hxne : ¬ (x = 0) := by omega
+  have h0 : ((0#u64 : Std.U64).val) = 0 := by simp
+  have h2 : ((2#u64 : Std.U64).val) = 2 := by simp
+  have hle : (m % x + 2) % x ≤ x := le_of_lt (Nat.mod_lt _ hx)
   unfold hacspec_sha3_pedantic.sponge.pad10_star_1
-  rw [hmassert, bind_tc_ok, hi, bind_tc_ok, hi1, bind_tc_ok, hi2, bind_tc_ok,
-    hi3, bind_tc_ok, hj, bind_tc_ok]
-  -- `from_bits`, `zeros` and the two `concat`s are the hand-written models
-  show (do
-    let s ← Std.lift (Std.Array.to_slice (Std.Array.make 1#usize [true]))
-    let one ← hacspec_sha3_pedantic.bits.BitStr.from_bits s
-    let bs ← hacspec_sha3_pedantic.bits.BitStr.zeros j
-    let bs1 ← hacspec_sha3_pedantic.bits.BitStr.concat one bs
-    hacspec_sha3_pedantic.bits.BitStr.concat bs1 one) = ok (padBits x.val m.val)
-  simp only [hacspec_sha3_pedantic.bits.BitStr.from_bits,
-    hacspec_sha3_pedantic.bits.BitStr.zeros,
-    hacspec_sha3_pedantic.bits.BitStr.concat, Std.lift, bind_tc_ok]
-  simp only [padBits, hjval]
-  rfl
+    hacspec_sha3_pedantic.nat.Nat.new
+    hacspec_sha3_pedantic.nat.Nat.Insts.CoreCmpPartialOrdNat.gt
+    hacspec_sha3_pedantic.nat.Nat.Insts.CoreOpsArithRemNatNat.rem
+    hacspec_sha3_pedantic.nat.Nat.Insts.CoreOpsArithAddNatNat.add
+    hacspec_sha3_pedantic.nat.Nat.Insts.CoreOpsArithSubNatNat.sub
+    hacspec_sha3_pedantic.bits.BitStr.from_bits
+    hacspec_sha3_pedantic.bits.BitStr.zeros
+    hacspec_sha3_pedantic.bits.BitStr.concat
+    Aeneas.Std.massert
+  simp only [h0, h2, Std.lift, bind_tc_ok, decide_eq_true_eq,
+    if_neg hxne, if_pos hx, if_pos hle]
+  simp [padBits, ← pad_j_eq x m hx, Std.Array.to_slice, Std.Array.make]
 
 end LibcruxIotSha3.Composition.Pedantic

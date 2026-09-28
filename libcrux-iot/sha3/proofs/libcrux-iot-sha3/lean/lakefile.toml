@@ -25,5 +25,5 @@ rev = "v0.3.17"
 [[require]]
 name = "HacspecSha3Pedantic"
 git = "https://github.com/celabshq/libcrux"
-rev = "84941c8be20d552a144c946aa2e010e79f1dffab"
+rev = "8f8609acf7965ded4b4e0963eac01d3f4b572af9"
 subDir = "specs/sha3-pedantic/proofs/hacspec-sha3-pedantic/lean"

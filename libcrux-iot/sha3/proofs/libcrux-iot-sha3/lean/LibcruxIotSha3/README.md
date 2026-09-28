@@ -35,29 +35,27 @@ The functional correctness of the SHA-3 and SHAKE functions in [`src/lib.rs`](..
 is specified using Rust annotations directly on the functions. For example:
 
 ```rust
-#[hax_lib::requires(BYTES <= MAX_INPUT_LEN && data.len() <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::shake128(data.declassify_ref(), BYTES)[..])]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES]
 ```
 Informally: the IOT-friendly implementation `shake128` yields the same result as FIPS
-202's SHAKE128. The preconditions bound the requested output length and the input by
-`MAX_INPUT_LEN` (see [The input bound](#the-input-bound)); outside them, our verification
-makes no claims about how the function might behave. Again, we must call `declassify()`
+202's SHAKE128 -- for every input, with no precondition at all (see [No input
+bound](#no-input-bound)). We must call `declassify()`
 to convert between the implementation's custom integer type `U8` and Rust's integers
 `u8`, and the `[..]` on both sides because the transcript's SHAKE returns a `Vec<u8>`
 (its output length is a runtime argument, not a const generic).
 
 
 ```rust
-#[hax_lib::requires(payload.len() <= MAX_INPUT_LEN && digest.len() == SHA3_256_DIGEST_SIZE)]
+#[hax_lib::requires(digest.len() == SHA3_256_DIGEST_SIZE)]
 #[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8])
 ```
 Informally: the IOT-friendly implementation `sha256_ema` yields the same result as FIPS
-202's SHA3-256. The precondition is that the payload length is at most `MAX_INPUT_LEN`
-and that the `digest` slice has the expected length.
+202's SHA3-256. The one precondition is that the `digest` slice has the expected length;
+nothing is asked of the payload.
 
 The `[..]` is technically unnecessary, too, but we need it because hax's model of Rust core
 currently models `==` only between two slices or two arrays, not between one slice and one array.
@@ -98,7 +96,6 @@ Seven of the thirteen wrap the others, and until recently carried a `#[requires]
 Two post shapes cover them. The four allocating digests compare the returned array:
 
 ```rust
-#[hax_lib::requires(payload.len() <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::sha3_224(payload.declassify_ref())[..])]
 pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE]
@@ -108,21 +105,18 @@ The two caller-allocated XOF entry points compare the buffer they wrote, and tak
 output length from `out.len()` rather than from a const generic:
 
 ```rust
-#[hax_lib::requires(data.len() <= MAX_INPUT_LEN && out.len() <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|_| future(out).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::shake128(data.declassify_ref(), out.len())[..])]
 pub fn shake128_ema(out: &mut [U8], data: &[U8])
 ```
 
-**This tightened a public precondition.** `shake128_ema` and `shake256_ema` previously
-required only `out.len() <= u32::MAX as usize`, which is both too weak for the transcript
-(it needs `8 * out.len()` to stay representable) and silent about `data` entirely. The
-bound on the output therefore narrows from 4 GB to `MAX_INPUT_LEN`, and a bound on the
-input is added. Their callers inside this workspace -- `ml-dsa/src/hash_functions.rs` and
-`ml-kem/src/hash_functions.rs` -- are all `#[hax_lib::opaque]` or covered by an `--opaque`
-in `hax.toml`, so no proof obligation anywhere had to change; but note that ml-kem's `PRF`
-still carries only `LEN <= u32::MAX as usize`, which would need tightening in step if
-those wrappers are ever made non-opaque.
+**These two public preconditions went away entirely.** `shake128_ema` and `shake256_ema`
+once required `out.len() <= u32::MAX as usize`, then -- when they were given a
+transcript-level post -- a `MAX_INPUT_LEN` on both `out` and `data`, because the
+transcript needed `8 * out.len()` to stay representable. It does not any more, so they
+now require nothing. Their callers inside this workspace -- `ml-dsa/src/hash_functions.rs`
+and `ml-kem/src/hash_functions.rs` -- are all `#[hax_lib::opaque]` or covered by an
+`--opaque` in `hax.toml`, so nothing downstream had to change either time.
 
 `hash`, the dispatcher, needs a four-way post. It is written as a
 `#[cfg(hax)]` helper so that each arm is a slice `==` -- a shape hax models -- rather than
@@ -137,7 +131,7 @@ fn digest_matches(algorithm: Algorithm, payload: &[u8], out: &[u8]) -> bool {
     }
 }
 
-#[hax_lib::requires(payload.len() <= MAX_INPUT_LEN && LEN == digest_size(algorithm))]
+#[hax_lib::requires(LEN == digest_size(algorithm))]
 #[hax_lib::ensures(|out| digest_matches(algorithm, payload.declassify_ref(), &out.declassify()[..]))]
 pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN]
 ```
@@ -145,35 +139,36 @@ pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN]
 `digest_matches` is a definition, not an assumption: it is extracted along with everything
 else and unfolds in the proof.
 
-Worth knowing for anyone extending this: the `ok` half of all seven needs no bound on the
-input at all. `keccak.keccak_keccak_spec` asks only `RATE % 8 = 0` and `1 <= RATE <= 200`.
-Every `MAX_INPUT_LEN` in a precondition is there for the transcript, not for the
-implementation's own safety.
+Worth knowing for anyone extending this: nothing on either side needs a bound on the
+input. `keccak.keccak_keccak_spec` asks only `RATE % 8 = 0` and `1 <= RATE <= 200`, and
+the transcript asks nothing at all -- which is why no precondition here mentions a
+length but the digest's.
 
-### The input bound
+### No input bound
 
-Naming the transcript costs one thing, though much less than it used to. The transcript
-works on BIT strings, so it expands its input to `8 * len` bits and then appends the
-domain-separation suffix and `pad10*1`; that padded bit count has to stay representable.
-The transcript counts it in a `u64`, so the contracts bound their input by
+Naming the transcript used to cost one thing. It works on BIT strings, so it expands its
+input to `8 * len` bits and then appends the domain-separation suffix and `pad10*1`, and
+that padded bit count had to stay representable; the contracts therefore bounded their
+input by a `MAX_INPUT_LEN` constant -- `(u32::MAX as usize - 4096) / 8`, 512 MB, while
+the transcript counted bits in a `usize`, and then `(u64::MAX - 2048) / 8`, about 2.3
+exabytes, once it counted them in a `u64`.
 
-```rust
-pub const MAX_INPUT_LEN: u64 = 2_305_843_009_213_693_695; // == (u64::MAX - 2048) / 8
-```
+It costs nothing now. The transcript counts in `nat::Nat`, a type of its own whose Lean
+model is `Nat`: unbounded, with total addition and multiplication, so `8 * len(M)` and
+`len(N) + len(pad)` are computations that cannot fail. `bits::BitStr::len` is total with
+them. `MAX_INPUT_LEN` is therefore gone from the crate, and with it every length
+hypothesis in `Composition/Pedantic/` -- `sponge_eq` now asks only Sec. 4's `0 < r ≤ b`
+and Table 1's `b ≤ 1600`.
 
-which is about 2.3 exabytes. It is a `u64` rather than a `usize`, and so the same on
-every target; on a 32-bit target no `&[U8]` can fail it at all.
+What `Nat` costs instead is one approximation, stated in `nat.rs` and in the model: the
+Rust behind it is a `u128`, which would wrap where the model keeps counting. That cannot
+happen to a string this crate can build. The bits live in a `Vec<u8>` of at most
+`isize::MAX` bytes, so no `BitStr` reaches `2^67` bits on any target, `pad10*1` adds
+under `2^11` more, and the sponge's cursor stays below the padded length -- sixty bits of
+headroom, over what can be *allocated* rather than over what someone might pass. Every
+`Nat` operation that could overflow is a `checked_*` that panics rather than wraps.
 
-It used to be `(u32::MAX as usize - 4096) / 8` -- 512 MB. That was not a property of
-SHA-3 or of this implementation but of the specification's own arithmetic: the transcript
-counted bit positions in a `usize`, and a proof that had to hold on the smallest
-supported target could not assume more than a 32-bit word. Since the transcript's bit
-strings became `bits::BitStr`, with `u64` lengths and a Lean model that is an unbounded
-list of bits, that reasoning is gone and with it the bound it forced. FIPS 202 itself
-bounds `len(M)` nowhere; what is left here is a property of the artifact, not of the
-Standard.
-
-### The specification### The specification
+### The specification
 
 One specification is involved. **`hacspec_sha3_pedantic`** (`specs/sha3-pedantic`) is the
 transcript of FIPS 202 described at the top of this file; it is extracted from

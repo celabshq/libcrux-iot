@@ -2784,10 +2784,11 @@ mod cross_spec {
     /// domain-separation suffix, and `pad10*1` (Algorithm 8, step 1 with
     /// Algorithm 9). `RATE` bytes exactly.
     fn spec_last_block<const RATE: usize>(tail: &[u8], delim: u8) -> alloc::vec::Vec<u8> {
-        use hacspec_sha3_pedantic::{bits, bits::BitStr, sponge};
+        use hacspec_sha3_pedantic::{bits, bits::BitStr, nat::Nat, sponge};
+        let rate_bits = Nat::from_usize(RATE) * Nat::new(8);
         let n = bits::h2b_full(tail).concat(&BitStr::from_bits(&suffix_of_delim(delim)));
-        let p = n.concat(&sponge::pad10_star_1(8 * RATE as u64, n.len()));
-        assert_eq!(p.len(), 8 * RATE as u64);
+        let p = n.concat(&sponge::pad10_star_1(rate_bits, n.len()));
+        assert_eq!(p.len(), rate_bits);
         bits::b2h(&p)
     }
 

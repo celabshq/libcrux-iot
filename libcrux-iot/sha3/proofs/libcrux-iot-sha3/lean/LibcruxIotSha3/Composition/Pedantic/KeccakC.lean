@@ -55,36 +55,30 @@ theorem keccak1600_perm :
 theorem keccak1600_pad :
     PadSpec hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents
       () := by
-  intro r m hr0 hr
-  exact pad10_star_1_eq r m hr0 hr
+  intro r m hr0
+  exact pad10_star_1_eq r m hr0
 
 
 /-- `KECCAK[c](N, d)` (FIPS 202, Sec. 5.2).
 
-    `N` is an arbitrary-length bit string; what is bounded is what a `u64` has
-    to hold, not what the target's word is. -/
+    `N` is an arbitrary-length bit string and `d` a `nat::Nat`: nothing here is
+    bounded but the capacity, which Sec. 5.2 bounds itself. -/
 theorem keccak_c_eq (c : Std.Usize) (hc0 : 0 < c.val) (hc : c.val < 1600)
-    (n : hacspec_sha3_pedantic.bits.BitStr) (hn : n.length + 1602 < 2 ^ 64)
-    (d : Std.U64) (hdb : d.val + 1600 < 2 ^ 64) :
+    (n : hacspec_sha3_pedantic.bits.BitStr) (d : Nat) :
     ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sponge.keccak_c c n d = ok out ∧
       out =
-        (squeezeAll keccakF (1600 - c.val) d.val
+        (squeezeAll keccakF (1600 - c.val) d
           (absorbFrom keccakF (1600 - c.val) c.val
             (n ++ padBits (1600 - c.val) n.length) (List.replicate 1600 false) 0
             ((n ++ padBits (1600 - c.val) n.length).length / (1600 - c.val)))).take
-          d.val := by
+          d := by
   have hB : (hacspec_sha3_pedantic.sponge.B).val = 1600 := by
     simp [hacspec_sha3_pedantic.sponge.B]
   obtain ⟨rU, hrU, hrUv⟩ := usize_sub_eq hacspec_sha3_pedantic.sponge.B c (by omega)
   have hrUn : rU.val = 1600 - c.val := by rw [hrUv, hB]
-  -- the rate crosses to `u64`, where the bit lengths live
-  set r : Std.U64 := Std.UScalar.cast Std.UScalarTy.U64 rU with hrdef
-  have hrn : r.val = 1600 - c.val := by
-    rw [hrdef, Std.UScalar.cast_val_eq, hrUn]
-    exact Nat.mod_eq_of_lt (by simp only [Std.UScalarTy.U64_numBits_eq]; omega)
-  have hliftcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 rU) : RustM Std.U64)
-      = ok r := rfl
+  -- the rate crosses to `nat::Nat`, where the bit lengths live
+  have hfrom : hacspec_sha3_pedantic.nat.Nat.from_usize rU = ok rU.val := rfl
   -- `b` travels with `f`, as Sec. 4 says it does.
   have hBok :
       (hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents).B
@@ -94,37 +88,38 @@ theorem keccak_c_eq (c : Std.Usize) (hc0 : 0 < c.val) (hc : c.val < 1600)
     rfl
   obtain ⟨out, hout, houtv⟩ :=
     sponge_eq hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents
-      () keccakF 1600 keccak1600_perm keccak1600_pad hacspec_sha3_pedantic.sponge.B r d hBok hB
-      (by omega) (by omega) (by omega) n (by omega) (by omega)
+      () keccakF 1600 keccak1600_perm keccak1600_pad hacspec_sha3_pedantic.sponge.B rU.val d
+      hBok hB (by omega) (by omega) (by omega) n
   refine ⟨out, ?_, ?_⟩
   · -- `SPONGE[f, pad, r]` is fixed by `Sponge::new`, which checks Sec. 4's
     -- `0 < r < b` before the construction exists.
     have hnew : hacspec_sha3_pedantic.sponge.Sponge.new
-        hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents () r
-        = ok ⟨(), r⟩ := by
+        hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents ()
+        rU.val = ok ⟨(), rU.val⟩ := by
       unfold hacspec_sha3_pedantic.sponge.Sponge.new
-      have h0 : (massert (r > 0#u64) : RustM Unit) = .ok () := by
-        unfold Aeneas.Std.massert
-        refine if_pos ((Std.UScalar.lt_equiv _ _).mpr ?_)
-        show (0#u64 : Std.U64).val < r.val
-        rw [hrn]; simpa using (by omega : 0 < 1600 - c.val)
-      have hcastB : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 hacspec_sha3_pedantic.sponge.B)
-          : RustM Std.U64) = ok (Std.UScalar.cast Std.UScalarTy.U64 hacspec_sha3_pedantic.sponge.B) :=
-        rfl
-      have hBval : (Std.UScalar.cast Std.UScalarTy.U64 hacspec_sha3_pedantic.sponge.B).val
-          = 1600 := by
-        rw [Std.UScalar.cast_val_eq, hB]
-        exact Nat.mod_eq_of_lt (by simp only [Std.UScalarTy.U64_numBits_eq]; omega)
-      have hlt : (massert (r < Std.UScalar.cast Std.UScalarTy.U64 hacspec_sha3_pedantic.sponge.B)
-          : RustM Unit) = .ok () := by
-        unfold Aeneas.Std.massert
-        refine if_pos ((Std.UScalar.lt_equiv _ _).mpr ?_)
-        rw [hrn, hBval]; omega
-      rw [h0, bind_tc_ok, hBok, bind_tc_ok, hcastB, bind_tc_ok, hlt, bind_tc_ok]
+        hacspec_sha3_pedantic.nat.Nat.new
+        hacspec_sha3_pedantic.nat.Nat.from_usize
+        hacspec_sha3_pedantic.nat.Nat.Insts.CoreCmpPartialOrdNat.gt
+        hacspec_sha3_pedantic.nat.Nat.Insts.CoreCmpPartialOrdNat.lt
+        Aeneas.Std.massert
+      have h0 : ((0#u64 : Std.U64).val) = 0 := by simp
+      -- the instance's `B` is `sponge.B` by definition; `Sponge::new` compares
+      -- the rate against it directly
+      have hBc :
+          (hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents.B).val
+            = 1600 := by
+        unfold hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents.B
+        exact hB
+      have hc1 : (0 : Nat) < rU.val := by omega
+      have hc2 :
+          rU.val
+            < (hacspec_sha3_pedantic.sponge.Keccak1600.Insts.Hacspec_sha3_pedanticSpongeComponents.B).val := by
+        rw [hBc]; omega
+      simp only [bind_tc_ok, decide_eq_true_eq, h0, if_pos hc1, if_pos hc2]
     unfold hacspec_sha3_pedantic.sponge.keccak_c
-    rw [hrU, bind_tc_ok, hliftcast, bind_tc_ok, hnew, bind_tc_ok]
+    rw [hrU, bind_tc_ok, hfrom, bind_tc_ok, hnew, bind_tc_ok]
     exact hout
-  · rw [houtv, hrn, show 1600 - (1600 - c.val) = c.val from by omega]
+  · rw [houtv, hrUn, show 1600 - (1600 - c.val) = c.val from by omega]
 
 -- Pinned by `#guard_msgs`: the build fails if this comes to depend on any axiom
 -- beyond Lean's standard three.

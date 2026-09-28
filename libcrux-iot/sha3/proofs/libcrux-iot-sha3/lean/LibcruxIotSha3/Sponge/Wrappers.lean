@@ -26,13 +26,12 @@ reason the old `keccak_fc` wrapper was deleted. It keeps its `#[requires]`, whos
 obligation is freedom from panics, overflow and out-of-bounds indexing, and the
 `keccakLanes` value is available here for callers that want it.
 
-No bound on the INPUT is needed for the `ok` anywhere in this file:
-`keccak.keccak_keccak_spec` asks only for `RATE % 8 = 0` and `1 ≤ RATE ≤ 200`. The
-`MAX_INPUT_LEN` bounds in the preconditions are what the TRANSCRIPT needs -- it
-works on bit strings, so `8 * len` plus the suffix and `pad10*1` has to stay
-representable -- which is why giving `shake128_ema`/`shake256_ema` a transcript-level
-post meant tightening their `#[requires]` from `out.len() <= u32::MAX` to
-`MAX_INPUT_LEN` on both `out` and `data`. -/
+No bound on the INPUT appears anywhere in this file, on either side.
+`keccak.keccak_keccak_spec` asks only for `RATE % 8 = 0` and `1 ≤ RATE ≤ 200`,
+and the transcript no longer asks for anything: it counts bits in a `nat::Nat`,
+so `8 * len` plus the suffix and `pad10*1` is an unconditional computation.
+That is what retired `MAX_INPUT_LEN`, which these preconditions used to carry
+purely for the transcript's arithmetic. -/
 
 open Aeneas Aeneas.Std RustM Std.Do libcrux_iot_sha3
 open LibcruxIotSha3.LaneModel
@@ -141,7 +140,7 @@ theorem shake256_ema_spec (out : Slice Std.U8) (data : Slice Std.U8) :
     just `Array.from_slice`. -/
 
 theorem sha224_spec (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+    :
     ⦃ ⌜ True ⌝ ⦄
     sha224 payload
     ⦃ ⇓ r => ⌜ ∀ k : Nat, k < 28 →
@@ -160,7 +159,7 @@ theorem sha224_spec (payload : Slice Std.U8)
     show a.to_slice.val.length = 28
     rw [Std.Array.val_to_slice]; exact a.property
   obtain ⟨s1, h_s1_eq, h_s1_len, h_s1_bytes⟩ :=
-    triple_exists_ok_wr (sha224_ema_spec s payload h_payload_bnd h_s_len)
+    triple_exists_ok_wr (sha224_ema_spec s payload h_s_len)
   have h_s1_len' : s1.val.length = (28#usize : Std.Usize).val := by
     rw [h_s1_len]; decide
   have h_from_slice :
@@ -185,7 +184,7 @@ theorem sha224_spec (payload : Slice Std.U8)
   exact h_s1_bytes k hk
 
 theorem sha256_spec (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+    :
     ⦃ ⌜ True ⌝ ⦄
     sha256 payload
     ⦃ ⇓ r => ⌜ ∀ k : Nat, k < 32 →
@@ -204,7 +203,7 @@ theorem sha256_spec (payload : Slice Std.U8)
     show a.to_slice.val.length = 32
     rw [Std.Array.val_to_slice]; exact a.property
   obtain ⟨s1, h_s1_eq, h_s1_len, h_s1_bytes⟩ :=
-    triple_exists_ok_wr (sha256_ema_spec s payload h_payload_bnd h_s_len)
+    triple_exists_ok_wr (sha256_ema_spec s payload h_s_len)
   have h_s1_len' : s1.val.length = (32#usize : Std.Usize).val := by
     rw [h_s1_len]; decide
   have h_from_slice :
@@ -229,7 +228,7 @@ theorem sha256_spec (payload : Slice Std.U8)
   exact h_s1_bytes k hk
 
 theorem sha384_spec (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+    :
     ⦃ ⌜ True ⌝ ⦄
     sha384 payload
     ⦃ ⇓ r => ⌜ ∀ k : Nat, k < 48 →
@@ -248,7 +247,7 @@ theorem sha384_spec (payload : Slice Std.U8)
     show a.to_slice.val.length = 48
     rw [Std.Array.val_to_slice]; exact a.property
   obtain ⟨s1, h_s1_eq, h_s1_len, h_s1_bytes⟩ :=
-    triple_exists_ok_wr (sha384_ema_spec s payload h_payload_bnd h_s_len)
+    triple_exists_ok_wr (sha384_ema_spec s payload h_s_len)
   have h_s1_len' : s1.val.length = (48#usize : Std.Usize).val := by
     rw [h_s1_len]; decide
   have h_from_slice :
@@ -273,7 +272,7 @@ theorem sha384_spec (payload : Slice Std.U8)
   exact h_s1_bytes k hk
 
 theorem sha512_spec (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+    :
     ⦃ ⌜ True ⌝ ⦄
     sha512 payload
     ⦃ ⇓ r => ⌜ ∀ k : Nat, k < 64 →
@@ -292,7 +291,7 @@ theorem sha512_spec (payload : Slice Std.U8)
     show a.to_slice.val.length = 64
     rw [Std.Array.val_to_slice]; exact a.property
   obtain ⟨s1, h_s1_eq, h_s1_len, h_s1_bytes⟩ :=
-    triple_exists_ok_wr (sha512_ema_spec s payload h_payload_bnd h_s_len)
+    triple_exists_ok_wr (sha512_ema_spec s payload h_s_len)
   have h_s1_len' : s1.val.length = (64#usize : Std.Usize).val := by
     rw [h_s1_len]; decide
   have h_from_slice :
@@ -324,92 +323,21 @@ theorem sha512_spec (payload : Slice Std.U8)
     is what these four equations say; the caller then reuses the `shaN_spec`
     above for the value, which is what `hash`'s `#[ensures]` needs. -/
 
-/-- A `usize` widens to a `u64` without loss: `Usize.max < 2^64` on every
-    supported target. The preconditions compare `len() as u64`, so every bound
-    decoded below goes through this. -/
-theorem cast_u64_val (x : Std.Usize) :
-    (Std.UScalar.cast Std.UScalarTy.U64 x).val = x.val := by
-  rw [Std.UScalar.cast_val_eq]
-  refine Nat.mod_eq_of_lt ?_
-  simp only [Std.UScalarTy.U64_numBits_eq]
-  have hm : Std.Usize.max < 2 ^ 64 := by
-    rw [Std.Usize.max_def, Std.Usize.numBits]
-    simp only [Std.UScalarTy.numBits]
-    rcases System.Platform.numBits_eq with h | h <;> rw [h] <;> norm_num
-  have hx : x.val ≤ Std.Usize.max := by scalar_tac
-  exact Nat.lt_of_le_of_lt hx hm
-
-theorem hash_cast_val_pub (payload : Slice Std.U8) :
-    (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload)).val = payload.val.length := by
-  rw [cast_u64_val, Std.Slice.len_val]
-
-private theorem hash_massert (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
-    (massert ((Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload)) ≤ MAX_INPUT_LEN)
-      : RustM Unit) = .ok () := by
-  unfold Aeneas.Std.massert
-  refine if_pos ((Std.UScalar.le_equiv _ _).mpr ?_)
-  rw [hash_cast_val_pub, max_input_len_val]; exact h_payload_bnd
-
-theorem hash_eq_sha224 (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+theorem hash_eq_sha224 (payload : Slice Std.U8) :
     hash 28#usize Algorithm.Sha224 payload = sha224 payload := by
-  have h_eq : hash 28#usize Algorithm.Sha224 payload
-      = (do
-          let i ← CoreModels.core.slice.Slice.len payload
-          let i1 ← Std.lift (Std.UScalar.cast Std.UScalarTy.U64 i)
-          massert (i1 <= MAX_INPUT_LEN)
-          sha224 payload) := by
-    unfold hash sha224; rfl
-  have hcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload))
-      : RustM Std.U64) = ok (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload)) := rfl
-  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hcast, bind_tc_ok,
-    hash_massert payload h_payload_bnd, bind_tc_ok]
+  unfold hash sha224; rfl
 
-theorem hash_eq_sha256 (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+theorem hash_eq_sha256 (payload : Slice Std.U8) :
     hash 32#usize Algorithm.Sha256 payload = sha256 payload := by
-  have h_eq : hash 32#usize Algorithm.Sha256 payload
-      = (do
-          let i ← CoreModels.core.slice.Slice.len payload
-          let i1 ← Std.lift (Std.UScalar.cast Std.UScalarTy.U64 i)
-          massert (i1 <= MAX_INPUT_LEN)
-          sha256 payload) := by
-    unfold hash sha256; rfl
-  have hcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload))
-      : RustM Std.U64) = ok (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload)) := rfl
-  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hcast, bind_tc_ok,
-    hash_massert payload h_payload_bnd, bind_tc_ok]
+  unfold hash sha256; rfl
 
-theorem hash_eq_sha384 (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+theorem hash_eq_sha384 (payload : Slice Std.U8) :
     hash 48#usize Algorithm.Sha384 payload = sha384 payload := by
-  have h_eq : hash 48#usize Algorithm.Sha384 payload
-      = (do
-          let i ← CoreModels.core.slice.Slice.len payload
-          let i1 ← Std.lift (Std.UScalar.cast Std.UScalarTy.U64 i)
-          massert (i1 <= MAX_INPUT_LEN)
-          sha384 payload) := by
-    unfold hash sha384; rfl
-  have hcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload))
-      : RustM Std.U64) = ok (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload)) := rfl
-  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hcast, bind_tc_ok,
-    hash_massert payload h_payload_bnd, bind_tc_ok]
+  unfold hash sha384; rfl
 
-theorem hash_eq_sha512 (payload : Slice Std.U8)
-    (h_payload_bnd : payload.val.length ≤ 2305843009213693695) :
+theorem hash_eq_sha512 (payload : Slice Std.U8) :
     hash 64#usize Algorithm.Sha512 payload = sha512 payload := by
-  have h_eq : hash 64#usize Algorithm.Sha512 payload
-      = (do
-          let i ← CoreModels.core.slice.Slice.len payload
-          let i1 ← Std.lift (Std.UScalar.cast Std.UScalarTy.U64 i)
-          massert (i1 <= MAX_INPUT_LEN)
-          sha512 payload) := by
-    unfold hash sha512; rfl
-  have hcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload))
-      : RustM Std.U64) = ok (Std.UScalar.cast Std.UScalarTy.U64 (Std.Slice.len payload)) := rfl
-  rw [h_eq, slice_len_eq_wr, bind_tc_ok, hcast, bind_tc_ok,
-    hash_massert payload h_payload_bnd, bind_tc_ok]
+  unfold hash sha512; rfl
 
 /-! ## Axiom guards -/
 

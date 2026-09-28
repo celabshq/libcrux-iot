@@ -55,45 +55,51 @@ def PermSpec : Prop :=
   ∀ s : Slice Bool, s.val.length = b →
     ∃ o : alloc.vec.Vec Bool, inst.f comps s = ok o ∧ o.val = F s.val ∧ (F s.val).length = b
 
+/-- `Nat::to_usize`, the one place a length goes back down to the fixed-width
+    layer. It is partial there, and that is the only partiality this file
+    inherits from the machine: every call site hands it the rate, which Table 1
+    bounds by 1600. -/
+theorem to_usize_eq (x : Nat) (hx : x ≤ Std.Usize.max) :
+    ∃ u : Std.Usize, hacspec_sha3_pedantic.nat.Nat.to_usize x = ok u ∧ u.val = x := by
+  have h := Std.UScalar.tryMk_eq .Usize x
+  unfold hacspec_sha3_pedantic.nat.Nat.to_usize
+  cases hc : Std.UScalar.tryMk .Usize x with
+  | ok u => rw [hc] at h; exact ⟨u, rfl, h.1⟩
+  | fail e => rw [hc] at h; exact absurd (show Std.UScalar.inBounds .Usize x by scalar_tac) h
+  | div => rw [hc] at h; exact absurd h (by simp)
+
 theorem absorb_body_cont (hF : PermSpec inst comps F b)
-    (r : Std.U64) (c : Std.Usize) (hrc : r.val + c.val = b) (_hb : b ≤ 1600)
-    (p : hacspec_sha3_pedantic.bits.BitStr) (hr : 0 < r.val)
-    (hpb : p.length ≤ Std.U64.max)
-    (blocks : Std.U64) (hblocks : blocks.val * r.val = p.length)
-    (i : Std.U64) (hi : i.val < blocks.val)
+    (r : Nat) (c : Std.Usize) (hrc : r + c.val = b) (_hb : b ≤ 1600)
+    (p : hacspec_sha3_pedantic.bits.BitStr) (_hr : 0 < r)
+    (blocks : Nat) (hblocks : blocks * r = p.length)
+    (i : Nat) (hi : i < blocks)
     (s : alloc.vec.Vec Bool) (hs : s.val.length = b) :
-    ∃ (t : Std.U64) (s' : alloc.vec.Vec Bool), t.val = i.val + 1 ∧
-      s'.val = absorbStep F r.val c.val p s.val i.val ∧
+    ∃ s' : alloc.vec.Vec Bool,
+      s'.val = absorbStep F r c.val p s.val i ∧
       hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body inst ⟨comps, r⟩ comps p blocks c s i
-        = ok (.cont (s', t)) := by
-  -- `i * r` and `(i+1) * r` are both within the string, so neither overflows
-  have hir : i.val * r.val + r.val ≤ p.length := by
+        = ok (.cont (s', i + 1)) := by
+  -- `i * r` and `(i+1) * r` are both within the string. That is all there is to
+  -- check about them: the cursor is a `Nat`, so neither can overflow.
+  have hir : i * r + r ≤ p.length := by
     rw [← hblocks]
-    calc i.val * r.val + r.val = (i.val + 1) * r.val := by ring
-      _ ≤ blocks.val * r.val := Nat.mul_le_mul_right _ (by omega)
-  obtain ⟨i1, hi1, hi1v⟩ := Std.WP.spec_imp_exists
-    (Std.UScalar.mul_spec (x := i) (y := r) (by
-      have : i.val * r.val ≤ p.length := by omega
-      scalar_tac))
-  obtain ⟨t, ht, htv⟩ := Std.WP.spec_imp_exists
-    (Std.WP.spec_of_partialSpec (Std.UScalar.add_spec (x := i) (y := (1#u64 : Std.U64)))
-      (by intro e; cases e <;> simp; scalar_tac) (by simp))
+    calc i * r + r = (i + 1) * r := by ring
+      _ ≤ blocks * r := Nat.mul_le_mul_right _ (by omega)
   -- the block: `r` bits of `p` from `i * r`, zero-extended to the full width
-  have hslice : hacspec_sha3_pedantic.bits.BitStr.slice p i1 r
-      = ok ((p.drop (i.val * r.val)).take r.val) := by
+  have hslice : hacspec_sha3_pedantic.bits.BitStr.slice p (i * r) r
+      = ok ((p.drop (i * r)).take r) := by
     unfold hacspec_sha3_pedantic.bits.BitStr.slice
-    rw [if_pos (by rw [hi1v]; exact hir), hi1v]
-  have hsl : ((p.drop (i.val * r.val)).take r.val).length = r.val := by
+    rw [if_pos hir]
+  have hsl : ((p.drop (i * r)).take r).length = r := by
     simp only [List.length_take, List.length_drop]; omega
-  have hto : hacspec_sha3_pedantic.bits.BitStr.to_bits ((p.drop (i.val * r.val)).take r.val)
-      = ok ⟨(p.drop (i.val * r.val)).take r.val, by rw [hsl]; scalar_tac⟩ := by
+  have hto : hacspec_sha3_pedantic.bits.BitStr.to_bits ((p.drop (i * r)).take r)
+      = ok ⟨(p.drop (i * r)).take r, by rw [hsl]; scalar_tac⟩ := by
     unfold hacspec_sha3_pedantic.bits.BitStr.to_bits
     exact dif_pos (by rw [hsl]; scalar_tac)
   obtain ⟨zs, hzs, hzsv⟩ := zeros_eq c
   obtain ⟨blk, hblk, hblkv⟩ := concat_eq
-    ⟨(p.drop (i.val * r.val)).take r.val, by rw [hsl]; scalar_tac⟩ zs (by
+    ⟨(p.drop (i * r)).take r, by rw [hsl]; scalar_tac⟩ zs (by
       simp only [hsl, hzsv, List.length_replicate]; scalar_tac)
-  have hblkv' : blk.val = (p.drop (i.val * r.val)).take r.val ++ zs.val := by simpa using hblkv
+  have hblkv' : blk.val = (p.drop (i * r)).take r ++ zs.val := by simpa using hblkv
   have hblklen : blk.val.length = b := by
     rw [hblkv']
     simp only [List.length_append, hsl, hzsv, List.length_replicate]
@@ -101,57 +107,61 @@ theorem absorb_body_cont (hF : PermSpec inst comps F b)
   -- XOR into the state and permute
   obtain ⟨xs, hxs, hxsv⟩ := xor_eq s blk (by simp [hs, hblklen])
   obtain ⟨o, ho, hov, holen⟩ := hF xs (by simp only [hxsv]; simp [hs, hblklen])
-  refine ⟨t, o, htv, ?_, ?_⟩
+  refine ⟨o, ?_, ?_⟩
   · have hxsv' : xs.val = List.zipWith (· ^^ ·) s.val blk.val := by simpa using hxsv
     rw [hov, hxsv', hblkv', hzsv]
     rfl
   · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body
-    rw [if_pos (show i < blocks from (Std.UScalar.lt_equiv i blocks).mpr hi)]
-    simp [hi1, hslice, hto, hzs, vec_deref_eq, hblk, hxs, ho, ht]
+      hacspec_sha3_pedantic.nat.Nat.Insts.CoreCmpPartialOrdNat.lt
+      hacspec_sha3_pedantic.nat.Nat.Insts.CoreOpsArithMulNatNat.mul
+      hacspec_sha3_pedantic.nat.Nat.Insts.CoreOpsArithAddNatNat.add
+      hacspec_sha3_pedantic.nat.Nat.new
+    simp [hi, hslice, hto, hzs, vec_deref_eq, hblk, hxs, ho]
 
-theorem absorb_body_done (r : Std.U64) (c : Std.Usize)
+theorem absorb_body_done (r : Nat) (c : Std.Usize)
     (p : hacspec_sha3_pedantic.bits.BitStr)
-    (blocks : Std.U64) (s : alloc.vec.Vec Bool) :
+    (blocks : Nat) (s : alloc.vec.Vec Bool) :
     hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body inst ⟨comps, r⟩ comps p blocks c s blocks
       = ok (.done s) := by
   unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body
-  rw [if_neg (by simp)]
+    hacspec_sha3_pedantic.nat.Nat.Insts.CoreCmpPartialOrdNat.lt
+  simp
 
 /-- The absorb loop of Algorithm 8, steps 5-6. -/
 theorem absorb_loop_eq (hF : PermSpec inst comps F b)
-    (r : Std.U64) (c : Std.Usize) (hrc : r.val + c.val = b) (hb : b ≤ 1600) (hr : 0 < r.val)
-    (p : hacspec_sha3_pedantic.bits.BitStr) (hpb : p.length ≤ Std.U64.max)
-    (blocks : Std.U64) (hblocks : blocks.val * r.val = p.length)
+    (r : Nat) (c : Std.Usize) (hrc : r + c.val = b) (hb : b ≤ 1600) (hr : 0 < r)
+    (p : hacspec_sha3_pedantic.bits.BitStr)
+    (blocks : Nat) (hblocks : blocks * r = p.length)
     (s : alloc.vec.Vec Bool) (hs : s.val.length = b) :
     ∃ s' : alloc.vec.Vec Bool,
-      hacspec_sha3_pedantic.sponge.Sponge.apply_loop0 inst ⟨comps, r⟩ comps p blocks c s 0#u64
+      hacspec_sha3_pedantic.sponge.Sponge.apply_loop0 inst ⟨comps, r⟩ comps p blocks c s 0
         = ok s' ∧
-      s'.val = absorbFrom F r.val c.val p s.val 0 blocks.val ∧ s'.val.length = b := by
-  have h := loop_counter_eq_inv_u64 (β := alloc.vec.Vec Bool) (γ := alloc.vec.Vec Bool)
+      s'.val = absorbFrom F r c.val p s.val 0 blocks ∧ s'.val.length = b := by
+  have h := loop_counter_eq_inv_nat (β := alloc.vec.Vec Bool) (γ := alloc.vec.Vec Bool)
     (fun q => hacspec_sha3_pedantic.sponge.Sponge.apply_loop0.body inst ⟨comps, r⟩
       comps p blocks c q.1 q.2)
     blocks
     (fun _ acc => acc.val.length = b)
-    (fun i acc r' => r'.val = absorbFrom F r.val c.val p acc.val i.val (blocks.val - i.val)
+    (fun i acc r' => r'.val = absorbFrom F r c.val p acc.val i (blocks - i)
       ∧ r'.val.length = b)
-    ?hstep ?hdone blocks.val 0#u64 s (by simp) hs
+    ?hstep ?hdone blocks 0 s (by simp) hs
   case hstep =>
     intro i acc hi hinv
-    obtain ⟨t, s', ht, hs', hbody⟩ :=
-      absorb_body_cont inst comps F b hF r c hrc hb p hr hpb blocks hblocks i hi acc hinv
-    refine ⟨t, s', ht, ?_, hbody, ?_⟩
+    obtain ⟨s', hs', hbody⟩ :=
+      absorb_body_cont inst comps F b hF r c hrc hb p hr blocks hblocks i hi acc hinv
+    refine ⟨s', ?_, hbody, ?_⟩
     · rw [hs']
       obtain ⟨o, _, hov, holen⟩ := hF ⟨List.zipWith (· ^^ ·) acc.val
-          ((p.drop (i.val * r.val)).take r.val ++ List.replicate c.val false), by
+          ((p.drop (i * r)).take r ++ List.replicate c.val false), by
         have := acc.property
         simp only [List.length_zipWith]
         scalar_tac⟩ (by
         simp only [List.length_zipWith, List.length_append, List.length_replicate, hinv]
-        have hlen : ((p.drop (i.val * r.val)).take r.val).length = r.val := by
-          have hub : i.val * r.val + r.val ≤ p.length := by
+        have hlen : ((p.drop (i * r)).take r).length = r := by
+          have hub : i * r + r ≤ p.length := by
             rw [← hblocks]
-            calc i.val * r.val + r.val = (i.val + 1) * r.val := by ring
-              _ ≤ blocks.val * r.val := Nat.mul_le_mul_right _ (by omega)
+            calc i * r + r = (i + 1) * r := by ring
+              _ ≤ blocks * r := Nat.mul_le_mul_right _ (by omega)
           simp only [List.length_take, List.length_drop]
           omega
         rw [hlen]
@@ -159,12 +169,12 @@ theorem absorb_loop_eq (hF : PermSpec inst comps F b)
       simpa only [absorbStep] using holen
     · rintro r' ⟨hr', hrlen⟩
       refine ⟨?_, hrlen⟩
-      rw [hr', hs', ht, show blocks.val - i.val = (blocks.val - (i.val + 1)) + 1 by omega]
+      rw [hr', hs', show blocks - i = (blocks - (i + 1)) + 1 by omega]
       rfl
   case hdone =>
     intro acc hinv
     refine ⟨acc, absorb_body_done inst comps r c p blocks acc, ?_, hinv⟩
-    rw [show blocks.val - blocks.val = 0 by omega]
+    rw [show blocks - blocks = 0 by omega]
     rfl
   obtain ⟨s', hloop, hval, hlen⟩ := h
   refine ⟨s', ?_, ?_, hlen⟩
@@ -186,75 +196,61 @@ section Squeeze
 variable {C : Type} (inst : hacspec_sha3_pedantic.sponge.Components C) (comps : C)
   (F : List Bool → List Bool) (b : Nat)
 
-theorem squeeze_body_eq (hF : PermSpec inst comps F b) (r d : Std.U64)
-    (hr : r.val ≤ b) (_hb : b ≤ 1600) (s : alloc.vec.Vec Bool)
-    (z : hacspec_sha3_pedantic.bits.BitStr) (hs : s.val.length = b)
-    (hz : z.length + r.val < 2 ^ 64) :
-    ∃ z1 : hacspec_sha3_pedantic.bits.BitStr, z1 = z ++ s.val.take r.val ∧
-      ((d.val ≤ z1.length ∧
-          hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body inst ⟨comps, r⟩ d comps s z
+theorem squeeze_body_eq (hF : PermSpec inst comps F b) (rU : Std.Usize) (d : Nat)
+    (hr : rU.val ≤ b) (_hb : b ≤ 1600) (s : alloc.vec.Vec Bool)
+    (z : hacspec_sha3_pedantic.bits.BitStr) (hs : s.val.length = b) :
+    ∃ z1 : hacspec_sha3_pedantic.bits.BitStr, z1 = z ++ s.val.take rU.val ∧
+      ((d ≤ z1.length ∧
+          hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body inst rU d comps s z
             = ok (.done z1)) ∨
-       (¬ (d.val ≤ z1.length) ∧ ∃ s' : alloc.vec.Vec Bool, s'.val = F s.val ∧
-          hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body inst ⟨comps, r⟩ d comps s z
+       (¬ (d ≤ z1.length) ∧ ∃ s' : alloc.vec.Vec Bool, s'.val = F s.val ∧
+          hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body inst rU d comps s z
             = ok (.cont (s', z1)))) := by
-  -- `r` crosses to the fixed-width layer; it is at most 1600, so the cast is exact
-  have hru : (Std.UScalar.cast Std.UScalarTy.Usize r).val = r.val := by
-    rw [Std.UScalar.cast_val_eq]
-    have hlt : r.val < 2 ^ System.Platform.numBits := by scalar_tac
-    exact Nat.mod_eq_of_lt hlt
-  obtain ⟨head, hhead, hheadv⟩ :=
-    trunc_eq s (Std.UScalar.cast Std.UScalarTy.Usize r) (by rw [hru]; omega)
-  have hheadlen : head.val.length = r.val := by
-    rw [hheadv, hru]; simp; omega
-  have hz1len : (z ++ head.val).length = z.length + r.val := by simp [hheadlen]
-  -- the length of `Z` is read back as a `u64`, which it fits
-  have hinner : z.length + head.val.length < 18446744073709551616 := by
-    rw [hheadlen]; omega
-  have hlenval : (⟨BitVec.ofNat 64 (z.length + head.val.length)⟩ : Std.U64).val
-      = z.length + head.val.length := by
-    show (BitVec.ofNat 64 (z.length + head.val.length)).toNat = z.length + head.val.length
-    rw [BitVec.toNat_ofNat]
-    exact Nat.mod_eq_of_lt hinner
-  refine ⟨z ++ head.val, by rw [hheadv, hru], ?_⟩
-  by_cases hd : d.val ≤ (z ++ head.val).length
+  -- the rate reached the fixed-width layer once, before the loop; here it is
+  -- already a `usize`, so there is no cast to justify per turn
+  obtain ⟨head, hhead, hheadv⟩ := trunc_eq s rU (by omega)
+  have hheadlen : head.val.length = rU.val := by
+    rw [hheadv]; simp; omega
+  refine ⟨z ++ head.val, by rw [hheadv], ?_⟩
+  by_cases hd : d ≤ (z ++ head.val).length
   · refine Or.inl ⟨hd, ?_⟩
-    have hdn : d.val ≤ z.length + head.val.length := by
-      have : (z ++ head.val).length = z.length + head.val.length := by simp
-      omega
+    have hdn : d ≤ z.length + head.val.length := by simpa using hd
     unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body
       hacspec_sha3_pedantic.bits.BitStr.from_bits
       hacspec_sha3_pedantic.bits.BitStr.concat
       hacspec_sha3_pedantic.bits.BitStr.len
-    simp [vec_deref_eq, Std.lift, hhead, hinner, hlenval, hdn]
+      hacspec_sha3_pedantic.nat.Nat.Insts.CoreCmpPartialOrdNat.le
+    simp [vec_deref_eq, hhead, hdn]
   · obtain ⟨s', hs', hs'v, -⟩ := hF s (by omega)
     refine Or.inr ⟨hd, s', hs'v, ?_⟩
-    have hdn : ¬ (d.val ≤ z.length + head.val.length) := by
-      have : (z ++ head.val).length = z.length + head.val.length := by simp
-      omega
+    have hdn : ¬ (d ≤ z.length + head.val.length) := by simpa using hd
     unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1.body
       hacspec_sha3_pedantic.bits.BitStr.from_bits
       hacspec_sha3_pedantic.bits.BitStr.concat
       hacspec_sha3_pedantic.bits.BitStr.len
-    simp [vec_deref_eq, Std.lift, hhead, hinner, hlenval, hdn, hs']
+      hacspec_sha3_pedantic.nat.Nat.Insts.CoreCmpPartialOrdNat.le
+    simp [vec_deref_eq, hhead, hdn, hs']
 
 
-/-- The squeeze loop: it emits `r` bits per turn until `d` are out. -/
-theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.U64)
-    (hr : r.val ≤ b) (hb : b ≤ 1600) :
+/-- The squeeze loop: it emits `r` bits per turn until `d` are out.
+
+    The fuel is what says the loop terminates; there is no second hypothesis
+    about `Z` fitting a word, because `len(Z)` is a `Nat`. -/
+theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (rU : Std.Usize) (d : Nat)
+    (hr : rU.val ≤ b) (hb : b ≤ 1600) :
     ∀ (k : Nat) (s : alloc.vec.Vec Bool) (z : hacspec_sha3_pedantic.bits.BitStr),
       s.val.length = b →
-      d.val ≤ z.length + (k + 1) * r.val →
-      z.length + (k + 1) * r.val < 2 ^ 64 →
+      d ≤ z.length + (k + 1) * rU.val →
       ∃ out : hacspec_sha3_pedantic.bits.BitStr,
-        hacspec_sha3_pedantic.sponge.Sponge.apply_loop1 inst ⟨comps, r⟩ d comps s z = ok out ∧
-        out = squeezeFrom F r.val d.val k s.val z := by
+        hacspec_sha3_pedantic.sponge.Sponge.apply_loop1 inst rU d comps s z = ok out ∧
+        out = squeezeFrom F rU.val d k s.val z := by
   intro k
   induction k with
   | zero =>
-    intro s z hs hfuel hroom
+    intro s z hs hfuel
     obtain ⟨z1, hz1v, hcase⟩ :=
-      squeeze_body_eq inst comps F b hF r d hr hb s z hs (by omega)
-    have hd : d.val ≤ z1.length := by
+      squeeze_body_eq inst comps F b hF rU d hr hb s z hs
+    have hd : d ≤ z1.length := by
       rw [hz1v]
       simp only [List.length_append, List.length_take]
       omega
@@ -266,12 +262,10 @@ theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.U64)
         rfl
     · exact absurd hd hne
   | succ k ih =>
-    intro s z hs hfuel hroom
+    intro s z hs hfuel
     obtain ⟨z1, hz1v, hcase⟩ :=
-      squeeze_body_eq inst comps F b hF r d hr hb s z hs (by
-        have : (k + 1 + 1) * r.val = r.val + (k + 1) * r.val := by ring
-        omega)
-    have hz1len : z1.length = z.length + r.val := by
+      squeeze_body_eq inst comps F b hF rU d hr hb s z hs
+    have hz1len : z1.length = z.length + rU.val := by
       rw [hz1v]
       simp only [List.length_append, List.length_take]
       omega
@@ -280,15 +274,13 @@ theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.U64)
       · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1
         simp [loop.eq_def, hbody]
       · rw [hz1v]
-        show _ = (if d.val ≤ (z ++ s.val.take r.val).length then _ else _)
+        show _ = (if d ≤ (z ++ s.val.take rU.val).length then _ else _)
         rw [if_pos (by rw [← hz1v]; exact hd)]
     · obtain ⟨out, hout, houtv⟩ := ih s' z1 (by
         rw [hs'v]
         obtain ⟨_, _, _, hlen⟩ := hF s (by omega)
         exact hlen) (by
-        have : (k + 1 + 1) * r.val = r.val + (k + 1) * r.val := by ring
-        omega) (by
-        have : (k + 1 + 1) * r.val = r.val + (k + 1) * r.val := by ring
+        have : (k + 1 + 1) * rU.val = rU.val + (k + 1) * rU.val := by ring
         omega)
       refine ⟨out, ?_, ?_⟩
       · unfold hacspec_sha3_pedantic.sponge.Sponge.apply_loop1
@@ -296,7 +288,7 @@ theorem squeeze_loop_eq (hF : PermSpec inst comps F b) (r d : Std.U64)
         simp only [hbody]
         exact hout
       · rw [houtv, hz1v, hs'v]
-        show _ = (if d.val ≤ (z ++ s.val.take r.val).length then _ else _)
+        show _ = (if d ≤ (z ++ s.val.take rU.val).length then _ else _)
         rw [if_neg (by rw [← hz1v]; exact hne)]
 
 end Squeeze
@@ -340,11 +332,10 @@ variable {C : Type} (inst : hacspec_sha3_pedantic.sponge.Components C) (comps : 
 
 /-- What the `Components` trait's padding has to be: FIPS 202's `pad10*1`.
 
-    No bound on `m`: the message length is a `u64` now, and `pad10*1` is total
-    on it. -/
+    No bound on `m`, and none on `r` beyond Sec. 4's own: the lengths are
+    `nat::Nat`, and `pad10*1` is total on them. -/
 def PadSpec : Prop :=
-  ∀ r m : Std.U64, 0 < r.val → r.val ≤ 1600 →
-    inst.pad comps r m = ok (padBits r.val m.val)
+  ∀ r m : Nat, 0 < r → inst.pad comps r m = ok (padBits r m)
 
 /-- The padded message is a whole number of blocks -- the point of `pad10*1`. -/
 theorem padBits_len (x m : Nat) (_hx : 0 < x) :
@@ -371,117 +362,89 @@ theorem padBits_length (x m : Nat) (hx : 0 < x) :
 
 /-- `SPONGE[f, pad, r](N, d)` (FIPS 202, Algorithm 8).
 
-    The message is an arbitrary-length `BitStr`. What is still bounded is what
-    a `u64` has to hold: the padded message's length, and the output the
-    squeeze accumulates. Neither moves with the target word size, which is the
-    whole point of the type. -/
+    The message is an arbitrary-length `BitStr` and its length is a `nat::Nat`,
+    so nothing here is bounded: what this theorem asks is Sec. 4's own
+    `0 < r ≤ b` and Table 1's `b ≤ 1600`, and that is all. The two hypotheses
+    it used to carry — that the padded message and the squeezed output each fit
+    a `u64` — are what `MAX_INPUT_LEN` was, and they are gone. -/
 theorem sponge_eq (hF : PermSpec inst comps F b) (hP : PadSpec inst comps)
-    (bU : Std.Usize) (r d : Std.U64) (hB : inst.B = ok bU) (hbU : bU.val = b) (hb : b ≤ 1600)
-    (hr0 : 0 < r.val) (hrb : r.val ≤ b)
-    (n : hacspec_sha3_pedantic.bits.BitStr)
-    (hnb : n.length + r.val + 2 < 2 ^ 64)
-    (hdb : d.val + r.val < 2 ^ 64) :
+    (bU : Std.Usize) (r d : Nat) (hB : inst.B = ok bU) (hbU : bU.val = b) (hb : b ≤ 1600)
+    (hr0 : 0 < r) (hrb : r ≤ b)
+    (n : hacspec_sha3_pedantic.bits.BitStr) :
     ∃ out : hacspec_sha3_pedantic.bits.BitStr,
       hacspec_sha3_pedantic.sponge.Sponge.apply inst ⟨comps, r⟩ n d = ok out ∧
       out =
-        (squeezeAll F r.val d.val
-          (absorbFrom F r.val (b - r.val) (n ++ padBits r.val n.length)
+        (squeezeAll F r d
+          (absorbFrom F r (b - r) (n ++ padBits r n.length)
             (List.replicate b false) 0
-            ((n ++ padBits r.val n.length).length / r.val))).take d.val := by
+            ((n ++ padBits r n.length).length / r))).take d := by
   have hFlen : ∀ x : List Bool, x.length = b → (F x).length = b := by
     intro x hx
     obtain ⟨_, _, _, hlen⟩ := hF ⟨x, by scalar_tac⟩ hx
     exact hlen
-  -- 1. `len(N)`, then `pad(r, len(N))`, then `P = N || pad`
-  have hnlen : hacspec_sha3_pedantic.bits.BitStr.len n
-      = ok ⟨BitVec.ofNat 64 n.length⟩ := if_pos (by omega)
-  have hnlenv : (⟨BitVec.ofNat 64 n.length⟩ : Std.U64).val = n.length := by
-    show (BitVec.ofNat 64 n.length).toNat = n.length
-    rw [BitVec.toNat_ofNat]; exact Nat.mod_eq_of_lt (by omega)
-  have hpad : inst.pad comps r ⟨BitVec.ofNat 64 n.length⟩ = ok (padBits r.val n.length) := by
-    rw [hP r ⟨BitVec.ofNat 64 n.length⟩ hr0 (by omega), hnlenv]
-  have hpadlen : (padBits r.val n.length).length ≤ r.val + 2 := by
-    rw [padBits_len r.val n.length hr0]
-    have h1 : (-(n.length : Int) - 2) % (r.val : Int) < (r.val : Int) :=
-      Int.emod_lt_of_pos _ (by omega)
-    omega
-  set P : hacspec_sha3_pedantic.bits.BitStr := n ++ padBits r.val n.length with hPdef
-  have hPlen : P.length = n.length + (padBits r.val n.length).length := by
-    rw [hPdef]; simp
-  have hPb : P.length < 2 ^ 64 := by omega
-  have hplenok : hacspec_sha3_pedantic.bits.BitStr.len P
-      = ok ⟨BitVec.ofNat 64 P.length⟩ := if_pos hPb
-  have hplenv : (⟨BitVec.ofNat 64 P.length⟩ : Std.U64).val = P.length := by
-    show (BitVec.ofNat 64 P.length).toNat = P.length
-    rw [BitVec.toNat_ofNat]; exact Nat.mod_eq_of_lt hPb
-  have hpmod : P.length % r.val = 0 := by
+  -- 1. `len(N)`, then `pad(r, len(N))`, then `P = N || pad`. `len` is total, so
+  --    the first and fourth steps are equations rather than facts about a word.
+  have hnlen : hacspec_sha3_pedantic.bits.BitStr.len n = ok n.length := rfl
+  have hpad : inst.pad comps r n.length = ok (padBits r n.length) := hP r n.length hr0
+  set P : hacspec_sha3_pedantic.bits.BitStr := n ++ padBits r n.length with hPdef
+  have hPlen : P.length = n.length + (padBits r n.length).length := by rw [hPdef]; simp
+  have hplenok : hacspec_sha3_pedantic.bits.BitStr.len P = ok P.length := rfl
+  have hpmod : P.length % r = 0 := by
     rw [hPlen]
-    exact padBits_length r.val n.length hr0
+    exact padBits_length r n.length hr0
   -- 2. blocks, capacity, the zero state
-  obtain ⟨blocks, hblocks, hblocksv, -⟩ :=
-    Std.UScalar.div_bv_spec (⟨BitVec.ofNat 64 P.length⟩ : Std.U64) (y := r) (by
-      intro h; rw [h] at hr0; exact absurd hr0 (by simp))
-  have hblocksn : blocks.val * r.val = P.length := by
-    rw [hblocksv, hplenv]
-    exact Nat.div_mul_cancel (Nat.dvd_of_mod_eq_zero hpmod)
-  have hru : (Std.UScalar.cast Std.UScalarTy.Usize r).val = r.val := by
-    rw [Std.UScalar.cast_val_eq]
-    exact Nat.mod_eq_of_lt (by scalar_tac)
-  obtain ⟨cU, hc, hcv⟩ := usize_sub_eq bU (Std.UScalar.cast Std.UScalarTy.Usize r) (by
-    rw [hru]; omega)
+  have hrne : ¬ (r = 0) := by omega
+  have hblocks : hacspec_sha3_pedantic.nat.Nat.Insts.CoreOpsArithDivNatNat.div P.length r
+      = ok (P.length / r) := by
+    unfold hacspec_sha3_pedantic.nat.Nat.Insts.CoreOpsArithDivNatNat.div
+    rw [if_neg hrne]
+  have hblocksn : (P.length / r) * r = P.length :=
+    Nat.div_mul_cancel (Nat.dvd_of_mod_eq_zero hpmod)
+  obtain ⟨rU, hrU, hrUv⟩ := to_usize_eq r (by scalar_tac)
+  obtain ⟨cU, hc, hcv⟩ := usize_sub_eq bU rU (by rw [hrUv]; omega)
   obtain ⟨s1, hs1, hs1v⟩ := zeros_eq bU
   have hs1len : s1.val.length = b := by rw [hs1v]; simp; omega
   -- 3. absorb, then squeeze
   obtain ⟨s2, habs, habsv, habslen⟩ :=
-    absorb_loop_eq inst comps F b hF r cU (by rw [hcv, hru]; omega) hb hr0 P
-      (by have : (2:Nat) ^ 64 - 1 ≤ Std.U64.max := by scalar_tac
-          omega)
-      blocks hblocksn s1 hs1len
-  obtain ⟨z1, hsq, hsqv⟩ := squeeze_loop_eq inst comps F b hF r d hrb hb (d.val / r.val) s2
-    [] habslen
+    absorb_loop_eq inst comps F b hF r cU (by rw [hcv, hrUv]; omega) hb hr0 P
+      (P.length / r) hblocksn s1 hs1len
+  obtain ⟨z1, hsq, hsqv⟩ := squeeze_loop_eq inst comps F b hF rU d (by rw [hrUv]; omega) hb
+    (d / r) s2 [] habslen
     (by
+      rw [hrUv]
       simp only [List.length_nil, Nat.zero_add]
-      have h1 : d.val / r.val * r.val + d.val % r.val = d.val := by
-        have h0 : r.val * (d.val / r.val) + d.val % r.val = d.val := Nat.div_add_mod _ _
-        have hcomm : d.val / r.val * r.val = r.val * (d.val / r.val) := Nat.mul_comm _ _
+      have h1 : d / r * r + d % r = d := by
+        have h0 : r * (d / r) + d % r = d := Nat.div_add_mod _ _
+        have hcomm : d / r * r = r * (d / r) := Nat.mul_comm _ _
         omega
-      have h2 : d.val % r.val < r.val := Nat.mod_lt _ hr0
-      have : (d.val / r.val + 1) * r.val = d.val / r.val * r.val + r.val := by ring
-      omega)
-    (by
-      simp only [List.length_nil, Nat.zero_add]
-      have h1 : d.val / r.val * r.val ≤ d.val := Nat.div_mul_le_self _ _
-      have : (d.val / r.val + 1) * r.val = d.val / r.val * r.val + r.val := by ring
+      have h2 : d % r < r := Nat.mod_lt _ hr0
+      have : (d / r + 1) * r = d / r * r + r := by ring
       omega)
   -- 4. the squeeze really produced `d` bits, so the final truncation is in range
-  have hz1len : d.val ≤ z1.length := by
-    rw [hsqv]
-    refine squeezeFrom_len F hFlen r.val d.val hr0 hrb _ s2.val [] habslen ?_
-    have h1 : d.val / r.val * r.val + d.val % r.val = d.val := by
-      have h0 : r.val * (d.val / r.val) + d.val % r.val = d.val := Nat.div_add_mod _ _
-      have hcomm : d.val / r.val * r.val = r.val * (d.val / r.val) := Nat.mul_comm _ _
+  have hz1len : d ≤ z1.length := by
+    rw [hsqv, hrUv]
+    refine squeezeFrom_len F hFlen r d hr0 hrb _ s2.val [] habslen ?_
+    have h1 : d / r * r + d % r = d := by
+      have h0 : r * (d / r) + d % r = d := Nat.div_add_mod _ _
+      have hcomm : d / r * r = r * (d / r) := Nat.mul_comm _ _
       omega
-    have h2 : d.val % r.val < r.val := Nat.mod_lt _ hr0
-    have : (d.val / r.val + 1) * r.val = d.val / r.val * r.val + r.val := by ring
+    have h2 : d % r < r := Nat.mod_lt _ hr0
+    have : (d / r + 1) * r = d / r * r + r := by ring
     simp
     omega
-  refine ⟨z1.take d.val, ?_, ?_⟩
-  · have hcat : hacspec_sha3_pedantic.bits.BitStr.concat n (padBits r.val n.length) = ok P := rfl
+  refine ⟨z1.take d, ?_, ?_⟩
+  · have hcat : hacspec_sha3_pedantic.bits.BitStr.concat n (padBits r n.length) = ok P := rfl
     have hempty : (hacspec_sha3_pedantic.bits.BitStr.empty : RustM hacspec_sha3_pedantic.bits.BitStr)
         = ok ([] : List Bool) := rfl
-    have hliftcast : (Std.lift (Std.UScalar.cast Std.UScalarTy.Usize r) : RustM Std.Usize)
-        = ok (Std.UScalar.cast Std.UScalarTy.Usize r) := rfl
-    have htr : hacspec_sha3_pedantic.bits.BitStr.trunc z1 d = ok (z1.take d.val) :=
-      if_pos hz1len
+    have hnew0 : hacspec_sha3_pedantic.nat.Nat.new 0#u64 = ok 0 := rfl
+    have htr : hacspec_sha3_pedantic.bits.BitStr.trunc z1 d = ok (z1.take d) := if_pos hz1len
     unfold hacspec_sha3_pedantic.sponge.Sponge.apply
     rw [hnlen, bind_tc_ok, hpad, bind_tc_ok, hcat, bind_tc_ok, hplenok, bind_tc_ok,
-      hblocks, bind_tc_ok, hliftcast, bind_tc_ok, hB, bind_tc_ok, hc, bind_tc_ok,
-      hs1, bind_tc_ok, habs, bind_tc_ok, hempty, bind_tc_ok, hsq, bind_tc_ok]
+      hblocks, bind_tc_ok, hrU, bind_tc_ok, hB, bind_tc_ok, hc, bind_tc_ok,
+      hs1, bind_tc_ok, hnew0, bind_tc_ok, habs, bind_tc_ok, hempty, bind_tc_ok, hsq, bind_tc_ok]
     exact htr
-  · have hplenv' : (⟨BitVec.ofNat 64 (n ++ padBits r.val n.length).length⟩ : Std.U64).val
-        = (n ++ padBits r.val n.length).length := hplenv
-    rw [hsqv, habsv, hs1v, hcv, hru, hbU]
-    simp only [squeezeAll, hblocksv, hplenv', hPdef]
+  · rw [hsqv, habsv, hs1v]
+    simp only [squeezeAll, hcv, hrUv, hbU, hPdef]
 
 end Sponge
 

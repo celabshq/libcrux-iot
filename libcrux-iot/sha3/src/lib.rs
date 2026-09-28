@@ -81,31 +81,6 @@ pub const SHA3_384_DIGEST_SIZE: usize = 48;
 /// Size in bytes of a SHA3 512 digest
 pub const SHA3_512_DIGEST_SIZE: usize = 64;
 
-/// The largest input these functions are specified for, in bytes.
-///
-/// The `#[ensures]` clauses below name `hacspec_sha3_pedantic`, the FIPS 202
-/// transcript, which works on BIT strings: it expands the input to `8 * len`
-/// bits and then appends the domain-separation suffix and `pad10*1`. That
-/// padded bit count is what has to stay representable, and the transcript
-/// counts it in a `u64` -- so this is `(u64::MAX - 2048) / 8`, the 2048 bits of
-/// headroom covering the suffix (at most 4 bits) and `pad10*1` (at most
-/// rate + 1 = 1601 bits).
-///
-/// A `u64`, and therefore the same on every target. It used to be
-/// `(u32::MAX - 4096) / 8` -- 512 MB -- because the transcript counted bits in
-/// a `usize`, so a proof valid on the smallest supported target could not
-/// assume more than a 32-bit word. Now that the transcript's lengths are
-/// `u64`, the bound is some four billion times weaker and no longer a function
-/// of the target: on a 32-bit target no `&[U8]` can fail it at all.
-///
-/// Spelled as a literal rather than as that expression so that hax extracts it as
-/// a constant instead of as a checked-arithmetic computation; the `const` assert
-/// below keeps the two in step.
-pub const MAX_INPUT_LEN: u64 = 2_305_843_009_213_693_695;
-
-#[cfg(not(any(hax, eurydice)))]
-const _: () = assert!(MAX_INPUT_LEN == (u64::MAX - 2048) / 8);
-
 #[cfg(not(any(hax, eurydice)))]
 mod impl_digest_trait;
 #[cfg(not(any(hax, eurydice)))]
@@ -189,12 +164,9 @@ fn digest_matches(algorithm: Algorithm, payload: &[u8], out: &[u8]) -> bool {
 /// let payload = b"Kecak is a Balinese dance.";
 /// let digest: [u8; digest_size(Algorithm::Sha256)] = hash(Algorithm::Sha256, payload);
 /// ```
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN && LEN == digest_size(algorithm))]
+#[hax_lib::requires(LEN == digest_size(algorithm))]
 #[hax_lib::ensures(|out| digest_matches(algorithm, payload.declassify_ref(), &out.declassify()[..]))]
 pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN] {
-    #[cfg(not(eurydice))]
-    debug_assert!(payload.len() as u64 <= MAX_INPUT_LEN);
-
     let mut out = [0u8; LEN].classify();
 
     match algorithm {
@@ -209,10 +181,6 @@ pub fn hash<const LEN: usize>(algorithm: Algorithm, payload: &[U8]) -> [U8; LEN]
 pub use hash as sha3;
 
 /// Returns SHA3-224 digest of input payload.
-///
-/// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::sha3_224(payload.declassify_ref())[..])]
 pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
@@ -225,14 +193,11 @@ pub fn sha224(payload: &[U8]) -> [U8; SHA3_224_DIGEST_SIZE] {
 /// Writes SHA3-224 digest of input payload to externally allocated buffer.
 ///
 /// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 /// - `digest` is exactly [`SHA3_224_DIGEST_SIZE`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN && digest.len() == SHA3_224_DIGEST_SIZE)]
+#[hax_lib::requires(digest.len() == SHA3_224_DIGEST_SIZE)]
 #[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::sha3_224(payload.declassify_ref())[..])]
 pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
-    #[cfg(not(eurydice))]
-    debug_assert!(payload.len() as u64 <= MAX_INPUT_LEN);
     #[cfg(not(eurydice))]
     debug_assert!(digest.len() == SHA3_224_DIGEST_SIZE);
 
@@ -240,10 +205,6 @@ pub fn sha224_ema(digest: &mut [U8], payload: &[U8]) {
 }
 
 /// Returns SHA3-256 digest of input payload.
-///
-/// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
@@ -256,14 +217,11 @@ pub fn sha256(payload: &[U8]) -> [U8; SHA3_256_DIGEST_SIZE] {
 /// Writes SHA3-256 digest of input payload to externally allocated buffer.
 ///
 /// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 /// - `digest` is exactly [`SHA3_256_DIGEST_SIZE`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN && digest.len() == SHA3_256_DIGEST_SIZE)]
+#[hax_lib::requires(digest.len() == SHA3_256_DIGEST_SIZE)]
 #[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::sha3_256(payload.declassify_ref())[..])]
 pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
-    #[cfg(not(eurydice))]
-    debug_assert!(payload.len() as u64 <= MAX_INPUT_LEN);
     #[cfg(not(eurydice))]
     debug_assert!(digest.len() == SHA3_256_DIGEST_SIZE);
 
@@ -271,10 +229,6 @@ pub fn sha256_ema(digest: &mut [U8], payload: &[U8]) {
 }
 
 /// Returns SHA3-384 digest of input payload.
-///
-/// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::sha3_384(payload.declassify_ref())[..])]
 pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
@@ -287,14 +241,11 @@ pub fn sha384(payload: &[U8]) -> [U8; SHA3_384_DIGEST_SIZE] {
 /// Writes SHA3-384 digest of input payload to externally allocated buffer.
 ///
 /// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 /// - `digest` is exactly [`SHA3_384_DIGEST_SIZE`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN && digest.len() == SHA3_384_DIGEST_SIZE)]
+#[hax_lib::requires(digest.len() == SHA3_384_DIGEST_SIZE)]
 #[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::sha3_384(payload.declassify_ref())[..])]
 pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
-    #[cfg(not(eurydice))]
-    debug_assert!(payload.len() as u64 <= MAX_INPUT_LEN);
     #[cfg(not(eurydice))]
     debug_assert!(digest.len() == SHA3_384_DIGEST_SIZE);
 
@@ -302,10 +253,6 @@ pub fn sha384_ema(digest: &mut [U8], payload: &[U8]) {
 }
 
 /// Returns SHA3-512 digest of input payload.
-///
-/// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::sha3_512(payload.declassify_ref())[..])]
 pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
@@ -318,14 +265,11 @@ pub fn sha512(payload: &[U8]) -> [U8; SHA3_512_DIGEST_SIZE] {
 /// Writes SHA3-512 digest of input payload to externally allocated buffer.
 ///
 /// Preconditions:
-/// - `payload` is at most [`MAX_INPUT_LEN`] bytes long
 /// - `digest` is exactly [`SHA3_512_DIGEST_SIZE`] bytes long
-#[hax_lib::requires(payload.len() as u64 <= MAX_INPUT_LEN && digest.len() == SHA3_512_DIGEST_SIZE)]
+#[hax_lib::requires(digest.len() == SHA3_512_DIGEST_SIZE)]
 #[hax_lib::ensures(|_| future(digest).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::sha3_512(payload.declassify_ref())[..])]
 pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
-    #[cfg(not(eurydice))]
-    debug_assert!(payload.len() as u64 <= MAX_INPUT_LEN);
     #[cfg(not(eurydice))]
     debug_assert!(digest.len() == SHA3_512_DIGEST_SIZE);
 
@@ -333,10 +277,6 @@ pub fn sha512_ema(digest: &mut [U8], payload: &[U8]) {
 }
 
 /// Returns SHAKE-128 digest of input payload.
-///
-/// Preconditions:
-/// - `BYTES` and `data` are each at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(BYTES as u64 <= MAX_INPUT_LEN && data.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::shake128(data.declassify_ref(), BYTES)[..])]
 pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
@@ -349,10 +289,6 @@ pub fn shake128<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
 /// Writes SHAKE-128 digest of input payload to externally allocated buffer.
 ///
 /// Writes `out.len()` bytes
-///
-/// Preconditions:
-/// - `data` and `out` are each at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(data.len() as u64 <= MAX_INPUT_LEN && out.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|_| future(out).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::shake128(data.declassify_ref(), out.len())[..])]
 pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
@@ -360,10 +296,6 @@ pub fn shake128_ema(out: &mut [U8], data: &[U8]) {
 }
 
 /// Returns SHAKE256 digest of input payload.
-///
-/// Preconditions:
-/// - `BYTES` and `data` are each at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(BYTES as u64 <= MAX_INPUT_LEN && data.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|out| out.declassify()[..]
     == hacspec_sha3_pedantic::bytes::shake256(data.declassify_ref(), BYTES)[..])]
 pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
@@ -376,10 +308,6 @@ pub fn shake256<const BYTES: usize>(data: &[U8]) -> [U8; BYTES] {
 /// Writes SHAKE256 digest of input payload to externally allocated buffer.
 ///
 /// Writes `out.len()` bytes.
-///
-/// Preconditions:
-/// - `data` and `out` are each at most [`MAX_INPUT_LEN`] bytes long
-#[hax_lib::requires(data.len() as u64 <= MAX_INPUT_LEN && out.len() as u64 <= MAX_INPUT_LEN)]
 #[hax_lib::ensures(|_| future(out).declassify_ref()
         == &hacspec_sha3_pedantic::bytes::shake256(data.declassify_ref(), out.len())[..])]
 pub fn shake256_ema(out: &mut [U8], data: &[U8]) {
